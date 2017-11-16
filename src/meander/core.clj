@@ -1,8 +1,10 @@
 (ns meander.core
+  (:refer-clojure :exclude [bound?])
   (:require
    [meander.protocols :as protocols]
    [clojure.walk :as walk]
    [clojure.set :as set]))
+
 
 ;; ---------------------------------------------------------------------
 ;; Internal utilities
@@ -159,6 +161,7 @@
 ;; ---------------------------------------------------------------------
 ;; Unification API
 
+
 (defn substitute
   ([x substitution-map]
    (if (satisfies? protocols/ISubstitute x)
@@ -186,6 +189,18 @@
      (if (= a b)
        substitution-map
        bottom))))
+
+
+(defn bound?
+  {:arglists '([variable substitution-map])}
+  ([var smap]
+   {:pre [(variable? var)
+          (map? smap)]}
+   (contains? smap var)))
+
+
+;; ---------------------------------------------------------------------
+;; Core Types
 
 
 (deftype Variable [name]
@@ -959,7 +974,6 @@
     term)))
 
 
-
 ;; ---------------------------------------------------------------------
 ;; Macros
 
@@ -1045,27 +1059,316 @@
                    (parse-form '~rhs env#))))))
 
 
-(defn vector-non-greedy-consume-until
+(defn non-greedy-consume-until
   {:private true}
-  ([v x]
-   (loop [xs []
-          v v]
-     (if (empty? v)
-       xs
-       (let [a (first v)]
-         (if (= a x)
-           (let [nothing (Object.)
-                 b (get v 1 nothing)]
-             (if (= b x)
-               (recur (conj xs a) (subvec v 1))
-               xs))
-           (recur (conj xs a) (subvec v 1))))))))
+  ([pred coll]
+   (cond
+     (vector? coll)
+     (loop [xs []
+            v coll]
+       (if (empty? v)
+         xs
+         (let [a (first v)]
+           (if (pred a)
+             (let [nothing (Object.)
+                   b (get v 1 nothing)]
+               (if (pred b)
+                 (recur (conj xs a) (subvec v 1))
+                 xs))
+             (recur (conj xs a) (subvec v 1))))))
+
+     :else
+     ^::non-greedy-consume-until-unsupported
+     (undefined))))
+
+
+
+;; Given the term
+;;
+;;   [~@as ~@bs ~@as]
+;;
+;; what are the possible solutions that would satisfy unification for
+;; the form
+;;
+;;   [x x a b x x]
+;; ?
+;;
+;;   1. { as ↦ [], bs ↦ [x x a b x x] }
+;;   2. { as ↦ [x], bs ↦ [x a b x] }
+;;   3. { as ↦ [x x], bs ↦ [a b] } 
+;;   4. { as ↦ [x x a b x x], bs ↦ [] }
+;;
+;; While each of these solutions are fine, 3 is the result we want
+;; because it is the least greedy. Each variable gets a fair slice of
+;; the vector.
+
+
+(defn index-of
+  "Return the index of first element satisfying `pred` in `coll` and
+  `nil` no such element exists."
+  {:private true}
+  ([pred coll]
+   (some
+    (fn [[i x]]
+      (when (pred x)
+        i))
+    (map-indexed vector coll))))
+
+
+(defn distribute-elements-fairly
+  "Internal strategy for partitioning collection values \"fairly\"
+  over unbound, distinct splicing variables. Returns a sequence of
+  `[var elements]` pairs where `var` is a variable and `elements` are
+  the partitioned elements from `coll`."
+  {:arglists '([coll variables])
+   :private true}
+  ([coll vars]
+   {:pre [(= vars (distinct vars))]}
+   (let [|coll| (count coll)
+         |vars| (count vars)]
+     (when (<= |vars| |coll|)
+       (let [;; Every variable gets `q` elements.
+             q (quot |coll| |vars|)
+             vars+counts (map vector vars (repeat q))
+             ;; The remaining `r` elements are distributed fairly
+             ;; until exhausted.
+             r (rem |coll| |vars|)
+             vars+counts (concat
+                          (map
+                           (fn [[variable amount]]
+                             [variable (inc amount)])
+                           (take r vars+counts))
+                          (drop r vars+counts))
+             vars+elements (loop [vars+counts vars+counts
+                                  coll (vec coll)
+                                  vars+elements {}]
+                             (if-some [[[var count] & vars+counts*] (seq vars+counts)]
+                               (let [elements (subvec coll 0 count)
+                                     var+elements [var elements]
+                                     vars+elements* (conj vars+elements var+elements)
+                                     coll* (subvec coll count)]
+                                 (recur vars+counts*
+                                        coll*
+                                        vars+elements*))
+                               vars+elements))]
+         vars+elements)))))
+
+
+(defn indexes-of-subsequence
+  {:private true}
+  ([subseq coll]
+   (keep
+    (fn [pairs]
+      (when (= (map second pairs)
+               subseq)
+        (ffirst pairs)))
+    (partition (count subseq) 1 (map-indexed vector coll)))))
+
+
+(defn slice-out-vec
+  {:private true}
+  ([slice v]
+   (slice-out-vec slice v Float/POSITIVE_INFINITY))
+  ([slice v limit]
+   (let [|slice| (count slice)]
+     (loop [v v
+            i 0
+            result []]
+       (if (or (< (count v) |slice|)
+               (= i limit))
+         (into result v)
+         (let [v-slice (subvec v 0 |slice|)]
+           (if (= v-slice slice)
+             (recur (subvec v |slice|)
+                    (inc i)
+                    result)
+             (recur (subvec v 1)
+                    i
+                    (conj result (nth v 0))))))))))
+
+
+(defn partitioned-indexes-of-subsequence
+  {:private true}
+  ([subseq coll]
+   (let [|subseq| (count subseq)]
+     (loop [indexes (indexes-of-subsequence subseq coll)
+            result []]
+       (case (count indexes)
+         0
+         result
+
+         1
+         (conj result (first indexes))
+         
+         ;; else
+         (let [[a b] (take 2 indexes)]
+           (if (<= |subseq| (- b a))
+             (recur (drop 2 indexes)
+                    (conj result a b))
+             (recur (cons a (drop 2 indexes))
+                    result))))))))
+
+
+;; TODO: This needs a better name.
+(defn find-slices
+  {:private true}
+  ([n coll]
+   (if (zero? n)
+     []
+     (let [slices (map
+                   (fn [i]
+                     (let [slice (vec (take (inc i) coll))
+                           indexes (partitioned-indexes-of-subsequence slice coll)]
+                       (when (<= n (count indexes))
+                         slice)))
+                   (range (/ (count coll) n)))]
+       (cons [] (take-while some? slices))))))
+
+
+(defn cartesian-product
+  "All the ways to take one item from each sequence"
+  {:private true}
+  ([seqs]
+   (let [v-original-seqs (vec seqs)
+         step
+         (fn step [v-seqs]
+           (let [increment
+                 (fn [v-seqs]
+                   (loop [i (dec (count v-seqs))
+                          v-seqs v-seqs]
+                     (if (= i -1) nil
+                         (if-let [rst (next (v-seqs i))]
+                           (assoc v-seqs i rst)
+                           (recur (dec i)
+                                  (assoc v-seqs i (v-original-seqs i)))))))]
+             (when v-seqs
+               (cons (map first v-seqs)
+                     (lazy-seq (step (increment v-seqs)))))))]
+     (when (every? seq seqs)
+       (lazy-seq (step v-original-seqs))))))
+
+
+(defn partitioned-slice-out
+  {:private true}
+  ([slice coll]
+   (let [indexes (rseq (partitioned-indexes-of-subsequence slice coll))
+         |slice| (count slice)]
+     (reduce
+      (fn [coll index]
+        (into (subvec coll 0 index)
+              (subvec coll (+ index |slice|))))
+      coll
+      indexes)))
+  ([slice limit coll]
+   (let [indexes (reverse (take limit (partitioned-indexes-of-subsequence slice coll)))
+         |slice| (count slice)]
+     (reduce
+      (fn [coll index]
+        (into (subvec coll 0 index)
+              (subvec coll (+ index |slice|))))
+      coll
+      indexes))))
+
+
+(defn ???
+  {:private true}
+  ([coll vars]
+   (let [var-counts (frequencies vars)
+
+         distinct-vars (distinct vars)
+
+         initial-state
+         (let [var (first distinct-vars)
+               n (get var-counts var)
+               slices (find-slices n coll)
+               colls (mapv
+                      (fn [slice]
+                        (partitioned-slice-out slice n coll))
+                      slices)]
+           [{:colls colls
+             :count n
+             :slices slices
+             :var var}])
+
+         info
+         (reduce
+          (fn [state var]
+            (let [n (get var-counts var)
+                  last-colls (get (peek state) :colls) 
+                  slices (vec (mapcat
+                               (fn [coll]
+                                 (find-slices n coll))
+                               last-colls))
+                  colls (mapv
+                         (fn [slice coll]
+                           (partitioned-slice-out slice n coll))
+                         slices
+                         last-colls)]
+              (conj state {:colls colls
+                           :count n
+                           :slices slices
+                           :var var})))
+          initial-state
+          (next distinct-vars))]
+     info)))
+
+
+(defn distribute-elements-map-solutions
+  {:arglists '([coll variables])
+   :private true}
+  ([coll vars]
+   (let [info (??? coll vars)]
+     (keep
+      (fn [slices]
+        (let [index (reduce conj {} (map vector (map :var info) slices))]
+          (when (= (mapcat index vars)
+                   coll)
+            index)))
+      (distinct
+       (cartesian-product
+        (map :slices info)))))))
+
+
+(defn distribute-elements-map
+  {:arglists '([coll variables])
+   :private true}
+  ([coll vars]
+   (let [distinct-vars (distinct vars)]
+     (if (= vars distinct-vars)
+       ;; If all of the variables are distinct we can use a less
+       ;; expensive algorithm to distribute the values fairly.
+       (distribute-elements-fairly coll vars)
+       ;; Choose the solution where the total distances between the
+       ;; magnitudes of slices is the lowest i.e. the solution with
+       ;; the values most fairly distributed.
+       ;;
+       ;; TODO: This function's execution time increases exponentially
+       ;; with the number of `variables`.
+       (first
+        (sort-by
+         (fn [solution]
+           (let [distances (mapv
+                            (fn [[a b]]
+                              (Math/abs (- a b)))
+                            (partition 2 1 (map (comp count solution) distinct-vars)))]
+             ;; Sum the distances.
+             (reduce + distances)))
+         (distribute-elements-map* coll vars)))))))
+
 
 #_
-(let [bottom ::bottom
-      non-greedy-consume-until vector-non-greedy-consume-until]
-  (loop [a-vector [1 2 '~@as '~@bs]
-         b-vector [1 2 3 4 5 6 7 8 9]
+(time
+  (let [vars '[a a b b c c]
+        coll [1 1 1 1 2 2 1 1] 
+        var->count (frequencies vars)
+        distinct-vars (distinct vars)]
+    (distribute-elements-map coll vars)))
+
+
+#_ ;; ALMOST THERE!!!
+(let [bottom ::bottom]
+  (loop [a-vector [1 2 '~@as '~@bs '~@cs 9]
+         b-vector [1 2 3 4 5 6 7 8 9 9]
          smap {}]
     (if (identical? smap bottom)
       bottom
@@ -1093,9 +1396,9 @@
                   ;; If `a` is not bound to a sequential value we cannot
                   ;; unify it.
                   bottom)
+                ;; `a` is not bound.
                 (let [no-neighbor (Object.)
                       a-neighbor (get a-vector 1 no-neighbor)]
-                  (prn a-neighbor)
                   ;; Cases:
                   (cond
                     ;; There is no other value after `a` in `a-vector`.
@@ -1104,16 +1407,60 @@
 
                     ;; The value after `a` in `a-vector` is a splicing variable.
                     (splicing-form? a-neighbor)
-                    ^::splicing-form-neighbor
-                    (undefined)
-
+                    (if-some [i (index-of (complement splicing-form?) a-vector)]
+                      (let [x? #{(get a-vector i)}]
+                        (if (index-of x? b-vector)
+                          (let [;; Promote splicing forms to variables.
+                                variables (map
+                                           (fn [[_ symbol]]
+                                             (make-variable symbol))
+                                           (subvec a-vector 0 i))]
+                            (if (every? #{1} (vals (frequencies variables)))
+                              (if-some [v (some
+                                           (fn [v]
+                                             (bound? v smap))
+                                           variables)]
+                                (undefined)
+                                ;; None of the splicing variables are
+                                ;; bound so we distribute elements from
+                                ;; a slice of `b-vector` fairly amongst
+                                ;; them.
+                                (let [a-vector* (subvec a-vector i)
+                                      b-slice (non-greedy-consume-until x? b-vector)
+                                      b-vector* (subvec b-vector (count b-slice))
+                                      smap*
+                                      (into smap
+                                            (distribute-elements-fairly-over-distinct-unbound-splicing-variables
+                                             b-slice
+                                             variables))]
+                                  (recur a-vector*
+                                         b-vector*
+                                         smap*)))
+                              (undefined)))
+                          bottom))
+                      (if (every? #{1} (vals (frequencies a-vector)))
+                        (let [variables (map
+                                         (fn [[_ symbol]]
+                                           (make-variable symbol))
+                                         a-vector)]
+                          (if-some [v (some
+                                       (fn [v]
+                                         (bound? v smap))
+                                       variables)]
+                            (undefined)
+                            (let [smap*
+                                  (into smap
+                                        (distribute-elements-fairly-over-distinct-unbound-splicing-variables
+                                         b-vector
+                                         variables))]
+                              smap*)))))
                     ;; There is value after `a` in `a-vector`.
                     ;;   The value after `a` in `a-vector` is ground.
                     ;;     Take values from `b-vector` while they do not equal
                     ;;     the value after `a` in `a-vector`.
                     (ground? a-neighbor)
                     (let [a-vector* (subvec a-vector 1)
-                          values (non-greedy-consume-until b-vector a-neighbor)
+                          values (non-greedy-consume-until #{a-neighbor} b-vector)
                           b-vector* (subvec b-vector (count values))
                           smap* (assoc smap variable values)]
                       (recur a-vector* b-vector* smap*))
@@ -1128,7 +1475,7 @@
                     (variable? a-neighbor)
                     (if-some [[_ a-neighbor-value] (find smap a-neighbor)]
                       (let [a-vector* (subvec a-vector 1)
-                            values (non-greedy-consume-until b-vector a-neighbor-value)
+                            values (non-greedy-consume-until #{a-neighbor-value} b-vector)
                             b-vector* (subvec b-vector (count values))
                             smap* (assoc smap variable values)]
                         (recur a-vector* b-vector* smap*))
@@ -1142,53 +1489,3 @@
                   smap* (unify a b smap bottom)]
               (recur a-vector* b-vector* smap*))))
         bottom))))
-
-#_
-(let [x 2]
-  (loop [values []
-         v [3 4 2 2]]
-    (if (empty? v)
-      values
-      (let [a (first v)]
-        (if (= a x)
-          (let [nothing (Object.)
-                b (get v 1 nothing)]
-            (if (= b x)
-              (recur (conj values a) (subvec v 1))
-              values))
-          (recur (conj values a) (subvec v 1)))))))
-
-;; [~@xs 2 ~@xs]
-;; [2 2 2 2 2]
-
-
-
-#_
-(let [head-vec (make-vector-term [1 2 3])
-      rest-var (make-variable '?rest)
-      rest-vec (reify
-                 protocols/ISubstitute
-                 (-substitute [this substitution-map]
-                   (make-vector-term
-                    (reduce
-                     (fn [v x]
-                       (if (= x rest-var)
-                         (into v (get substitution-map rest-var :REST-VAR-MISSING))
-                         (conj v (substitute x substitution-map))))
-                     []
-                     head-vec)))
-
-                 protocols/IUnify
-                 (-unify [this that substitution-map bottom]
-                   (if (and (vector? that)
-                            (<= (count head-vec)
-                                (count that)))
-                     (let [vec-head (subvec that 0 (count head-vec))
-                           result (unify head-vec vec-head substitution-map bottom)]
-                       (if (identical? result bottom)
-                         bottom
-                         (assoc result rest-var (subvec that (count head-vec)))))
-                     bottom)))]
-  (unify rest-vec [1 2 3 5 6 7] {} :bot)
-  )
-
