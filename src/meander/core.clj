@@ -1358,134 +1358,256 @@
 
 #_
 (time
-  (let [vars '[a a b b c c]
-        coll [1 1 1 1 2 2 1 1] 
+  (let [vars '[a b a b c c]
+        coll [1 1 2 2 1 1 2 2 1 1] 
         var->count (frequencies vars)
         distinct-vars (distinct vars)]
-    (distribute-elements-map coll vars)))
+    (distribute-elements-map-solutions coll vars)))
+
+(defn vsplit-at
+  "Like `clojure.core/split-at` but for vectors."
+  {:private true}
+  ([n v]
+   {:pre [(vector? v)]}
+   (let [i (min n (count v))]
+     [(subvec v 0 i) (subvec v i)])))
+
+(defn resolve-splicing-form
+  ([splicing-form smap not-found]
+   {:pre [(splicing-form? splicing-form)]}
+   (if-some [[_ x] (find smap (make-variable (second splicing-form)))]
+     x
+     not-found)))
+
+(defmacro nothing
+  ([]
+   `(Object.)))
+
+(defn unify-splicing-vector-head
+  ([a-vec b-vec smap bottom]
+   (if (identical? smap bottom)
+     bottom
+     (case [(empty? a-vec) (empty? b-vec)]
+       [true true]
+       [a-vec b-vec smap bottom]
+
+       [false false]
+       (let [a (first a-vec)
+             b (first b-vec)]
+         (if (splicing-form? a)
+           (let [not-found (nothing)
+                 value (resolve-splicing-form a smap not-found)]
+             (if (identical? value not-found)
+               [a-vec b-vec smap bottom]
+               (if (sequential? value)
+                 (if (< (count b-vec)
+                        (count value))
+                   bottom
+                   (let [[b-slice b-vec*] (vsplit-at (count value) b-vec)]
+                     (if (= value b-slice)
+                       (let [a-vec* (subvec a-vec 1)]
+                         (recur a-vec* b-vec* smap bottom))
+                       bottom)))
+                 ;; If `a` is not bound to a sequential value we
+                 ;; cannot unify it.
+                 bottom)))
+           (let [smap* (unify a b smap bottom)]
+             (if (identical? smap* bottom)
+               bottom
+               (let [a-vec* (subvec a-vec 1)
+                     b-vec* (subvec b-vec 1)]
+                 (recur a-vec* b-vec* smap* bottom))))))
+
+       [true false]
+       bottom
+
+       ;; There may be more work to do here.
+       [false true]
+       [a-vec b-vec smap bottom]))))
+
+(defn unify-splicing-vector-tail
+  ([a-vec b-vec smap bottom]
+   (if (identical? smap bottom)
+     bottom
+     (case [(empty? a-vec) (empty? b-vec)]
+       [true true]
+       [a-vec b-vec smap bottom]
+
+       [false false]
+       (let [a (peek a-vec)
+             b (peek b-vec)]
+         (if (splicing-form? a)
+           (let [not-found (nothing)
+                 value (resolve-splicing-form a smap not-found)]
+             (if (identical? value not-found)
+               [a-vec b-vec smap bottom]
+               (if (sequential? value)
+                 (if (< (count b-vec)
+                        (count value))
+                   bottom
+                   (let [[b-vec* b-slice] (vsplit-at (- (count b-vec)
+                                                        (count value))
+                                                     b-vec)]
+                     (if (= value b-slice)
+                       (let [a-vec* (pop a-vec)]
+                         (recur a-vec* b-vec* smap bottom))
+                       bottom)))
+                 ;; If `a` is not bound to a sequential value we
+                 ;; cannot unify it.
+                 bottom)))
+           (let [smap* (unify a b smap bottom)]
+             (if (identical? smap* bottom)
+               bottom
+               (let [a-vec* (pop a-vec)
+                     b-vec* (pop b-vec)]
+                 (recur a-vec* b-vec* smap* bottom))))))
+
+       [true false]
+       bottom
+
+       ;; There may be more work to do here.
+       [false true]
+       [a-vec b-vec smap bottom]))))
+
+(defn unify-splicing-vector-head-and-tail
+  ([a-vec b-vec smap bottom]
+   (let [x (unify-splicing-vector-head a-vec b-vec smap bottom)]
+     (if (identical? x bottom)
+       bottom
+       (let [[a-vec* b-vec* smap* _] x]
+         (unify-splicing-vector-tail a-vec* b-vec* smap* bottom))))))
+
+(defmacro here [x]
+  `(do
+     (prn (meta '~&form))
+     ~x))
 
 
-#_ ;; ALMOST THERE!!!
-(let [bottom ::bottom]
-  (loop [a-vector [1 2 '~@as '~@bs '~@cs 9]
-         b-vector [1 2 3 4 5 6 7 8 9 9]
-         smap {}]
-    (if (identical? smap bottom)
-      bottom
-      (case [(empty? a-vector) (empty? b-vector)]
-        [true true]
-        smap
+(defn unify-splicing-vector
+  {:arglists '([a-vec b-vec substitution-map bottom])
+   :private true}
+  ([a-vec b-vec smap bottom]
+   (let [x (unify-splicing-vector-head-and-tail a-vec b-vec smap bottom)]
+     (if (identical? x bottom)
+       bottom
+       (let [[a-vec b-vec smap _] x]
+         (case [(empty? a-vec) (empty? b-vec)]
+           [true true]
+           smap
 
-        [false false]
-        (let [a (first a-vector)
-              b (first b-vector)]
-          (if (splicing-form? a)
-            ;; Is `a` bound?
-            (let [variable (make-variable (second a))]
-              (if-some [[_ value] (find smap variable)]
-                (if (vector? value)
-                  (if (< (count b-vector)
-                         (count value))
-                    bottom
-                    (let [b-slice (subvec b-vector 0 (count value))]
-                      (if (= value b-slice)
-                        (let [a-vector* (subvec a-vector 1)
-                              b-vector* (subvec b-vector (count value))]
-                          (recur a-vector* b-vector* smap))
-                        bottom)))
-                  ;; If `a` is not bound to a sequential value we cannot
-                  ;; unify it.
-                  bottom)
-                ;; `a` is not bound.
-                (let [no-neighbor (Object.)
-                      a-neighbor (get a-vector 1 no-neighbor)]
-                  ;; Cases:
-                  (cond
-                    ;; There is no other value after `a` in `a-vector`.
-                    (identical? a-neighbor no-neighbor)
-                    (assoc smap variable b-vector)
+           [false false]
+           (let [a (first a-vec)
+                 b (first b-vec)]
+             (if (splicing-form? a)
+               (if-some [[_ value] (find smap (make-variable (second a)))]
+                 (if (sequential? value)
+                   (if (< (count b-vec)
+                          (count value))
+                     bottom
+                     (let [[b-slice b-vec*] (vsplit-at (count value) b-vec)]
+                       (if (= value b-slice)
+                         (let [a-vec* (subvec a-vec 1)]
+                           (recur a-vec* b-vec* smap bottom))
+                         bottom)))
+                   ;; If `a` is not bound to a sequential value we cannot
+                   ;; unify it.
+                   bottom)
+                 ;; If `a` is not bound we attempt to find the index of
+                 ;; the next bound subsequence logic variable or
+                 ;; non-unbound subsequence logic variable.
+                 (if-some [i (index-of
+                              (fn [x]
+                                (if (splicing-form? x)
+                                  (let [variable (make-variable (second a))]
+                                    (bound? variable smap)) 
+                                  true))
+                              a-vec)]
+                   (let [x (get a-vec i)]
+                     (cond
+                       (ground? x)
+                       (let [[a-slice a-vec*] (vsplit-at i a-vec)
+                             b-slice (non-greedy-consume-until #{x} b-vec)
+                             slice-smap (unify-splicing-vector a-slice b-slice smap bottom)]
+                         (if (identical? slice-smap bottom)
+                           bottom
+                           (let [b-vec* (subvec b-vec (count b-slice))
+                                 smap* (merge smap slice-smap)]
+                             (recur a-vec* b-vec* smap* bottom))))
 
-                    ;; The value after `a` in `a-vector` is a splicing variable.
-                    (splicing-form? a-neighbor)
-                    (if-some [i (index-of (complement splicing-form?) a-vector)]
-                      (let [x? #{(get a-vector i)}]
-                        (if (index-of x? b-vector)
-                          (let [;; Promote splicing forms to variables.
-                                variables (map
-                                           (fn [[_ symbol]]
-                                             (make-variable symbol))
-                                           (subvec a-vector 0 i))]
-                            (if (every? #{1} (vals (frequencies variables)))
-                              (if-some [v (some
-                                           (fn [v]
-                                             (bound? v smap))
-                                           variables)]
-                                (undefined)
-                                ;; None of the splicing variables are
-                                ;; bound so we distribute elements from
-                                ;; a slice of `b-vector` fairly amongst
-                                ;; them.
-                                (let [a-vector* (subvec a-vector i)
-                                      b-slice (non-greedy-consume-until x? b-vector)
-                                      b-vector* (subvec b-vector (count b-slice))
-                                      smap*
-                                      (into smap
-                                            (distribute-elements-fairly-over-distinct-unbound-splicing-variables
-                                             b-slice
-                                             variables))]
-                                  (recur a-vector*
-                                         b-vector*
-                                         smap*)))
-                              (undefined)))
-                          bottom))
-                      (if (every? #{1} (vals (frequencies a-vector)))
-                        (let [variables (map
-                                         (fn [[_ symbol]]
-                                           (make-variable symbol))
-                                         a-vector)]
-                          (if-some [v (some
-                                       (fn [v]
-                                         (bound? v smap))
-                                       variables)]
-                            (undefined)
-                            (let [smap*
-                                  (into smap
-                                        (distribute-elements-fairly-over-distinct-unbound-splicing-variables
-                                         b-vector
-                                         variables))]
-                              smap*)))))
-                    ;; There is value after `a` in `a-vector`.
-                    ;;   The value after `a` in `a-vector` is ground.
-                    ;;     Take values from `b-vector` while they do not equal
-                    ;;     the value after `a` in `a-vector`.
-                    (ground? a-neighbor)
-                    (let [a-vector* (subvec a-vector 1)
-                          values (non-greedy-consume-until #{a-neighbor} b-vector)
-                          b-vector* (subvec b-vector (count values))
-                          smap* (assoc smap variable values)]
-                      (recur a-vector* b-vector* smap*))
+                       (variable? x)
+                       (if-some [[_ value] (find smap x)]
+                         (if-some [j (index-of #{value} b-vec)]
+                           (let [[a-slice a-vec*] (vsplit-at i a-vec)
+                                 [b-slice b-vec*] (vsplit-at j b-vec)
+                                 slice-smap (unify-splicing-vector a-slice b-slice smap bottom)]
+                             (if (identical? slice-smap bottom)
+                               bottom
+                               (let [b-vec* (subvec b-vec (count b-slice))
+                                     smap* (merge smap slice-smap)]
+                                 (recur a-vec* b-vec* smap* bottom))))
+                           bottom)
+                         (undefined))
 
-                    ;; The value after `a` in `a-vector` is a variable.
-                    ;;   If that variable is bound then take values from
-                    ;;   `b-vector` while they do not equal the value
-                    ;;   bound to that variable. These values will be
-                    ;;   bound to the splicing variable `a`.
-                    ;;
-                    ;;   If that variable is not bound what do we do?
-                    (variable? a-neighbor)
-                    (if-some [[_ a-neighbor-value] (find smap a-neighbor)]
-                      (let [a-vector* (subvec a-vector 1)
-                            values (non-greedy-consume-until #{a-neighbor-value} b-vector)
-                            b-vector* (subvec b-vector (count values))
-                            smap* (assoc smap variable values)]
-                        (recur a-vector* b-vector* smap*))
-                      ^::unbound-variable-neighbor
-                      (undefined))
+                       (splicing-form? x)
+                       (undefined)
+                       #_
+                       (let [variable (make-variable (second a))]
+                         (if-some [[_ value] (find smap variable)]
+                           (if-some [_ (index-of-subsequence value b-vec)]
+                             (let [[a-slice a-vec*] (vsplit-at i a-vec)
+                                   b-vec* (slice-out-vec value b-vec)]
+                               [a-vec* b-vec* smap bottom])
+                             bottom)
+                           ;; This should not happen.
+                           (undefined))) 
 
-                    :else
-                    (undefined)))))
-            (let [a-vector* (subvec a-vector 1)
-                  b-vector* (subvec b-vector 1)
-                  smap* (unify a b smap bottom)]
-              (recur a-vector* b-vector* smap*))))
-        bottom))))
+                       :else
+                       (undefined)))
+                   (let [vars (mapv (comp make-variable second) a-vec)]
+                     (merge smap (distribute-elements-map b-vec vars)))))
+               (let [a-vec* (subvec a-vec 1)
+                     b-vec* (subvec b-vec 1)
+                     smap* (unify a b smap bottom)]
+                 (recur a-vec* b-vec* smap* bottom))))
+
+           [true false]
+           bottom
+
+           [false true]
+           (loop [a-vec a-vec
+                  smap smap]
+             (if (or (identical? smap bottom)
+                     (empty? a-vec))
+               smap
+               (let [a (first a-vec)]
+                 (if (splicing-form? a)
+                   (let [variable (make-variable (second a))]
+                     (if-some [_ (find smap variable)]
+                       bottom
+                       (let [a-vec* (subvec a-vec 1)
+                             smap* (assoc smap variable [])]
+                         (recur a-vec* smap*))))
+                   bottom))))))))))
+
+#_
+(let [coll-a ['~@xs '~@ys]
+      coll-b ['~@ys '~@xs]
+      side-a [4 5]
+      side-b [4 5]]
+  (set/intersection (set (distribute-elements-map-solutions side-a coll-a))
+                    (set (distribute-elements-map-solutions side-b coll-b))))
+
+#_ ;; Still more work to do ;_;
+(let [bottom ::bottom
+      ?xs (make-variable 'xs)
+      ?ys (make-variable 'ys)
+      ?x (make-variable 'x)
+      ;; FAILS!!!
+      a-vec [1 2 ?x '~@xs '~@ys ?x '~@ys '~@xs]
+      b-vec [1 2 :x 4 5 :x 4 5]
+      smap {}]
+  #_
+  (map (fn [[k v]] [(name k) v]))
+  (unify-splicing-vector a-vec b-vec smap bottom)
+ #_
+  (unify-splicing-vector-head-and-tail a-vec b-vec smap bottom))
