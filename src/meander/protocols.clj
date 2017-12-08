@@ -37,6 +37,10 @@
   (-unify [this that substitution-map bottom]))
 
 
+(defprotocol IUnify*
+  (-unify* [this that substition-map bottom]))
+
+
 (defprotocol ISubstitute
   (-substitute [this substitution-map]))
 
@@ -47,3 +51,8 @@
 
 (defprotocol IWalk
   (-walk [this inner-f outer-f]))
+
+
+(defprotocol IStream
+  (-stream-head [this no-head])
+  (-stream-tail [this]))
