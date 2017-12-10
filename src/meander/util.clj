@@ -237,23 +237,3 @@ Examples:
 
     :else
     (undefined)))
-
-
-#_
-(let [coll '[a a b a a]
-      pattern [:xs :ys :zs]
-      n (count pattern)]
-  (mapcat
-   (fn [k+vs]
-     (loop [smap {}
-            k+vs k+vs]
-       (if-some [[[k v] & k+vs*] (seq k+vs)]
-         (if-some [[k2 v2] (find smap k)]
-           (if (= [k v] [k2 v2])
-             (recur smap k+vs*)
-             ())
-           (recur (assoc smap k v) k+vs*))
-         (list smap))))
-   (map (partial partition 2)
-        (map interleave (repeat pattern) (partitions n coll)))))
-
