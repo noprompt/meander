@@ -536,15 +536,6 @@
 ;; {as [x], bs [x a b x]}
 ;; {as [], bs [x x a b x x]}
 
-(time
-  (let [a (variable 'a)
-        b (variable 'b)
-        a-vec ['~@as '~@bs '~@as]
-        b-vec '[x x a b x x] 
-        smap {}
-        bottom :bottom]
-    (view-vars 
-     (unify* a-vec b-vec smap bottom))))
 
 ;; TODO: Move to util.
 (defn indices-of
@@ -908,17 +899,6 @@
        bottom)))
 
 
-#_
-(defn view-vars
-  [form]
-  (walk/postwalk
-   (fn [x]
-     (if (variable? x)
-       (name x)
-       x))
-   form))
-
-
 (deftype MapTerm [^clojure.lang.IPersistentMap map]
   clojure.core.protocols/CollReduce
   (coll-reduce [_ f]
@@ -1202,6 +1182,15 @@
                    (parse-form '~rhs env#))))))
 
 (comment
+  (defn view-vars
+    [form]
+    (walk/postwalk
+     (fn [x]
+       (if (variable? x)
+         (name x)
+         x))
+     form))
+
   (run-rule
    (rule [x y]
      [~@xs x => y ~@ys]
