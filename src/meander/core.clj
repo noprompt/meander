@@ -1245,14 +1245,29 @@
 
 (defn run-rule
   ([rule term]
-   (let [f (fn [x]
-             (let [x* (apply-rule rule x)]
-               (if (identical? x x*)
-                 x
-                 (recur x*))))]
-     (if (satisfies? protocols/IWalk term)
-       (postwalk f term)
-       (clojure.walk/postwalk f term)))))
+   (let [f (partial apply-rule rule)
+         ;; Apply the rule to every node in the term's tree.
+         term* (if (satisfies? protocols/IWalk term)
+                 (postwalk f term)
+                 (clojure.walk/postwalk f term))]
+     (if (= term term*)
+       ;; If nothing has changed we're done.
+       term
+       ;; If the term has been rewritten we need to run the rule once
+       ;; more.
+       (recur rule term*)))))
+
+
+(defn run-rules
+  ([rules term]
+   (let [term* (reduce
+                (fn [term* rule]
+                  (run-rule rule term*))
+                term
+                rules)]
+     (if (= term term*)
+       term
+       (recur rules term*)))))
 
 
 ;; ---------------------------------------------------------------------
@@ -1343,6 +1358,7 @@
                    (parse-form '~rhs env#))))))
 
 
+
 (comment
   (defn view-vars
     [form]
@@ -1352,6 +1368,35 @@
          (name x)
          x))
      form))
+
+  (run-rules
+   [(rule []
+      (let [~@bindings-1]
+        (let [~@bindings-2]
+          ~@body-2)
+        ~@body-1)
+      (let [~@bindings-1
+            ~@bindings-2]
+        ~@body-2
+        ~@body-1))
+    (rule [p1 arg1]
+      ((fn [p1 ~@ps] ~@body) arg1 ~@args)
+      (let [p1 arg1]
+        ((fn [~@ps] ~@body) ~@args)))]
+
+   '((fn [foo bar baz]
+       {:foo foo
+        :bar bar
+        :baz baz})
+     "foo"
+     "bar"
+     "baz"))
+  ;; =>
+  (let [foo "foo"
+        bar "bar"
+        baz "baz"]
+    ((fn []
+       {:foo foo, :bar bar, :baz baz})))
 
   (run-rule
    (rule [x y]
@@ -1370,5 +1415,14 @@
         a-vec [?x '~@xs '~@ys ?x '~@ys '~@xs]
         b-vec [4 :x :x :y :y 4 :y :y :x :x]]
     (view-vars (unify a-vec b-vec {} ::bottom)))
+
   ;; =>
   {"x" 4, "xs" [:x :x], "ys" [:y :y]})
+
+(let [a-vec '[~@xs ~@ys ~@xs]
+      b-vec [:x :x :y :y :x :x]]
+  (view-vars (unify* a-vec b-vec {} ::bottom)))
+;; =>
+({"xs" [:x :x], "ys" [:y :y]}
+ {"xs" [:x], "ys" [:x :y :y :x]}
+ {"xs" [], "ys" [:x :x :y :y :x :x]})
