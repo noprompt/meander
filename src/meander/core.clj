@@ -1369,29 +1369,6 @@
                    (parse-form '~rhs env#))))))
 
 
-(let [r1 (rule []
-           (let [~@bindings-1]
-             (let [~@bindings-2]
-               ~@body-2)
-             ~@body-1)
-           (let [~@bindings-1
-                 ~@bindings-2]
-             ~@body-2
-             ~@body-1))
-      r2 (rule [p1 arg1]
-           ((fn [p1 ~@ps] ~@body) arg1 ~@args)
-           (let [p1 arg1]
-             ((fn [~@ps] ~@body) ~@args)))]
-  (form
-    (run-rules [r1 r2]
-               '((fn [foo bar baz]
-                   {:foo foo
-                    :bar bar
-                    :baz baz})
-                 "foo"
-                 "bar"
-                 "baz"))))
-
 (comment
   (defn view-vars
     [form]
@@ -1402,7 +1379,28 @@
          x))
      form))
 
-  
+  (let [r1 (rule []
+             (let [~@bindings-1]
+               (let [~@bindings-2]
+                 ~@body-2)
+               ~@body-1)
+             (let [~@bindings-1
+                   ~@bindings-2]
+               ~@body-2
+               ~@body-1))
+        r2 (rule [p1 arg1]
+             ((fn [p1 ~@ps] ~@body) arg1 ~@args)
+             (let [p1 arg1]
+               ((fn [~@ps] ~@body) ~@args)))]
+    (form
+      (run-rules [r1 r2]
+                 '((fn [foo bar baz]
+                     {:foo foo
+                      :bar bar
+                      :baz baz})
+                   "foo"
+                   "bar"
+                   "baz"))))
   ;; =>
   (let [foo "foo"
         bar "bar"
