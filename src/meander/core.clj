@@ -915,7 +915,7 @@
 
   protocols/ISubstitute
   (-substitute [this substitution-map]
-    (SeqSplicingTerm.
+    (SeqTerm.
      (reduce
       (fn [v x]
         (if (contains? splice-variables x)
@@ -937,8 +937,7 @@
                         {:value (second x)}))))
           (concat v (list (substitute x substitution-map)))))
       []
-      (.-seq this))
-     splice-variables))
+      (.-seq this))))
 
   protocols/ITermVariables
   (-term-variables [_]
@@ -1236,11 +1235,19 @@
 
 (defn apply-rule
   ([rule term]
-   (let [bottom (Object.)
-         result (unify (left-hand-side rule) term {} bottom)]
-     (if (identical? result bottom)
-       term
-       (form (substitute (right-hand-side rule) result))))))
+   (if-unifies [smap (left-hand-side rule) term {} (Object.)]
+     (substitute (right-hand-side rule) smap)
+     term)))
+
+
+(defn apply-rules
+  ([rules term]
+   (reduce
+    (fn [term* rule]
+      (apply-rule rule term*))
+    term
+    rules)))
+
 
 
 (defn run-rule
@@ -1260,13 +1267,17 @@
 
 (defn run-rules
   ([rules term]
-   (let [term* (reduce
-                (fn [term* rule]
-                  (run-rule rule term*))
-                term
-                rules)]
+   (let [f (fn [x]
+             (apply-rules rules x))
+         ;; Apply the rules to every node in the term's tree.
+         term* (if (satisfies? protocols/IWalk term)
+                 (postwalk f term)
+                 (clojure.walk/postwalk f term))]
      (if (= term term*)
+       ;; If nothing has changed we're done.
        term
+       ;; If the term has been rewritten we need to run the rule once
+       ;; more.
        (recur rules term*)))))
 
 
@@ -1358,6 +1369,28 @@
                    (parse-form '~rhs env#))))))
 
 
+(let [r1 (rule []
+           (let [~@bindings-1]
+             (let [~@bindings-2]
+               ~@body-2)
+             ~@body-1)
+           (let [~@bindings-1
+                 ~@bindings-2]
+             ~@body-2
+             ~@body-1))
+      r2 (rule [p1 arg1]
+           ((fn [p1 ~@ps] ~@body) arg1 ~@args)
+           (let [p1 arg1]
+             ((fn [~@ps] ~@body) ~@args)))]
+  (form
+    (run-rules [r1 r2]
+               '((fn [foo bar baz]
+                   {:foo foo
+                    :bar bar
+                    :baz baz})
+                 "foo"
+                 "bar"
+                 "baz"))))
 
 (comment
   (defn view-vars
@@ -1369,28 +1402,7 @@
          x))
      form))
 
-  (run-rules
-   [(rule []
-      (let [~@bindings-1]
-        (let [~@bindings-2]
-          ~@body-2)
-        ~@body-1)
-      (let [~@bindings-1
-            ~@bindings-2]
-        ~@body-2
-        ~@body-1))
-    (rule [p1 arg1]
-      ((fn [p1 ~@ps] ~@body) arg1 ~@args)
-      (let [p1 arg1]
-        ((fn [~@ps] ~@body) ~@args)))]
-
-   '((fn [foo bar baz]
-       {:foo foo
-        :bar bar
-        :baz baz})
-     "foo"
-     "bar"
-     "baz"))
+  
   ;; =>
   (let [foo "foo"
         bar "bar"
