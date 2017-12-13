@@ -47,6 +47,33 @@
   ([] `(Object.)))
 
 
+(defn splicing-form?
+  ([x]
+   (and (seq? x)
+        (= (first x)
+           'clojure.core/unquote-splicing))))
+
+
+(defn lconj
+  {:arglists '([] [goal] [goal-1 goal-2])
+   :private true}
+  ([]
+   (fn [smap]
+     (list smap)))
+  ([g]
+   (fn [smap]
+     (g smap)))
+  ([g1 g2]
+   (fn [smap]
+     (mapcat g2 (g1 smap)))))
+
+
+(defn lconj*
+  {:private true}
+  ([goals]
+   (reduce lconj goals)))
+
+
 ;; ---------------------------------------------------------------------
 ;; Term API
 
@@ -208,7 +235,7 @@
   {:arglists '([[binding u v substitution-map bottom] then else?])
    :style/indent 1}
   ([[smap* u v smap bottom] then]
-   `(if-unifies ~[smap* u v smap bottom] then nil))
+   `(if-unifies ~[smap* u v smap bottom] ~then nil))
   ([[smap* u v smap bottom] then else]
    `(let [bottom# ~bottom
           smap*# (unify ~u ~v ~smap bottom#)]
@@ -313,9 +340,7 @@
 
   protocols/ISubstitute
   (-substitute [this substitution-map]
-    (if-some [[_ x] (find substitution-map this)]
-      x
-      this))
+    (resolve this substitution-map))
 
   protocols/ITermVariables
   (-term-variables [this]
@@ -372,9 +397,7 @@
 
   protocols/ISubstitute
   (-substitute [this substitution-map]
-    (if-some [[_ x] (find substitution-map this)]
-      x
-      this))
+    (resolve this substitution-map))
 
   protocols/ITermVariables
   (-term-variables [this]
@@ -416,113 +439,8 @@
 
 
 ;; ---------------------------------------------------------------------
-;; VectorTerm
+;; Vector terms
 
-
-(deftype VectorTerm [vector]
-  clojure.core.protocols/CollReduce
-  (coll-reduce [_ f]
-    (clojure.core.protocols/coll-reduce vector f))
-
-  (coll-reduce [_ f val]
-    (clojure.core.protocols/coll-reduce vector f val))
-
-  clojure.lang.Seqable
-  (seq [_]
-    (.seq vector))
-
-  clojure.lang.IPersistentCollection
-  (count [_]
-    (.count vector))
-
-  (cons [_ x]
-    (VectorTerm. (.cons vector x)))
-
-  (empty [_]
-    (VectorTerm. (empty vector)))
-
-  (equiv [this that]
-    (and (instance? VectorTerm that)
-         (= (.vector this)
-            (.vector that))))
-
-  protocols/IFmap
-  (-fmap [_ f]
-    (VectorTerm. (mapv f vector)))
-
-  protocols/IForm
-  (-form [_]
-    (mapv form vector))
-
-  protocols/ISubstitute
-  (-substitute [_ substitution-map]
-    (VectorTerm. (mapv substitute vector (repeat substitution-map))))
-
-  protocols/ITermVariables
-  (-term-variables [_]
-    (reduce set/union #{} (map variables vector)))
-
-  protocols/IUnify
-  (-unify [this that smap bottom]
-    (cond
-      (vector? that)
-      (if-some [[_ x] (find smap this)]
-        (if (= that x)
-          smap
-          bottom)
-        (loop [this-vector vector
-               that-vector that
-               smap smap]
-          (case [(empty? this-vector) (empty? that-vector)]
-            [true true]
-            smap
-
-            [true false]
-            bottom
-
-            [false true]
-            bottom
-
-            [false false]
-            (let [a (peek this-vector)
-                  b (peek that-vector)]
-              (if-unifies [smap* a b smap bottom]
-                (let [this-vector* (pop this-vector)
-                      that-vector* (pop that-vector)]
-                  (recur this-vector*
-                         that-vector*
-                         smap*))
-                bottom)))))
-
-      (instance? VectorTerm that)
-      (protocols/-unify this (.vector that) smap bottom)
-
-      :else
-      bottom))
-
-  protocols/IWalk
-  (-walk [this inner-f outer-f]
-    (outer-f (protocols/-fmap this inner-f)))
-
-  Object
-  (equals [this that]
-    (and (instance? VectorTerm that)
-         (= (.vector this)
-            (.vector that))))
-
-  (hashCode [_]
-    (.hashCode vector)))
-
-
-(defn make-vector-term
-  ([vector]
-   {:pre [(vector? vector)]}
-   (VectorTerm. vector)))
-
-
-;; ---------------------------------------------------------------------
-;; VectorSplicingTerm
-;;
 ;; Given the term
 ;;
 ;;   [~@as ~@bs ~@as]
@@ -535,37 +453,6 @@
 ;; {as [x x], bs [a b]}
 ;; {as [x], bs [x a b x]}
 ;; {as [], bs [x x a b x x]}
-
-
-;; TODO: Move to util.
-(defn indices-of
-  "Return all indices of elements satisfying `pred` in `coll` and
-  `nil` no such element exists."
-  {:private true}
-  ([pred coll]
-   (keep
-    (fn [[i x]]
-      (when (pred x)
-        i))
-    (map-indexed vector coll))))
-
-
-;; TODO: Move to util.
-(defn index-of
-  "Return the index of first element satisfying `pred` in `coll` and
-  `nil` no such element exists."
-  {:private true}
-  ([pred coll]
-   (first (indices-of pred coll))))
-
-
-(defn splicing-form?
-  ([x]
-   (and (seq? x)
-        (= (first x)
-           'clojure.core/unquote-splicing))))
-
-
 (defn unify-splicing-variables*
   ([a-vars b-vec smap bottom]
    (let [a-vars (map (comp make-variable second) a-vars)
@@ -583,275 +470,131 @@
            (map interleave (repeat a-vars) (util/partitions n b-vec)))))))
 
 
-(defn lconj
-  {:arglists '([] [goal] [goal-1 goal-2])
-   :private true}
-  ([]
-   (fn [smap]
-     (list smap)))
-  ([g]
-   (fn [smap]
-     (g smap)))
-  ([g1 g2]
-   (fn [smap]
-     (mapcat g2 (g1 smap)))))
-
-
-(defn lconj*
-  {:private true}
-  ([goals]
-   (reduce lconj goals)))
-
-
 (defn unify-splicing-vector*
   ([a-vec b-vec smap bottom]
-   (let [a-partitions (mapv vec (partition-by splicing-form? a-vec))
-         b-partitions*  (util/partitions (count a-partitions) b-vec)
-         unify* (cycle (if (splicing-form? (ffirst a-partitions))
-                         [unify-splicing-variables*
-                          unify*]
-                         [unify*
-                          unify-splicing-variables*]))]
-     (mapcat
-      (fn [b-partitions]
-        ((lconj*
-          (map
-           (fn [f [a-partition b-partition]]
-             (fn [smap]
-               (f a-partition b-partition smap bottom)))
-           unify*
-           (partition 2
-                      (interleave a-partitions
-                                  b-partitions))))
-         smap))
-      b-partitions*))))
+   (if (vector? b-vec)
+     (let [a-partitions (mapv vec (partition-by splicing-form? a-vec))
+           b-partitions*  (util/partitions (count a-partitions) b-vec)
+           unify* (cycle (if (splicing-form? (ffirst a-partitions))
+                           [unify-splicing-variables*
+                            unify*]
+                           [unify*
+                            unify-splicing-variables*]))]
+       (mapcat
+        (fn [b-partitions]
+          ((lconj*
+            (map
+             (fn [f [a-partition b-partition]]
+               (fn [smap]
+                 (f a-partition b-partition smap bottom)))
+             unify*
+             (partition 2
+                        (interleave a-partitions
+                                    b-partitions))))
+           smap))
+        b-partitions*))
+     ())))
 
 
-(deftype VectorSplicingTerm [vector splice-variables]
-  clojure.core.protocols/CollReduce
-  (coll-reduce [_ f]
-    (clojure.core.protocols/coll-reduce vector f))
+(defn unify-vector
+  ([u-vec v-vec smap bottom]
+   {:pre [(vector? u-vec)]}
+   (if (vector? v-vec)
+     (if-some [[_ x] (find smap u-vec)]
+       (if (= v-vec x)
+         smap
+         bottom)
+       (loop [u-vec u-vec
+              v-vec v-vec
+              smap smap]
+         (case [(empty? u-vec) (empty? v-vec)]
+           [true true]
+           smap
 
-  (coll-reduce [_ f val]
-    (clojure.core.protocols/coll-reduce vector f val))
+           [true false]
+           bottom
 
-  clojure.lang.Seqable
-  (seq [_]
-    (.seq vector))
+           [false true]
+           bottom
 
-  clojure.lang.IPersistentCollection
-  (count [_]
-    (.count vector))
+           [false false]
+           (let [a (peek u-vec)
+                 b (peek v-vec)]
+             (if-unifies [smap* a b smap bottom]
+               (let [u-vec* (pop u-vec)
+                     v-vec* (pop v-vec)]
+                 (recur u-vec*
+                        v-vec*
+                        smap*))
+               bottom)))))
+     bottom)))
 
-  (cons [_ x]
-    (VectorSplicingTerm. (.cons vector x) splice-variables))
 
-  (empty [_]
-    (VectorTerm. (empty vector)))
+(defn unify-vector*
+  ([u-vec v-vec smap bottom]
+   {:pre [(vector? u-vec)]}
+   (if (some splicing-form? u-vec)
+     (unify-splicing-vector* u-vec v-vec smap bottom)
+     (let [smap* (unify-vector u-vec v-vec smap bottom)]
+       (if (identical? smap* bottom)
+         ()
+         (list smap*))))))
 
-  (equiv [this that]
-    (and (instance? VectorSplicingTerm that)
-         (= (.vector this)
-            (.vector that))))
 
+(extend-type clojure.lang.IPersistentVector
   protocols/IFmap
-  (-fmap [_ f]
-    (VectorSplicingTerm. (mapv f vector) splice-variables))
+  (-fmap [this f]
+    (mapv f this))
 
-  protocols/IForm
-  (-form [_]
-    (mapv form vector))
-
-  protocols/ISubstitute
-  (-substitute [this substitution-map]
-    (VectorSplicingTerm.
-     (reduce
-      (fn [v x]
-        (if (contains? splice-variables x)
-          (let [x-var (make-variable (second x))
-                ys (resolve x-var substitution-map)]
-            (cond
-              (identical? ys x-var)
-              (throw
-               (ex-info "Missing substitution for splice variable"
-                        {:variable (second x)}))
-
-              (or (coll? ys)
-                  (nil? ys))
-              (into v ys)
-
-              :else
-              (throw
-               (ex-info "Splicing variable not bound to a collection"
-                        {:value (second x)}))))
-          (conj v (substitute x substitution-map))))
-      []
-      (.-vector this))
-     splice-variables))
 
   protocols/ITermVariables
-  (-term-variables [_]
-    (reduce set/union #{} (map variables vector)))
+  (-term-variables [this]
+    (reduce set/union #{} (map variables this)))
 
+  
+  protocols/ISubstitute
+  (-substitute [this substitution-map]
+    (reduce
+     (fn [v x]
+       (if (splicing-form? x)
+         (let [x-var (make-variable (second x))
+               ys (resolve x-var substitution-map)]
+           (cond
+             (identical? ys x-var)
+             (throw
+              (ex-info "Missing substitution for splice variable."
+                       {:variable (second x)}))
+
+             (or (coll? ys) (nil? ys))
+             (into v ys)
+
+             :else
+             (throw
+              (ex-info "Splicing variable not bound to a collection."
+                       {:value (second x)}))))
+         (conj v (substitute x substitution-map))))
+     []
+     this))
+
+
+  protocols/IUnify*
+  (-unify* [this that smap bottom]
+    (unify-vector* this that smap bottom))
+
+  
   protocols/IUnify
   (-unify [this that smap bottom]
     (or (first (protocols/-unify* this that smap bottom))
         bottom))
-  
-  protocols/IUnify*
-  (-unify* [this that smap bottom]
-    (cond
-      (vector? that)
-      (unify-splicing-vector* (.vector this) that smap bottom)
 
-      (instance? VectorSplicingTerm that)
-      (undefined)
-
-      :else
-      ()))
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
-    (outer-f (protocols/-fmap this inner-f)))
-
-  Object
-  (equals [this that]
-    (and (instance? VectorSplicingTerm that)
-         (= (.vector this)
-            (.vector that))))
-
-  (hashCode [_]
-    (.hashCode vector)))
-
-
-(defn make-vector-splicing-term
-  {:arglists '([vector]
-               [vector splicing-variables])}
-  ([v]
-   {:pre [(vector? v)]}
-   (make-vector-splicing-term v (set (filter splicing-form? v))))
-  ([v splice-vars]
-   {:pre [(vector? v)]}
-   (if (seq splice-vars)
-     (VectorSplicingTerm. v splice-vars)
-     (make-vector-term v))))
-
-
-(extend-protocol protocols/IUnify*
-  clojure.lang.IPersistentVector
-  (-unify* [this that smap bottom]
-    (unify* (make-vector-splicing-term this) that smap bottom)))
-
-
-(extend-protocol protocols/IUnify
-  clojure.lang.IPersistentVector
-  (-unify [this that smap bottom]
-    (or (first (unify* this that smap bottom))
-        bottom)))
+    (outer-f (protocols/-fmap this inner-f))))
 
 
 ;; ---------------------------------------------------------------------
 ;; SeqTerm
-
-(deftype SeqTerm [seq]
-  clojure.core.protocols/CollReduce
-  (coll-reduce [this f]
-    (clojure.core.protocols/coll-reduce (.-seq this) f))
-
-  (coll-reduce [this f val]
-    (clojure.core.protocols/coll-reduce (.-seq this) f val))
-
-  clojure.lang.Seqable
-  (seq [this]
-    (.-seq this))
-
-  clojure.lang.IPersistentCollection
-  (count [this]
-    (.count (.-seq this)))
-
-  (cons [this x]
-    (SeqTerm. (.cons (.-seq this) x)))
-
-  (empty [this]
-    (SeqTerm. (empty (.-seq this))))
-
-  (equiv [this that]
-    (and (instance? SeqTerm that)
-         (= (.seq this)
-            (.seq that))))
-
-  protocols/IFmap
-  (-fmap [this f]
-    (SeqTerm. (doall (map f (.-seq this)))))
-
-  protocols/IForm
-  (-form [this]
-    (map form (.-seq this)))
-
-  protocols/ISubstitute
-  (-substitute [this substitution-map]
-    (SeqTerm. (map substitute (.-seq this) (repeat substitution-map))))
-
-  protocols/ITermVariables
-  (-term-variables [this]
-    (reduce set/union #{} (map variables (.-seq this))))
-
-  protocols/IUnify
-  (-unify [this that smap bottom]
-    (cond
-      (seq? that)
-      (if-some [[_ x] (find smap this)]
-        (if (= that x)
-          smap
-          bottom)
-        (loop [this-seq (.-seq this)
-               that-seq that
-               smap smap]
-          (case [(empty? this-seq) (empty? that-seq)]
-            [true true]
-            smap
-
-            [true false]
-            bottom
-
-            [false true]
-            bottom
-
-            [false false]
-            (let [a (first this-seq)
-                  b (first that-seq)
-                  smap* (unify a b smap bottom)]
-              (if (= smap*
-                     bottom)
-                bottom
-                (let [this-seq* (rest this-seq)
-                      that-seq* (rest that-seq)]
-                  (recur this-seq* that-seq* smap*)))))))
-
-      (instance? SeqTerm that)
-      (protocols/-unify this (.-seq that) smap bottom)
-
-      :else
-      bottom))
-
-  protocols/IWalk
-  (-walk [this inner-f outer-f]
-    (outer-f (protocols/-fmap this inner-f)))
-
-  Object
-  (equals [this that]
-    (and (instance? SeqTerm that)
-         (= (.-seq this)
-            (.-seq that))))
-
-  (hashCode [this]
-    (.hashCode (.-seq this))))
-
-
-(defn make-seq-term
-  ([seq]
-   {:pre [(seq? seq)]}
-   (SeqTerm. seq)))
 
 
 (defn unify-splicing-seq*
@@ -878,125 +621,104 @@
       b-partitions*))))
 
 
-(deftype SeqSplicingTerm [seq splice-variables]
-  clojure.core.protocols/CollReduce
-  (coll-reduce [this f]
-    (clojure.core.protocols/coll-reduce (.seq this) f))
+(defn unify-seq
+  ([u-seq v-seq smap bottom]
+   {:pre [(seq? u-seq)]}
+   (if (seq? v-seq)
+     (if-some [[_ x] (find smap u-seq)]
+       (if (= v-seq x)
+         smap
+         bottom)
+       (loop [u-seq-seq u-seq
+              v-seq-seq v-seq
+              smap smap]
+         (case [(empty? u-seq-seq) (empty? v-seq-seq)]
+           [true true]
+           smap
 
-  (coll-reduce [this f val]
-    (clojure.core.protocols/coll-reduce (.seq this) f val))
+           [true false]
+           bottom
 
-  clojure.lang.Seqable
-  (seq [_]
-    (.seq seq))
+           [false true]
+           bottom
 
-  clojure.lang.IPersistentCollection
-  (count [_]
-    (.count seq))
+           [false false]
+           (let [a (first u-seq-seq)
+                 b (first v-seq-seq)]
+             (if-unifies [smap* a b smap bottom]
+               (let [u-seq-seq* (rest u-seq-seq)
+                     v-seq-seq* (rest v-seq-seq)]
+                 (recur u-seq-seq* v-seq-seq* smap*))
+               bottom)))))
+     bottom)))
 
-  (cons [_ x]
-    (SeqSplicingTerm. (.cons seq x) splice-variables))
 
-  (empty [_]
-    (SeqTerm. (empty seq)))
+(defn unify-seq*
+  ([u-seq v-seq smap bottom]
+   {:pre [(seq? u-seq)]}
+   (if (seq? v-seq)
+     (if (some splicing-form? u-seq)
+       (unify-splicing-seq* u-seq v-seq smap bottom)
+       (let [smap* (unify-seq u-seq v-seq smap bottom)]
+         (if (identical? smap* bottom)
+           ()
+           (list smap*))))
+     ())))
 
-  (equiv [this that]
-    (and (instance? SeqSplicingTerm that)
-         (= (.seq this)
-            (.seq that))))
 
+(extend-type clojure.lang.ISeq
   protocols/IFmap
-  (-fmap [_ f]
-    (SeqSplicingTerm. (map f seq) splice-variables))
+  (-fmap [this f]
+    (map f this))
+  
 
   protocols/IForm
   (-form [_]
     (map form seq))
 
+  
   protocols/ISubstitute
-  (-substitute [this substitution-map]
-    (SeqTerm.
-     (reduce
-      (fn [v x]
-        (if (contains? splice-variables x)
-          (let [x-var (make-variable (second x))
-                ys (resolve x-var substitution-map)]
-            (cond
-              (identical? ys x-var)
-              (throw
-               (ex-info "Missing substitution for splice variable"
-                        {:variable (second x)}))
+  (-substitute [this smap]
+    (mapcat
+     (fn [x]
+       (if (splicing-form? x)
+         (let [x-var (make-variable (second x))
+               ys (resolve x-var smap)]
+           (cond
+             (identical? ys x-var)
+             (throw
+              (ex-info "Missing substitution for splice variable"
+                       {:variable (second x)}))
 
-              (or (coll? ys)
-                  (nil? ys))
-              (concat v ys)
+             (or (coll? ys) (nil? ys))
+             ys
 
-              :else
-              (throw
-               (ex-info "Splicing variable not bound to a collection"
-                        {:value (second x)}))))
-          (concat v (list (substitute x substitution-map)))))
-      []
-      (.-seq this))))
+             :else
+             (throw
+              (ex-info "Splice variable not bound to a collection"
+                       {:value (second x)}))))
+         (list (substitute x smap))))
+     this))
+
 
   protocols/ITermVariables
-  (-term-variables [_]
-    (reduce set/union #{} (map variables seq)))
+  (-term-variables [this]
+    (reduce set/union #{} (map variables this)))
 
-  protocols/IUnify
-  (-unify [this that smap bottom]
-    (or (first (protocols/-unify* this that smap bottom))
-        bottom))
-  
-  protocols/IUnify*
-  (-unify* [this that smap bottom]
-    (cond
-      (seq? that)
-      (unify-splicing-seq* (.seq this) that smap bottom)
-
-      (instance? SeqSplicingTerm that)
-      (undefined)
-
-      :else
-      ()))
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
     (outer-f (protocols/-fmap this inner-f)))
+  
 
-  Object
-  (equals [this that]
-    (and (instance? SeqSplicingTerm that)
-         (= (.seq this)
-            (.seq that))))
-
-  (hashCode [_]
-    (.hashCode seq)))
-
-
-(defn make-seq-splicing-term
-  {:arglists '([seq]
-               [seq splicing-variables])}
-  ([s]
-   {:pre [(seq? s)]}
-   (make-seq-splicing-term s (set (filter splicing-form? s))))
-  ([s splice-vars]
-   {:pre [(seq? s)]}
-   (if (seq splice-vars)
-     (SeqSplicingTerm. s splice-vars)
-     (make-seq-term s))))
-
-
-(extend-protocol protocols/IUnify*
-  clojure.lang.ISeq
+  protocols/IUnify*
   (-unify* [this that smap bottom]
-    (unify* (make-seq-splicing-term this) that smap bottom)))
+    (unify-seq* this that smap bottom))
 
 
-(extend-protocol protocols/IUnify
-  clojure.lang.ISeq
+  protocols/IUnify
   (-unify [this that smap bottom]
-    (or (first (unify* this that smap bottom))
+    (or (first (protocols/-unify* this that smap bottom))
         bottom)))
 
 
@@ -1028,7 +750,8 @@
 
 
 (defn unify-map*
-  "Return a lazy seq of all possible substitutions."
+  "Return a lazy seq of all possible substitutions for `map-a` and
+  `map-b`."
   ([map-a map-b smap bottom]
    {:pre [(map? map-a)]}
    (if (map? map-b)
@@ -1232,6 +955,8 @@
          (variables (left-hand-side x))
          (variables (right-hand-side x))))))
 
+(def xrule (atom nil))
+(def xterm (atom nil))
 
 (defn apply-rule
   ([rule term]
@@ -1247,7 +972,6 @@
       (apply-rule rule term*))
     term
     rules)))
-
 
 
 (defn run-rule
@@ -1285,12 +1009,6 @@
 ;; Macros
 
 
-(defn coll-with-splicing?
-  ([x]
-   (and (coll? x)
-        (some splicing-form? x))))
-
-
 (defn parse-form
   {:arglists '([form]
                [form environment])}
@@ -1309,36 +1027,15 @@
          form))
 
        (vector? form)
-       (let [splice-variables! (volatile! #{})
-             vector (mapv
-                     (fn [x]
-                       (if (splicing-form? x)
-                         (do 
-                           (vswap! splice-variables! conj x)
-                           x)
-                         (parse-form x env)))
-                     form)
-             splice-variables @splice-variables!]
-         (if (empty? splice-variables)
-           (make-vector-term vector)
-           (make-vector-splicing-term vector splice-variables))) 
+       (mapv (fn [subform]
+               (parse-form subform env))
+             form)
+       
        
        (seq? form)
-       (let [splice-variables! (volatile! #{})
-             ;; The collection must be forced to pick up the splice
-             ;; variables.
-             seq (doall (map
-                         (fn [x]
-                           (if (splicing-form? x)
-                             (do 
-                               (vswap! splice-variables! conj x)
-                               x)
-                             (parse-form x env)))
-                         form))
-             splice-variables @splice-variables!]
-         (if (empty? splice-variables)
-           (make-seq-term seq)
-           (make-seq-splicing-term seq splice-variables)))
+       (map (fn [subform]
+              (parse-form subform env))
+            form)
 
        :else
        form))))
@@ -1353,7 +1050,7 @@
                                   (when (symbol? tag)
                                     (when-some [v (resolve tag)]
                                       `(make-conditional-variable '~variable ~tag))))
-                                `(make-variable '~(gensym (str (name variable) "__"))))))
+                                `(make-variable '~variable))))
              variables)]
       ~@body)))
 
@@ -1369,16 +1066,112 @@
                    (parse-form '~rhs env#))))))
 
 
-(comment
-  (defn view-vars
-    [form]
-    (walk/postwalk
-     (fn [x]
-       (if (variable? x)
-         (name x)
-         x))
-     form))
 
+#_
+(let [r0 (rule []
+           (or ~@xs-1 (or ~@xs-2) ~@xs-3)
+           (or ~@xs-1 ~@xs-2 ~@xs-3))
+      ;; Eliminate duplicate clauses
+      r1  (rule [a]
+            (or ~@xs-1 a ~@xs-2 a ~@xs-3)
+            (or ~@xs-1 a ~@xs-2 ~@xs-3))
+      ;; Eliminate singleton or
+      r2 (rule [a]
+           (or a)
+           a)
+      r3 
+      (rule [a]
+        (or ~@xs-1 [a ~@xs-2] ~@xs-3 [a ~@xs-4] ~@xs-5)
+        (or ~@xs-1 [a (or [~@xs-2] [~@xs-4])] ~@xs-3 ~@xs-5))
+
+      r4
+      (rule [a]
+        [a]
+        a)
+
+      r5
+      (rule []
+        (or ~@xs [] ~@ys)
+        (or ~@xs ~@ys))
+      r6
+      (rule []
+        [~@xs [~@ys] ~@zs]
+        [~@xs ~@ys ~@zs])
+      r7
+      (rule [a]
+        (or ~@xs-1 a ~@xs-2 [a ~@xs-3] ~@xs-4)
+        (or ~@xs-1 ~@xs-2 [a (? [~@xs-3])] ~@xs-4))
+      r8
+      (rule [a]
+        (or ~@xs-1 (? [a ~@xs-2]) ~@xs-3 a ~@xs-4)
+        (or ~@xs-1 (? [a (? [~@xs-2])]) ~@xs-3 ~@xs-4))
+      r9
+      (rule [a]
+        (or ~@xs-1 a ~@xs-3 (? [a ~@xs-2]) ~@xs-4)
+        (or ~@xs-1 (? [a (? [~@xs-2])]) ~@xs-3 ~@xs-4))
+      r10
+      (rule [a]
+        (or ~@xs-1 (? a) ~@xs-2)
+        (or ~@xs-1 a ~@xs-2))
+      ]
+  (time
+    (run-rules
+     [r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10]
+     '(or [1 2 3]
+          [1 2 3 4]
+          [1 2 3 4 5]
+          [1 2 3 4 5 7]
+          )))
+  #_
+  (->> '(or [1 2 3]
+            [1 2 3 4])
+       (run-rule r3)
+       (run-rule r1)
+       (run-rule r2)
+       (run-rule r4)
+       (run-rule r5)
+       (run-rule r3)
+       (run-rule r2)
+       (run-rule r6)
+       ))
+
+
+
+
+(comment
+  (let [r1 (rule [a]
+             (or ~@xs-1
+                 [a ~@xs-2]
+                 ~@xs-3
+                 [a ~@xs-4]
+                 ~@xs-5)
+             (or [a (or [~@xs-2]
+                        [~@xs-4])]
+                 (or ~@xs-1
+                     ~@xs-3
+                     ~@xs-5)))
+        r2 (rule [a b]
+             (or ~@xs-1
+                 [a]
+                 ~@xs-3
+                 [b]
+                 ~@xs-5)
+             (or ~@xs-1
+                 a
+                 ~@xs-3
+                 b
+                 ~@xs-5))
+        r3 (rule []
+             (or ~@xs-1 (or ~@xs-2) ~@xs-3)
+             (or ~@xs-1 ~@xs-2 ~@xs-3))]
+    (form
+      (->> '(or 1 [4 5 7]
+                2 
+                [4 5 6]
+                5)
+           (run-rule r1)
+           (run-rule r2)
+           (run-rule r3))))
   (let [r1 (rule []
              (let [~@bindings-1]
                (let [~@bindings-2]
