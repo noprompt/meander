@@ -29,8 +29,7 @@
   (-rule-right-hand-side [r]))
 
 
-(defprotocol IIsVariable
-  (-variable? [t]))
+(defprotocol IIsVariable)
 
 
 (defprotocol IUnify

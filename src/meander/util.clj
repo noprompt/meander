@@ -2,7 +2,6 @@
 
 
 (defmacro undefined
-  {:private true}
   ([] `(throw (ex-info "undefined" ~(meta &form)))))
 
 
@@ -121,7 +120,8 @@
     :else
     (mapcat
      (fn [[a b]]
-       (map conj (vec-partitions (dec n) a) (repeat b)))
+       (lazy-seq
+        (map conj (vec-partitions (dec n) a) (repeat b))))
      (map-indexed
       (fn [i _]
         (vsplit-at i coll))
@@ -142,7 +142,8 @@
      :else
      (mapcat
       (fn [[a b]]
-        (map conj (coll-partitions (dec n) a) (repeat b)))
+        (lazy-seq
+         (map conj (coll-partitions (dec n) a) (repeat b))))
       (map-indexed
        (fn [i _]
          (split-at i coll))
@@ -193,7 +194,8 @@ Examples:
     :else
     (mapcat
      (fn [[a b]]
-       (map conj (str-partitions (dec n) a) (repeat b)))
+       (lazy-seq
+        (map conj (str-partitions (dec n) a) (repeat b))))
      (map
       (fn [i]
         [(subs str 0 i) (subs str i)])

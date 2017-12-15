@@ -4,7 +4,8 @@
    [clojure.set :as set]
    [clojure.walk :as walk]
    [meander.protocols :as protocols]
-   [meander.util :as util]))
+   [meander.util :as util]
+   [taoensso.tufte :as tufte]))
 
 
 ;; ---------------------------------------------------------------------
@@ -89,8 +90,7 @@
 (defn variable?
   "true if `x` is a variable, false otherwise."
   ([x]
-   (and (satisfies? protocols/IIsVariable x)
-        (protocols/-variable? x))))
+   (satisfies? protocols/IIsVariable x)))
 
 
 (defn variables
@@ -336,7 +336,6 @@
     (Variable. (f name)))
 
   protocols/IIsVariable
-  (-variable? [_] true)
 
   protocols/ISubstitute
   (-substitute [this substitution-map]
@@ -393,7 +392,6 @@
     (ConditionalVariable. (f name) predicate))
 
   protocols/IIsVariable
-  (-variable? [_] true)
 
   protocols/ISubstitute
   (-substitute [this substitution-map]
@@ -473,26 +471,28 @@
 (defn unify-splicing-vector*
   ([a-vec b-vec smap bottom]
    (if (vector? b-vec)
-     (let [a-partitions (mapv vec (partition-by splicing-form? a-vec))
-           b-partitions*  (util/partitions (count a-partitions) b-vec)
-           unify* (cycle (if (splicing-form? (ffirst a-partitions))
-                           [unify-splicing-variables*
-                            unify*]
-                           [unify*
-                            unify-splicing-variables*]))]
+     (let [[a-left a-right] (map vec (split-with (complement splicing-form?) a-vec))
+           [b-left b-right] (util/vsplit-at (count a-left) b-vec)]
        (mapcat
-        (fn [b-partitions]
-          ((lconj*
-            (map
-             (fn [f [a-partition b-partition]]
-               (fn [smap]
-                 (f a-partition b-partition smap bottom)))
-             unify*
-             (partition 2
-                        (interleave a-partitions
-                                    b-partitions))))
-           smap))
-        b-partitions*))
+        (fn [smap]
+          (let [a-partitions (mapv vec (partition-by splicing-form? a-right))
+                b-partitions*  (util/partitions (count a-partitions) b-right)
+                unify* (cycle [unify-splicing-variables*
+                               unify*])]
+            (mapcat
+             (fn [b-partitions]
+               ((lconj*
+                 (map
+                  (fn [f [a-partition b-partition]]
+                    (fn [smap]
+                      (f a-partition b-partition smap bottom)))
+                  unify*
+                  (partition 2
+                             (interleave a-partitions
+                                         b-partitions))))
+                smap))
+             b-partitions*)))
+        (unify* a-left b-left smap bottom)))
      ())))
 
 
@@ -553,12 +553,12 @@
 
   
   protocols/ISubstitute
-  (-substitute [this substitution-map]
+  (-substitute [this smap]
     (reduce
      (fn [v x]
        (if (splicing-form? x)
          (let [x-var (make-variable (second x))
-               ys (resolve x-var substitution-map)]
+               ys (resolve x-var smap)]
            (cond
              (identical? ys x-var)
              (throw
@@ -572,7 +572,7 @@
              (throw
               (ex-info "Splicing variable not bound to a collection."
                        {:value (second x)}))))
-         (conj v (substitute x substitution-map))))
+         (conj v (substitute x smap))))
      []
      this))
 
@@ -599,26 +599,31 @@
 
 (defn unify-splicing-seq*
   ([a-seq b-seq smap bottom]
-   (let [a-partitions (partition-by splicing-form? a-seq)
-         b-partitions* (util/partitions (count a-partitions) b-seq)
-         unify* (cycle (if (splicing-form? (ffirst a-partitions))
-                         [unify-splicing-variables*
-                          unify*]
-                         [unify*
-                          unify-splicing-variables*]))]
-     (mapcat
-      (fn [b-partitions]
-        ((lconj*
-          (map
-           (fn [f [a-partition b-partition]]
-             (fn [smap]
-               (f a-partition b-partition smap bottom)))
-           unify*
-           (partition 2
-                      (interleave a-partitions
-                                  b-partitions))))
-         smap))
-      b-partitions*))))
+   (if (seq? b-seq)
+     (let [[a-left a-right] (split-with (complement splicing-form?) a-seq)
+           [b-left b-right] (split-at (count a-left) b-seq)]
+       (mapcat
+        (fn [smap]
+          (let [a-partitions (partition-by splicing-form? a-right)
+                b-partitions* (util/partitions (count a-partitions) b-right)
+                unify* (cycle [unify-splicing-variables*
+                               unify*])]
+            (mapcat
+             (fn [b-partitions]
+               ((lconj*
+                 (map
+                  (fn [f [a-partition b-partition]]
+                    (fn [smap]
+                      (f a-partition b-partition smap bottom)))
+                  unify*
+                  (partition 2
+                             (interleave a-partitions
+                                         b-partitions))))
+                smap))
+             b-partitions*)))
+        (unify* a-left b-left smap bottom)))
+     ())))
+
 
 
 (defn unify-seq
@@ -955,8 +960,6 @@
          (variables (left-hand-side x))
          (variables (right-hand-side x))))))
 
-(def xrule (atom nil))
-(def xterm (atom nil))
 
 (defn apply-rule
   ([rule term]
@@ -976,11 +979,13 @@
 
 (defn run-rule
   ([rule term]
-   (let [f (partial apply-rule rule)
+   (let [f (fn f [x]
+             (let [x* (apply-rule rule x)]
+               (if (= x x*)
+                 x
+                 (recur x*))))
          ;; Apply the rule to every node in the term's tree.
-         term* (if (satisfies? protocols/IWalk term)
-                 (postwalk f term)
-                 (clojure.walk/postwalk f term))]
+         term* (postwalk f term)]
      (if (= term term*)
        ;; If nothing has changed we're done.
        term
@@ -994,16 +999,13 @@
    (let [f (fn [x]
              (apply-rules rules x))
          ;; Apply the rules to every node in the term's tree.
-         term* (if (satisfies? protocols/IWalk term)
-                 (postwalk f term)
-                 (clojure.walk/postwalk f term))]
+         term* (postwalk f term)]
      (if (= term term*)
        ;; If nothing has changed we're done.
        term
        ;; If the term has been rewritten we need to run the rule once
        ;; more.
        (recur rules term*)))))
-
 
 ;; ---------------------------------------------------------------------
 ;; Macros
@@ -1066,166 +1068,123 @@
                    (parse-form '~rhs env#))))))
 
 
+;; ---------------------------------------------------------------------
+;; Scratch
 
-#_
-(let [r0 (rule []
-           (or ~@xs-1 (or ~@xs-2) ~@xs-3)
-           (or ~@xs-1 ~@xs-2 ~@xs-3))
-      ;; Eliminate duplicate clauses
-      r1  (rule [a]
-            (or ~@xs-1 a ~@xs-2 a ~@xs-3)
-            (or ~@xs-1 a ~@xs-2 ~@xs-3))
-      ;; Eliminate singleton or
-      r2 (rule [a]
-           (or a)
-           a)
-      r3 
-      (rule [a]
-        (or ~@xs-1 [a ~@xs-2] ~@xs-3 [a ~@xs-4] ~@xs-5)
-        (or ~@xs-1 [a (or [~@xs-2] [~@xs-4])] ~@xs-3 ~@xs-5))
+(tufte/add-basic-println-handler! {})
 
-      r4
-      (rule [a]
-        [a]
-        a)
+(defn monoid-call-rule [sym]
+  (reify
+    protocols/IUnify
+    (-unify [this x smap bottom]
+      (if (and (seq? x)
+               (= (first x) sym))
+        (assoc smap this x)
+        bottom))
 
-      r5
-      (rule []
-        (or ~@xs [] ~@ys)
-        (or ~@xs ~@ys))
-      r6
-      (rule []
-        [~@xs [~@ys] ~@zs]
-        [~@xs ~@ys ~@zs])
-      r7
-      (rule [a]
-        (or ~@xs-1 a ~@xs-2 [a ~@xs-3] ~@xs-4)
-        (or ~@xs-1 ~@xs-2 [a (? [~@xs-3])] ~@xs-4))
-      r8
-      (rule [a]
-        (or ~@xs-1 (? [a ~@xs-2]) ~@xs-3 a ~@xs-4)
-        (or ~@xs-1 (? [a (? [~@xs-2])]) ~@xs-3 ~@xs-4))
-      r9
-      (rule [a]
-        (or ~@xs-1 a ~@xs-3 (? [a ~@xs-2]) ~@xs-4)
-        (or ~@xs-1 (? [a (? [~@xs-2])]) ~@xs-3 ~@xs-4))
-      r10
-      (rule [a]
-        (or ~@xs-1 (? a) ~@xs-2)
-        (or ~@xs-1 a ~@xs-2))
-      ]
-  (time
-    (run-rules
-     [r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10]
-     '(or [1 2 3]
-          [1 2 3 4]
-          [1 2 3 4 5]
-          [1 2 3 4 5 7]
-          )))
-  #_
-  (->> '(or [1 2 3]
-            [1 2 3 4])
-       (run-rule r3)
-       (run-rule r1)
-       (run-rule r2)
-       (run-rule r4)
-       (run-rule r5)
-       (run-rule r3)
-       (run-rule r2)
-       (run-rule r6)
-       ))
+    protocols/IRuleLeftHandSide
+    (-rule-left-hand-side [this]
+      this)
+
+    protocols/IRuleRightHandSide
+    (-rule-right-hand-side [this]
+      this)
+
+    protocols/ISubstitute
+    (-substitute [this smap]
+      (if-some [seq (get smap this)]
+        (mapcat
+         (fn [x]
+           (if (and (seq? x)
+                    (= (first x) sym))
+             (rest x)
+             (list x)))
+         seq)
+        (util/undefined)))))
 
 
 
+(tufte/profile
+ {}
+ (let [r1 (rule [a]
+            (or ~@xs-1 [a ~@xs-2] ~@xs-3 [a ~@xs-4] ~@xs-5)
+            (or [a (or [~@xs-2] [~@xs-4])] ~@xs-1 ~@xs-3 ~@xs-5))
+       r2 (monoid-call-rule 'or)
+       r3 (rule []
+            (~@xs [] ~@ys)
+            (~@xs ~@ys))
+       r4 (rule []
+            [~@xs [] ~@ys]
+            [~@xs ~@ys])
+       r5 (rule []
+            [~@xs (or) ~@ys]
+            [~@xs ~@ys])
+       r6 (rule [a]
+            (~@xs [a] ~@ys)
+            (~@xs a ~@ys))
+       r7 (rule [a]
+            (or a) 
+            a)
+       r8 (rule [a]
+            [~@xs [a ~@ys] ~@zs]
+            [~@xs a ~@ys ~@zs])
+       ]
+   (run-rules
+    [r1 r2 r3 r4 r5 r6 r7 r8]
+    '(or 1
+         [2 3 4]
+         7
+         [2 3 5]))))
+;; => (or [2 3 (or 4 5)] 1 7)
+;; Clock Time 279.47ms
+;; Accounted Time 0 0ns
 
-(comment
-  (let [r1 (rule [a]
-             (or ~@xs-1
-                 [a ~@xs-2]
-                 ~@xs-3
-                 [a ~@xs-4]
-                 ~@xs-5)
-             (or [a (or [~@xs-2]
-                        [~@xs-4])]
-                 (or ~@xs-1
-                     ~@xs-3
-                     ~@xs-5)))
-        r2 (rule [a b]
-             (or ~@xs-1
-                 [a]
-                 ~@xs-3
-                 [b]
-                 ~@xs-5)
-             (or ~@xs-1
-                 a
-                 ~@xs-3
-                 b
-                 ~@xs-5))
-        r3 (rule []
-             (or ~@xs-1 (or ~@xs-2) ~@xs-3)
-             (or ~@xs-1 ~@xs-2 ~@xs-3))]
-    (form
-      (->> '(or 1 [4 5 7]
-                2 
-                [4 5 6]
-                5)
-           (run-rule r1)
-           (run-rule r2)
-           (run-rule r3))))
-  (let [r1 (rule []
-             (let [~@bindings-1]
-               (let [~@bindings-2]
-                 ~@body-2)
-               ~@body-1)
-             (let [~@bindings-1
-                   ~@bindings-2]
-               ~@body-2
-               ~@body-1))
-        r2 (rule [p1 arg1]
-             ((fn [p1 ~@ps] ~@body) arg1 ~@args)
-             (let [p1 arg1]
-               ((fn [~@ps] ~@body) ~@args)))]
-    (form
-      (run-rules [r1 r2]
-                 '((fn [foo bar baz]
-                     {:foo foo
-                      :bar bar
-                      :baz baz})
-                   "foo"
-                   "bar"
-                   "baz"))))
-  ;; =>
-  (let [foo "foo"
-        bar "bar"
-        baz "baz"]
-    ((fn []
-       {:foo foo, :bar bar, :baz baz})))
+(defn label? [x]
+  (and (symbol? x)
+       (re-matches #"\AL__.+\z" (name x))))
 
-  (run-rule
-   (rule [x y]
-     (~@xs x => y ~@ys)
-     (~@xs (is (= x y)) ~@ys))
-   '(do
-      1 => 2
-      (conj [1 2 3] 4) => [1 2 3 4]))
-  ;; =>
-  (do
-    (is (= 1 2))
-    (is (= (conj [1 2 3] 4)
-           [1 2 3 4])))
 
-  (let [?x (variable 'x)
-        a-vec [?x '~@xs '~@ys ?x '~@ys '~@xs]
-        b-vec [4 :x :x :y :y 4 :y :y :x :x]]
-    (view-vars (unify a-vec b-vec {} ::bottom)))
+(defn run-rule-x [rule term]
+  (let [!term-map (volatile!
+                   {:by-label {}
+                    :by-term {}})
 
-  ;; =>
-  {"x" 4, "xs" [:x :x], "ys" [:y :y]})
+        _ (walk/postwalk
+           (fn [x]
+             (if-some [label (get-in @!term-map [:by-term x])]
+               label
+               (let [label (gensym "L__")]
+                 (vswap! !term-map assoc-in [:by-label label] x)
+                 (vswap! !term-map assoc-in [:by-term x] label)
+                 label)))
+           term)
 
-(let [a-vec '[~@xs ~@ys ~@xs]
-      b-vec [:x :x :y :y :x :x]]
-  (view-vars (unify* a-vec b-vec {} ::bottom)))
-;; =>
-({"xs" [:x :x], "ys" [:y :y]}
- {"xs" [:x], "ys" [:x :y :y :x]}
- {"xs" [], "ys" [:x :x :y :y :x :x]})
+        queue (meander.kahn/kahn-sort
+               (reduce
+                (fn [g [label x]]
+                  (if (coll? x)
+                    (update g label (fnil into #{}) x)
+                    (update g label (fnil conj #{}) x)))
+                {}
+                (:by-label @!term-map)))
+
+        root-node (first queue)
+
+        term*
+        (loop [by-label (:by-label @!term-map)
+               queue queue]
+          (if (seq queue)
+            (let [x (peek queue)]
+              (if (label? x)
+                (let [v (loop [v (walk/postwalk-replace by-label (get by-label x))]
+                          (let [v* (apply-rule rule v)]
+                            (if (= v v*)
+                              v
+                              (recur v*))))]
+                  (recur (assoc by-label x v)
+                         (pop queue)))
+                (recur by-label (pop queue))))
+            (get by-label root-node)))]
+    term*))
+
+
