@@ -1050,11 +1050,145 @@
              (fn [variable]
                `(~variable ~(or (when-some [[_ tag] (find (meta variable) :tag)]
                                   (when (symbol? tag)
-                                    (when-some [v (resolve tag)]
+                                    (when-some [v (clojure.core/resolve tag)]
                                       `(make-conditional-variable '~variable ~tag))))
                                 `(make-variable '~variable))))
              variables)]
       ~@body)))
+
+(defn associative-call-r
+  ([fsym]
+   (reify
+     protocols/IUnify
+     (-unify [this x smap bottom]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         (assoc smap this x)
+         bottom))
+
+     protocols/IRuleLeftHandSide
+     (-rule-left-hand-side [this]
+       this)
+
+     protocols/IRuleRightHandSide
+     (-rule-right-hand-side [this]
+       this)
+
+     protocols/ISubstitute
+     (-substitute [this smap]
+       (if-some [seq (get smap this)]
+         (mapcat
+          (fn [x]
+            (if (and (seq? x)
+                     (= (first x) fsym))
+              (rest x)
+              (list x)))
+          seq)
+         (util/undefined))))))
+
+
+(defmacro associative-rule
+  ([fsym]
+   {:pre [(symbol? fsym)]}
+   `(associative-call-r '~fsym)))
+
+
+(defn monoid-call-r
+  ([fsym id]
+   (reify
+     protocols/IUnify
+     (-unify [this x smap bottom]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         (assoc smap this x)
+         bottom))
+
+     protocols/IRuleLeftHandSide
+     (-rule-left-hand-side [this]
+       this)
+
+     protocols/IRuleRightHandSide
+     (-rule-right-hand-side [this]
+       this)
+
+     protocols/ISubstitute
+     (-substitute [this smap]
+       (if-some [seq (get smap this)]
+         (let [seq* (mapcat
+                     (fn ([x]
+                          (cond
+                            (and (seq? x)
+                                 (= (first x) fsym))
+                            (remove #{id} (rest x))
+
+                            (= x id)
+                            ()
+                            :else
+                            (list x))))
+                     seq)]
+           (if (= seq* (list fsym))
+             id
+             seq*))
+         (util/undefined))))))
+
+
+(defmacro monoid-rule
+  ([sym id]
+   `(monoid-call-r '~sym ~id)))
+
+
+(defn zero-property-r
+  "The zero property of the function that's symbol is
+  `fsym`. Semantically equivalent to
+
+  (rule []
+    (fsym ~@xs zero ~@ys)
+    zero)
+  "
+  ([fsym zero]
+   {:pre [(symbol? fsym)]}
+   (reify
+     protocols/IUnify
+     (-unify [this x smap bottom]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         (assoc smap this x)
+         bottom))
+
+     protocols/IRuleLeftHandSide
+     (-rule-left-hand-side [this]
+       this)
+
+     protocols/IRuleRightHandSide
+     (-rule-right-hand-side [this]
+       this)
+
+     protocols/ISubstitute
+     (-substitute [this smap]
+       (if-some [seq (get smap this)]
+         (if (some (partial = zero) seq)
+           zero
+           seq)
+         (util/undefined))))))
+
+
+(defmacro zero-property
+  "Examples:
+  
+  (run-rule
+   (zero-property * 0)
+   '(* x y (* z 0)))
+  ;; => 0
+
+  (run-rule
+   (zero-property and false)
+   '(and yes? no? (and maybe? false)))
+  ;; => false
+  "
+  [fsym zero]
+  {:pre [(symbol? fsym)]}
+  `(zero-property-r '~fsym ~zero))
+
 
 (defmacro rule
   {:style/indent :defn}
@@ -1063,9 +1197,10 @@
       (let [env# (hash-map ~@(mapcat
                               (fn [variable]
                                 `('~variable ~variable))
-                              variables))]
-        (make-rule (parse-form '~lhs env#)
-                   (parse-form '~rhs env#))))))
+                              variables))
+            lhs# (parse-form '~lhs env#)
+            rhs# (parse-form '~rhs env#)]
+        (make-rule lhs# rhs#)))))
 
 
 ;; ---------------------------------------------------------------------
@@ -1073,34 +1208,15 @@
 
 (tufte/add-basic-println-handler! {})
 
-(defn monoid-call-rule [sym]
-  (reify
-    protocols/IUnify
-    (-unify [this x smap bottom]
-      (if (and (seq? x)
-               (= (first x) sym))
-        (assoc smap this x)
-        bottom))
-
-    protocols/IRuleLeftHandSide
-    (-rule-left-hand-side [this]
-      this)
-
-    protocols/IRuleRightHandSide
-    (-rule-right-hand-side [this]
-      this)
-
-    protocols/ISubstitute
-    (-substitute [this smap]
-      (if-some [seq (get smap this)]
-        (mapcat
-         (fn [x]
-           (if (and (seq? x)
-                    (= (first x) sym))
-             (rest x)
-             (list x)))
-         seq)
-        (util/undefined)))))
+(comment
+  (= (run-rules
+      [(monoid-rule + 0)
+       (monoid-rule * 1)
+       (zero-property or true)
+       (zero-property and false)
+       (monoid-rule str "")]
+      '(+ 0 (* 1) 0 (str "foo" "bar") y))
+     (+ 1 (str "foo" "bar") y)))
 
 
 
@@ -1127,8 +1243,7 @@
             a)
        r8 (rule [a]
             [~@xs [a ~@ys] ~@zs]
-            [~@xs a ~@ys ~@zs])
-       ]
+            [~@xs a ~@ys ~@zs])]
    (run-rules
     [r1 r2 r3 r4 r5 r6 r7 r8]
     '(or 1
