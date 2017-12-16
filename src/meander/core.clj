@@ -780,120 +780,55 @@
        bottom)))
 
 
-(deftype MapTerm [^clojure.lang.IPersistentMap map]
-  clojure.core.protocols/CollReduce
-  (coll-reduce [_ f]
-    (clojure.core.protocols/coll-reduce map f))
-
-  (coll-reduce [_ f val]
-    (clojure.core.protocols/coll-reduce map f val))
-
-  clojure.lang.Seqable
-  (seq [_]
-    (.seq map))
-
-  clojure.lang.IPersistentCollection
-  (count [_]
-    (.count map))
-
-  (cons [_ x]
-    (MapTerm. (.cons map x)))
-
-  (empty [_]
-    (MapTerm. (.empty map)))
-
-  (equiv [this that]
-    (= (.map this)
-       (.map that)))
-
+(extend-type clojure.lang.IPersistentMap
   protocols/IFmap
-  (-fmap [_ f]
-    (MapTerm.
-     (reduce-kv
-      (fn [m k v]
-        (assoc m (fmap f k) (fmap f v)))
-      {}
-      map)))
+  (-fmap [this f]
+    (reduce-kv
+     (fn [m k v]
+       (assoc m (fmap f k) (fmap f v)))
+     {}
+     this))
 
   protocols/IForm
-  (-form [_]
+  (-form [this]
     (reduce-kv
      (fn [m k v]
        (assoc m (form k) (form v)))
      {}
-     map))
+     this))
 
   protocols/ISubstitute
-  (-substitute [_ smap]
-    (MapTerm.
-     (reduce-kv
-      (fn [m k v]
-        (assoc m (substitute k smap) (substitute v smap)))
-      {}
-      map)))
+  (-substitute [this smap]
+    (reduce-kv
+     (fn [m k v]
+       (assoc m (substitute k smap) (substitute v smap)))
+     {}
+     this))
 
+  
   protocols/ITermVariables
-  (-term-variables [_]
-    (reduce set/union #{} (clojure.core/map variables (mapcat identity map))))
+  (-term-variables [this]
+    (reduce set/union #{} (clojure.core/map variables (mapcat identity this))))
+
 
   protocols/IUnify
   (-unify [this that smap bottom]
     (or (first (protocols/-unify* this that smap bottom))
-        bottom)) 
+        bottom))
+
 
   protocols/IUnify*
   (-unify* [this that smap bottom]
-    (cond
-      (map? that)
-      (if-some [[_ x] (find smap this)]
-        (if (= that x)
-          (list smap)
-          ())
-        (unify-map* map that smap bottom))
+    (unify-map* this that smap bottom))
 
-      (instance? MapTerm that)
-      (protocols/-unify* this (.map that) smap bottom)
-
-      :else
-      ()))
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
     (outer-f
-     (protocols/-fmap this (comp outer-f inner-f))))
-
-  Object
-  (equals [this that]
-    (and (instance? MapTerm that)
-         (= (.map this)
-            (.map that))))
-
-  (hashCode [_]
-    (.hashCode map)))
+     (protocols/-fmap this (comp outer-f inner-f)))))
 
 
-(defn make-map-term
-  ([^clojure.lang.IPersistentMap map]
-   {:pre [(map? map)]}
-   (if (every?
-        (fn [[k v]]
-          (and (ground? k)
-               (ground? v)))
-        map)
-     map
-     (MapTerm. map))))
 
-
-(extend-protocol protocols/IUnify
-  clojure.lang.IPersistentMap
-  (-unify [this that smap bottom]
-    (unify-map this that smap bottom)))
-
-
-(extend-protocol protocols/IUnify*
-  clojure.lang.IPersistentMap
-  (-unify* [this that smap bottom]
-    (unify-map* this that smap bottom)))
 
 
 
@@ -1021,12 +956,11 @@
      v
      (cond
        (map? form)
-       (make-map-term
-        (reduce-kv
-         (fn [m k v]
-           (assoc m (parse-form k env) (parse-form v env)))
-         {}
-         form))
+       (reduce-kv
+        (fn [m k v]
+          (assoc m (parse-form k env) (parse-form v env)))
+        {}
+        form)
 
        (vector? form)
        (mapv (fn [subform]
