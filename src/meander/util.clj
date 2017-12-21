@@ -239,3 +239,14 @@ Examples:
 
     :else
     (undefined)))
+
+
+#_
+(defn macroexpand-all [x]
+  (postwalk
+   (fn [x]
+     (let [x* (macroexpand x)]
+       (if (= x x*)
+         x
+         (macroexpand-all x*))))
+   x))

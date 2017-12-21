@@ -5,6 +5,7 @@
    [clojure.walk :as walk]
    [meander.protocols :as protocols]
    [meander.util :as util]
+   [meander.kahn :as kahn]
    [taoensso.tufte :as tufte]))
 
 
@@ -232,12 +233,12 @@
 
 
 (defmacro if-unifies
-  {:arglists '([[binding u v substitution-map bottom] then else?])
+  {:arglists '([[binding u v substitution-map bottom?] then else?])
    :style/indent 1}
   ([[smap* u v smap bottom] then]
    `(if-unifies ~[smap* u v smap bottom] ~then nil))
   ([[smap* u v smap bottom] then else]
-   `(let [bottom# ~bottom
+   `(let [bottom# ~(if bottom bottom `(Object.))
           smap*# (unify ~u ~v ~smap bottom#)]
       (if (identical? smap*# bottom#)
         ~else
@@ -846,41 +847,6 @@
    (protocols/-rule-right-hand-side rule)))
 
 
-(defn make-rule
-  ([left-hand-side right-hand-side]
-   (reify
-     protocols/IFmap
-     (-fmap [_ f]
-       (make-rule (f left-hand-side)
-                  (f right-hand-side)))
-     
-     protocols/IRuleLeftHandSide
-     (protocols/-rule-left-hand-side [_]
-       left-hand-side)
-
-     protocols/IRuleRightHandSide
-     (protocols/-rule-right-hand-side [_]
-       right-hand-side)
-
-     protocols/IWalk
-     (-walk [this inner-f outer-f]
-       (outer-f
-        (protocols/-fmap
-         this
-         (fn [x]
-           (walk inner-f outer-f x)))))
-
-     Object
-     (equals [_ that]
-       (and (satisfies? protocols/IRuleLeftHandSide that)
-            (= (#'left-hand-side that) left-hand-side)
-            (satisfies? protocols/IRuleRightHandSide that)
-            (= (#'right-hand-side that) right-hand-side)))
-
-     (hashCode [_]
-       (.hashCode [left-hand-side right-hand-side])))))
-
-
 (defn rule?
   ([x]
    (and (satisfies? protocols/IRuleLeftHandSide x)
@@ -896,37 +862,11 @@
          (variables (right-hand-side x))))))
 
 
-(defn apply-rule
-  ([rule term]
-   (if-unifies [smap (left-hand-side rule) term {} (Object.)]
-     (substitute (right-hand-side rule) smap)
-     term)))
+(defn rule-parameters [rule]
+  (if (satisfies? protocols/IRuleParameters rule)
+    (protocols/-rule-parameters rule)
+    []))
 
-
-(defn apply-rules
-  ([rules term]
-   (reduce
-    (fn [term* rule]
-      (apply-rule rule term*))
-    term
-    rules)))
-
-
-(defn run-rule
-  ([rule term]
-   (let [f (fn f [x]
-             (let [x* (apply-rule rule x)]
-               (if (= x x*)
-                 x
-                 (recur x*))))
-         ;; Apply the rule to every node in the term's tree.
-         term* (postwalk f term)]
-     (if (= term term*)
-       ;; If nothing has changed we're done.
-       term
-       ;; If the term has been rewritten we need to run the rule once
-       ;; more.
-       (recur rule term*)))))
 
 
 (defn run-rules
@@ -942,39 +882,74 @@
        ;; more.
        (recur rules term*)))))
 
+
+(defn make-rule
+  {:arglists '([left-hand-side right-hand-side])}
+  ([lhs rhs]
+   ;; lhs is the left side of the rule (the pattern to match).
+   ;; rhs is the right side of the rule (the replacement pattern to
+   ;; substitue).
+   ;; f is a unary function
+   ;; t, u are terms
+   (reify
+     clojure.lang.IFn
+     (invoke [_ t]
+       (let [t* (prewalk
+                 (fn [u]
+                   (if-unifies [smap u lhs {}]
+                     (substitute rhs smap)
+                     u))
+                 t)]
+         (if (= t* t)
+           t
+           (recur t*))))
+
+
+     protocols/IFmap
+     (-fmap [_ f]
+       (make-rule (f lhs) (f rhs)))
+
+     
+     protocols/IRuleApply
+     (-rule-apply [this t]
+       (this t))
+     
+     
+     protocols/IRuleLeftHandSide
+     (-rule-left-hand-side [_]
+       lhs)
+
+
+     protocols/IRuleRightHandSide
+     (-rule-right-hand-side [_]
+       rhs)
+
+     protocols/IWalk
+     (-walk [this inner-f outer-f]
+       (outer-f
+        (protocols/-fmap
+         this
+         (fn [x]
+           (walk inner-f outer-f x))))))))
+
+
+(comment
+  (= ((make-rule [1 2 3] [4 5 6])
+      [1 2 3])
+     [4 5 6])
+
+  (= ((make-rule [1 2 3] [4 5 6])
+      [3 2 1])
+     [3 2 1])
+
+  (let [x (make-variable 'x)
+        y (make-variable 'y)
+        r (make-rule [x y x] [x y])]
+    (= (r [1 2 1])
+       [1 2])))
+
 ;; ---------------------------------------------------------------------
 ;; Macros
-
-
-(defn parse-form
-  {:arglists '([form]
-               [form environment])}
-  ([form]
-   (parse-form form {}))
-  ([form env]
-   (if-some [[_ v] (find env form)]
-     v
-     (cond
-       (map? form)
-       (reduce-kv
-        (fn [m k v]
-          (assoc m (parse-form k env) (parse-form v env)))
-        {}
-        form)
-
-       (vector? form)
-       (mapv (fn [subform]
-               (parse-form subform env))
-             form)
-       
-       
-       (seq? form)
-       (map (fn [subform]
-              (parse-form subform env))
-            form)
-
-       :else
-       form))))
 
 
 (defmacro vars
@@ -989,6 +964,7 @@
                                 `(make-variable '~variable))))
              variables)]
       ~@body)))
+
 
 (defn associative-call-r
   ([fsym]
@@ -1124,116 +1100,221 @@
   `(zero-property-r '~fsym ~zero))
 
 
+(defn parse-form*
+  ([x]
+   (parse-form* x {}))
+  ([x env]
+   (if-some [[_ val] (find env x)]
+     [val env]
+     (cond
+       (seq? x)
+       (cond
+         (= (first x) 'quote)
+         [x env]
+
+         (= (first x) `unquote)
+         (let [var (make-variable (second x))]
+           [var (assoc env x var)])
+
+         ;; TODO: `unquote-splicing
+
+         :else
+         (reduce
+          (fn [[s env*] y]
+            (let [[y* env**] (parse-form* y env*)]
+              [(concat s (list y*)) env**]))
+          [() env]
+          x))
+
+       (vector? x)
+       (reduce
+        (fn [[v env*] y]
+          (let [[y* env**] (parse-form* y env*)]
+            [(conj v y*) env**]))
+        [[] env]
+        x)
+
+       (map? x)
+       (reduce
+        (fn [[m env*] e]
+          (let [[e* env**] (parse-form* e env*)]
+            [(conj m e*) env**]))
+        [{} env]
+        x)
+
+       :else
+       [x env]))))
+
+
 (defmacro rule
-  {:style/indent :defn}
-  ([variables lhs rhs]
-   `(vars ~variables
-      (let [env# (hash-map ~@(mapcat
-                              (fn [variable]
-                                `('~variable ~variable))
-                              variables))
-            lhs# (parse-form '~lhs env#)
-            rhs# (parse-form '~rhs env#)]
-        (make-rule lhs# rhs#)))))
+  {:arglists '([[params*] & {:keys [replace with where]}])
+   :style/indent :defn}
+  ([params & {:keys [replace with where]}]
+   (let [vars `vars#
+         lhs `lhs#
+         rhs `rhs#
+         smap `smap#
+         ;; FIXME
+         [_ env] (parse-form* replace {})
+         var-syms (distinct (concat params (map (comp symbol name) (variables env))))]
+     `(let [[~vars env#] (reduce
+                          (fn [[vars# env#] param#]
+                            (let [var# (make-variable param#)
+                                  vars*# (conj vars# var#)
+                                  env*# (assoc env#
+                                               (list 'clojure.core/unquote param#)
+                                               var#)]
+                              [vars*# env*#]))
+                          [[] {}]
+                          '~params)
+            [~lhs env#] (parse-form* '~replace env#)
+            [~rhs env#] (parse-form* '~with env#)]
+        (reify
+          clojure.lang.IFn
+          ~@(for [arglist-tail (take (inc (count params)) (iterate butlast params))]
+              `(~'invoke [_# t# ~@arglist-tail]
+                (let [smap# (reduce
+                             conj
+                             {}
+                             (map vector ~vars [~@arglist-tail]))]
+                  (loop [t# t#]
+                    (let [t*# (prewalk
+                               (fn [t#]
+                                 (if-unifies [~smap ~lhs t# smap# (Object.)]
+                                   (let [~@(mapcat
+                                            (fn [var-sym]
+                                              [var-sym `(resolve (make-variable '~var-sym) ~smap)])
+                                            var-syms)
+                                         ~@(mapcat
+                                            (fn [[var val-expr]]
+                                              (let [var-val (gensym "val__")]
+                                                [var `(make-variable '~var)
+                                                 var-val val-expr
+                                                 smap `(assoc ~smap ~var ~var-val)]))
+                                            (partition 2 where))]
+                                     (substitute ~rhs ~smap))       
+                                   t#))
+                               t#)]
+                      (if (= t*# t#)
+                        t#
+                        (recur t*#))))))))))))
+
+
+(defmacro defrule
+  {:arglists '([name [params*] & {:keys [replace with]}])
+   :style/indent :defn}
+  ([name params & rule-args]
+   (let [arglists (map (fn [params*]
+                         (vec (cons 'term params*)))
+                       (take (count params)
+                             (iterate butlast
+                                      (map-indexed
+                                       (fn [i _]
+                                         (symbol (str "p-" (inc i))))
+                                       params))))
+         arglists (cons ['term] (reverse arglists))]
+     `(def ~(with-meta name {:arglists `'~arglists})
+        (rule ~params ~@rule-args)))))
+
+
 
 
 ;; ---------------------------------------------------------------------
 ;; Scratch
 
+;; TODO: Map unification can be made smarter by
+;;   * comparing map sizes, if the LHS is larger than the RHS fail;
+;;   * unifying ground keys first.
+;;
+;; TODO: Rule compilation can be made smarter by checking if the LHS
+;; is ground. If so, matching is simply an equality check.
+
 (tufte/add-basic-println-handler! {})
 
+
+
+(defrule x=>y [x y]
+  :replace
+  ~x
+
+  :with
+  ~y)
+
+
+(defrule x-y-x=>x-y [x y]
+  :replace
+  (~x ~y ~x)
+
+  :with
+  (~x ~y))
+
+
 (comment
-  (= (run-rules
-      [(monoid-rule + 0)
-       (monoid-rule * 1)
-       (zero-property or true)
-       (zero-property and false)
-       (monoid-rule str "")]
-      '(+ 0 (* 1) 0 (str "foo" "bar") y))
-     (+ 1 (str "foo" "bar") y)))
+  (rule []
+    :replace
+    (~x ~y ~x)
+
+    :with
+    (~z ~y)
+
+    :where
+    [z (x=>y x y)])
+
+  )
 
 
 
-(tufte/profile
- {}
- (let [r1 (rule [a]
-            (or ~@xs-1 [a ~@xs-2] ~@xs-3 [a ~@xs-4] ~@xs-5)
-            (or [a (or [~@xs-2] [~@xs-4])] ~@xs-1 ~@xs-3 ~@xs-5))
-       r2 (monoid-call-rule 'or)
-       r3 (rule []
-            (~@xs [] ~@ys)
-            (~@xs ~@ys))
-       r4 (rule []
-            [~@xs [] ~@ys]
-            [~@xs ~@ys])
-       r5 (rule []
-            [~@xs (or) ~@ys]
-            [~@xs ~@ys])
-       r6 (rule [a]
-            (~@xs [a] ~@ys)
-            (~@xs a ~@ys))
-       r7 (rule [a]
-            (or a) 
-            a)
-       r8 (rule [a]
-            [~@xs [a ~@ys] ~@zs]
-            [~@xs a ~@ys ~@zs])]
-   (run-rules
-    [r1 r2 r3 r4 r5 r6 r7 r8]
-    '(or 1
-         [2 3 4]
-         7
-         [2 3 5]))))
-;; => (or [2 3 (or 4 5)] 1 7)
-;; Clock Time 279.47ms
-;; Accounted Time 0 0ns
-
-(defn label? [x]
-  (and (symbol? x)
-       (re-matches #"\AL__.+\z" (name x))))
 
 
-(defn run-rule-x [rule term]
-  (let [!term-map (volatile!
-                   {:by-label {}
-                    :by-term {}})
 
-        _ (walk/postwalk
-           (fn [x]
-             (if-some [label (get-in @!term-map [:by-term x])]
-               label
-               (let [label (gensym "L__")]
-                 (vswap! !term-map assoc-in [:by-label label] x)
-                 (vswap! !term-map assoc-in [:by-term x] label)
-                 label)))
-           term)
+#_
+(tufte/profile)
 
-        queue (meander.kahn/kahn-sort
-               (reduce
-                (fn [g [label x]]
-                  (if (coll? x)
-                    (update g label (fnil into #{}) x)
-                    (update g label (fnil conj #{}) x)))
-                {}
-                (:by-label @!term-map)))
-
-        root-node (first queue)
-
-        term*
-        (loop [by-label (:by-label @!term-map)
-               queue queue]
-          (if (seq queue)
-            (let [x (peek queue)]
-              (if (label? x)
-                (let [v (loop [v (walk/postwalk-replace by-label (get by-label x))]
-                          (let [v* (apply-rule rule v)]
-                            (if (= v v*)
-                              v
-                              (recur v*))))]
-                  (recur (assoc by-label x v)
-                         (pop queue)))
-                (recur by-label (pop queue))))
-            (get by-label root-node)))]
-    term*))
+(comment
+  (defn label? [x]
+    (and (symbol? x)
+         (re-matches #"\AL__.+\z" (name x))))
 
 
+  (defn run-rule-x [rule term]
+    (let [!term-map (volatile!
+                     {:by-label {}
+                      :by-term {}})
+
+          _ (walk/postwalk
+             (fn [x]
+               (if-some [label (get-in @!term-map [:by-term x])]
+                 label
+                 (let [label (gensym "L__")]
+                   (vswap! !term-map assoc-in [:by-label label] x)
+                   (vswap! !term-map assoc-in [:by-term x] label)
+                   label)))
+             term)
+
+          queue (kahn/kahn-sort
+                 (reduce
+                  (fn [g [label x]]
+                    (if (coll? x)
+                      (update g label (fnil into #{}) x)
+                      (update g label (fnil conj #{}) x)))
+                  {}
+                  (:by-label @!term-map)))
+
+          root-node (first queue)
+
+          term*
+          (loop [by-label (:by-label @!term-map)
+                 queue queue]
+            (if (seq queue)
+              (let [x (peek queue)]
+                (if (label? x)
+                  (let [v (loop [v (walk/postwalk-replace by-label (get by-label x))]
+                            (let [v* (apply-rule rule v)]
+                              (if (= v v*)
+                                v
+                                (recur v*))))]
+                    (recur (assoc by-label x v)
+                           (pop queue)))
+                  (recur by-label (pop queue))))
+              (get by-label root-node)))]
+      term*)))
