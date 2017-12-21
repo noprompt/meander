@@ -1121,7 +1121,7 @@
 (defmacro rule
   {:arglists '([[params*] & {:keys [replace with where when]}])
    :style/indent :defn}
-  ([params & {:keys [replace with where]}]
+  ([params & {:keys [replace with where when]}]
    (let [vars `vars#
          lhs `lhs#
          rhs `rhs#
@@ -1167,7 +1167,11 @@
           (-substitute [this# ~smap]
             (let [~@(mapcat
                      (fn [var-sym]
-                       [var-sym `(resolve (make-variable '~var-sym) ~smap)])
+                       [var-sym `(resolve
+                                  ~(if (splicing-var-sym? var-sym)
+                                     `(make-splicing-variable '~var-sym)
+                                     `(make-variable '~var-sym))
+                                  ~smap)])
                      var-syms)
                   ~@(mapcat
                      (fn [[var val-expr]]
@@ -1183,7 +1187,19 @@
 
           protocols/IUnify
           (-unify [this# t# smap# bottom#]
-            (unify ~lhs t# smap# bottom#)))))))
+            (if-unifies [~smap ~lhs t# smap# bottom#]
+              (let [~@(mapcat
+                       (fn [var-sym]
+                         [var-sym `(resolve
+                                    ~(if (splicing-var-sym? var-sym)
+                                       `(make-splicing-variable '~var-sym)
+                                       `(make-variable '~var-sym))
+                                    ~smap)])
+                       var-syms)]
+                (if ~(or when true)
+                  ~smap
+                  bottom#))
+              bottom#)))))))
 
 
 (defmacro defrule
@@ -1286,23 +1302,46 @@
   associative-do
   (associative-rule do))
 
-#_
-((rule []
-   :when
-   (not (some #{'do} xs))
 
-   :replace
-   (do ~@xs)
+(comment
+  (= ((rule []
+        :when
+        (some
+         (fn [x]
+           (and (seq? x)
+                (= 'do (first x))))
+         xs)
 
-   :with
-   [~@xs]
+        :replace
+        (do ~@xs)
 
-   #_#_
-   :where
-   [x (-> (cons 'do xs)
-          (associative-do)
-          (singleton-do))])
- '(do 1 (do 2 3)))
+        :with
+        (do ~@ys)
+
+        :where
+        [ys (-> (cons 'do xs)
+                (associative-do)
+                (singleton-do)
+                (rest))])
+      '(do 1 (do 2 3)))
+     '(do 1 2 3)))
+
+
+(comment
+  (= ((rule []
+        :when
+        (every? (every-pred number? even?) xs)
+
+        :replace
+        [~@xs ~@xs]
+
+        :with
+        [~@ys]
+
+        :where
+        [ys (map str xs)])
+      [2 4 2 4])
+     ["2" "4"]))
 
 #_
 (tufte/profile)
