@@ -1231,6 +1231,33 @@
 
 (tufte/add-basic-println-handler! {})
 
+;; Rules can be parameterized. `x` and `y` are optional (positional)
+;; parameters which can be passed when the rule is applied. So
+;;
+;;   (rule-name term 1)
+;;
+;; means "apply `rule-name` with `x` bound to 1." In this example
+;; `term` will only match when it is of the form `[1 y 1]`. The
+;; application
+;;
+;;   (rule-name term 1 2)
+;;
+;; binds `x` and `y` thus `term` will stictly match `[1 2 1]`.
+(defrule rule-name [x y]
+  ;; The left side of the rule, the pattern to match.
+  :replace
+  [~x ~y ~x] ;; [:a :b :a], [:b :a :b], [1 2 1], etc.
+
+  ;; The right side of the rule, the replacement pattern which
+  ;; substitution will be appliek.
+  :with
+  [~z]
+
+  ;; Essentially a `let` between matching and replacing. This allows
+  ;; subrules, functions, etc. to be executed before performing the
+  ;; substitution to the right side.
+  :where
+  [z (if (number? x) y x)])
 
 
 (defrule x=>y [x y]
