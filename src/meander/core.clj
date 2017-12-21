@@ -829,10 +829,6 @@
      (protocols/-fmap this (comp outer-f inner-f)))))
 
 
-
-
-
-
 ;; ---------------------------------------------------------------------
 ;; Rule construction
 
@@ -845,42 +841,6 @@
 (defn right-hand-side
   ([rule]
    (protocols/-rule-right-hand-side rule)))
-
-
-(defn rule?
-  ([x]
-   (and (satisfies? protocols/IRuleLeftHandSide x)
-        (satisfies? protocols/IRuleRightHandSide x))))
-
-
-(defn valid-rule?
-  ([x]
-   (and (rule? x)
-        (not (variable? (left-hand-side x)))
-        (set/superset?
-         (variables (left-hand-side x))
-         (variables (right-hand-side x))))))
-
-
-(defn rule-parameters [rule]
-  (if (satisfies? protocols/IRuleParameters rule)
-    (protocols/-rule-parameters rule)
-    []))
-
-
-
-(defn run-rules
-  ([rules term]
-   (let [f (fn [x]
-             (apply-rules rules x))
-         ;; Apply the rules to every node in the term's tree.
-         term* (postwalk f term)]
-     (if (= term term*)
-       ;; If nothing has changed we're done.
-       term
-       ;; If the term has been rewritten we need to run the rule once
-       ;; more.
-       (recur rules term*)))))
 
 
 (defn make-rule
@@ -909,20 +869,19 @@
      (-fmap [_ f]
        (make-rule (f lhs) (f rhs)))
 
-     
-     protocols/IRuleApply
-     (-rule-apply [this t]
-       (this t))
-     
-     
-     protocols/IRuleLeftHandSide
-     (-rule-left-hand-side [_]
-       lhs)
+
+     protocols/IRule
 
 
-     protocols/IRuleRightHandSide
-     (-rule-right-hand-side [_]
-       rhs)
+     protocols/IUnify
+     (-unify [_ t smap bottom]
+       (unify lhs t smap bottom))
+
+
+     protocols/ISubstitute
+     (-substitute [_ smap]
+       (substitute rhs smap))
+
 
      protocols/IWalk
      (-walk [this inner-f outer-f]
@@ -948,41 +907,35 @@
     (= (r [1 2 1])
        [1 2])))
 
-;; ---------------------------------------------------------------------
-;; Macros
+
+(defn run-rule
+  {:arglists '([rule term])}
+  [r t]
+  (if (satisfies? protocols/IRule r)
+    (loop [t t]
+      (let [t* (prewalk
+                (fn [u]
+                  (if-unifies [smap r u {}]
+                    (substitute r smap)
+                    u))
+                t)]
+        (if (= t* t)
+          t
+          (recur t*))))
+    t))
 
 
-(defmacro vars
-  {:style/indent :defn}
-  ([variables & body]
-   `(let [~@(mapcat
-             (fn [variable]
-               `(~variable ~(or (when-some [[_ tag] (find (meta variable) :tag)]
-                                  (when (symbol? tag)
-                                    (when-some [v (clojure.core/resolve tag)]
-                                      `(make-conditional-variable '~variable ~tag))))
-                                `(make-variable '~variable))))
-             variables)]
-      ~@body)))
-
-
-(defn associative-call-r
+(defn make-associative-rule
   ([fsym]
+   {:pre [(symbol? fsym)]}
    (reify
-     protocols/IUnify
-     (-unify [this x smap bottom]
-       (if (and (seq? x)
-                (= (first x) fsym))
-         (assoc smap this x)
-         bottom))
+     clojure.lang.IFn
+     (invoke [this t]
+       (run-rule this t))
+     
 
-     protocols/IRuleLeftHandSide
-     (-rule-left-hand-side [this]
-       this)
+     protocols/IRule
 
-     protocols/IRuleRightHandSide
-     (-rule-right-hand-side [this]
-       this)
 
      protocols/ISubstitute
      (-substitute [this smap]
@@ -994,32 +947,38 @@
               (rest x)
               (list x)))
           seq)
-         (util/undefined))))))
+         ^{:explanation "An associative rule could not be found in the substitution map."}
+         (util/undefined)))
+     
 
-
-(defmacro associative-rule
-  ([fsym]
-   {:pre [(symbol? fsym)]}
-   `(associative-call-r '~fsym)))
-
-
-(defn monoid-call-r
-  ([fsym id]
-   (reify
      protocols/IUnify
      (-unify [this x smap bottom]
        (if (and (seq? x)
                 (= (first x) fsym))
          (assoc smap this x)
-         bottom))
+         bottom)))))
 
-     protocols/IRuleLeftHandSide
-     (-rule-left-hand-side [this]
-       this)
+(comment
+  (= ((make-associative-rule '+)
+      '(+ 1 2 (+ 3)))
+     '(+ 1 2 3)))
 
-     protocols/IRuleRightHandSide
-     (-rule-right-hand-side [this]
-       this)
+
+(defmacro associative-rule
+  ([fsym]
+   {:pre [(symbol? fsym)]}
+   `(make-associative-rule '~fsym)))
+
+
+(defn make-monoid-rule
+  ([fsym id]
+   {:pre [(symbol? fsym)]}
+   (reify
+     clojure.lang.IFn
+     (invoke [this t]
+       (run-rule this t))
+
+     protocols/IRule
 
      protocols/ISubstitute
      (-substitute [this smap]
@@ -1039,39 +998,43 @@
            (if (= seq* (list fsym))
              id
              seq*))
-         (util/undefined))))))
+         ^{:explanation "A monoid rule could not be found in the substitution map."}
+         (util/undefined)))
 
 
-(defmacro monoid-rule
-  ([sym id]
-   `(monoid-call-r '~sym ~id)))
-
-
-(defn zero-property-r
-  "The zero property of the function that's symbol is
-  `fsym`. Semantically equivalent to
-
-  (rule []
-    (fsym ~@xs zero ~@ys)
-    zero)
-  "
-  ([fsym zero]
-   {:pre [(symbol? fsym)]}
-   (reify
      protocols/IUnify
      (-unify [this x smap bottom]
        (if (and (seq? x)
                 (= (first x) fsym))
          (assoc smap this x)
-         bottom))
+         bottom)))))
 
-     protocols/IRuleLeftHandSide
-     (-rule-left-hand-side [this]
-       this)
 
-     protocols/IRuleRightHandSide
-     (-rule-right-hand-side [this]
-       this)
+(defmacro monoid-rule
+  ([fsym id]
+   {:pre [(symbol? fsym)]}
+   `(monoid-call-r '~fsym ~id)))
+
+
+(defn make-zero-property-rule
+  "The zero property of the function that's symbol is
+  `fsym`. Semantically equivalent to
+
+  (rule []
+    :replace
+    (fsym ~@xs ~zero ~@ys)
+
+    :with
+    ~zero)
+  "
+  ([fsym zero]
+   {:pre [(symbol? fsym)]}
+   (reify
+     clojure.lang.IFn
+     (invoke [this t]
+       (run-rule this t))
+
+     protocols/IRule
 
      protocols/ISubstitute
      (-substitute [this smap]
@@ -1079,25 +1042,34 @@
          (if (some (partial = zero) seq)
            zero
            seq)
-         (util/undefined))))))
+         ^{:explanation "An zero property rule could not be found in the substitution map."}
+         (util/undefined)))
 
 
-(defmacro zero-property
+     protocols/IUnify
+     (-unify [this x smap bottom]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         (assoc smap this x)
+         bottom)))))
+
+
+(defmacro zero-property-rule
   "Examples:
   
   (run-rule
-   (zero-property * 0)
+   (zero-property-rule * 0)
    '(* x y (* z 0)))
   ;; => 0
 
   (run-rule
-   (zero-property and false)
+   (zero-property-rule and false)
    '(and yes? no? (and maybe? false)))
   ;; => false
   "
   [fsym zero]
   {:pre [(symbol? fsym)]}
-  `(zero-property-r '~fsym ~zero))
+  `(make-zero-property-rule '~fsym ~zero))
 
 
 (defn parse-form*

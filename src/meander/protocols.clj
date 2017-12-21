@@ -17,8 +17,7 @@
   (-term-variables [t]))
 
 
-(defprotocol IRuleApply
-  (-rule-apply [rule term]))
+(defprotocol IRule)
 
 
 (defprotocol IRuleLeftHandSide
