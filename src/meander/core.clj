@@ -1,5 +1,5 @@
 (ns meander.core
-  (:refer-clojure :exclude [bound? extend resolve])
+  (:refer-clojure :exclude [bound? extend replace resolve])
   (:require
    [clojure.set :as set]
    [clojure.walk :as walk]
@@ -1118,6 +1118,8 @@
        [x env]))))
 
 
+;; TODO: Variable names (ids) need to be unique within the rule.
+;; TODO: Add a clause for controlling substitution.
 (defmacro rule
   {:arglists '([[params*] & {:keys [replace with where when]}])
    :style/indent :defn}
@@ -1255,6 +1257,10 @@
   :with
   [~z]
 
+  ;; Optionally a constraint may be placed on the match.
+  :when
+  (keyword? x)
+  
   ;; Essentially a `let` between matching and replacing. This allows
   ;; subrules, functions, etc. to be executed before performing the
   ;; substitution to the right side.
@@ -1265,27 +1271,12 @@
 ;; This rule will diverge whenever `x` and `y` unify with
 ;; eachother. This is restricted in term rewriting systems which
 ;; require termination of rules.
-(defrule x=>y [x y]
+(defrule replace [x y]
   :replace
   ~x
 
   :with
   ~y)
-
-(comment
-  (= (x=>y 1 1 2)
-     2)
-
-  (= (x=>y (make-variable 't) 1 2)
-     2))
-
-
-(defrule x-y-x=>x-y [x y]
-  :replace
-  (~x ~y ~x)
-
-  :with
-  (~x ~y))
 
 
 (defrule singleton-do []
@@ -1293,8 +1284,7 @@
   (do ~x)
 
   :with
-  x)
-
+  ~x)
 
 
 (def
@@ -1303,45 +1293,29 @@
   (associative-rule do))
 
 
-(comment
-  (= ((rule []
-        :when
-        (some
-         (fn [x]
-           (and (seq? x)
-                (= 'do (first x))))
-         xs)
+(defrule flatten-do []
+  :replace
+  (do ~@xs)
 
-        :replace
-        (do ~@xs)
+  :with
+  ~do*
 
-        :with
-        (do ~@ys)
+  :when
+  (some
+   (fn [x]
+     (and (seq? x)
+          (= 'do (first x))))
+   xs)
 
-        :where
-        [ys (-> (cons 'do xs)
-                (associative-do)
-                (singleton-do)
-                (rest))])
-      '(do 1 (do 2 3)))
-     '(do 1 2 3)))
+  :where
+  [do* (-> (cons 'do xs)
+           (associative-do)
+           (singleton-do))])
 
+(time
+  (flatten-do
+   '(do 1 (do 1 1 1 1 1 1 1 1 1))))
 
-(comment
-  (= ((rule []
-        :when
-        (every? (every-pred number? even?) xs)
-
-        :replace
-        [~@xs ~@xs]
-
-        :with
-        [~@ys]
-
-        :where
-        [ys (map str xs)])
-      [2 4 2 4])
-     ["2" "4"]))
 
 #_
 (tufte/profile)
