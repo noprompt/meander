@@ -559,9 +559,20 @@
          (let [ys (resolve x smap)]
            (cond
              (identical? ys x)
-             (throw
-              (ex-info "Missing substitution for splice variable."
-                       {:variable x}))
+             (let [ys* (resolve (make-variable (name x)) smap)]
+               (cond
+                 (identical? ys* x)
+                 (throw
+                  (ex-info "Missing substitution for splice variable."
+                           {:variable x}))
+
+                 (or (coll? ys*) (nil? ys*))
+                 (into v ys*)
+
+                 :else
+                 (throw
+                  (ex-info "Splicing variable not bound to a collection."
+                           {:value ys*}))))
 
              (or (coll? ys) (nil? ys))
              (into v ys)
@@ -1277,37 +1288,3 @@
 
   :with
   ~y)
-
-
-(defrule singleton-do []
-  :replace
-  (do ~x)
-
-  :with
-  ~x)
-
-
-(def
-  ^{:arglists '([term])}
-  associative-do
-  (associative-rule do))
-
-
-(defrule flatten-do []
-  :replace
-  (do ~@xs)
-
-  :with
-  ~do*
-
-  :when
-  (some
-   (fn [x]
-     (and (seq? x)
-          (= 'do (first x))))
-   xs)
-
-  :where
-  [do* (-> (cons 'do xs)
-           (associative-do)
-           (singleton-do))])
