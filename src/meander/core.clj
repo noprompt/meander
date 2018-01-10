@@ -3,6 +3,7 @@
   (:require
    [clojure.set :as set]
    [clojure.spec.alpha :as spec]
+   [clojure.core.specs.alpha :as core.specs]
    [clojure.walk :as walk]
    [meander.protocols :as protocols]
    [meander.util :as util]
@@ -1147,7 +1148,7 @@
 (spec/def ::as-clause
   (spec/cat
    :keyword #{:as}
-   :form :clojure.core.specs.alpha/binding-form))
+   :form ::core.specs/binding-form))
 
 
 (spec/def ::replace-clause
@@ -1166,7 +1167,7 @@
   (spec/cat
    :keyword #{:where}
    :form (spec/and vector?
-                   (spec/* :clojure.core.specs.alpha/binding))))
+                   (spec/* ::core.specs/binding))))
 
 
 (spec/def ::with-clause
@@ -1276,7 +1277,7 @@
                 (partition 2
                            (mapcat
                             (comp destructure
-                                  (partial spec/unform :clojure.core.specs.alpha/binding))
+                                  (partial spec/unform ::core.specs/binding))
                             where)))]
          ~inner-form))
     inner-form)) 
@@ -1287,7 +1288,7 @@
    :private true}
   [{:keys [as v]} inner-form]
   (if (some? as)
-    `(let ~(destructure [(spec/unform :clojure.core.specs.alpha/binding-form as) v])
+    `(let ~(destructure [(spec/unform ::core.specs/binding-form as) v])
        ~inner-form)
     inner-form))
 
@@ -1425,8 +1426,6 @@
   ;; substitution to the right side.
   :where
   [z (if (number? x) y x)])
-
-
 
 
 ;; This rule will diverge whenever `x` and `y` unify with
