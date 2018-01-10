@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [bound? extend replace resolve])
   (:require
    [clojure.set :as set]
+   [clojure.spec :as spec]
    [clojure.walk :as walk]
    [meander.protocols :as protocols]
    [meander.util :as util]
@@ -271,9 +272,12 @@
   {:arglists '([term substitution-map])}
   ([t smap]
    {:pre [(map? smap)]}
-   (if-some [[_ x] (find smap t)]
-     (resolve x smap)
+   (if (variable? t)
+     (if-some [[_ x] (find smap (name t))]
+       (resolve x smap)
+       t)
      t)))
+
 
 (defmacro if-resolve
   {:style/indent 1}
@@ -297,9 +301,10 @@
 (defn extend
   {:arglists '([substitution-map variable term bottom])}
   ([smap v t bottom]
+   {:pre [(instance? clojure.lang.Named v)]}
    (if (contains? (variables t) v)
      bottom
-     (assoc smap v t))))
+     (assoc smap (name v) t))))
 
 
 (defmacro if-extend
@@ -316,7 +321,8 @@
 (defn extend-no-check
   {:arglists '([substitution-map variable term])}
   ([smap v t]
-   (assoc smap v t)))
+   {:pre [(instance? clojure.lang.Named v)]}
+   (assoc smap (name v) t)))
 
 
 ;; ---------------------------------------------------------------------
@@ -339,30 +345,30 @@
   protocols/IVariable
 
   protocols/ISubstitute
-  (-substitute [this substitution-map]
-    (resolve this substitution-map))
+  (-substitute [this smap]
+    (resolve this smap))
 
   protocols/ITermVariables
   (-term-variables [this]
     #{this})
 
   protocols/IUnify
-  (-unify [this that substitution-map bottom]
-    (if-some [_ (find substitution-map this)]
-      (let [x (resolve this substitution-map)
-            y (resolve that substitution-map)]
+  (-unify [this that smap bottom]
+    (if (resolve this smap)
+      (let [x (resolve this smap)
+            y (resolve that smap)]
         (if (= x y)
-          substitution-map
+          smap
           bottom))
-      (extend substitution-map this that bottom)))
+      (extend smap this that bottom)))
 
   Object
   (equals [_ that]
     (and (instance? Variable that)
          (= name (.name that))))
 
-  (hashCode [_]
-    (.hashCode name)))
+  (hashCode [this]
+    (.hashCode (.name this))))
 
 
 (defn make-variable
@@ -403,14 +409,13 @@
 
   protocols/IUnify
   (-unify [this that smap bottom]
-    (if-some [_ (find smap this)]
-      (let [x (resolve this smap)]
-        (if (coll? x)
-          (let [y (resolve that smap)]
-            (if (= x y)
-              smap
-              bottom))
-          bottom))
+    (if-resolve [x this smap]
+      (if (coll? x)
+        (let [y (resolve that smap)]
+          (if (= x y)
+            smap
+            bottom))
+        bottom)
       (if (coll? that)
         (extend smap this that bottom)
         bottom)))
@@ -420,8 +425,8 @@
     (and (instance? SplicingVariable that)
          (= name (.name that))))
 
-  (hashCode [_]
-    (.hashCode name)))
+  (hashCode [this]
+    (.hashCode (.name this))))
 
 
 (defn make-splicing-variable
@@ -564,7 +569,8 @@
                  (identical? ys* x)
                  (throw
                   (ex-info "Missing substitution for splice variable."
-                           {:variable x}))
+                           {:variable x
+                            :smap smap}))
 
                  (or (coll? ys*) (nil? ys*))
                  (into v ys*)
@@ -572,7 +578,8 @@
                  :else
                  (throw
                   (ex-info "Splicing variable not bound to a collection."
-                           {:value ys*}))))
+                           {:value ys*
+                            :smap smap}))))
 
              (or (coll? ys) (nil? ys))
              (into v ys)
@@ -580,7 +587,8 @@
              :else
              (throw
               (ex-info "Splicing variable not bound to a collection."
-                       {:value ys}))))
+                       {:value ys
+                        :smap smap}))))
          (conj v (substitute x smap))))
      []
      this))
@@ -1129,120 +1137,257 @@
        [x env]))))
 
 
+(spec/def ::rule-name
+  symbol?)
+
+
+(spec/def ::rule-params
+  (spec/coll-of symbol? :kind vector?))
+
+
+(spec/def ::as-clause
+  (spec/cat
+   :keyword #{:as}
+   :form ::clojure.core.specs/binding-form))
+
+
+(spec/def ::replace-clause
+  (spec/cat
+   :keyword #{:replace}
+   :form any?))
+
+
+(spec/def ::when-clause
+  (spec/cat
+   :keyword #{:when}
+   :form any?))
+
+
+(spec/def ::where-clause
+  (spec/cat
+   :keyword #{:where}
+   :form (spec/and vector?
+                   (spec/* :clojure.core.specs/binding))))
+
+
+(spec/def ::with-clause
+  (spec/cat
+   :keyword #{:with}
+   :form any?))
+
+
+(spec/def ::rule-clause
+  (spec/alt
+   :as-clause ::as-clause
+   :replace-clause ::replace-clause
+   :when-clause ::when-clause
+   :where-clause ::where-clause
+   :with-clause ::with-clause))
+
+
+(spec/def ::rule-args
+  (spec/cat
+   :rule-name (spec/? ::rule-name)
+   :params ::rule-params
+   :clauses (spec/* ::rule-clause)))
+
+
+(spec/def ::defrule-args
+  (spec/cat
+   :rule-name ::rule-name
+   :params ::rule-params
+   :clauses (spec/* ::rule-clause)))
+
+
+(defn parse-rule-args
+  {:private true}
+  [rule-args]
+  (let [{:keys [clauses params rule-name]}
+        (spec/conform ::rule-args rule-args)]
+    (into 
+     {:bottom (gensym "bottom__")
+      :smap (gensym "smap__")
+      :u (gensym "u__")
+      :v (gensym "v__")
+      :params params
+      :rule-name rule-name}
+     (map (comp (juxt :keyword :form) second) clauses))))
+
+
+(defn compile-rule-name
+  {:private true}
+  [rule-data]
+  (when-some [rule-name (get rule-data :rule-name)]
+    (let [params (get rule-data :params [])
+          arglists `'~(reverse
+                       (map (comp vec (partial cons 'term))
+                            (take (inc (count params))
+                                  (iterate pop params))))]
+      (with-meta rule-name {:arglists arglists}))))
+
+
+(defn compile-when
+  {:arglists '([rule-data then-form else-form])
+   :private true}
+  [{:keys [params replace smap when]} then-form else-form]
+  (if (some? when)
+    (let [[_ env] (parse-form* replace {})
+          var-syms (set (map (comp symbol name) (vals env)))]
+      `(let [~@(mapcat
+                (juxt identity
+                      (fn [sym]
+                        `(resolve (make-variable '~sym) ~smap)))
+                var-syms)
+             ~@(mapcat
+                (juxt identity
+                      (fn [sym]
+                        `(if-resolve [x# (make-variable '~sym) ~smap]
+                           x#
+                           nil)))
+                (remove var-syms params))]
+         (if ~when
+           ~then-form
+           ~else-form)))
+    then-form))
+
+
+(defn compile-where
+  {:arglists '([rule-data inner-form])
+   :private true}
+  [{:keys [params replace smap where]} inner-form]
+  (if (some? where)
+    (let [[_ env] (parse-form* replace {})
+          var-syms (set (map (comp symbol name) (vals env)))]
+      `(let [~@(mapcat
+                (juxt identity
+                      (fn [sym]
+                        `(resolve (make-variable '~sym) ~smap)))
+                var-syms)
+             ~@(mapcat
+                (juxt identity
+                      (fn [sym]
+                        `(if-resolve [x# (make-variable '~sym) ~smap]
+                           x#
+                           nil)))
+                (remove var-syms params))
+             ~@(mapcat
+                (fn [[binding val]]
+                  `(~binding ~val
+                    ~smap (extend-no-check ~smap (make-variable '~binding) ~binding)))
+                (partition 2
+                           (mapcat
+                            (comp destructure
+                                  (partial spec/unform ::clojure.core.specs/binding))
+                            where)))]
+         ~inner-form))
+    inner-form)) 
+
+
+(defn compile-as
+  {:arglists '([rule-data inner-form])
+   :private true}
+  [{:keys [as v]} inner-form]
+  (if (some? as)
+    `(let ~(destructure [(spec/unform ::clojure.core.specs/binding-form as) v])
+       ~inner-form)
+    inner-form))
+
+
+(defn compile-rule
+  {:arglists '([rule-data])
+   :private true}
+  ([{:keys [bottom params replace rule-name smap u v when where with] :as rule-data}]
+   (let [this-sym (gensym "this__")
+         with-sym (gensym "with__")
+         arglists (map (partial concat [this-sym v])
+                       (take (inc (count params))
+                             (iterate pop params)))
+         substitute-form `(substitute ~with-sym ~smap)]
+     `(let [[~u env#] (parse-form* '~replace {})
+            [~with-sym _#] (parse-form* '~with env#)]
+        (reify
+          clojure.lang.IFn
+          ~@(for [arglist arglists]
+              `(~'invoke [~@arglist]
+                (let [~smap {}
+                      ~bottom (Object.)
+                      ~@(mapcat
+                         (juxt (constantly smap)
+                               (fn [symbol]
+                                 `(extend-no-check ~smap (make-variable '~symbol) ~symbol)))
+                         (drop 2 arglist))
+                      ~@(if (some? rule-name)
+                          `(~rule-name ~this-sym))]
+                  (loop [~v ~v]
+                    (let [v# (prewalk
+                              (fn [~v]
+                                (if-some [~smap (unify ~u ~v ~smap nil)]
+                                  ~(compile-when
+                                    rule-data
+                                    (compile-as rule-data
+                                                (compile-where rule-data
+                                                               substitute-form))
+                                    v)
+                                  ~v))
+                              ~v)]
+                      (if (= v# ~v)
+                        ~v
+                        (recur v#)))))))
+
+          protocols/IRuleLeftHandSide
+          (~'-rule-left-hand-side [~this-sym]
+           ~u)
+
+          protocols/IRuleRightHandSide
+          (~'-rule-right-hand-side [~this-sym]
+           ~with-sym)
+
+          protocols/ISubstitute
+          (~'-substitute [~this-sym ~smap]
+           (substitute ~with-sym ~smap))
+
+          protocols/IUnify
+          (~'-unify [~this-sym ~v ~smap ~bottom]
+           (unify ~u ~v ~smap ~bottom)))))))
+
+
+(spec/fdef rule
+  :args ::rule-args
+  :ret any?)
+
 ;; TODO: Variable names (ids) need to be unique within the rule.
 ;; TODO: Add a clause for controlling substitution.
 (defmacro rule
   {:arglists '([[params*] & {:keys [replace with where when]}])
    :style/indent :defn}
-  ([params & {:keys [replace with where when]}]
-   (let [vars `vars#
-         lhs `lhs#
-         rhs `rhs#
-         smap `smap#
-         ;; FIXME: This is a mess.
-         [_ env] (parse-form* replace {})
-         var-sym (comp symbol name)
-         splicing-var-sym?
-         (into {}
-               (map (juxt var-sym splicing-variable?))
-               (set/union (variables env)
-                          (variables (parse-form* with env))))
-         var-syms (distinct (concat params (map var-sym (variables env))))]
-     `(let [splicing-var-sym?# '~splicing-var-sym?
-            [~vars env#] (reduce
-                          (fn [[vars# env#] param#]
-                            (let [var# (if (splicing-var-sym?# param#)
-                                         (make-splicing-variable param#)
-                                         (make-variable param#))
-                                  vars*# (conj vars# var#)
-                                  var-form# 
-                                  (if (splicing-var-sym?# param#)
-                                    (list 'clojure.core/unquote param#)
-                                    (list 'clojure.core/unquote-splicing param#))
-                                  env*# (assoc env# var-form# var#)]
-                              [vars*# env*#]))
-                          [[] {}]
-                          '~params)
-            [~lhs env#] (parse-form* '~replace env#)
-            [~rhs env#] (parse-form* '~with env#)]
-        (reify
-          clojure.lang.IFn
-          ~@(for [arglist-tail (take (inc (count params)) (iterate butlast params))]
-              `(~'invoke [this# t# ~@arglist-tail]
-                (let [smap# (into {} (map vector ~vars [~@arglist-tail]))]
-                  (run-rule this# t# smap#))))
+  ([& args]
+   (let [rule-data (parse-rule-args args)]
+     (compile-rule rule-data))))
 
 
-          protocols/IRule
-
-
-          protocols/ISubstitute
-          (-substitute [this# ~smap]
-            (let [~@(mapcat
-                     (fn [var-sym]
-                       [var-sym `(resolve
-                                  ~(if (splicing-var-sym? var-sym)
-                                     `(make-splicing-variable '~var-sym)
-                                     `(make-variable '~var-sym))
-                                  ~smap)])
-                     var-syms)
-                  ~@(mapcat
-                     (fn [[var val-expr]]
-                       (let [var-val (gensym "val__")]
-                         [var (if (splicing-var-sym? var)
-                                `(make-splicing-variable '~var)
-                                `(make-variable '~var))
-                          var-val val-expr
-                          smap `(assoc ~smap ~var ~var-val)]))
-                     (partition 2 where))]
-              (substitute ~rhs ~smap)))
-
-
-          protocols/IUnify
-          (-unify [this# t# smap# bottom#]
-            (if-unifies [~smap ~lhs t# smap# bottom#]
-              (let [~@(mapcat
-                       (fn [var-sym]
-                         [var-sym `(resolve
-                                    ~(if (splicing-var-sym? var-sym)
-                                       `(make-splicing-variable '~var-sym)
-                                       `(make-variable '~var-sym))
-                                    ~smap)])
-                       var-syms)]
-                (if ~(or when true)
-                  ~smap
-                  bottom#))
-              bottom#)))))))
+(spec/fdef defrule
+  :args ::defrule-args
+  :ret any?)
 
 
 (defmacro defrule
-  {:arglists '([name [params*] & {:keys [replace with]}])
+  {:arglists '([name [params*] & {:keys [replace when where with]}])
    :style/indent :defn}
   ([name params & rule-args]
-   (let [arglists (map (fn [params*]
-                         (vec (cons 'term params*)))
-                       (take (count params)
-                             (iterate butlast
-                                      (map-indexed
-                                       (fn [i _]
-                                         (symbol (str "p-" (inc i))))
-                                       params))))
-         arglists (cons ['term] (reverse arglists))]
-     `(def ~(with-meta name {:arglists `'~arglists})
-        (rule ~params ~@rule-args)))))
+   (let [name (compile-rule-name {:params params
+                                  :rule-name name})]
+     `(def ~name
+        (rule ~name ~params ~@rule-args)))))
 
 
 ;; ---------------------------------------------------------------------
 ;; Scratch
 
 ;; TODO: Map unification can be made smarter by
-;;   * comparing map sizes, if the LHS is larger than the RHS fail;
-;;   * unifying ground keys first.
+;;   [ ] comparing map sizes, if the LHS is larger than the RHS fail;
 ;;
 ;; TODO: Rule compilation can be made smarter by checking if the LHS
 ;; is ground. If so, matching is simply an equality check.
-;;
-;; TODO: "Real" splicing variables. 
 
 (tufte/add-basic-println-handler! {})
 
@@ -1262,6 +1407,11 @@
   ;; The left side of the rule, the pattern to match.
   :replace
   [~x ~y ~x] ;; [:a :b :a], [:b :a :b], [1 2 1], etc.
+
+  ;; Bind the value of a successfully matched pattern to `v` for
+  ;; subsequent use in `:with`, `:when`, and `:where` clauses.
+  :as
+  v
 
   ;; The right side of the rule, the replacement pattern which
   ;; substitution will be appliek.
