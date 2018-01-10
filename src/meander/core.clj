@@ -354,9 +354,8 @@
 
   protocols/IUnify
   (-unify [this that smap bottom]
-    (if (resolve this smap)
-      (let [x (resolve this smap)
-            y (resolve that smap)]
+    (if-resolve [x this smap]
+      (let [y (resolve that smap)]
         (if (= x y)
           smap
           bottom))
@@ -1310,7 +1309,6 @@
           ~@(for [arglist arglists]
               `(~'invoke [~@arglist]
                 (let [~smap {}
-                      ~bottom (Object.)
                       ~@(mapcat
                          (juxt (constantly smap)
                                (fn [symbol]
@@ -1427,6 +1425,8 @@
   ;; substitution to the right side.
   :where
   [z (if (number? x) y x)])
+
+
 
 
 ;; This rule will diverge whenever `x` and `y` unify with
