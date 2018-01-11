@@ -32,11 +32,11 @@
 
 
 (defprotocol IUnify
-  (-unify [this that substitution-map bottom]))
+  (-unify [this that substitution-map]))
 
 
 (defprotocol IUnify*
-  (-unify* [this that substition-map bottom]))
+  (-unify* [this that substition-map]))
 
 
 (defprotocol ISubstitute

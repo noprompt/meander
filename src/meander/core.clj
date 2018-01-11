@@ -205,6 +205,18 @@
 ;; Unification API
 
 
+(spec/def ::substitution-map
+  (spec/map-of string? any?))
+
+
+(defn substitution-map? [x]
+  (spec/valid? ::substitution-map x))
+
+
+(spec/def ::maybe-substitution-map
+  (spec/nilable ::substitution-map))
+
+
 (defn substitute
   ([x substitution-map]
    (if (satisfies? protocols/ISubstitute x)
@@ -212,50 +224,54 @@
      x)))
 
 
+(spec/fdef unify
+  :args (spec/cat :a any?
+                  :b any?
+                  :substitution-map ::substitution-map)
+  :ret ::maybe-substitution-map)
+
+
 (defn unify
-  ([a b substitution-map bottom]
-   {:pre [(map? substitution-map)]}
+  {:arglists '([a b substitution-map])}
+  ([a b smap]
+   {:pre [(substitution-map? smap)]}
    ;; Orient: move variables to the left-hand side.
    (cond
      (and (not (variable? a))
           (variable? b))
-     (recur b a substitution-map bottom)
+     (recur b a smap)
 
-     ;; Eliminate: solve for a particular variable.
-     (variable? a)
-     (protocols/-unify a b substitution-map bottom)
-
+     ;; Eliminate: solve for a particular variable (or unify in some
+     ;; custom way).
      (satisfies? protocols/IUnify a)
-     (protocols/-unify a b substitution-map bottom)
+     (protocols/-unify a b smap)
 
      :else
      (if (= a b)
-       substitution-map
-       bottom))))
+       smap
+       nil))))
 
 
 (defmacro if-unifies
-  {:arglists '([[binding u v substitution-map bottom?] then else?])
+  {:arglists '([[binding u v substitution-map] then else?])
    :style/indent 1}
-  ([[smap* u v smap bottom] then]
-   `(if-unifies ~[smap* u v smap bottom] ~then nil))
+  ([[smap* u v smap] then]
+   `(if-unifies ~[smap* u v smap] ~then nil))
   ([[smap* u v smap bottom] then else]
-   `(let [bottom# ~(if bottom bottom `(Object.))
-          smap*# (unify ~u ~v ~smap bottom#)]
-      (if (identical? smap*# bottom#)
-        ~else
-        (let [~smap* smap*#]
-          ~then)))))
+   `(if-some [smap*# (unify ~u ~v ~smap)]
+      (let [~smap* smap*#]
+        ~then)
+      ~else)))
 
 
 (defn unify*
   "Return all possible substitutions for u and v."
   {:arglists '([u v substitution-map bottom])}
-  ([u v smap bottom]
+  ([u v smap]
    {:pre [(map? smap)]}
    (if (satisfies? protocols/IUnify* u)
-     (protocols/-unify* u v smap bottom)
-     (if-unifies [smap* u v smap bottom]
+     (protocols/-unify* u v smap)
+     (if-unifies [smap* u v smap]
        (list smap*)
        ()))))
 
@@ -264,7 +280,7 @@
   {:arglists '([variable substitution-map])}
   ([var smap]
    {:pre [(variable? var)
-          (map? smap)]}
+          (substitution-map? smap)]}
    (contains? smap var)))
 
 
@@ -272,7 +288,7 @@
   "Semantically equivalent to μKaren's walk."
   {:arglists '([term substitution-map])}
   ([t smap]
-   {:pre [(map? smap)]}
+   {:pre [(substitution-map? smap)]}
    (if (variable? t)
      (if-some [[_ x] (find smap (name t))]
        (resolve x smap)
@@ -283,7 +299,9 @@
 (defmacro if-resolve
   {:style/indent 1}
   ([[binding u smap] then]
-   `(if-resolve [~binding ~u ~smap] ~then nil))
+   `(if-resolve [~binding ~u ~smap]
+      ~then
+      nil))
   ([[binding u smap] then else]
    `(let [u# ~u
           v# (resolve u# ~smap)]
@@ -294,17 +312,23 @@
 
 
 (defn resolve-all
-  {:arglists '([terms... substitution-map])}
+  {:arglists '([terms substitution-map])}
   ([ts smap]
+   {:pre [(substitution-map? smap)]}
    (map resolve ts (repeat smap))))
 
 
 (defn extend
-  {:arglists '([substitution-map variable term bottom])}
-  ([smap v t bottom]
-   {:pre [(instance? clojure.lang.Named v)]}
+  "Bind (`assoc`) `variable` to a `term` in the `substitution-map`
+  provided the variable does not occur in `term`. Returns `nil` if
+  the occurence check succeeds and the `substitution-map` if it does
+  not."
+  {:arglists '([substitution-map variable term])}
+  ([smap v t]
+   {:pre [(substitution-map? smap)
+          (instance? clojure.lang.Named v)]}
    (if (contains? (variables t) v)
-     bottom
+     nil
      (assoc smap (name v) t))))
 
 
@@ -320,9 +344,12 @@
 
 
 (defn extend-no-check
+  "Bind (`assoc`) `variable` to a `term` in the `substitution-map`
+  without checking if `variable` does not occur in `term`."
   {:arglists '([substitution-map variable term])}
   ([smap v t]
-   {:pre [(instance? clojure.lang.Named v)]}
+   {:pre [(substitution-map? smap)
+          (instance? clojure.lang.Named v)]}
    (assoc smap (name v) t)))
 
 
@@ -354,13 +381,13 @@
     #{this})
 
   protocols/IUnify
-  (-unify [this that smap bottom]
+  (-unify [this that smap]
     (if-resolve [x this smap]
       (let [y (resolve that smap)]
         (if (= x y)
           smap
-          bottom))
-      (extend smap this that bottom)))
+          nil))
+      (extend smap this that)))
 
   Object
   (equals [_ that]
@@ -383,6 +410,7 @@
    `(Variable. (name (gensym))))
   ([name]
    `(Variable. (name ~name))))
+
 
 (deftype SplicingVariable [name]
   clojure.lang.Named
@@ -408,17 +436,17 @@
     #{this})
 
   protocols/IUnify
-  (-unify [this that smap bottom]
+  (-unify [this that smap]
     (if-resolve [x this smap]
       (if (coll? x)
         (let [y (resolve that smap)]
           (if (= x y)
             smap
-            bottom))
-        bottom)
+            nil))
+        nil)
       (if (coll? that)
-        (extend smap this that bottom)
-        bottom)))
+        (extend smap this that)
+        nil)))
 
   Object
   (equals [_ that]
@@ -456,7 +484,7 @@
 ;; {as [x], bs [x a b x]}
 ;; {as [], bs [x x a b x x]}
 (defn unify-splicing-variables*
-  ([a-vars b-vec smap bottom]
+  ([a-vars b-vec smap]
    (let [;; a-vars (map (comp make-variable second) a-vars)
          n (count a-vars)]
      (mapcat
@@ -464,7 +492,7 @@
         (loop [smap smap
                k+vs k+vs]
           (if-some [[[k v] & k+vs*] (seq k+vs)]
-            (if-unifies [smap* k v smap bottom]
+            (if-unifies [smap* k v smap]
               (recur smap* k+vs*)
               ())
             (list smap))))
@@ -473,7 +501,7 @@
 
 
 (defn unify-splicing-vector*
-  ([a-vec b-vec smap bottom]
+  ([a-vec b-vec smap]
    (if (vector? b-vec)
      (let [[a-left a-right] (map vec (split-with (complement splicing-variable?) a-vec))
            [b-left b-right] (util/vsplit-at (count a-left) b-vec)]
@@ -489,25 +517,25 @@
                  (map
                   (fn [f [a-partition b-partition]]
                     (fn [smap]
-                      (f a-partition b-partition smap bottom)))
+                      (f a-partition b-partition smap)))
                   unify*
                   (partition 2
                              (interleave a-partitions
                                          b-partitions))))
                 smap))
              b-partitions*)))
-        (unify* a-left b-left smap bottom)))
+        (unify* a-left b-left smap)))
      ())))
 
 
 (defn unify-vector
-  ([u-vec v-vec smap bottom]
+  ([u-vec v-vec smap]
    {:pre [(vector? u-vec)]}
    (if (vector? v-vec)
      (if-some [[_ x] (find smap u-vec)]
        (if (= v-vec x)
          smap
-         bottom)
+         nil)
        (loop [u-vec u-vec
               v-vec v-vec
               smap smap]
@@ -516,33 +544,32 @@
            smap
 
            [true false]
-           bottom
+           nil
 
            [false true]
-           bottom
+           nil
 
            [false false]
            (let [a (peek u-vec)
                  b (peek v-vec)]
-             (if-unifies [smap* a b smap bottom]
+             (if-unifies [smap* a b smap]
                (let [u-vec* (pop u-vec)
                      v-vec* (pop v-vec)]
                  (recur u-vec*
                         v-vec*
                         smap*))
-               bottom)))))
-     bottom)))
+               nil)))))
+     nil)))
 
 
 (defn unify-vector*
-  ([u-vec v-vec smap bottom]
+  ([u-vec v-vec smap]
    {:pre [(vector? u-vec)]}
    (if (some splicing-variable? u-vec)
-     (unify-splicing-vector* u-vec v-vec smap bottom)
-     (let [smap* (unify-vector u-vec v-vec smap bottom)]
-       (if (identical? smap* bottom)
-         ()
-         (list smap*))))))
+     (unify-splicing-vector* u-vec v-vec smap)
+     (if-some [smap* (unify-vector u-vec v-vec smap)]
+       (list smap*)
+       ()))))
 
 
 (extend-type clojure.lang.IPersistentVector
@@ -595,14 +622,13 @@
 
 
   protocols/IUnify*
-  (-unify* [this that smap bottom]
-    (unify-vector* this that smap bottom))
+  (-unify* [this that smap]
+    (unify-vector* this that smap))
 
   
   protocols/IUnify
-  (-unify [this that smap bottom]
-    (or (first (protocols/-unify* this that smap bottom))
-        bottom))
+  (-unify [this that smap]
+    (first (protocols/-unify* this that smap)))
 
 
   protocols/IWalk
@@ -615,7 +641,7 @@
 
 
 (defn unify-splicing-seq*
-  ([a-seq b-seq smap bottom]
+  ([a-seq b-seq smap]
    (if (seq? b-seq)
      (let [[a-left a-right] (split-with (complement splicing-variable?) a-seq)
            [b-left b-right] (split-at (count a-left) b-seq)]
@@ -631,26 +657,26 @@
                  (map
                   (fn [f [a-partition b-partition]]
                     (fn [smap]
-                      (f a-partition b-partition smap bottom)))
+                      (f a-partition b-partition smap)))
                   unify*
                   (partition 2
                              (interleave a-partitions
                                          b-partitions))))
                 smap))
              b-partitions*)))
-        (unify* a-left b-left smap bottom)))
+        (unify* a-left b-left smap)))
      ())))
 
 
 
 (defn unify-seq
-  ([u-seq v-seq smap bottom]
+  ([u-seq v-seq smap]
    {:pre [(seq? u-seq)]}
    (if (seq? v-seq)
      (if-some [[_ x] (find smap u-seq)]
        (if (= v-seq x)
          smap
-         bottom)
+         nil)
        (loop [u-seq-seq u-seq
               v-seq-seq v-seq
               smap smap]
@@ -659,32 +685,31 @@
            smap
 
            [true false]
-           bottom
+           nil
 
            [false true]
-           bottom
+           nil
 
            [false false]
            (let [a (first u-seq-seq)
                  b (first v-seq-seq)]
-             (if-unifies [smap* a b smap bottom]
+             (if-unifies [smap* a b smap]
                (let [u-seq-seq* (rest u-seq-seq)
                      v-seq-seq* (rest v-seq-seq)]
                  (recur u-seq-seq* v-seq-seq* smap*))
-               bottom)))))
-     bottom)))
+               nil)))))
+     nil)))
 
 
 (defn unify-seq*
-  ([u-seq v-seq smap bottom]
+  ([u-seq v-seq smap]
    {:pre [(seq? u-seq)]}
    (if (seq? v-seq)
      (if (some splicing-variable? u-seq)
-       (unify-splicing-seq* u-seq v-seq smap bottom)
-       (let [smap* (unify-seq u-seq v-seq smap bottom)]
-         (if (identical? smap* bottom)
-           ()
-           (list smap*))))
+       (unify-splicing-seq* u-seq v-seq smap)
+       (if-some [smap* (unify-seq u-seq v-seq smap)]
+         (list smap*)
+         ()))
      ())))
 
 
@@ -733,14 +758,13 @@
   
 
   protocols/IUnify*
-  (-unify* [this that smap bottom]
-    (unify-seq* this that smap bottom))
+  (-unify* [this that smap]
+    (unify-seq* this that smap))
 
 
   protocols/IUnify
-  (-unify [this that smap bottom]
-    (or (first (protocols/-unify* this that smap bottom))
-        bottom)))
+  (-unify [this that smap]
+    (first (protocols/-unify* this that smap))))
 
 
 ;; ---------------------------------------------------------------------
@@ -749,40 +773,39 @@
 
 (defn unify-entry*
   {:private true}
-  ([e-a e-b smap bottom]
+  ([e-a e-b smap]
    (let [[k-a v-a] e-a
          [k-b v-b] e-b
-         smap* (unify* k-a k-b smap bottom)]
+         smap* (unify* k-a k-b smap)]
      (mapcat
       (fn [smap]
-        (unify* v-a v-b smap bottom))
+        (unify* v-a v-b smap))
       smap*))))
 
 
 (defn unify-entries*
   {:private true}
-  ([pairs smap bottom]
+  ([pairs smap]
    (if-some [[[e-a e-b] & pairs*] (seq pairs)]
      (mapcat
       (fn [smap]
-        (unify-entries* (rest pairs) smap bottom))
-      (unify-entry* e-a e-b smap bottom))
+        (unify-entries* (rest pairs) smap))
+      (unify-entry* e-a e-b smap))
      (list smap))))
 
 
 (defn unify-map*
   "Return a lazy seq of all possible substitutions for `map-a` and
   `map-b`."
-  ([map-a map-b smap bottom]
+  ([map-a map-b smap]
    {:pre [(map? map-a)]}
    (if (map? map-b)
      (if (= (count map-a) (count map-b))
        (if (not= map-a map-b)
          (mapcat 
           (fn [!map-a]
-            (let [entries (partition 2 (interleave !map-a map-b))
-                  smap* (unify-entries* entries smap bottom)]
-              (when-not (identical? smap* bottom)
+            (let [entries (partition 2 (interleave !map-a map-b))]
+              (when-some [smap* (unify-entries* entries smap)]
                 smap*)))
           (util/permutations map-a))
          (list smap))
@@ -791,9 +814,8 @@
 
 
 (defn unify-map
-  ([map-a map-b smap bottom]
-   (or (first (unify-map* map-a map-b smap bottom))
-       bottom)))
+  ([map-a map-b smap]
+   (first (unify-map* map-a map-b smap))))
 
 
 (extend-type clojure.lang.IPersistentMap
@@ -828,14 +850,13 @@
 
 
   protocols/IUnify
-  (-unify [this that smap bottom]
-    (or (first (protocols/-unify* this that smap bottom))
-        bottom))
+  (-unify [this that smap]
+    (first (protocols/-unify* this that smap)))
 
 
   protocols/IUnify*
-  (-unify* [this that smap bottom]
-    (unify-map* this that smap bottom))
+  (-unify* [this that smap]
+    (unify-map* this that smap))
 
 
   protocols/IWalk
@@ -889,8 +910,8 @@
 
 
      protocols/IUnify
-     (-unify [_ t smap bottom]
-       (unify lhs t smap bottom))
+     (-unify [_ t smap]
+       (unify lhs t smap))
 
 
      protocols/ISubstitute
@@ -969,11 +990,12 @@
      
 
      protocols/IUnify
-     (-unify [this x smap bottom]
+     (-unify [this x smap]
        (if (and (seq? x)
                 (= (first x) fsym))
+         ;; Intentional use of `assoc` instead of `extend`, etc.
          (assoc smap this x)
-         bottom)))))
+         nil)))))
 
 (comment
   (= ((make-associative-rule '+)
@@ -1020,11 +1042,12 @@
 
 
      protocols/IUnify
-     (-unify [this x smap bottom]
+     (-unify [this x smap]
        (if (and (seq? x)
                 (= (first x) fsym))
+         ;; Intentional use of `assoc` instead of `extend`, etc.
          (assoc smap this x)
-         bottom)))))
+         nil)))))
 
 
 (defmacro monoid-rule
@@ -1064,11 +1087,12 @@
 
 
      protocols/IUnify
-     (-unify [this x smap bottom]
+     (-unify [this x smap]
        (if (and (seq? x)
                 (= (first x) fsym))
+         ;; Intentional use of `assoc` instead of `extend`, etc.
          (assoc smap this x)
-         bottom)))))
+         nil)))))
 
 
 (defmacro zero-property-rule
@@ -1205,8 +1229,7 @@
   (let [{:keys [clauses params rule-name]}
         (spec/conform ::rule-args rule-args)]
     (into 
-     {:bottom (gensym "bottom__")
-      :smap (gensym "smap__")
+     {:smap (gensym "smap__")
       :u (gensym "u__")
       :v (gensym "v__")
       :params params
@@ -1296,7 +1319,7 @@
 (defn compile-rule
   {:arglists '([rule-data])
    :private true}
-  ([{:keys [bottom params replace rule-name smap u v when where with] :as rule-data}]
+  ([{:keys [params replace rule-name smap u v when where with] :as rule-data}]
    (let [this-sym (gensym "this__")
          with-sym (gensym "with__")
          arglists (map (partial concat [this-sym v])
@@ -1320,7 +1343,7 @@
                   (loop [~v ~v]
                     (let [v# (prewalk
                               (fn [~v]
-                                (if-some [~smap (unify ~u ~v ~smap nil)]
+                                (if-some [~smap (unify ~u ~v ~smap)]
                                   ~(compile-when
                                     rule-data
                                     (compile-as rule-data
@@ -1346,8 +1369,8 @@
            (substitute ~with-sym ~smap))
 
           protocols/IUnify
-          (~'-unify [~this-sym ~v ~smap ~bottom]
-           (unify ~u ~v ~smap ~bottom)))))))
+          (~'-unify [~this-sym ~v ~smap]
+           (unify ~u ~v ~smap)))))))
 
 
 (spec/fdef rule
