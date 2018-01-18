@@ -185,16 +185,23 @@
      term)))
 
 
+;; variant?
 (defn isomorphic?
-  "true if two terms, `term-a` and `term-b`, have the same shape.
+  "true if two terms, `term-a` and `term-b`, are structurally
+  equivalent e.g. they have the same \"shape\".
 
-    (let [a (make-variable 'a)
-          b (make-variable 'b)
-          x (make-variable 'x)
-          y (make-variable 'y)]
-    (isomorphic? (make-vector-term [x y x])
-                 (make-vector-term [a b a])))
-    ;; => true
+    (def a (make-variable 'a))
+    (def b (make-variable 'b))
+    (def c (make-variable 'c))
+    (def d (make-variable 'd))
+
+    (isomorphic? [a a] [b b]) ;; => true
+    (isomorphic? [a a] [b c]) ;; => false
+    (isomorphic? [a b] [c d]) ;; => true
+    (isomorphic? [a b] [b a]) ;; => true
+    (isomorphic? [a b] [c a]) ;; => true
+
+  Semantically equivalent to Prolog's `=@=`.
   "
   [term-a term-b]
   (= (rename-variables term-a "v")
