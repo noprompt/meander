@@ -828,11 +828,7 @@
 (extend-type clojure.lang.IPersistentMap
   protocols/IFmap
   (-fmap [this f]
-    (reduce-kv
-     (fn [m k v]
-       (assoc m (fmap f k) (fmap f v)))
-     {}
-     this))
+    (into {} (map f this)))
 
   protocols/IForm
   (-form [this]
@@ -868,8 +864,7 @@
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
-    (outer-f
-     (protocols/-fmap this (comp outer-f inner-f)))))
+    (outer-f (into {} (map inner-f this)))))
 
 
 ;; ---------------------------------------------------------------------
