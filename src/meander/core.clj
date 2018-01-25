@@ -46,11 +46,6 @@
    (walk (partial prewalk f) identity (f x))))
 
 
-(defmacro nothing
-  {:private true}
-  ([] `(Object.)))
-
-
 (defn splicing-form?
   ([x]
    (and (seq? x)
