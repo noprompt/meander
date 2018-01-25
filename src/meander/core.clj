@@ -47,6 +47,8 @@
 
 
 (defn splicing-form?
+  "True if `x` is an unquote splicing form i.e. `~@xs`."
+  {:private true}
   ([x]
    (and (seq? x)
         (= (first x)
