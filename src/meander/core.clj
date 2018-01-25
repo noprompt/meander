@@ -108,25 +108,6 @@
    (empty? (variables x))))
 
 
-(defn variable-frequencies
-  {:private true}
-  ([term]
-   (let [state (volatile! {})]
-     (postwalk
-      (fn [x]
-        (if (variable? x)
-          (if-some [[_ counter] (find (deref state) x)]
-            (do
-              (vswap! state update x inc)
-              x)
-            (do
-              (vswap! state assoc x 1)
-              x))
-          x))
-      term)
-     (deref state))))
-
-
 (defn positions*
   {:private true}
   ([term level]
