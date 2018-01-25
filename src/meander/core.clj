@@ -1409,7 +1409,8 @@
 
 
 (defn extract
-  "Find all instances of `pattern` in `u`.
+  "Return a lazy sequence of all instances of `pattern` in `u`. Uses
+  `tree-seq` to produce all subterms.
 
   (let [[pattern _] (parse-form* '{:a ~A
                                    :b ~B})]
@@ -1422,28 +1423,25 @@
                             :b y}}
                        3])))
     ;; =>
-    [{:a a,
+    ({:a a,
       :b {:a b,
           :b c}}
     {:a b,
      :b c}
     {:a x,
-     :b y}]
+     :b y})
   "
   ([pattern]
    (fn [u]
      (extract pattern u)))
   ([pattern u]
-   (let [!state (volatile! [])]
-     (prewalk
-      (fn [v]
-        (when-some [_ (unify pattern v {})]
-          (vswap! !state conj v))
-        v)
-      u)
-     (deref !state))))
+   (filter
+    (fn [v]
+      (unify pattern v {}))
+    (tree-seq seqable? seq u))))
 
 
+)
 ;; ---------------------------------------------------------------------
 ;; Scratch
 
