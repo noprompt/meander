@@ -849,6 +849,69 @@
 
 
 ;; ---------------------------------------------------------------------
+;; Set term
+
+
+(defn unify-set*
+  "Return a lazy sequence of all possible substitutions satisfying the
+  unification of two sets `set-u` and `set-v`."
+  {:arglists '([set-u set-v substitution-map])}
+  ([set-u set-v smap]
+   {:pre [(set? set-u)]}
+   (if (set? set-v)
+     (if (= (count set-u) (count set-v))
+       (if (not= set-u set-v)
+         (mapcat 
+          (fn [!set-u]
+            (let [pairs (partition 2 (interleave !set-u set-v))
+                  goals (map (fn [[a b]]
+                               (fn [smap]
+                                 (unify* a b smap)))
+                             pairs)]
+              ((lconj* goals) smap)))
+          (util/permutations set-u))      
+         (list smap))
+       ())
+     ())))
+
+
+(extend-type clojure.lang.IPersistentSet
+  protocols/IFmap
+  (-fmap [this f]
+    (set (map f this)))
+
+
+  protocols/IForm
+  (-form [this]
+    (set (map form this)))
+
+
+  protocols/ISubstitute
+  (-substitute [this smap]
+    (protocols/-fmap this (fn [x] (substitute x smap))))
+
+  
+  protocols/ITermVariables
+  (-term-variables [this]
+    (reduce set/union #{} (map variables this)))
+
+
+  protocols/IUnify
+  (-unify [this that smap]
+    (first (protocols/-unify* this that smap)))
+
+
+  protocols/IUnify*
+  (-unify* [this that smap]
+    (unify-set* this that smap))
+
+
+  protocols/IWalk
+  (-walk [this inner-f outer-f]
+    (outer-f (set (map inner-f this)))))
+
+
+;; ---------------------------------------------------------------------
 ;; Rule construction
 
 
