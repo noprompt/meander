@@ -56,6 +56,7 @@
 
 
 (defn lconj
+  "Return a goal which is the logicical conjunction 0, 1, or 2 goals."
   {:arglists '([] [goal] [goal-1 goal-2])
    :private true}
   ([]
@@ -70,8 +71,10 @@
 
 
 (defn lconj*
+  "Return a goal which is the logical conjunction of `gaols`."
   {:private true}
   ([goals]
+   {:pre [(sequential? goals)]}
    (reduce lconj goals)))
 
 
