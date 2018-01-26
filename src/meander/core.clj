@@ -1140,8 +1140,21 @@
         [{} env]
         x)
 
+       (set? x)
+       (reduce
+        (fn [[s env*] y]
+          (let [[y* env**] (parse-form* y env*)]
+            [(conj s y*) env**]))
+        [#{} env]
+        x)
+
        :else
        [x env]))))
+
+
+(defn parse-form
+  [x]
+  (first (parse-form* x {})))
 
 
 (spec/def ::rule-name
