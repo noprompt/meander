@@ -915,18 +915,18 @@
 ;; Rule construction
 
 
-(defn left-hand-side
+(defn left-side
   ([rule]
-   (protocols/-rule-left-hand-side rule)))
+   (protocols/-rule-left-side rule)))
 
 
-(defn right-hand-side
+(defn right-side
   ([rule]
-   (protocols/-rule-right-hand-side rule)))
+   (protocols/-rule-right-side rule)))
 
 
 (defn make-rule
-  {:arglists '([left-hand-side right-hand-side])}
+  {:arglists '([left-side right-side])}
   ([lhs rhs]
    ;; lhs is the left side of the rule (the pattern to match).
    ;; rhs is the right side of the rule (the replacement pattern to
@@ -1415,12 +1415,12 @@
                         ~v
                         (recur v#)))))))
 
-          protocols/IRuleLeftHandSide
-          (~'-rule-left-hand-side [~this-sym]
+          protocols/IRuleLeftSide
+          (~'-rule-left-side [~this-sym]
            ~u)
 
-          protocols/IRuleRightHandSide
-          (~'-rule-right-hand-side [~this-sym]
+          protocols/IRuleRightSide
+          (~'-rule-right-side [~this-sym]
            ~with-sym)
 
           protocols/ISubstitute

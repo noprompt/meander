@@ -20,12 +20,12 @@
 (defprotocol IRule)
 
 
-(defprotocol IRuleLeftHandSide
-  (-rule-left-hand-side [r]))
+(defprotocol IRuleLeftSide
+  (-rule-left-side [r]))
 
 
-(defprotocol IRuleRightHandSide
-  (-rule-right-hand-side [r]))
+(defprotocol IRuleRightSide
+  (-rule-right-side [r]))
 
 
 (defprotocol IVariable)
