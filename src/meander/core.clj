@@ -1,14 +1,12 @@
 (ns meander.core
   (:refer-clojure :exclude [bound? extend replace resolve])
   (:require
+   [clojure.core.specs.alpha :as core.specs]
    [clojure.set :as set]
    [clojure.spec.alpha :as spec]
-   [clojure.core.specs.alpha :as core.specs]
    [clojure.walk :as walk]
    [meander.protocols :as protocols]
-   [meander.util :as util]
-   [meander.kahn :as kahn]
-   [taoensso.tufte :as tufte]))
+   [meander.util :as util]))
 
 
 ;; ---------------------------------------------------------------------
