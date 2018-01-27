@@ -83,7 +83,7 @@ Note `~x` is the same throughout which means forms like
 (1 2 3)
 ```
 
-Because `~x` cannot be `1` _and_ `3`.
+will not because `~x` cannot be `1` _and_ `3`.
 
 ```clj
 (~@xs)
