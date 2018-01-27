@@ -83,7 +83,7 @@ Note `~x` is the same throughout which means forms like
 (1 2 3)
 ```
 
-will not because `~x` cannot be `1` _and_ `3`.
+will not match because `~x` cannot be `1` _and_ `3`.
 
 ```clj
 (~@xs)
@@ -118,10 +118,13 @@ will match forms like
 ;; xs ↦ (bar ,,)
 ```
 
+---
+
 ```
 (~@xs ~@ys)
 ```
-will match formsl ike
+
+will match forms ike
 
 ```
 (foo bar)
@@ -129,6 +132,8 @@ will match formsl ike
 ;; xs ↦ (foo), ys ↦ (bar)
 ;; xs ↦ (foo bar), ys ↦ ()
 ```
+
+Note there are multiple solutions
 
 
 ## License
