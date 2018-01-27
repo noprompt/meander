@@ -132,21 +132,79 @@ will match forms like
 
 ---
 
-```
+```clj
 (~@xs ~@ys)
 ```
 
 will match forms ike
 
-```
+```clj
 (foo bar)
 ;; xs ↦ (), ys ↦ (foo bar)
 ;; xs ↦ (foo), ys ↦ (bar)
 ;; xs ↦ (foo bar), ys ↦ ()
 ```
 
-Note there are multiple solutions
+Note there are multiple solutions.
 
+---
+
+Maps and sets can also be matched. A pattern such as
+
+```clj
+{:first-name ~first-name
+ :last-name ~last-name}
+```
+
+will match forms like
+
+```clj
+{:first-name "Bill"
+ :last-name "Brasky"}
+;; first-name ↦ "Bill"
+;; last-name ↦ "Brasky"
+```
+
+Map patterns may have variable keys
+
+```clj
+{~x-key ~x-val
+ ~y-key ~y-val}
+```
+
+and when matched may have many solutions.
+
+```clj
+{:a-key "a value"
+ :b-key "b value"}
+;; x-key ↦ :a-key,
+;; x-val ↦ "a value"
+;; y-key ↦ :b-key
+;; y-val ↦ "b value"
+
+;; x-key ↦ :b-key
+;; x-val ↦ "b value"
+;; y-key ↦ :a-key
+;; y-val ↦ "a value"
+```
+
+The same is true for set patterns.
+
+```clj
+#{~x ~y ~z}
+```
+
+will match sets with three elements with many solutions.
+
+```clj
+#{"foo" :bar 'baz}
+;; y ↦ "foo", z :bar, x ↦ baz
+;; z ↦ "foo", y :bar, x ↦ baz
+;; z ↦ "foo", x :bar, y ↦ baz
+;; x ↦ "foo", z :bar, y ↦ baz
+;; y ↦ "foo", x :bar, z ↦ baz
+;; x ↦ "foo", y :bar, z ↦ baz
+```
 
 ## License
 
