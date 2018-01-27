@@ -59,7 +59,7 @@ will match anything.
 
 will match forms like
 
-```
+```clj
 (inc 1)
 ;; x ↦ 1
 
@@ -114,7 +114,7 @@ will match forms like
 
 ---
 
-```
+```clj
 (~x ~@xs)
 ```
 
