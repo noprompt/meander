@@ -1505,7 +1505,10 @@
 ;; TODO: Rule compilation can be made smarter by checking if the LHS
 ;; is ground. If so, matching is simply an equality check.
 
-(tufte/add-basic-println-handler! {})
+#_
+(do
+  (require '[taoensso.tufte :as tufte])
+  (tufte/add-basic-println-handler! {}))
 
 ;; Rules can be parameterized. `x` and `y` are optional (positional)
 ;; parameters which can be passed when the rule is applied. So
