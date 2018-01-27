@@ -27,12 +27,15 @@ inc
 
 will match the simple symbol `inc`.
 
+---
+
 ```clj
 clojure/walk
 ```
 
 will match the qualified symbol `clojure/walk`.
 
+---
 
 ```
 (inc x)
@@ -40,11 +43,15 @@ will match the qualified symbol `clojure/walk`.
 
 will match the list `'(inc x)`
 
+---
+
 ```clj
 ~x
 ```
 
 will match anything.
+
+---
 
 ```clj
 (inc ~x)
@@ -60,6 +67,7 @@ will match forms like
 ;; x ↦ "cheese"
 ```
 
+---
 
 ```clj
 (~x ~y ~x)
@@ -85,6 +93,8 @@ Note `~x` is the same throughout which means forms like
 
 will not match because `~x` cannot be `1` _and_ `3`.
 
+---
+
 ```clj
 (~@xs)
 ```
@@ -101,6 +111,8 @@ will match forms like
 (foo bar ,,,)
 ;; xs ↦ (foo bar ,,)
 ```
+
+---
 
 ```
 (~x ~@xs)
