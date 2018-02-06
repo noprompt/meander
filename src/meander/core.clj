@@ -397,10 +397,12 @@
   ([name]
    `(Variable. (name ~name))))
 
+
+
 (deftype SplicingVariable [name meta]
   clojure.lang.IMeta
   (meta [this]
-    (.meta this))
+    (.-meta this))
 
   clojure.lang.IObj
   (withMeta [this m]
@@ -415,8 +417,8 @@
     this)
 
   protocols/IFmap
-  (-fmap [_ f]
-    (SplicingVariable. (f name) meta))
+  (-fmap [this f]
+    (SplicingVariable. (f name) (.-meta this)))
 
   protocols/IVariable
 
