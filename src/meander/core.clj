@@ -398,7 +398,6 @@
    `(Variable. (name ~name))))
 
 
-
 (deftype SplicingVariable [name meta]
   clojure.lang.IMeta
   (meta [this]
@@ -1282,7 +1281,9 @@
               [true false]
               (let [splicing-var-count (count (filter splicing-variable? p-tail))]
                 (if (< 1 splicing-var-count)
-                  `(unify* (parse-form ~(unparse-form p)) ~obj ~(compile-smap seen-vars))
+                  `(unify* (parse-form '~(unparse-form p))
+                           ~obj
+                           ~(compile-smap seen-vars))
                   (let [svec `svec#]
                     `(let [~svec (subvec ~obj (max 0 (- (count ~obj)
                                                         ~(dec (count p-tail)))))]
@@ -1384,7 +1385,7 @@
               [true false]
               (let [splicing-var-count (count (filter splicing-variable? p-tail))]
                 (if (< 1 splicing-var-count)
-                  `(unify* (parse-form ~(unparse-form p)) ~obj ~(compile-smap seen-vars))
+                  `(unify* (parse-form '~(unparse-form p)) ~obj ~(compile-smap seen-vars))
                   (let [sseq `init#]
                     `(let [~sseq (take (max 0 (- (count ~obj)
                                                  ~(dec (count p-tail))))
@@ -1577,6 +1578,7 @@
            (fn [seen-vars]
              `(list ~(compile-smap seen-vars))))
           #{})))))
+
 
 ;; ---------------------------------------------------------------------
 ;; Rule macro
