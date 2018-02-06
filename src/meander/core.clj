@@ -397,8 +397,15 @@
   ([name]
    `(Variable. (name ~name))))
 
+(deftype SplicingVariable [name meta]
+  clojure.lang.IMeta
+  (meta [this]
+    (.meta this))
 
-(deftype SplicingVariable [name]
+  clojure.lang.IObj
+  (withMeta [this m]
+    (SplicingVariable. name m))
+
   clojure.lang.Named
   (getName [_]
     (clojure.core/name name))
@@ -409,7 +416,7 @@
 
   protocols/IFmap
   (-fmap [_ f]
-    (SplicingVariable. (f name)))
+    (SplicingVariable. (f name) meta))
 
   protocols/IVariable
 
@@ -445,9 +452,11 @@
 
 (defn make-splicing-variable
   ([]
-   (SplicingVariable. (gensym)))
+   (SplicingVariable. (gensym) {}))
   ([name]
-   (SplicingVariable. name)))
+   (SplicingVariable. name {}))
+  ([name meta]
+   (SplicingVariable. name meta)))
 
 
 (defn splicing-variable? [x]
@@ -1218,6 +1227,358 @@
   (first (parse-form* x {})))
 
 
+(defn unparse-form [form]
+  (postwalk
+   (fn [x]
+     (cond
+       (splicing-variable? x)
+       (list 'clojure.core/unquote-splicing (symbol (name x)))
+
+       (variable? x)
+       (list 'clojure.core/unquote (symbol (name x)))
+
+       :else
+       x))
+   form))
+
+
+;; ---------------------------------------------------------------------
+;; Pattern compilation
+
+(defn subvec?
+  {:private true}
+  [x]
+  (instance? clojure.lang.APersistentVector$SubVector x))
+
+
+(defn compile-smap [seen-vars]
+  `(hash-map
+    ~@(mapcat
+       (fn [v]
+         `(~(name v)
+           ~(symbol (name v))))
+       seen-vars)))
+
+
+(declare compile-pattern)
+
+
+(defn compile-vector-pattern
+  {:private true}
+  [p obj inner]
+  {:pre [(vector? p)]}
+  (fn do-vec [seen-vars]
+    (let [body
+          (let [[p-init p-tail] (map vec (split-with (complement splicing-variable?) p))]
+            (case [(empty? p-init) (empty? p-tail)]
+              ;; Nothing there.
+              [true true]
+              `(when (seq ~obj)
+                 ~(inner seen-vars))
+
+              ;; Handle splicing variables in tail.
+              [true false]
+              (let [splicing-var-count (count (filter splicing-variable? p-tail))]
+                (if (< 1 splicing-var-count)
+                  `(unify* (parse-form ~(unparse-form p)) ~obj ~(compile-smap seen-vars))
+                  (let [svec `svec#]
+                    `(let [~svec (subvec ~obj (max 0 (- (count ~obj)
+                                                        ~(dec (count p-tail)))))]
+                       ~((compile-pattern (subvec p-tail 1)
+                                          svec
+                                          (fn [seen-vars]
+                                            (let [svec `svec#]
+                                              `(let [~svec `(subvec ~obj 0 (max 0 (- (count ~obj)
+                                                                                     ~(dec (count p-tail)))))]
+                                                 ((compile-pattern (first p-tail) svec inner)
+                                                  seen-vars)))))
+                         seen-vars)))))
+
+              ;; No splicing variables in the pattern.
+              [false true]
+              (let [[p-init* p-tail*] (map vec (split-with (complement variable?) p-init))]
+                (case [(empty? p-init*) (empty? p-tail*)]
+                  [true true]
+                  (inner seen-vars)
+
+                  ;; Variables at the head.
+                  [true false]
+                  (let [x `x#]
+                    `(let [~x (first ~obj)]
+                       ~((compile-pattern (first p-tail*)
+                                          x
+                                          (fn [seen-vars]
+                                            (let [svec `svec#]
+                                              `(let [~svec (subvec ~obj 1)]
+                                                 ~((compile-pattern (subvec p-tail* 1) svec inner)
+                                                   seen-vars)))))
+                         seen-vars)))
+
+                  [false true]
+                  `(when (= (count ~obj) ~(count p))
+                     ~((reduce
+                        (fn [f [v obj]]
+                          (fn [seen-vars]
+                            (let [x `x#]
+                              `(let [~x ~obj]
+                                 ~((compile-pattern v x f) seen-vars)))))
+                        inner
+                        (reverse
+                         (map-indexed
+                          (fn [i x]
+                            [x `(nth ~obj ~i)])
+                          p)))
+                       seen-vars))    
+                  
+
+                  [false false]
+                  (let [svec1 `svec1#]
+                    `(let [~svec1 (subvec ~obj 0 ~(count p-init*))]
+                       ~((compile-pattern p-init*
+                                          svec1
+                                          (fn [seen-vars]
+                                            (let [svec `svec#]
+                                              `(let [~svec (subvec ~obj ~(count p-init*))]
+                                                 ~((compile-pattern p-tail* svec inner)
+                                                   seen-vars)))))
+                         seen-vars)))))
+              
+
+              ;; Recurse with existing logic. 
+              [false false]
+              (let [svec `svec#]
+                `(when (<= ~(count p-init) (count ~obj))
+                   (let [~svec (subvec ~obj 0 ~(count p-init))]
+                     ~((compile-pattern p-init
+                                        svec
+                                        (fn [seen-vars]
+                                          (let [svec `svec#]
+                                            `(let [~svec (subvec ~obj ~(count p-init))]
+                                               ~((compile-pattern p-tail svec inner) seen-vars)))))
+                       seen-vars))))))]
+      ;; If `p` is a subvector then we assume it was produced by
+      ;; this function and avoid type checking `obj` in the the
+      ;; generated code.
+      (if (subvec? p)
+        body
+        `(when (vector? ~obj)
+           ~body)))))
+
+
+(defn compile-seq-pattern
+  {:private true}
+  [p obj inner]
+  {:pre [(seq? p)]}
+  (fn do-seq [seen-vars]
+    (let [body 
+          (let [[p-init p-tail] (map (partial apply list)
+                                     (split-with (complement splicing-variable?) p))]
+            (case [(empty? p-init) (empty? p-tail)]
+              ;; Nothing there.
+              [true true]
+              (inner seen-vars)
+
+              ;; Handle splicing variables in tail.
+              [true false]
+              (let [splicing-var-count (count (filter splicing-variable? p-tail))]
+                (if (< 1 splicing-var-count)
+                  `(unify* (parse-form ~(unparse-form p)) ~obj ~(compile-smap seen-vars))
+                  (let [sseq `init#]
+                    `(let [~sseq (take (max 0 (- (count ~obj)
+                                                 ~(dec (count p-tail))))
+                                       ~obj)]
+                       ~((compile-seq-pattern
+                          (with-meta (rest p-tail) {::subseq? true})
+                          sseq
+                          (fn [seen-vars]
+                            (let [sseq `tail#]
+                              `(let [~sseq (take (max 0 (- (count ~obj)
+                                                           ~(dec (count p-tail))))
+                                                 ~obj)]
+                                 ~((compile-pattern
+                                    (with-meta (first p-tail) {::subseq? true})
+                                    sseq
+                                    inner)
+                                   seen-vars)))))
+                         seen-vars)))))
+
+              ;; No splicing variables in the pattern.
+              [false true]
+              (let [[p-init* p-tail*] (map (partial apply list)
+                                           (split-with (complement variable?) p-init))]
+                (case [(empty? p-init*) (empty? p-tail*)]
+                  [true true]
+                  (inner seen-vars)
+
+                  ;; Variables at the head.
+                  [true false]
+                  (let [x `x#]
+                    `(let [~x (first ~obj)]
+                       ~((compile-pattern
+                          (first p-tail*)
+                          x
+                          (fn [seen-vars]
+                            (let [sseq `tail#]
+                              `(let [~sseq (rest ~obj)]
+                                 ~((compile-seq-pattern
+                                    (with-meta (rest p-tail*) {::subseq? true})
+                                    sseq
+                                    inner)
+                                   seen-vars)))))
+                         seen-vars)))
+
+                  [false true]
+                  `(when (= (count ~obj) ~(count p))
+                     ~((reduce
+                        (fn [f [v obj]]
+                          (fn [seen-vars]
+                            (let [x `x#]
+                              `(let [~x ~obj]
+                                 ~((compile-pattern v x f)
+                                   seen-vars)))))
+                        inner
+                        (reverse
+                         (map-indexed
+                          (fn [i x]
+                            [x `(nth ~obj ~i)])
+                          p)))
+                       seen-vars))    
+                  
+
+                  ;; No variables in head, variables in tail. 
+                  [false false]
+                  (let [sseq `init#]
+                    `(let [~sseq (take ~(count p-init*) ~obj)]
+                       ~((compile-seq-pattern
+                          (with-meta p-init* {::subseq? true})
+                          sseq
+                          (fn [seen-vars]
+                            (let [sseq `tail#]
+                              `(let [~sseq (drop ~(count p-init*) ~obj)]
+                                 ~((compile-seq-pattern
+                                    (with-meta p-tail* {::subseq? true})
+                                    sseq
+                                    inner)
+                                   seen-vars)))))
+                         seen-vars)))))
+              
+              ;; Recurse with existing logic. 
+              [false false]
+              (let [sseq `sseq#]
+                `(when (<= ~(count p-init) (count ~obj))
+                   (let [~sseq (take ~(count p-init) ~obj)]
+                     ~((compile-seq-pattern
+                        (with-meta p-init {::subseq? true})
+                        sseq
+                        (fn [seen-vars]
+                          (let [sseq `sseq#]
+                            `(let [~sseq (drop ~(count p-init) ~obj)]
+                               ~((compile-seq-pattern
+                                  (with-meta p-tail {::subseq? true})
+                                  sseq
+                                  inner)
+                                 seen-vars)))))
+                       seen-vars))))))]
+      (if (::subseq? (meta p))
+        body
+        `(when (seq? ~obj)
+           ~body)))))
+
+
+(defn compile-pattern
+  {:private true}
+  [p obj inner]
+  (cond
+    ;; Handles splicing variables too.
+    (variable? p)
+    (fn do-var [seen-vars]
+      (if (contains? seen-vars (name p))
+        `(let [v# ~obj]
+           (if (= v# ~(symbol (name p)))
+             ~(inner seen-vars)))
+        `(let [~(symbol (name p)) ~obj]
+           ~(inner (conj seen-vars (name p))))))
+
+    (ground? p)
+    (fn do-gound [seen-vars]
+      (cond
+        (map-entry? p)
+        (let [[k vr] p
+              vl `v#]
+          `(if-some [[_# ~vl] (find ~obj ~k)]
+             ~((compile-pattern vr vl inner) seen-vars)))
+
+        :else
+        `(if (= ~obj '~p)
+           ~(inner seen-vars))))
+    
+    (map-entry? p)
+    (fn do-map-entry [seen-vars]
+      (let [[k vr] p]
+        (if (ground? k)
+          (let [vl `v#]
+            `(if-some [[_# ~vl] (find ~obj ~k)]
+               ~((compile-pattern vr vl inner) seen-vars)))
+          (undefined))))
+
+    (vector? p)
+    (compile-vector-pattern p obj inner)
+
+    (seq? p)
+    (compile-seq-pattern p obj inner)
+
+    (map? p)
+    (fn do-map [seen-vars]
+      `(if (map? ~obj)
+         ~(if (ground? (keys p))
+            ((reduce
+              (fn [f e]
+                (compile-pattern e obj f))
+              inner
+              p)
+             seen-vars)
+            `(unify-map* (parse-form '~(unparse-form p))
+                         ~obj
+                         ~(compile-smap seen-vars)))))
+    (seq? p)
+    (fn do-set [seen-vars]
+      `(if (set? obj)
+         (unify-set* (parse-form '~(unparse-form p))
+                     ~obj
+                     ~(compile-smap seen-vars))))))
+
+;; This is a temporary macro.
+(defmacro matcher
+  [form]
+  (let [obj `obj#
+        seen-vars #{}
+        p (parse-form form)]
+    `(reify
+       protocols/IUnify*
+       (~'-unify* [this# ~obj smap-outer#]
+        (map (partial merge smap-outer#)
+             (filter
+              (fn [smap-inner#]
+                (every?
+                 (fn [[k# vi#]]
+                   (if-some [[_# vo#] (find smap-outer# k#)]
+                     (= vi# vo#)
+                     true))
+                 smap-inner#))
+              (this# ~obj))))
+
+       clojure.lang.IFn
+       (~'invoke [_# ~obj]
+        ~((compile-pattern
+           p
+           obj
+           (fn [seen-vars]
+             `(list ~(compile-smap seen-vars))))
+          #{})))))
+
+;; ---------------------------------------------------------------------
+;; Rule macro
+
 (spec/def ::rule-name
   symbol?)
 
@@ -1522,38 +1883,56 @@
 ;;   (rule-name term 1 2)
 ;;
 ;; binds `x` and `y` thus `term` will stictly match `[1 2 1]`.
-(defrule rule-name [x y]
-  ;; The left side of the rule, the pattern to match.
-  :replace
-  [~x ~y ~x] ;; [:a :b :a], [:b :a :b], [1 2 1], etc.
+(comment
+  (defrule rule-name [x y]
+    ;; The left side of the rule, the pattern to match.
+    :replace
+    [~x ~y ~x] ;; [:a :b :a], [:b :a :b], [1 2 1], etc.
 
-  ;; Bind the value of a successfully matched pattern to `v` for
-  ;; subsequent use in `:with`, `:when`, and `:where` clauses.
-  :as
-  v
+    ;; Bind the value of a successfully matched pattern to `v` for
+    ;; subsequent use in `:with`, `:when`, and `:where` clauses.
+    :as
+    v
 
-  ;; The right side of the rule, the replacement pattern which
-  ;; substitution will be appliek.
-  :with
-  [~z]
+    ;; The right side of the rule, the replacement pattern which
+    ;; substitution will be appliek.
+    :with
+    [~z]
 
-  ;; Optionally a constraint may be placed on the match.
-  :when
-  (keyword? x)
-  
-  ;; Essentially a `let` between matching and replacing. This allows
-  ;; subrules, functions, etc. to be executed before performing the
-  ;; substitution to the right side.
-  :where
-  [z (if (number? x) y x)])
+    ;; Optionally a constraint may be placed on the match.
+    :when
+    (keyword? x)
+    
+    ;; Essentially a `let` between matching and replacing. This allows
+    ;; subrules, functions, etc. to be executed before performing the
+    ;; substitution to the right side.
+    :where
+    [z (if (number? x) y x)]))
 
 
 ;; This rule will diverge whenever `x` and `y` unify with
 ;; eachother. This is restricted in term rewriting systems which
 ;; require termination of rules.
-(defrule replace [x y]
-  :replace
-  ~x
+(comment
+  (defrule replace [x y]
+    :replace
+    ~x
 
-  :with
-  ~y)
+    :with
+    ~y))
+
+
+(comment
+  ;; Comparing performance of "interpreted" pattern unification and
+  ;; "compiled" matcher unification.
+  (let [p (parse-form '[1 (2 ~@xs) {:first ~first :last ~last}])
+        m (matcher [1 (2 ~@xs) {:first ~first :last ~last}])
+        n 10000]
+    [(= (unify* p [1 '(2 3) {:first "first" :last "last"}] {})
+        (unify* m [1 '(2 3) {:first "first" :last "last"}] {}))
+     (time ;; "Elapsed time: 6791.037121 msecs"
+       (dotimes [_ n]
+         (unify* p [1 '(2 3) {:first "first" :last "last"}] {})))
+     (time ;; "Elapsed time: 11.289517 msecs"
+       (dotimes [_ n]
+         (unify* m [1 '(2 3) {:first "first" :last "last"}] {})))]))
