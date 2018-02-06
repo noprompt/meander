@@ -232,6 +232,9 @@
      (satisfies? protocols/IUnify a)
      (protocols/-unify a b smap)
 
+     (satisfies? protocols/IUnify* a)
+     (first (protocols/-unify* a b smap))
+
      :else
      (if (= a b)
        smap
@@ -488,6 +491,8 @@
         (loop [smap smap
                k+vs k+vs]
           (if-some [[[k v] & k+vs*] (seq k+vs)]
+            ;; TODO: FIX! This will NOT produce all possible
+            ;; solutions.
             (if-unifies [smap* k v smap]
               (recur smap* k+vs*)
               ())
@@ -1291,10 +1296,10 @@
                                           svec
                                           (fn [seen-vars]
                                             (let [svec `svec#]
-                                              `(let [~svec `(subvec ~obj 0 (max 0 (- (count ~obj)
-                                                                                     ~(dec (count p-tail)))))]
-                                                 ((compile-pattern (first p-tail) svec inner)
-                                                  seen-vars)))))
+                                              `(let [~svec (subvec ~obj 0 (max 0 (- (count ~obj)
+                                                                                    ~(dec (count p-tail)))))]
+                                                 ~((compile-pattern (first p-tail) svec inner)
+                                                   seen-vars)))))
                          seen-vars)))))
 
               ;; No splicing variables in the pattern.
@@ -1385,7 +1390,45 @@
               [true false]
               (let [splicing-var-count (count (filter splicing-variable? p-tail))]
                 (if (< 1 splicing-var-count)
-                  `(unify* (parse-form '~(unparse-form p)) ~obj ~(compile-smap seen-vars))
+                  (let [inner* (fn [seen-vars]
+                                 `(list ~(compile-smap seen-vars)))
+                        smap `smap#
+                        [_ p*] (reduce
+                                (fn [[seen-vars* p*] x]
+                                  (cond
+                                    (splicing-variable? x)
+                                    [(conj seen-vars* x) (concat p* `((make-splicing-variable ~(name x))))]
+
+                                    (variable? x)
+                                    [(conj seen-vars* x) (concat p* `((make-variable ~(name x))))]
+
+                                    (ground? x)
+                                    [seen-vars* (concat p* (list x))]
+
+                                    :else
+                                    (let [obj `obj#]
+                                      [(conj seen-vars* (map name (variables x)))
+                                       (concat
+                                        p*
+                                        (list
+                                         `(reify
+                                            protocols/IUnify
+                                            (~'-unify [this# ~obj ~smap]
+                                             (first (protocols/-unify* this# ~obj ~smap)))
+
+                                            protocols/IUnify*
+                                            (~'-unify* [this# ~obj ~smap]
+                                             (let [ ;; Bind everything we know about.
+                                                   ~@(mapcat
+                                                      (fn [v]
+                                                        [(symbol v) `(get ~smap ~v)])
+                                                      (map name seen-vars*))] 
+                                               ~((compile-pattern x obj inner*) seen-vars*))))))])))
+                                [seen-vars `(list)]
+                                p)] 
+                    `(unify* ~p*
+                             ~obj
+                             ~(compile-smap seen-vars)))
                   (let [sseq `init#]
                     `(let [~sseq (take (max 0 (- (count ~obj)
                                                  ~(dec (count p-tail))))
@@ -1579,6 +1622,19 @@
              `(list ~(compile-smap seen-vars))))
           #{})))))
 
+
+
+;; ---------------------------------------------------------------------
+;; Strategy combinators
+
+(defn choice
+  ([p q]
+   (fn [t]
+     (let [t* (p t)]
+       (if (identical? t*)
+         (q t)))))
+  ([p q & more]
+   (apply choice (choice p q) more)))
 
 ;; ---------------------------------------------------------------------
 ;; Rule macro
@@ -1940,3 +1996,5 @@
      (time ;; "Elapsed time: 11.289517 msecs"
        (dotimes [_ n]
          (unify* m [1 '(2 3) {:first "first" :last "last"}] {})))]))
+
+
