@@ -715,6 +715,7 @@
              v-partitions*)))
         (unify* u-left v-left smap))))))
 
+
 (defn unify-seq*
   ([u-seq v-seq smap]
    {:pre [(seq? u-seq)]}
@@ -727,8 +728,7 @@
             (fn [smap]
               (unify* u v smap)))
           (partition 2 (interleave u-seq v-seq))))
-        smap))
-     ())))
+        smap)))))
 
 
 (defn unify-seq
