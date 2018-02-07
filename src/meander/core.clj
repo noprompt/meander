@@ -470,7 +470,7 @@
 
 (defn not-splicing-variable?
   ([x]
-   (not (splicing-variable?) x)))
+   (not (splicing-variable? x))))
 
 
 ;; ---------------------------------------------------------------------
@@ -697,22 +697,22 @@
            [v-left v-right] (split-at (count u-left) v-seq)]
        (mapcat
         (fn [smap]
-          (let [u-partitions (partition-by splicing-variable? u-right)
-                v-partitions* (util/partitions (count u-partitions) v-right)]
+          (let [u-parts (partition-by splicing-variable? u-right)
+                v-space (util/partitions (count u-parts) v-right)]
             (mapcat
-             (fn [v-partitions]
+             (fn [row]
                ((lconj*
                  (map
-                  (fn [f [u-partition v-partition]]
+                  (fn [f [u-part v-part]]
                     (fn [smap]
-                      (f u-partition v-partition smap)))
+                      (f u-part v-part smap)))
                   (cycle [unify-splicing-variables*
                           unify*])
-                  (partition 2
-                             (interleave u-partitions
-                                         v-partitions))))
+                  row))
                 smap))
-             v-partitions*)))
+             (map (comp (partial partition 2)
+                        (partial interleave u-parts))
+                  v-space))))
         (unify* u-left v-left smap))))))
 
 
