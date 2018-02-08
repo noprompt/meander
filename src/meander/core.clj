@@ -597,6 +597,7 @@
                     smap)))))))))))
 
 
+
 (defn unify-vector*
   "Return a sequence of all possible substutitions satisfying `u-vec`
   and `v-vec`."
@@ -605,13 +606,15 @@
    (when (vector? v-vec)
      (if (some splicing-variable? u-vec)
        (unify-splicing-vector* u-vec v-vec smap)
-       ((lconj*
-         (map
-          (fn [[u v]]
-            (fn [smap]
-              (unify* u v smap)))
-          (partition 2 (interleave u-vec v-vec))))
-        smap)))))
+       (when (= (count u-vec)
+                (count v-vec))
+         ((lconj*
+           (map
+            (fn [[u v]]
+              (fn [smap]
+                (unify* u v smap)))
+            (partition 2 (interleave u-vec v-vec))))
+          smap))))))
 
 
 (defn unify-vector
@@ -722,13 +725,15 @@
    (when (seq? v-seq)
      (if (some splicing-variable? u-seq)
        (unify-splicing-seq* u-seq v-seq smap)
-       ((lconj*
-         (map
-          (fn [[u v]]
-            (fn [smap]
-              (unify* u v smap)))
-          (partition 2 (interleave u-seq v-seq))))
-        smap)))))
+       (when (= (count u-seq)
+                (count v-seq))
+         ((lconj*
+           (map
+            (fn [[u v]]
+              (fn [smap]
+                (unify* u v smap)))
+            (partition 2 (interleave u-seq v-seq))))
+          smap))))))
 
 
 (defn unify-seq
@@ -1270,7 +1275,6 @@
        x))
    form))
 
-
 ;; ---------------------------------------------------------------------
 ;; Pattern compilation
 
@@ -1298,7 +1302,7 @@
   {:pre [(vector? p)]}
   (fn do-vec [seen-vars]
     (let [body
-          (let [[p-init p-tail] (map vec (split-with (complement splicing-variable?) p))]
+          (let [[p-init p-tail] (map vec (split-with not-splicing-variable? p))]
             (case [(empty? p-init) (empty? p-tail)]
               ;; Nothing there.
               [true true]
@@ -1374,7 +1378,6 @@
                                                    seen-vars)))))
                          seen-vars)))))
               
-
               ;; Recurse with existing logic. 
               [false false]
               (let [svec `svec#]
@@ -1403,7 +1406,7 @@
   (fn do-seq [seen-vars]
     (let [body 
           (let [[p-init p-tail] (map (partial apply list)
-                                     (split-with (complement splicing-variable?) p))]
+                                     (split-with not-splicing-variable? p))]
             (case [(empty? p-init) (empty? p-tail)]
               ;; Nothing there.
               [true true]
@@ -1416,39 +1419,38 @@
                   (let [inner* (fn [seen-vars]
                                  `(list ~(compile-smap seen-vars)))
                         smap `smap#
-                        [_ p*] (reduce
-                                (fn [[seen-vars* p*] x]
-                                  (cond
-                                    (splicing-variable? x)
-                                    [(conj seen-vars* x) (concat p* `((make-splicing-variable ~(name x))))]
+                        [p*] (reduce
+                              (fn [[p* seen-vars*] x]
+                                (cond
+                                  (splicing-variable? x)
+                                  [(concat p* `((make-splicing-variable ~(name x))))
+                                   (conj seen-vars* x)]
 
-                                    (variable? x)
-                                    [(conj seen-vars* x) (concat p* `((make-variable ~(name x))))]
+                                  (variable? x)
+                                  [(concat p* `((make-variable ~(name x))))
+                                   (conj seen-vars* x)]
 
-                                    (ground? x)
-                                    [seen-vars* (concat p* (list x))]
+                                  (ground? x)
+                                  [(concat p* (list x))
+                                   seen-vars*]
 
-                                    :else
-                                    (let [obj `obj#]
-                                      [(conj seen-vars* (map name (variables x)))
-                                       (concat
-                                        p*
-                                        (list
-                                         `(reify
-                                            protocols/IUnify
-                                            (~'-unify [this# ~obj ~smap]
-                                             (first (protocols/-unify* this# ~obj ~smap)))
-
-                                            protocols/IUnify*
-                                            (~'-unify* [this# ~obj ~smap]
-                                             (let [ ;; Bind everything we know about.
-                                                   ~@(mapcat
-                                                      (fn [v]
-                                                        [(symbol v) `(get ~smap ~v)])
-                                                      (map name seen-vars*))] 
-                                               ~((compile-pattern x obj inner*) seen-vars*))))))])))
-                                [seen-vars `(list)]
-                                p)] 
+                                  :else
+                                  (let [obj `obj#]
+                                    [(concat
+                                      p*
+                                      `((reify
+                                          protocols/IUnify*
+                                          (~'-unify* [this# ~obj ~smap]
+                                           ;; Bind everything we
+                                           ;; know about.
+                                           (let [~@(mapcat
+                                                    (fn [v]
+                                                      [(symbol v) `(get ~smap ~v)])
+                                                    (map name seen-vars*))] 
+                                             ~((compile-pattern x obj inner*) seen-vars*))))))
+                                     (into seen-vars* (map name (variables x)))])))
+                              [seen-vars `(list)]
+                              p)] 
                     `(unify* ~p*
                              ~obj
                              ~(compile-smap seen-vars)))
@@ -1461,14 +1463,14 @@
                           sseq
                           (fn [seen-vars]
                             (let [sseq `tail#]
-                              `(let [~sseq (take (max 0 (- (count ~obj)
-                                                           ~(dec (count p-tail))))
-                                                 ~obj)]
-                                 ~((compile-pattern
-                                    (with-meta (first p-tail) {::subseq? true})
-                                    sseq
-                                    inner)
-                                   seen-vars)))))
+                              `(let ([~sseq (take (max 0 (- (count ~obj)
+                                                            ~(dec (count p-tail))))
+                                                  ~obj)]
+                                     ~(compile-pattern
+                                       (with-meta (first p-tail) {::subseq? true})
+                                       sseq
+                                       inner)
+                                     seen-vars)))))
                          seen-vars)))))
 
               ;; No splicing variables in the pattern.
@@ -1477,7 +1479,8 @@
                                            (split-with (complement variable?) p-init))]
                 (case [(empty? p-init*) (empty? p-tail*)]
                   [true true]
-                  (inner seen-vars)
+                  `(when-not (seq ~obj)
+                     ~(inner seen-vars))
 
                   ;; Variables at the head.
                   [true false]
@@ -1554,6 +1557,41 @@
            ~body)))))
 
 
+(defn compile-set-pattern
+  {:private true}
+  [p obj inner]
+  (fn do-set [seen-vars]
+    `(when (set? ~obj)
+       (unify* ~(set (map
+                      (fn [x]
+                        (cond
+                          (splicing-variable? x)
+                          `(make-splicing-variable ~(name x))
+
+                          (variable? x)
+                          `(make-variable ~(name x))
+
+                          (ground? x)
+                          x
+
+                          :else
+                          (let [obj `obj#
+                                smap `smap#
+                                inner* (fn [seen-vars]
+                                         `(list (merge ~smap ~(compile-smap seen-vars))))]
+                            `(reify
+                               protocols/IUnify*
+                               (~'-unify* [this# ~obj ~smap]
+                                (let [~@(mapcat
+                                         (fn [v]
+                                           [(symbol v) `(get ~smap ~v)])
+                                         (map name seen-vars))] 
+                                  ~((compile-pattern x obj inner*) seen-vars)))))))
+                      p))
+               ~obj
+               ~(compile-smap seen-vars)))))
+
+
 (defn compile-pattern
   {:private true}
   [p obj inner]
@@ -1609,12 +1647,9 @@
             `(unify-map* (parse-form '~(unparse-form p))
                          ~obj
                          ~(compile-smap seen-vars)))))
-    (seq? p)
-    (fn do-set [seen-vars]
-      `(if (set? obj)
-         (unify-set* (parse-form '~(unparse-form p))
-                     ~obj
-                     ~(compile-smap seen-vars))))))
+    
+    (set? p)
+    (compile-set-pattern p obj inner)))
 
 ;; This is a temporary macro.
 (defmacro matcher
@@ -1645,19 +1680,34 @@
              `(list ~(compile-smap seen-vars))))
           #{})))))
 
-
-
 ;; ---------------------------------------------------------------------
 ;; Strategy combinators
+
 
 (defn choice
   ([p q]
    (fn [t]
      (let [t* (p t)]
-       (if (identical? t*)
-         (q t)))))
+       (if (= t t*)
+         (q t)
+         t*))))
   ([p q & more]
    (apply choice (choice p q) more)))
+
+
+(defn pipe
+  ([p q]
+   (fn [t]
+     (let [t* (p t)]
+       (if (= t t*)
+         t
+         (let [t** (q t*)]
+           (if (= t* t**)
+             t
+             t**))))))
+  ([p q & more]
+   (apply pipe (pipe p q) more)))
+
 
 ;; ---------------------------------------------------------------------
 ;; Rule macro
