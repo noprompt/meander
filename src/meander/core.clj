@@ -1723,7 +1723,10 @@
 (spec/def ::as-clause
   (spec/cat
    :keyword #{:as}
-   :form ::core.specs/binding-form))
+   :form symbol?
+   ;; Using binding-form introduces too many questions about semantics;
+   ;; discarding for now.
+   #_:form #_::core.specs/binding-form))
 
 
 (spec/def ::replace-clause
@@ -1803,26 +1806,15 @@
 (defn compile-when
   {:arglists '([rule-data then-form else-form])
    :private true}
-  [{:keys [params replace smap when]} then-form else-form]
-  (if (some? when)
-    (let [[_ env] (parse-form* replace {})
-          var-syms (set (map (comp symbol name) (vals env)))]
-      `(let [~@(mapcat
-                (juxt identity
-                      (fn [sym]
-                        `(resolve (make-variable '~sym) ~smap)))
-                var-syms)
-             ~@(mapcat
-                (juxt identity
-                      (fn [sym]
-                        `(if-resolve [x# (make-variable '~sym) ~smap]
-                           x#
-                           nil)))
-                (remove var-syms params))]
-         (if ~when
-           ~then-form
-           ~else-form)))
-    then-form))
+  [{:keys [params replace smap] :as rule-data} inner-form]
+  (if-some [[_ when] (find rule-data :when)]
+    (let [replace-vars (distinct (map name (concat params (variables (parse-form replace)))))]
+      `(filter
+        (fn [smap#]
+          (let [{:strs [~@(map (comp symbol name) replace-vars)]} smap#]
+            ~when))
+        ~inner-form))
+    inner-form))
 
 
 (defn compile-where
@@ -1860,9 +1852,10 @@
 (defn compile-as
   {:arglists '([rule-data inner-form])
    :private true}
-  [{:keys [as v]} inner-form]
+  [{:keys [as v smap]} inner-form]
   (if (some? as)
-    `(let ~(destructure [(spec/unform ::core.specs/binding-form as) v])
+    `(let [~as ~v
+           ~smap (assoc ~smap ~(name as) ~as)]
        ~inner-form)
     inner-form))
 
@@ -1876,44 +1869,41 @@
          arglists (map (partial concat [this-sym v])
                        (take (inc (count params))
                              (iterate pop params)))
-         substitute-form `(substitute ~with-sym ~smap)]
-     `(let [[~u env#] (parse-form* '~replace {})
-            [~with-sym _#] (parse-form* '~with env#)]
+         substitute-form `(substitute ~with-sym ~smap)
+         replace-pattern (parse-form replace)
+         replace-vars (variables replace-pattern)
+         compiled-unify*
+         ((compile-pattern replace-pattern
+                           v
+                           (fn [seen-vars]
+                             `(list (merge ~smap ~(compile-smap seen-vars)))))
+          #{})]
+     `(let [;; Discard this once substitution is compiled.
+            ~with-sym (parse-form '~with)]
         (reify
           clojure.lang.IFn
           ~@(for [arglist arglists]
               `(~'invoke [~@arglist]
-                (let [~smap {}
-                      ~@(mapcat
-                         (juxt (constantly smap)
-                               (fn [symbol]
-                                 `(extend-no-check ~smap (make-variable '~symbol) ~symbol)))
-                         (drop 2 arglist))
+                (let [~smap
+                      (hash-map
+                       ~@(mapcat
+                          (fn [sym]
+                            [(name sym) sym])
+                          (drop 2 arglist)))
                       ~@(if (some? rule-name)
                           `(~rule-name ~this-sym))]
-                  (loop [~v ~v]
-                    (let [v# (prewalk
-                              (fn [~v]
-                                (if-some [~smap (unify ~u ~v ~smap)]
-                                  ~(compile-when
-                                    rule-data
-                                    (compile-as rule-data
-                                                (compile-where rule-data
-                                                               substitute-form))
-                                    v)
-                                  ~v))
-                              ~v)]
-                      (if (= v# ~v)
-                        ~v
-                        (recur v#)))))))
+                  (if-some [~smap (protocols/-unify ~this-sym ~v ~smap)]
+                    ~(compile-as rule-data
+                                 (compile-where rule-data substitute-form))
+                    ~v))))
 
           protocols/IRuleLeftSide
           (~'-rule-left-side [~this-sym]
-           ~u)
+           (parse-form '~replace))
 
           protocols/IRuleRightSide
           (~'-rule-right-side [~this-sym]
-           ~with-sym)
+           (parse-form '~with))
 
           protocols/ISubstitute
           (~'-substitute [~this-sym ~smap]
@@ -1921,7 +1911,12 @@
 
           protocols/IUnify
           (~'-unify [~this-sym ~v ~smap]
-           (unify ~u ~v ~smap)))))))
+           (first (protocols/-unify* ~this-sym ~v ~smap)))
+
+          protocols/IUnify*
+          (~'-unify* [~this-sym ~v ~smap]
+           ~(compile-as rule-data
+                        (compile-when rule-data compiled-unify*))))))))
 
 
 (spec/fdef rule
@@ -2061,6 +2056,7 @@
   (let [p (parse-form '[1 (2 ~@xs) {:first ~first :last ~last}])
         m (matcher [1 (2 ~@xs) {:first ~first :last ~last}])
         n 10000]
+    ;; ({"xs" (3), "last" "last", "first" "first"})
     [(= (unify* p [1 '(2 3) {:first "first" :last "last"}] {})
         (unify* m [1 '(2 3) {:first "first" :last "last"}] {}))
      (time ;; "Elapsed time: 6791.037121 msecs"
@@ -2069,5 +2065,3 @@
      (time ;; "Elapsed time: 11.289517 msecs"
        (dotimes [_ n]
          (unify* m [1 '(2 3) {:first "first" :last "last"}] {})))]))
-
-
