@@ -1275,6 +1275,7 @@
        x))
    form))
 
+
 ;; ---------------------------------------------------------------------
 ;; Pattern compilation
 
@@ -1676,7 +1677,7 @@
                     `(into ~v ~(symbol (name y)))
                     `(conj ~v ~y)))
                 []
-                (reverse x))
+                x)
                x)
 
              (seq? x)
@@ -1701,17 +1702,6 @@
 ;; ---------------------------------------------------------------------
 ;; Strategy combinators
 
-(defn choice
-  ([p q]
-   (fn [t]
-     (let [t* (p t)]
-       (if (= t t*)
-         (q t)
-         t*))))
-  ([p q & more]
-   (apply choice (choice p q) more)))
-
-
 (defn pipe
   ([p q]
    (fn [t]
@@ -1725,6 +1715,30 @@
   ([p q & more]
    (apply pipe (pipe p q) more)))
 
+
+(defn choice
+  ([p q]
+   (fn [t]
+     (let [t* (p t)]
+       (if (not= t t*)
+         t*
+         (q t)))))
+  ([p q & more]
+   (apply choice (choice p q) more)))
+
+
+(defn branch
+  [p q r]
+  (fn [t]
+    (let [t* (p t)]
+      (if (not= t t*)
+        (q t*)
+        (r t)))))
+
+
+(defn rep [s]
+  (fn rec [t]
+    ((pipe s rec) t)))
 
 ;; ---------------------------------------------------------------------
 ;; Rule macro
