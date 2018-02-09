@@ -1655,11 +1655,8 @@
 ;; Substitution compilation
 
 (defn compile-substitute [pattern smap]
-  (let [var-names (map name (variables pattern))]
-    `(let [~@(mapcat
-              (fn [var-name]
-                [(symbol var-name) `(get ~smap ~var-name)])
-              var-names)]
+  (let [var-syms (map (comp symbol name) (variables pattern))]
+    `(let [{:strs [~@var-syms]} ~smap]
        ~(postwalk
          (fn [x]
            (cond
