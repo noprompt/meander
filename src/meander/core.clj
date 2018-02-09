@@ -1284,7 +1284,9 @@
   (instance? clojure.lang.APersistentVector$SubVector x))
 
 
-(defn compile-smap [seen-vars]
+(defn compile-smap
+  {:private true}
+  [seen-vars]
   `(hash-map
     ~@(mapcat
        (fn [v]
@@ -1651,8 +1653,10 @@
     (set? p)
     (compile-set-pattern p obj inner)))
 
+
 ;; ---------------------------------------------------------------------
 ;; Substitution compilation
+
 
 (defn compile-substitute [pattern smap]
   (let [var-syms (map (comp symbol name) (variables pattern))]
