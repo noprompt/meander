@@ -1651,35 +1651,6 @@
     (set? p)
     (compile-set-pattern p obj inner)))
 
-;; This is a temporary macro.
-(defmacro matcher
-  [form]
-  (let [obj `obj#
-        seen-vars #{}
-        p (parse-form form)]
-    `(reify
-       protocols/IUnify*
-       (~'-unify* [this# ~obj smap-outer#]
-        (map (partial merge smap-outer#)
-             (filter
-              (fn [smap-inner#]
-                (every?
-                 (fn [[k# vi#]]
-                   (if-some [[_# vo#] (find smap-outer# k#)]
-                     (= vi# vo#)
-                     true))
-                 smap-inner#))
-              (this# ~obj))))
-
-       clojure.lang.IFn
-       (~'invoke [_# ~obj]
-        ~((compile-pattern
-           p
-           obj
-           (fn [seen-vars]
-             `(list ~(compile-smap seen-vars))))
-          #{})))))
-
 ;; ---------------------------------------------------------------------
 ;; Substitution compilation
 
@@ -2087,6 +2058,34 @@
 
 
 (comment
+  (defmacro matcher
+    [form]
+    (let [obj `obj#
+          seen-vars #{}
+          p (parse-form form)]
+      `(reify
+         protocols/IUnify*
+         (~'-unify* [this# ~obj smap-outer#]
+          (map (partial merge smap-outer#)
+               (filter
+                (fn [smap-inner#]
+                  (every?
+                   (fn [[k# vi#]]
+                     (if-some [[_# vo#] (find smap-outer# k#)]
+                       (= vi# vo#)
+                       true))
+                   smap-inner#))
+                (this# ~obj))))
+
+         clojure.lang.IFn
+         (~'invoke [_# ~obj]
+          ~((compile-pattern
+             p
+             obj
+             (fn [seen-vars]
+               `(list ~(compile-smap seen-vars))))
+            #{})))))
+
   ;; Comparing performance of "interpreted" pattern unification and
   ;; "compiled" matcher unification.
   (let [p (parse-form '[1 (2 ~@xs) {:first ~first :last ~last}])
