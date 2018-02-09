@@ -1700,7 +1700,6 @@
 ;; ---------------------------------------------------------------------
 ;; Strategy combinators
 
-
 (defn choice
   ([p q]
    (fn [t]
@@ -1841,22 +1840,17 @@
   (if (some? where)
     (let [[_ env] (parse-form* replace {})
           var-syms (set (map (comp symbol name) (vals env)))]
-      `(let [~@(mapcat
-                (juxt identity
-                      (fn [sym]
-                        `(resolve (make-variable '~sym) ~smap)))
-                var-syms)
+      `(let [{:strs [~@var-syms]} ~smap
              ~@(mapcat
                 (juxt identity
                       (fn [sym]
-                        `(if-resolve [x# (make-variable '~sym) ~smap]
-                           x#
-                           nil)))
+                        `(when-some [[_# x#] (find ~smap ~(name sym))]
+                           x#)))
                 (remove var-syms params))
              ~@(mapcat
                 (fn [[binding val]]
                   `(~binding ~val
-                    ~smap (extend-no-check ~smap (make-variable '~binding) ~binding)))
+                    ~smap (assoc ~smap ~(name binding) ~binding)))
                 (partition 2
                            (mapcat
                             (comp destructure
