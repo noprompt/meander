@@ -1988,12 +1988,6 @@
 ;; ---------------------------------------------------------------------
 ;; Scratch
 
-;; TODO: Map unification can be made smarter by
-;;   [ ] comparing map sizes, if the LHS is larger than the RHS fail;
-;;
-;; TODO: Rule compilation can be made smarter by checking if the LHS
-;; is ground. If so, matching is simply an equality check.
-
 #_
 (do
   (require '[taoensso.tufte :as tufte])
@@ -2023,7 +2017,7 @@
     v
 
     ;; The right side of the rule, the replacement pattern which
-    ;; substitution will be appliek.
+    ;; substitution will be applied.
     :with
     [~z]
 
@@ -2039,8 +2033,7 @@
 
 
 ;; This rule will diverge whenever `x` and `y` unify with
-;; eachother. This is restricted in term rewriting systems which
-;; require termination of rules.
+;; eachother and the rule is repeatedly applied.
 (comment
   (defrule replace [x y]
     :replace
