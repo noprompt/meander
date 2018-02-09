@@ -1681,6 +1681,52 @@
           #{})))))
 
 ;; ---------------------------------------------------------------------
+;; Substitution compilation
+
+(defn compile-substitute [pattern smap]
+  (let [var-names (map name (variables pattern))]
+    `(let [~@(mapcat
+              (fn [var-name]
+                [(symbol var-name) `(get ~smap ~var-name)])
+              var-names)]
+       ~(postwalk
+         (fn [x]
+           (cond
+             (and (variable? x)
+                  (not (splicing-variable? x)))
+             (symbol (name x))
+
+             (vector? x)
+             (if (some splicing-variable? x)
+               (reduce
+                (fn [v y]
+                  (if (splicing-variable? y)
+                    `(into ~v ~(symbol (name y)))
+                    `(conj ~v ~y)))
+                []
+                (reverse x))
+               x)
+
+             (seq? x)
+             (if (some splicing-variable? x)
+               `(concat
+                 ~@(map
+                    (fn [y]
+                      (if (splicing-variable? y)
+                        (symbol (name y))
+                        `(list ~y)))
+                    x))
+               x)
+
+             (symbol? x)
+             `'~x
+
+             :else
+             x))
+         pattern))))
+
+
+;; ---------------------------------------------------------------------
 ;; Strategy combinators
 
 
@@ -1865,11 +1911,10 @@
    :private true}
   ([{:keys [params replace rule-name smap u v when where with] :as rule-data}]
    (let [this-sym (gensym "this__")
-         with-sym (gensym "with__")
          arglists (map (partial concat [this-sym v])
                        (take (inc (count params))
                              (iterate pop params)))
-         substitute-form `(substitute ~with-sym ~smap)
+         substitute-form `(protocols/-substitute ~this-sym ~smap)
          replace-pattern (parse-form replace)
          replace-vars (variables replace-pattern)
          compiled-unify*
@@ -1878,45 +1923,43 @@
                            (fn [seen-vars]
                              `(list (merge ~smap ~(compile-smap seen-vars)))))
           #{})]
-     `(let [;; Discard this once substitution is compiled.
-            ~with-sym (parse-form '~with)]
-        (reify
-          clojure.lang.IFn
-          ~@(for [arglist arglists]
-              `(~'invoke [~@arglist]
-                (let [~smap
-                      (hash-map
-                       ~@(mapcat
-                          (fn [sym]
-                            [(name sym) sym])
-                          (drop 2 arglist)))
-                      ~@(if (some? rule-name)
-                          `(~rule-name ~this-sym))]
-                  (if-some [~smap (protocols/-unify ~this-sym ~v ~smap)]
-                    ~(compile-as rule-data
-                                 (compile-where rule-data substitute-form))
-                    ~v))))
+     `(reify
+        clojure.lang.IFn
+        ~@(for [arglist arglists]
+            `(~'invoke [~@arglist]
+              (let [~smap
+                    (hash-map
+                     ~@(mapcat
+                        (fn [sym]
+                          [(name sym) sym])
+                        (drop 2 arglist)))
+                    ~@(if (some? rule-name)
+                        `(~rule-name ~this-sym))]
+                (if-some [~smap (protocols/-unify ~this-sym ~v ~smap)]
+                  ~(compile-as rule-data
+                               (compile-where rule-data substitute-form))
+                  ~v))))
 
-          protocols/IRuleLeftSide
-          (~'-rule-left-side [~this-sym]
-           (parse-form '~replace))
+        protocols/IRuleLeftSide
+        (~'-rule-left-side [~this-sym]
+         (parse-form '~replace))
 
-          protocols/IRuleRightSide
-          (~'-rule-right-side [~this-sym]
-           (parse-form '~with))
+        protocols/IRuleRightSide
+        (~'-rule-right-side [~this-sym]
+         (parse-form '~with))
 
-          protocols/ISubstitute
-          (~'-substitute [~this-sym ~smap]
-           (substitute ~with-sym ~smap))
+        protocols/ISubstitute
+        (~'-substitute [~this-sym ~smap]
+         ~(compile-substitute (parse-form with) smap))
 
-          protocols/IUnify
-          (~'-unify [~this-sym ~v ~smap]
-           (first (protocols/-unify* ~this-sym ~v ~smap)))
+        protocols/IUnify
+        (~'-unify [~this-sym ~v ~smap]
+         (first (protocols/-unify* ~this-sym ~v ~smap)))
 
-          protocols/IUnify*
-          (~'-unify* [~this-sym ~v ~smap]
-           ~(compile-as rule-data
-                        (compile-when rule-data compiled-unify*))))))))
+        protocols/IUnify*
+        (~'-unify* [~this-sym ~v ~smap]
+         ~(compile-as rule-data
+                      (compile-when rule-data compiled-unify*)))))))
 
 
 (spec/fdef rule
