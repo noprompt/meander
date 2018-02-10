@@ -1446,10 +1446,7 @@
                                           (~'-unify* [this# ~obj ~smap]
                                            ;; Bind everything we
                                            ;; know about.
-                                           (let [~@(mapcat
-                                                    (fn [v]
-                                                      [(symbol v) `(get ~smap ~v)])
-                                                    (map name seen-vars*))] 
+                                           (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap] 
                                              ~((compile-pattern x obj inner*) seen-vars*))))))
                                      (into seen-vars* (map name (variables x)))])))
                               [seen-vars `(list)]
@@ -1466,14 +1463,14 @@
                           sseq
                           (fn [seen-vars]
                             (let [sseq `tail#]
-                              `(let ([~sseq (take (max 0 (- (count ~obj)
-                                                            ~(dec (count p-tail))))
-                                                  ~obj)]
-                                     ~(compile-pattern
-                                       (with-meta (first p-tail) {::subseq? true})
-                                       sseq
-                                       inner)
-                                     seen-vars)))))
+                              `(let [~sseq (take (max 0 (- (count ~obj)
+                                                           ~(dec (count p-tail))))
+                                                 ~obj)]
+                                 ~((compile-pattern
+                                    (with-meta (first p-tail) {::subseq? true})
+                                    sseq
+                                    inner)
+                                   seen-vars)))))
                          seen-vars)))))
 
               ;; No splicing variables in the pattern.
@@ -1736,9 +1733,26 @@
         (r t)))))
 
 
-(defn rep [s]
+(defn attempt
+  [p]
+  (choice p identity))
+
+
+;; TODO: Rename to repeat.
+(defn rep [p]
   (fn rec [t]
-    ((pipe s rec) t)))
+    ((branch p rec (constantly t)) t)))
+
+
+(defn bottom-up [p]
+  (fn [t]
+    (postwalk p t)))
+
+
+(defn top-down [p]
+  (fn [t]
+    (prewalk p t)))
+
 
 ;; ---------------------------------------------------------------------
 ;; Rule macro
