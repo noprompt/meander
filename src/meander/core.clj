@@ -1778,11 +1778,6 @@
         (r t)))))
 
 
-(defn attempt
-  [p]
-  (choice p identity))
-
-
 (defn repeat
   "Build a strategy which applies `p` to `t` repeatedly until fails.
 
@@ -1800,6 +1795,7 @@
   [p]
   (fn repeat* [t]
     ((branch p repeat* (constantly t)) t)))
+
 
 (defn bottom-up [p]
   (fn [t]
@@ -1825,15 +1821,12 @@
 (spec/def ::as-clause
   (spec/cat
    :keyword #{:as}
-   :form symbol?
-   ;; Using binding-form introduces too many questions about semantics;
-   ;; discarding for now.
-   #_:form #_::core.specs/binding-form))
+   :form symbol?))
 
 
-(spec/def ::replace-clause
+(spec/def ::match-clause
   (spec/cat
-   :keyword #{:replace}
+   :keyword #{:match}
    :form any?))
 
 
@@ -1850,19 +1843,19 @@
                    (spec/* ::core.specs/binding))))
 
 
-(spec/def ::with-clause
+(spec/def ::return-clause
   (spec/cat
-   :keyword #{:with}
+   :keyword #{:return}
    :form any?))
 
 
 (spec/def ::rule-clause
   (spec/alt
    :as-clause ::as-clause
-   :replace-clause ::replace-clause
+   :match-clause ::match-clause
+   :return-clause ::return-clause
    :when-clause ::when-clause
-   :where-clause ::where-clause
-   :with-clause ::with-clause))
+   :where-clause ::where-clause))
 
 
 (spec/def ::rule-args
@@ -1882,8 +1875,7 @@
 (defn parse-rule-args
   {:private true}
   [rule-args]
-  (let [{:keys [clauses params rule-name]}
-        (spec/conform ::rule-args rule-args)]
+  (let [{:keys [clauses params rule-name]} (spec/conform ::rule-args rule-args)]
     (into 
      {:smap (gensym "smap__")
       :u (gensym "u__")
@@ -1908,12 +1900,12 @@
 (defn compile-when
   {:arglists '([rule-data then-form else-form])
    :private true}
-  [{:keys [params replace smap] :as rule-data} inner-form]
+  [{:keys [params match smap] :as rule-data} inner-form]
   (if-some [[_ when] (find rule-data :when)]
-    (let [replace-vars (distinct (map name (concat params (variables (parse-form replace)))))]
+    (let [match-vars (distinct (map name (concat params (variables (parse-form match)))))]
       `(filter
         (fn [smap#]
-          (let [{:strs [~@(map (comp symbol name) replace-vars)]} smap#]
+          (let [{:strs [~@(map (comp symbol name) match-vars)]} smap#]
             ~when))
         ~inner-form))
     inner-form))
@@ -1922,9 +1914,9 @@
 (defn compile-where
   {:arglists '([rule-data inner-form])
    :private true}
-  [{:keys [params replace smap where]} inner-form]
+  [{:keys [params match smap where]} inner-form]
   (if (some? where)
-    (let [[_ env] (parse-form* replace {})
+    (let [[_ env] (parse-form* match {})
           var-syms (set (map (comp symbol name) (vals env)))]
       `(let [{:strs [~@var-syms]} ~smap
              ~@(mapcat
@@ -1960,16 +1952,16 @@
 (defn compile-rule
   {:arglists '([rule-data])
    :private true}
-  ([{:keys [params replace rule-name smap u v when where with] :as rule-data}]
+  ([{:keys [params match rule-name smap u v when where return] :as rule-data}]
    (let [this-sym (gensym "this__")
          arglists (map (partial concat [this-sym v])
                        (take (inc (count params))
                              (iterate pop params)))
          substitute-form `(protocols/-substitute ~this-sym ~smap)
-         replace-pattern (parse-form replace)
-         replace-vars (variables replace-pattern)
+         match-pattern (parse-form match)
+         match-vars (variables match-pattern)
          compiled-unify*
-         ((compile-pattern replace-pattern
+         ((compile-pattern match-pattern
                            v
                            (fn [seen-vars]
                              `(list (merge ~smap ~(compile-smap seen-vars)))))
@@ -1993,15 +1985,15 @@
 
         protocols/IRuleLeftSide
         (~'-rule-left-side [~this-sym]
-         (parse-form '~replace))
+         (parse-form '~match))
 
         protocols/IRuleRightSide
         (~'-rule-right-side [~this-sym]
-         (parse-form '~with))
+         (parse-form '~return))
 
         protocols/ISubstitute
         (~'-substitute [~this-sym ~smap]
-         ~(compile-substitute (parse-form with) smap))
+         ~(compile-substitute (parse-form return) smap))
 
         protocols/IUnify
         (~'-unify [~this-sym ~v ~smap]
@@ -2020,7 +2012,7 @@
 ;; TODO: Variable names (ids) need to be unique within the rule.
 ;; TODO: Add a clause for controlling substitution.
 (defmacro rule
-  {:arglists '([[params*] & {:keys [replace with where when]}])
+  {:arglists '([[params*] & {:keys [match as when return where]}])
    :style/indent :defn}
   ([& args]
    (let [rule-data (parse-rule-args args)]
@@ -2033,7 +2025,7 @@
 
 
 (defmacro defrule
-  {:arglists '([name [params*] & {:keys [replace when where with]}])
+  {:arglists '([name [params*] & {:keys [match as when return where]}])
    :style/indent :defn}
   ([name params & rule-args]
    (let [name (compile-rule-name {:params params
@@ -2102,7 +2094,7 @@
 (comment
   (defrule rule-name [x y]
     ;; The left side of the rule, the pattern to match.
-    :replace
+    :match
     [~x ~y ~x] ;; [:a :b :a], [:b :a :b], [1 2 1], etc.
 
     ;; Bind the value of a successfully matched pattern to `v` for
@@ -2112,7 +2104,7 @@
 
     ;; The right side of the rule, the replacement pattern which
     ;; substitution will be applied.
-    :with
+    :return
     [~z]
 
     ;; Optionally a constraint may be placed on the match.
@@ -2128,10 +2120,10 @@
 
 (comment
   (defrule replace [x y]
-    :replace
+    :match
     ~x
 
-    :with
+    :return
     ~y))
 
 
