@@ -1,6 +1,7 @@
 (ns meander.core
-  (:refer-clojure :exclude [bound? extend replace resolve])
+  (:refer-clojure :exclude [bound? extend repeat replace resolve])
   (:require
+   [clojure.core :as clj]
    [clojure.core.specs.alpha :as core.specs]
    [clojure.set :as set]
    [clojure.spec.alpha :as spec]
@@ -121,7 +122,7 @@
              #{""} 
              (map-indexed
               (fn [i s-i]
-                (map str (repeat i) (positions* s-i (inc level))))
+                (map str (clj/repeat i) (positions* s-i (inc level))))
               term))
 
      :else
@@ -304,7 +305,7 @@
   {:arglists '([terms substitution-map])}
   ([ts smap]
    {:pre [(substitution-map? smap)]}
-   (map resolve ts (repeat smap))))
+   (map resolve ts (clj/repeat smap))))
 
 
 (defn extend
@@ -511,7 +512,7 @@
             (list smap))))
       (map (partial partition 2)
            (map interleave
-                (repeat s-vars)
+                (clj/repeat s-vars)
                 (util/partitions n u-coll)))))))
 
 
@@ -1698,8 +1699,34 @@
 
 ;; ---------------------------------------------------------------------
 ;; Strategy combinators
+;;
+;; A strategy is a unary function of a term and returns the term
+;; rewriten.
+;;
+;; Notation
+;;
+;; t ∈ Term
+;; p, q, r, s ∈ Strategy
 
 (defn pipe
+  "Build a strategy which applies `p` to `t` and then `q` iff `p` rewrites
+  `t`. If `p` and `q` successful rewrite, return the result, otherwise
+  return `t`. This is the strategy equivalent of `and`.
+
+  Example:
+  
+    ((pipe (constantly :not-i)
+        (constantly :pass!))
+    :not-i)
+    ;; =>
+    :not-t
+
+    ((pipe (constantly :not-i)
+        (constantly :pass!))
+    :not-u)
+    ;; =>
+    :pass!
+  "
   ([p q]
    (fn [t]
      (let [t* (p t)]
@@ -1714,6 +1741,24 @@
 
 
 (defn choice
+  "Build a strategy which applies `p` or `q` to `t`. If `p` rewrites,
+  return the result, otherwise apply `q`. This is the strategy
+  equivalent of `or`.
+
+  Example:
+
+    ((choice (constantly :not-i)
+            (constantly :pass!))
+    :not-i)
+    ;; =>
+    :pass!
+
+    ((choice (constantly :not-i)
+            (constantly :pass!))
+    :not-u)
+    ;; =>
+    :not-i
+  "
   ([p q]
    (fn [t]
      (let [t* (p t)]
@@ -1739,7 +1784,7 @@
 
 
 ;; TODO: Rename to repeat.
-(defn rep [p]
+(defn repeat [p]
   (fn rec [t]
     ((branch p rec (constantly t)) t)))
 
@@ -2069,8 +2114,6 @@
     [z (if (number? x) y x)]))
 
 
-;; This rule will diverge whenever `x` and `y` unify with
-;; eachother and the rule is repeatedly applied.
 (comment
   (defrule replace [x y]
     :replace
