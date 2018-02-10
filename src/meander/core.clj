@@ -1715,15 +1715,15 @@
 
   Example:
   
-    ((pipe (constantly :not-i)
-        (constantly :pass!))
-    :not-i)
+    ((pipe (constantly :not-i) ;; Fail
+           (constantly :pass!))
+     :not-i)
     ;; =>
-    :not-t
+    :not-i
 
-    ((pipe (constantly :not-i)
-        (constantly :pass!))
-    :not-u)
+    ((pipe (constantly :not-i) ;; Pass
+           (constantly :pass!)) ;; Pass
+     :not-u)
     ;; =>
     :pass!
   "
@@ -1747,15 +1747,15 @@
 
   Example:
 
-    ((choice (constantly :not-i)
-            (constantly :pass!))
-    :not-i)
+    ((choice (constantly :not-i) ;; Fail
+             (constantly :pass!)) ;; Pass
+     :not-i)
     ;; =>
     :pass!
 
-    ((choice (constantly :not-i)
-            (constantly :pass!))
-    :not-u)
+    ((choice (constantly :not-i) ;; Pass
+             (constantly :pass!))
+     :not-u)
     ;; =>
     :not-i
   "
@@ -1783,11 +1783,23 @@
   (choice p identity))
 
 
-;; TODO: Rename to repeat.
-(defn repeat [p]
-  (fn rec [t]
-    ((branch p rec (constantly t)) t)))
+(defn repeat
+  "Build a strategy which applies `p` to `t` repeatedly until fails.
 
+  Example:
+
+    ((repeat
+       (fn [v]
+         (if (= 2 (peek v))
+         v ;; Fail
+         (pop v))))
+       [1 2 3 4 5])
+    ;; =>
+    [1 2]
+  "
+  [p]
+  (fn repeat* [t]
+    ((branch p repeat* (constantly t)) t)))
 
 (defn bottom-up [p]
   (fn [t]
