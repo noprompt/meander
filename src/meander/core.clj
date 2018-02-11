@@ -954,254 +954,6 @@
     (outer-f (set (map inner-f this)))))
 
 
-;; ---------------------------------------------------------------------
-;; Rule construction
-
-
-(defn left-side
-  ([rule]
-   (protocols/-rule-left-side rule)))
-
-
-(defn right-side
-  ([rule]
-   (protocols/-rule-right-side rule)))
-
-
-(defn make-rule
-  {:arglists '([left-side right-side])}
-  ([lhs rhs]
-   ;; lhs is the left side of the rule (the pattern to match).
-   ;; rhs is the right side of the rule (the replacement pattern to
-   ;; substitue).
-   ;; f is a unary function
-   ;; t, u are terms
-   (reify
-     clojure.lang.IFn
-     (invoke [_ t]
-       (let [t* (prewalk
-                 (fn [u]
-                   (if-unifies [smap u lhs {}]
-                     (substitute rhs smap)
-                     u))
-                 t)]
-         (if (= t* t)
-           t
-           (recur t*))))
-
-
-     protocols/IFmap
-     (-fmap [_ f]
-       (make-rule (f lhs) (f rhs)))
-
-
-     protocols/IRule
-
-
-     protocols/IUnify
-     (-unify [_ t smap]
-       (unify lhs t smap))
-
-
-     protocols/ISubstitute
-     (-substitute [_ smap]
-       (substitute rhs smap))
-
-
-     protocols/IWalk
-     (-walk [this inner-f outer-f]
-       (outer-f
-        (protocols/-fmap
-         this
-         (fn [x]
-           (walk inner-f outer-f x))))))))
-
-
-(comment
-  (= ((make-rule [1 2 3] [4 5 6])
-      [1 2 3])
-     [4 5 6])
-
-  (= ((make-rule [1 2 3] [4 5 6])
-      [3 2 1])
-     [3 2 1])
-
-  (let [x (make-variable 'x)
-        y (make-variable 'y)
-        r (make-rule [x y x] [x y])]
-    (= (r [1 2 1])
-       [1 2])))
-
-
-(defn run-rule
-  {:arglists '([rule term] [rule term substitution-map])}
-  ([r t]
-   (run-rule r t {}))
-  ([r t smap]
-   (if (satisfies? protocols/IRule r)
-     (loop [t t]
-       (let [t* (prewalk
-                 (fn [u]
-                   (if-unifies [smap* r u smap]
-                     (substitute r smap*)
-                     u))
-                 t)]
-         (if (= t* t)
-           t
-           (recur t*))))
-     t)))
-
-
-(defn make-associative-rule
-  ([fsym]
-   {:pre [(symbol? fsym)]}
-   (reify
-     clojure.lang.IFn
-     (invoke [this t]
-       (run-rule this t))
-     
-
-     protocols/IRule
-
-
-     protocols/ISubstitute
-     (-substitute [this smap]
-       (if-some [seq (get smap this)]
-         (mapcat
-          (fn [x]
-            (if (and (seq? x)
-                     (= (first x) fsym))
-              (rest x)
-              (list x)))
-          seq)
-         ^{:explanation "An associative rule could not be found in the substitution map."}
-         (util/undefined)))
-     
-
-     protocols/IUnify
-     (-unify [this x smap]
-       (if (and (seq? x)
-                (= (first x) fsym))
-         ;; Intentional use of `assoc` instead of `extend`, etc.
-         (assoc smap this x)
-         nil)))))
-
-(comment
-  (= ((make-associative-rule '+)
-      '(+ 1 2 (+ 3)))
-     '(+ 1 2 3)))
-
-
-(defmacro associative-rule
-  ([fsym]
-   {:pre [(symbol? fsym)]}
-   `(make-associative-rule '~fsym)))
-
-
-(defn make-monoid-rule
-  ([fsym id]
-   {:pre [(symbol? fsym)]}
-   (reify
-     clojure.lang.IFn
-     (invoke [this t]
-       (run-rule this t))
-
-     protocols/IRule
-
-     protocols/ISubstitute
-     (-substitute [this smap]
-       (if-some [seq (get smap this)]
-         (let [seq* (mapcat
-                     (fn ([x]
-                          (cond
-                            (and (seq? x)
-                                 (= (first x) fsym))
-                            (remove #{id} (rest x))
-
-                            (= x id)
-                            ()
-                            :else
-                            (list x))))
-                     seq)]
-           (if (= seq* (list fsym))
-             id
-             seq*))
-         ^{:explanation "A monoid rule could not be found in the substitution map."}
-         (util/undefined)))
-
-
-     protocols/IUnify
-     (-unify [this x smap]
-       (if (and (seq? x)
-                (= (first x) fsym))
-         ;; Intentional use of `assoc` instead of `extend`, etc.
-         (assoc smap this x)
-         nil)))))
-
-
-(defmacro monoid-rule
-  ([fsym id]
-   {:pre [(symbol? fsym)]}
-   `(monoid-call-r '~fsym ~id)))
-
-
-(defn make-zero-property-rule
-  "The zero property of the function that's symbol is
-  `fsym`. Semantically equivalent to
-
-  (rule []
-    :replace
-    (fsym ~@xs ~zero ~@ys)
-
-    :with
-    ~zero)
-  "
-  ([fsym zero]
-   {:pre [(symbol? fsym)]}
-   (reify
-     clojure.lang.IFn
-     (invoke [this t]
-       (run-rule this t))
-
-     protocols/IRule
-
-     protocols/ISubstitute
-     (-substitute [this smap]
-       (if-some [seq (get smap this)]
-         (if (some (partial = zero) seq)
-           zero
-           seq)
-         ^{:explanation "An zero property rule could not be found in the substitution map."}
-         (util/undefined)))
-
-
-     protocols/IUnify
-     (-unify [this x smap]
-       (if (and (seq? x)
-                (= (first x) fsym))
-         ;; Intentional use of `assoc` instead of `extend`, etc.
-         (assoc smap this x)
-         nil)))))
-
-
-(defmacro zero-property-rule
-  "Examples:
-  
-  (run-rule
-   (zero-property-rule * 0)
-   '(* x y (* z 0)))
-  ;; => 0
-
-  (run-rule
-   (zero-property-rule and false)
-   '(and yes? no? (and maybe? false)))
-  ;; => false
-  "
-  [fsym zero]
-  {:pre [(symbol? fsym)]}
-  `(make-zero-property-rule '~fsym ~zero))
-
-
 (defn parse-form*
   ([x]
    (parse-form* x {}))
@@ -2002,6 +1754,153 @@
      (if (= v* u)
        v
        v*))))
+
+
+(defn zero-property-t
+  "The zero property of the function that's symbol is
+  `fsym`. Semantically equivalent to
+
+  (t (fsym ~@xs ~zero ~@ys)
+    ~zero)
+  "
+  ([fsym zero]
+   {:pre [(symbol? fsym)]}
+   (reify
+     clojure.lang.IFn
+     (invoke [this t]
+       (if-unifies [smap* this t {}]
+         (protocols/-substitute this smap*)
+         t))
+
+
+     protocols/ISubstitute
+     (-substitute [this smap]
+       (if-some [seq (get smap this)]
+         (if (some (partial = zero) seq)
+           zero
+           seq)
+         (throw
+          (ex-info "Zero property transform not be found in the substitution map."
+                   {:fsym fsym
+                    :zero zero}))))
+
+
+     protocols/IUnify
+     (-unify [this x smap]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         ;; Intentional use of `assoc` instead of `extend`, etc.
+         (assoc smap this x)
+         nil)))))
+
+
+(defmacro zero-property
+  "Examples:
+  
+  ((zero-property * 0)
+   '(* x y 0))
+  ;; => 0
+
+  ((zero-property and false)
+   '(and true x y false z))
+  ;; => false
+  "
+  [fsym zero]
+  {:pre [(symbol? fsym)]}
+  `(zero-property-t '~fsym ~zero))
+
+
+(defn associative-t
+  ([fsym]
+   {:pre [(symbol? fsym)]}
+   (reify
+     clojure.lang.IFn
+     (invoke [this t]
+       (if-unifies [smap* this t {}]
+         (protocols/-substitute this smap*)
+         t))
+     
+     protocols/ISubstitute
+     (-substitute [this smap]
+       (if-some [seq (get smap this)]
+         (mapcat
+          (fn [x]
+            (if (and (seq? x)
+                     (= (first x) fsym))
+              (rest x)
+              (list x)))
+          seq)
+         (throw
+          (ex-info "Associative transform not found in the substitution."
+                   {:fsym fsym}))))
+     
+
+     protocols/IUnify
+     (-unify [this x smap]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         ;; Intentional use of `assoc` instead of `extend`, etc.
+         (assoc smap this x)
+         nil)))))
+
+
+(defmacro associative
+  ([fsym]
+   {:pre [(symbol? fsym)]}
+   `(associative-t '~fsym)))
+
+
+(defn monoid-t
+  ([fsym id]
+   {:pre [(symbol? fsym)]}
+   (reify
+     clojure.lang.IFn
+     (invoke [this t]
+       (if-unifies [smap* this t {}]
+         (protocols/-substitute this smap*)
+         t))
+
+     protocols/IRule
+
+     protocols/ISubstitute
+     (-substitute [this smap]
+       (if-some [seq (get smap this)]
+         (let [seq* (mapcat
+                     (fn [x]
+                       (cond
+                         (and (seq? x)
+                              (= (first x) fsym))
+                         (remove #{id} (rest x))
+
+                         (= x id)
+                         ()
+
+                         :else
+                         (list x)))
+                     seq)]
+           (if (= seq* (list fsym))
+             id
+             seq*))
+         ;; Is the "right" thing to do?
+         (throw
+          (ex-info "Monoid transform not found in the substitution map." 
+                   {:fsym fsym
+                    :id id}))))
+
+
+     protocols/IUnify
+     (-unify [this x smap]
+       (if (and (seq? x)
+                (= (first x) fsym))
+         ;; Intentional use of `assoc` instead of `extend`.
+         (assoc smap this x)
+         nil)))))
+
+
+(defmacro monoid
+  ([fsym id]
+   {:pre [(symbol? fsym)]}
+   `(monoid-t '~fsym ~id)))
 
 
 ;; ---------------------------------------------------------------------
