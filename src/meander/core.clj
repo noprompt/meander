@@ -1480,7 +1480,7 @@
 
        protocols/ISubstitute
        (protocols/-substitute [this# ~smap]
-         ~(compile-substitution form* smap))
+         ~(compile-substitute form* smap))
 
        clojure.lang.IFn
        (~'invoke [this# ~obj]
