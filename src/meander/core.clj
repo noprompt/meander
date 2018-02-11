@@ -1841,6 +1841,7 @@
           ~else
           ~then)))))
 
+
 ;; ---------------------------------------------------------------------
 ;; Strategy combinators
 ;;
@@ -1851,6 +1852,13 @@
 ;;
 ;; t ∈ Term
 ;; p, q, r, s ∈ Strategy
+
+
+(defn build
+  "Returns a strategy which always returns `t`."
+  [t]
+  (fn [_] t))
+
 
 (defn pipe
   "Build a strategy which applies `p` to `t` and then `q` iff `p` rewrites
@@ -1873,16 +1881,13 @@
   "
   ([p q]
    (fn [t]
-     (let [t* (p t)]
-       (if (= t t*)
-         t
-         (let [t** (q t*)]
-           (if (= t* t**)
-             t
-             t**))))))
+     (if-transform [t* p t]
+       (if-transform [t** q t*]
+         t**
+         t)
+       t)))
   ([p q & more]
    (apply pipe (pipe p q) more)))
-
 
 (defn choice
   "Build a strategy which applies `p` or `q` to `t`. If `p` rewrites,
@@ -1905,15 +1910,15 @@
   "
   ([p q]
    (fn [t]
-     (let [t* (p t)]
-       (if (not= t t*)
-         t*
-         (q t)))))
+     (if-transform [t* p t]
+       t*
+       (q t))))
   ([p q & more]
    (apply choice (choice p q) more)))
 
 
 (defn branch
+  {:style/indent :defn}
   [p q r]
   (fn [t]
     (let [t* (p t)]
