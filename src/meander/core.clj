@@ -1731,11 +1731,10 @@
      [:foo :baz])
   
     (extract
-     (rule
-       :match {:student/id ~id
-               :test/score ~score}
+     (t {:student/id ~id
+         :test/score ~score}
        :when (< 90 score)
-       :return [~id ~score])
+       [~id ~score])
      [{:student/id 1, :test/score 85}
       {:student/id 2, :test/score 93}
       {:student/id 3, :test/score 61}
