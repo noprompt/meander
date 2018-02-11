@@ -1814,6 +1814,34 @@
 
 
 ;; ---------------------------------------------------------------------
+;; if-transform macro
+
+
+(spec/def ::if-transform-args
+  (spec/cat
+   :binding+f+arg
+   (spec/and vector?
+             (spec/cat
+              :t* simple-symbol?
+              :f any?
+              :t any?))
+   :then any?
+   :else (spec/? any?)))
+
+(spec/fdef if-transform
+  :args ::if-transform-args
+  :ret any?)
+
+(defmacro if-transform
+  {:style/indent :defn}
+  ([& args]
+   (let [[[t* f t] then else] args]
+     `(let [~t* (~f ~t)]
+        (if (= ~t ~t*)
+          ~else
+          ~then)))))
+
+;; ---------------------------------------------------------------------
 ;; Strategy combinators
 ;;
 ;; A strategy is a unary function of a term and returns the term
