@@ -830,8 +830,8 @@
   `map-b`."
   ([map-a map-b smap]
    {:pre [(map? map-a)]}
-   (if (map? map-b)
-     (if (= (count map-a) (count map-b))
+   (when (map? map-b)
+     (when (= (count map-a) (count map-b))
        (if (not= map-a map-b)
          (mapcat 
           (fn [!map-a]
@@ -839,9 +839,7 @@
               (when-some [smap* (unify-entries* entries smap)]
                 smap*)))
           (util/permutations map-a))
-         (list smap))
-       ())
-     ())))
+         (list smap))))))
 
 
 (defn unify-map
@@ -901,8 +899,8 @@
   {:arglists '([set-u set-v substitution-map])}
   ([set-u set-v smap]
    {:pre [(set? set-u)]}
-   (if (set? set-v)
-     (if (= (count set-u) (count set-v))
+   (when (set? set-v)
+     (when (= (count set-u) (count set-v))
        (if (not= set-u set-v)
          (mapcat 
           (fn [!set-u]
@@ -913,9 +911,7 @@
                              pairs)]
               ((lconj* goals) smap)))
           (util/permutations set-u))      
-         (list smap))
-       ())
-     ())))
+         (list smap))))))
 
 
 (extend-type clojure.lang.IPersistentSet
