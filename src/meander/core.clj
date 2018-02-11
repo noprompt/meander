@@ -205,9 +205,10 @@
 
 
 (defn substitute
-  ([x substitution-map]
+  {:arglists '([u substitution-map])}
+  ([x smap]
    (if (satisfies? protocols/ISubstitute x)
-     (protocols/-substitute x substitution-map)
+     (protocols/-substitute x smap)
      x)))
 
 
@@ -219,7 +220,7 @@
 
 
 (defn unify
-  {:arglists '([a b substitution-map])}
+  {:arglists '([u v substitution-map])}
   ([a b smap]
    {:pre [(substitution-map? smap)]}
    ;; Orient: move variables to the left-hand side.
@@ -1657,7 +1658,9 @@
 ;; Substitution compilation
 
 
-(defn compile-substitute [pattern smap]
+(defn compile-substitute
+  {:private true}
+  [pattern smap]
   (let [var-syms (map (comp symbol name) (variables pattern))]
     `(let [{:strs [~@var-syms]} ~smap]
        ~(postwalk
@@ -1695,6 +1698,119 @@
              :else
              x))
          pattern))))
+
+
+;; ---------------------------------------------------------------------
+;; pattern macro
+
+
+(defmacro pattern
+  [form]
+  (let [obj `obj#
+        smap `smap#
+        form* (parse-form form)]
+    `(reify
+       protocols/IUnify*
+       (protocols/-unify* [this# ~obj smap-outer#]
+         (for [smap-inner# ~((compile-pattern
+                              form*
+                              obj
+                              (fn [seen-vars]
+                                `(list ~(compile-smap seen-vars))))
+                             #{})
+               :when (every?
+                      (fn [[ik# iv#]]
+                        (if-some [[_# ov#] (find smap-outer# ik#)]
+                          (= iv# ov#)
+                          true))
+                      smap-inner#)]
+           (merge smap-outer# smap-inner#)))
+
+       protocols/ISubstitute
+       (protocols/-substitute [this# ~smap]
+         ~(compile-substitution form* smap))
+
+       clojure.lang.IFn
+       (~'invoke [this# ~obj]
+        (protocols/-unify* this# ~obj {})))))
+
+
+;; ---------------------------------------------------------------------
+;; transform macro
+
+(spec/def ::transform-args
+  (spec/cat
+   :pattern any?
+   :as-clause (spec/?
+               (spec/cat :as #{:as}
+                         :sym symbol?))
+   :clauses (spec/*
+             (spec/alt
+              :when-clause (spec/cat
+                            :when #{:when}
+                            :expr any?)
+              :let-clause (spec/cat
+                           :let #{:let}
+                           :bindings ::core.specs/bindings)))
+   :ret any?))
+
+
+(spec/fdef meander.core/transform
+  :args ::transform-args
+  :ret any?)
+
+(defmacro transform
+  {:arglists '([u-pattern clauses* s-pattern])}
+  [& args]
+  (let [[u-pattern & rest-args] args
+        as (if (= (first rest-args) :as)
+             (second rest-args))
+        rest-args (if as
+                    (nnext rest-args)
+                    rest-args)
+        clauses* (butlast rest-args)
+        s-pattern (last rest-args)
+        u-var-syms (map (comp symbol name)
+                        (vals (second (parse-form* u-pattern))))
+        s-var-syms (map (comp symbol name)
+                        (vals (second (parse-form* s-pattern))))
+        meta-smap (into {}
+                        (map (juxt name identity)
+                             (set/intersection
+                              (set s-var-syms)
+                              (set (mapcat
+                                    (fn [clause]
+                                      (when (= (first clause) :let)
+                                        (take-nth 2 (destructure (second clause)))))
+                                    (partition 2 clauses*))))))
+        meta-smap (if as
+                    (assoc meta-smap (name as) as)
+                    meta-smap)
+        v `v#]
+    `(let [u-pattern# (pattern ~u-pattern)
+           s-pattern# (pattern ~s-pattern)]
+       (reify
+         clojure.lang.IFn
+         (clojure.lang.IFn/invoke [this# x#]
+           (if-some [smap# (protocols/-unify this# x# {})]
+             (protocols/-substitute this# (merge smap# (meta smap#)))
+             x#))
+
+         protocols/IUnify
+         (protocols/-unify [this# v# smap#]
+           (first (protocols/-unify* this# v# smap#)))
+
+         protocols/IUnify*
+         (protocols/-unify* [this# ~v smap#]
+           (for [~'&smap (unify* u-pattern# ~v smap#)
+                 :let [{:strs [~@u-var-syms]} ~'&smap
+                       ~@(when as (list as v))]
+                 ~@clauses*]
+             (with-meta ~'&smap ~meta-smap)))
+
+         protocols/ISubstitute
+         (protocols/-substitute [this# smap#]
+           (protocols/-substitute s-pattern# smap#))))))
 
 
 ;; ---------------------------------------------------------------------
@@ -1808,267 +1924,51 @@
 
 
 ;; ---------------------------------------------------------------------
-;; Rule macro
-
-(spec/def ::rule-name
-  symbol?)
-
-
-(spec/def ::rule-params
-  (spec/coll-of symbol? :kind vector?))
-
-
-(spec/def ::as-clause
-  (spec/cat
-   :keyword #{:as}
-   :form symbol?))
-
-
-(spec/def ::match-clause
-  (spec/cat
-   :keyword #{:match}
-   :form any?))
-
-
-(spec/def ::when-clause
-  (spec/cat
-   :keyword #{:when}
-   :form any?))
-
-
-(spec/def ::where-clause
-  (spec/cat
-   :keyword #{:where}
-   :form (spec/and vector?
-                   (spec/* ::core.specs/binding))))
-
-
-(spec/def ::return-clause
-  (spec/cat
-   :keyword #{:return}
-   :form any?))
-
-
-(spec/def ::rule-clause
-  (spec/alt
-   :as-clause ::as-clause
-   :match-clause ::match-clause
-   :return-clause ::return-clause
-   :when-clause ::when-clause
-   :where-clause ::where-clause))
-
-
-(spec/def ::rule-args
-  (spec/cat
-   :rule-name (spec/? ::rule-name)
-   :params ::rule-params
-   :clauses (spec/* ::rule-clause)))
-
-
-(spec/def ::defrule-args
-  (spec/cat
-   :rule-name ::rule-name
-   :params ::rule-params
-   :clauses (spec/* ::rule-clause)))
-
-
-(defn parse-rule-args
-  {:private true}
-  [rule-args]
-  (let [{:keys [clauses params rule-name]} (spec/conform ::rule-args rule-args)]
-    (into 
-     {:smap (gensym "smap__")
-      :u (gensym "u__")
-      :v (gensym "v__")
-      :params params
-      :rule-name rule-name}
-     (map (comp (juxt :keyword :form) second) clauses))))
-
-
-(defn compile-rule-name
-  {:private true}
-  [rule-data]
-  (when-some [rule-name (get rule-data :rule-name)]
-    (let [params (get rule-data :params [])
-          arglists `'~(reverse
-                       (map (comp vec (partial cons 'term))
-                            (take (inc (count params))
-                                  (iterate pop params))))]
-      (with-meta rule-name {:arglists arglists}))))
-
-
-(defn compile-when
-  {:arglists '([rule-data then-form else-form])
-   :private true}
-  [{:keys [params match smap] :as rule-data} inner-form]
-  (if-some [[_ when] (find rule-data :when)]
-    (let [match-vars (distinct (map name (concat params (variables (parse-form match)))))]
-      `(filter
-        (fn [smap#]
-          (let [{:strs [~@(map (comp symbol name) match-vars)]} smap#]
-            ~when))
-        ~inner-form))
-    inner-form))
-
-
-(defn compile-where
-  {:arglists '([rule-data inner-form])
-   :private true}
-  [{:keys [params match smap where]} inner-form]
-  (if (some? where)
-    (let [[_ env] (parse-form* match {})
-          var-syms (set (map (comp symbol name) (vals env)))]
-      `(let [{:strs [~@var-syms]} ~smap
-             ~@(mapcat
-                (juxt identity
-                      (fn [sym]
-                        `(when-some [[_# x#] (find ~smap ~(name sym))]
-                           x#)))
-                (remove var-syms params))
-             ~@(mapcat
-                (fn [[binding val]]
-                  `(~binding ~val
-                    ~smap (assoc ~smap ~(name binding) ~binding)))
-                (partition 2
-                           (mapcat
-                            (comp destructure
-                                  (partial spec/unform ::core.specs/binding))
-                            where)))]
-         ~inner-form))
-    inner-form)) 
-
-
-(defn compile-as
-  {:arglists '([rule-data inner-form])
-   :private true}
-  [{:keys [as v smap]} inner-form]
-  (if (some? as)
-    `(let [~as ~v
-           ~smap (assoc ~smap ~(name as) ~as)]
-       ~inner-form)
-    inner-form))
-
-
-(defn compile-rule
-  {:arglists '([rule-data])
-   :private true}
-  ([{:keys [params match rule-name smap u v when where return] :as rule-data}]
-   (let [this-sym (gensym "this__")
-         arglists (map (partial concat [this-sym v])
-                       (take (inc (count params))
-                             (iterate pop params)))
-         substitute-form `(protocols/-substitute ~this-sym ~smap)
-         match-pattern (parse-form match)
-         match-vars (variables match-pattern)
-         compiled-unify*
-         ((compile-pattern match-pattern
-                           v
-                           (fn [seen-vars]
-                             `(list (merge ~smap ~(compile-smap seen-vars)))))
-          #{})]
-     `(reify
-        clojure.lang.IFn
-        ~@(for [arglist arglists]
-            `(~'invoke [~@arglist]
-              (let [~smap
-                    (hash-map
-                     ~@(mapcat
-                        (fn [sym]
-                          [(name sym) sym])
-                        (drop 2 arglist)))
-                    ~@(if (some? rule-name)
-                        `(~rule-name ~this-sym))]
-                (if-some [~smap (protocols/-unify ~this-sym ~v ~smap)]
-                  ~(compile-as rule-data
-                               (compile-where rule-data substitute-form))
-                  ~v))))
-
-        protocols/IRuleLeftSide
-        (~'-rule-left-side [~this-sym]
-         (parse-form '~match))
-
-        protocols/IRuleRightSide
-        (~'-rule-right-side [~this-sym]
-         (parse-form '~return))
-
-        protocols/ISubstitute
-        (~'-substitute [~this-sym ~smap]
-         ~(compile-substitute (parse-form return) smap))
-
-        protocols/IUnify
-        (~'-unify [~this-sym ~v ~smap]
-         (first (protocols/-unify* ~this-sym ~v ~smap)))
-
-        protocols/IUnify*
-        (~'-unify* [~this-sym ~v ~smap]
-         ~(compile-as rule-data
-                      (compile-when rule-data compiled-unify*)))))))
-
-
-(spec/fdef rule
-  :args ::rule-args
-  :ret any?)
-
-;; TODO: Variable names (ids) need to be unique within the rule.
-;; TODO: Add a clause for controlling substitution.
-(defmacro rule
-  {:arglists '([[params*] & {:keys [match as when return where]}])
-   :style/indent :defn}
-  ([& args]
-   (let [rule-data (parse-rule-args args)]
-     (compile-rule rule-data))))
-
-
-(spec/fdef defrule
-  :args ::defrule-args
-  :ret any?)
-
-
-(defmacro defrule
-  {:arglists '([name [params*] & {:keys [match as when return where]}])
-   :style/indent :defn}
-  ([name params & rule-args]
-   (let [name (compile-rule-name {:params params
-                                  :rule-name name})]
-     `(def ~name
-        (rule ~name ~params ~@rule-args)))))
-
-
-;; ---------------------------------------------------------------------
-;; Utilities
+;; Tools
 
 
 (defn extract
-  "Return a lazy sequence of all instances of `pattern` in `u`. Uses
-  `tree-seq` to produce all subterms.
+  "Return a lazy sequence of all instances of `v` in `t` that unify
+  with `u`. If `u` supports implements substitution it will return
+  a sequence of `v*` instead where `v*` is the result of applying the
+  substitution to `v`. Uses `tree-seq` to produce all subterms. 
 
-  (let [[pattern _] (parse-form* '{:a ~A
-                                   :b ~B})]
-    (extract pattern '[1
-                       {:a a
-                        :b {:a b
-                            :b c}}
-                       2
-                       {:c {:a x
-                            :b y}}
-                       3])))
+  Example:
+   
+    (extract (pattern [:foo ~@xs :baz])
+             [[:foo :bar :baz]
+              [:foo :baz :bar]
+              [:foo [:foo :baz] :baz]
+              [:foo]])
     ;; =>
-    ({:a a,
-      :b {:a b,
-          :b c}}
-    {:a b,
-     :b c}
-    {:a x,
-     :b y})
+    ([:foo :bar :baz]
+     [:foo [:foo :baz] :baz]
+     [:foo :baz])
+  
+    (extract
+     (rule
+       :match {:student/id ~id
+               :test/score ~score}
+       :when (< 90 score)
+       :return [~id ~score])
+     [{:student/id 1, :test/score 85}
+      {:student/id 2, :test/score 93}
+      {:student/id 3, :test/score 61}
+      {:student/id 4, :test/score 99}])
+    ;; =>
+    ([2 93] [4 99])
   "
-  ([pattern]
-   (fn [u]
-     (extract pattern u)))
-  ([pattern u]
-   (filter
-    (fn [v]
-      (unify pattern v {}))
-    (tree-seq seqable? seq u))))
+  ([u]
+   (fn [t]
+     (extract u t)))
+  ([u t]
+   (for [v (tree-seq seqable? seq t)
+         :let [smap (unify u v {})]
+         :when smap
+         :let [v* (substitute u smap)]]
+     (if (= v* u)
+       v
+       v*))))
 
 
 ;; ---------------------------------------------------------------------
@@ -2079,87 +1979,11 @@
   (require '[taoensso.tufte :as tufte])
   (tufte/add-basic-println-handler! {}))
 
-;; Rules can be parameterized. `x` and `y` are optional (positional)
-;; parameters which can be passed when the rule is applied. So
-;;
-;;   (rule-name term 1)
-;;
-;; means "apply `rule-name` with `x` bound to 1." In this example
-;; `term` will only match when it is of the form `[1 y 1]`. The
-;; application
-;;
-;;   (rule-name term 1 2)
-;;
-;; binds `x` and `y` thus `term` will stictly match `[1 2 1]`.
 (comment
-  (defrule rule-name [x y]
-    ;; The left side of the rule, the pattern to match.
-    :match
-    [~x ~y ~x] ;; [:a :b :a], [:b :a :b], [1 2 1], etc.
-
-    ;; Bind the value of a successfully matched pattern to `v` for
-    ;; subsequent use in `:with`, `:when`, and `:where` clauses.
-    :as
-    v
-
-    ;; The right side of the rule, the replacement pattern which
-    ;; substitution will be applied.
-    :return
-    [~z]
-
-    ;; Optionally a constraint may be placed on the match.
-    :when
-    (keyword? x)
-    
-    ;; Essentially a `let` between matching and replacing. This allows
-    ;; subrules, functions, etc. to be executed before performing the
-    ;; substitution to the right side.
-    :where
-    [z (if (number? x) y x)]))
-
-
-(comment
-  (defrule replace [x y]
-    :match
-    ~x
-
-    :return
-    ~y))
-
-
-(comment
-  (defmacro matcher
-    [form]
-    (let [obj `obj#
-          seen-vars #{}
-          p (parse-form form)]
-      `(reify
-         protocols/IUnify*
-         (~'-unify* [this# ~obj smap-outer#]
-          (map (partial merge smap-outer#)
-               (filter
-                (fn [smap-inner#]
-                  (every?
-                   (fn [[k# vi#]]
-                     (if-some [[_# vo#] (find smap-outer# k#)]
-                       (= vi# vo#)
-                       true))
-                   smap-inner#))
-                (this# ~obj))))
-
-         clojure.lang.IFn
-         (~'invoke [_# ~obj]
-          ~((compile-pattern
-             p
-             obj
-             (fn [seen-vars]
-               `(list ~(compile-smap seen-vars))))
-            #{})))))
-
   ;; Comparing performance of "interpreted" pattern unification and
   ;; "compiled" matcher unification.
   (let [p (parse-form '[1 (2 ~@xs) {:first ~first :last ~last}])
-        m (matcher [1 (2 ~@xs) {:first ~first :last ~last}])
+        m (pattern [1 (2 ~@xs) {:first ~first :last ~last}])
         n 10000]
     ;; ({"xs" (3), "last" "last", "first" "first"})
     [(= (unify* p [1 '(2 3) {:first "first" :last "last"}] {})
