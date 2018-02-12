@@ -484,7 +484,7 @@
   the splicing-variables `s-vars` and the collection `u-coll`.
 
     (let [s-vars (parse-form '[~@xs ~@ys])
-        u-coll [1 2 3]]
+          u-coll [1 2 3]]
       (unify-splicing-variables* s-vars u-coll {}))
     ;; =>
     ({\"xs\" [], \"ys\" [1 2 3]}
@@ -493,7 +493,7 @@
      {\"xs\" [1 2 3], \"ys\" []})
 
     (let [s-vars (parse-form '[~@xs ~@ys])
-        u-coll [1 2 3]]
+          u-coll [1 2 3]]
       (unify-splicing-variables* s-vars u-coll {\"xs\" [1 2 ]}))
     ;; =>
     ({\"xs\" [1 2], \"ys\" [3]})
