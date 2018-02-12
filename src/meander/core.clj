@@ -508,8 +508,7 @@
           (if-some [[[s-var coll] & pairs*] (seq pairs)]
             (if-unifies [smap* s-var coll smap]
               (recur smap*
-                     pairs*)
-              ())
+                     pairs*))
             (list smap))))
       (map (partial partition 2)
            (map interleave
