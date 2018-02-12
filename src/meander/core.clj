@@ -1508,7 +1508,8 @@
   :ret any?)
 
 (defmacro transform
-  {:arglists '([u-pattern clauses* s-pattern])}
+  {:arglists '([u-pattern clauses* s-pattern])
+   :style/indent :defn}
   [& args]
   (let [[u-pattern & rest-args] args
         as (if (= (first rest-args) :as)
@@ -1560,6 +1561,11 @@
          (protocols/-substitute [this# smap#]
            (protocols/-substitute s-pattern# smap#))))))
 
+
+(defmacro t
+  {:style/indent :defn}
+  [& args]
+  `(transform ~@args))
 
 ;; ---------------------------------------------------------------------
 ;; if-transform macro
@@ -1694,12 +1700,18 @@
     ((branch p repeat* (constantly t)) t)))
 
 
-(defn bottom-up [p]
+(defn bottom-up
+  "Build a strategy which applies `p` to each subterm of `t` from
+  bottom to top."
+  [p]
   (fn [t]
     (postwalk p t)))
 
 
-(defn top-down [p]
+(defn top-down
+  "Build a strategy which applies `p` to each subterm of `t` from
+  top to bottom."
+  [p]
   (fn [t]
     (prewalk p t)))
 
