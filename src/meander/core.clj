@@ -355,7 +355,7 @@
 
   clojure.lang.IObj
   (withMeta [this m]
-    (SplicingVariable. name m))
+    (Variable. name m))
 
   clojure.lang.Named
   (getName [_]
