@@ -220,27 +220,29 @@
 
 
 (defn unify
-  {:arglists '([u v substitution-map])}
-  ([a b smap]
+  {:arglists '([u v]
+               [u v substitution-map])}
+  ([u v]
+   (unify u v {}))
+  ([u v smap]
    {:pre [(substitution-map? smap)]}
    ;; Orient: move variables to the left-hand side.
    (cond
-     (and (not (variable? a))
-          (variable? b))
-     (recur b a smap)
+     (and (not (variable? u))
+          (variable? v))
+     (recur v u smap)
 
      ;; Eliminate: solve for a particular variable (or unify in some
      ;; custom way).
-     (satisfies? protocols/IUnify a)
-     (protocols/-unify a b smap)
+     (satisfies? protocols/IUnify u)
+     (protocols/-unify u v smap)
 
-     (satisfies? protocols/IUnify* a)
-     (first (protocols/-unify* a b smap))
+     (satisfies? protocols/IUnify* u)
+     (first (protocols/-unify* u v smap))
 
      :else
-     (if (= a b)
-       smap
-       nil))))
+     (when (= u v)
+       smap))))
 
 
 (defmacro if-unifies
@@ -381,12 +383,14 @@
 
   protocols/IUnify
   (-unify [this that smap]
-    (if-resolve [x this smap]
-      (let [y (resolve that smap)]
-        (if (= x y)
-          smap
-          nil))
-      (extend smap this that)))
+    (if (= this that)
+      smap
+      (if-resolve [x this smap]
+        (let [y (resolve that smap)]
+          (if (= x y)
+            smap
+            nil))
+        (extend smap this that))))
 
   Object
   (equals [_ that]
@@ -451,16 +455,18 @@
 
   protocols/IUnify
   (-unify [this that smap]
-    (if-resolve [x this smap]
-      (if (coll? x)
-        (let [y (resolve that smap)]
-          (if (= x y)
-            smap
-            nil))
-        nil)
-      (if (coll? that)
-        (extend smap this that)
-        nil)))
+    (if (= this that)
+      smap
+      (if-resolve [x this smap]
+        (if (coll? x)
+          (let [y (resolve that smap)]
+            (if (= x y)
+              smap
+              nil))
+          nil)
+        (if (coll? that)
+          (extend smap this that)
+          nil))))
 
   Object
   (equals [_ that]

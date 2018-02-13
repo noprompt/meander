@@ -6,5 +6,6 @@
   :dependencies [[org.clojure/clojure "1.9.0"]]
   :profiles {:dev {:dependencies [[org.clojure/math.combinatorics "0.1.4"]
                                   [org.clojure/tools.nrepl "0.2.10"]
+                                  [org.clojure/test.check "0.10.0-alpha2"]
                                   [com.taoensso/tufte "1.1.2"]
                                   [fipp "0.6.10"]]}})
