@@ -257,7 +257,7 @@
 
 (defn unify*
   "Return all possible substitutions for u and v."
-  {:arglists '([u v substitution-map bottom])}
+  {:arglists '([u v substitution-map])}
   ([u v smap]
    {:pre [(map? smap)]}
    (if (satisfies? protocols/IUnify* u)
@@ -348,7 +348,15 @@
 ;; Core Types
 
 
-(deftype Variable [name]
+(deftype Variable [name meta]
+  clojure.lang.IMeta
+  (meta [this]
+    (.-meta this))
+
+  clojure.lang.IObj
+  (withMeta [this m]
+    (SplicingVariable. name m))
+
   clojure.lang.Named
   (getName [_]
     (clojure.core/name name))
@@ -358,8 +366,8 @@
     this)
 
   protocols/IFmap
-  (-fmap [_ f]
-    (Variable. (f name)))
+  (-fmap [this f]
+    (Variable. (f name) (.-meta this)))
 
   protocols/IVariable
 
@@ -390,10 +398,17 @@
 
 
 (defn make-variable
+  ([]
+   (Variable. (name (gensym)) {}))
   ([name]
    {:pre [(or (instance? clojure.lang.Named name)
               (string? name))]}
-   (Variable. (clojure.core/name name))))
+   (Variable. (clj/name name) {}))
+  ([name meta]
+   {:pre [(or (instance? clojure.lang.Named name)
+              (string? name))
+          (map? meta)]}
+   (Variable. (clj/name name) meta)))
 
 
 (defmacro variable
@@ -518,7 +533,6 @@
 
 ;; ---------------------------------------------------------------------
 ;; Vector terms
-
 
 (defn unify-splicing-vector*
   "Return a sequence of all possible substutitions satisfying `u-vec`
@@ -1311,34 +1325,35 @@
   [p obj inner]
   (fn do-set [seen-vars]
     `(when (set? ~obj)
-       (unify* ~(set (map
-                      (fn [x]
-                        (cond
-                          (splicing-variable? x)
-                          `(make-splicing-variable ~(name x))
+       (unify*
+        ~(set (map
+               (fn [x]
+                 (cond
+                   (splicing-variable? x)
+                   `(make-splicing-variable ~(name x))
 
-                          (variable? x)
-                          `(make-variable ~(name x))
+                   (variable? x)
+                   `(make-variable ~(name x))
 
-                          (ground? x)
-                          x
+                   (ground? x)
+                   x
 
-                          :else
-                          (let [obj `obj#
-                                smap `smap#
-                                inner* (fn [seen-vars]
-                                         `(list (merge ~smap ~(compile-smap seen-vars))))]
-                            `(reify
-                               protocols/IUnify*
-                               (~'-unify* [this# ~obj ~smap]
-                                (let [~@(mapcat
-                                         (fn [v]
-                                           [(symbol v) `(get ~smap ~v)])
-                                         (map name seen-vars))] 
-                                  ~((compile-pattern x obj inner*) seen-vars)))))))
-                      p))
-               ~obj
-               ~(compile-smap seen-vars)))))
+                   :else
+                   (let [obj `obj#
+                         smap `smap#
+                         inner* (fn [seen-vars]
+                                  `(list (merge ~smap ~(compile-smap seen-vars))))]
+                     `(reify
+                        protocols/IUnify*
+                        (~'-unify* [this# ~obj ~smap]
+                         (let [~@(mapcat
+                                  (fn [v]
+                                    [(symbol v) `(get ~smap ~v)])
+                                  (map name seen-vars))] 
+                           ~((compile-pattern x obj inner*) seen-vars)))))))
+               p))
+        ~obj
+        ~(compile-smap seen-vars)))))
 
 
 (defn compile-pattern
@@ -1429,6 +1444,7 @@
                x)
 
              (seq? x)
+
              (if (some splicing-variable? x)
                `(concat
                  ~@(map
@@ -1437,7 +1453,7 @@
                         (symbol (name y))
                         `(list ~y)))
                     x))
-               x)
+               `(list ~x))
 
              (symbol? x)
              `'~x
@@ -1558,7 +1574,7 @@
 
          protocols/ISubstitute
          (protocols/-substitute [this# smap#]
-           (protocols/-substitute s-pattern# smap#))))))
+           (protocols/-substitute s-pattern# (merge smap# (meta smap#))))))))
 
 
 (defmacro t
