@@ -63,7 +63,6 @@
                   a)]
           (recur n* a*))))))
 
-
 (defn subseqs [coll]
   (cond
     (string? coll)
