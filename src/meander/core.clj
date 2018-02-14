@@ -1,5 +1,10 @@
 (ns meander.core
-  (:refer-clojure :exclude [bound? extend repeat replace resolve])
+  (:refer-clojure
+   :exclude [bound?
+             extend
+             repeat
+             replace
+             resolve])
   (:require
    [clojure.core :as clj]
    [clojure.core.specs.alpha :as core.specs]
