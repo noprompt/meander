@@ -47,7 +47,7 @@
   (prop/for-all [x gen/any 
                  u gen-var
                  smap gen-smap]
-    (let [smap* (r/extend smap u x)]
+    (let [smap* (r/extend-no-check smap u x)]
       (= (r/unify u x smap)
          (r/unify u x smap*)))))
 
@@ -78,6 +78,36 @@
         (= smap
            (r/unify u x smap)))
       (not (r/unify u x {})))))
+
+
+(tc.t/defspec sequential-unification
+  (prop/for-all [v gen-var
+                 x gen/any
+                 y gen/any
+                 i gen/nat]
+    (let [u (interleave (repeat i v)
+                        (repeat y))
+          v (interleave (repeat i x)
+                        (repeat y))
+          smap-a (r/unify u v)
+          smap-b (r/unify (vec u) (vec v))]
+      (and (some? smap-a)
+           (some? smap-b)
+           (= smap-a
+              smap-b)))))
+
+
+(tc.t/defspec set-unification-producuces-n!-distinct-solutions-on-success
+  ;; :max-elements is capped at 4 to keep the test sane.
+  (prop/for-all [u (gen/set gen-var {:min-elements 1
+                                     :max-elements 4})
+                 v (gen/set gen/any {:min-elements 1
+                                     :max-elements 4})]
+    (if (= (count u)
+           (count v))
+      (= (count (distinct (r/unify* u v)))
+         (reduce * (map inc (range (count u)))))
+      (not (r/unify* u v)))))
 
 
 ;; ---------------------------------------------------------------------
