@@ -264,7 +264,10 @@
 
 (defn unify*
   "Return all possible substitutions for u and v."
-  {:arglists '([u v substitution-map])}
+  {:arglists '([u v]
+               [u v substitution-map])}
+  ([u v]
+   (unify* u v {}))
   ([u v smap]
    {:pre [(map? smap)]}
    (if (satisfies? protocols/IUnify* u)
