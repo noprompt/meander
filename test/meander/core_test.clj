@@ -41,15 +41,15 @@
 (tc.t/defspec unifying-identities-always-succeeds
   (prop/for-all [u gen-object
                  smap gen-smap]
-    (t/is (= smap
-             (r/unify u u smap))))
+    (= smap
+       (r/unify u u smap)))
 
   (prop/for-all [x gen/any 
                  u gen-var
                  smap gen-smap]
     (let [smap* (r/extend smap u x)]
-      (t/is (= (r/unify u x smap)
-               (r/unify u x smap*))))))
+      (= (r/unify u x smap)
+         (r/unify u x smap*)))))
 
 
 (tc.t/defspec unifying-inequalities-always-fails
@@ -58,7 +58,7 @@
                           (not= u v))
                         (gen/tuple gen/any gen/any))
                  smap gen-smap]
-    (t/is (nil? (r/unify u v smap))))
+    (nil? (r/unify u v smap)))
 
   (prop/for-all [[x1 x2] (gen/such-that
                           (fn [[u v]]
@@ -67,7 +67,17 @@
                  u gen-var
                  smap gen-smap]
     (let [smap* (r/extend smap u x1)]
-      (t/is (nil? (r/unify u x2 smap*))))))
+      (nil? (r/unify u x2 smap*)))))
+
+
+(tc.t/defspec splicing-var-only-unifies-only-with-sequential
+  (prop/for-all [u gen-splicing-var
+                 x gen/any]
+    (if (coll? x)
+      (let [smap (r/extend-no-check {} u x)]
+        (= smap
+           (r/unify u x smap)))
+      (not (r/unify u x {})))))
 
 
 ;; ---------------------------------------------------------------------

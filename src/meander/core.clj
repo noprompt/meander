@@ -458,15 +458,12 @@
     (if (= this that)
       smap
       (if-resolve [x this smap]
-        (if (coll? x)
+        (when (coll? x)
           (let [y (resolve that smap)]
-            (if (= x y)
-              smap
-              nil))
-          nil)
-        (if (coll? that)
-          (extend smap this that)
-          nil))))
+            (when (= x y)
+              smap)))
+        (when (coll? that)
+          (extend smap this that)))))
 
   Object
   (equals [_ that]
