@@ -423,13 +423,6 @@
    (Variable. (clj/name name) meta)))
 
 
-(defmacro variable
-  ([]
-   `(Variable. (name (gensym))))
-  ([name]
-   `(Variable. (name ~name))))
-
-
 (deftype SplicingVariable [name meta]
   clojure.lang.IMeta
   (meta [this]
