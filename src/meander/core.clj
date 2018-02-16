@@ -1109,15 +1109,16 @@
                   ;; Variables at the head.
                   [true false]
                   (let [x `x#]
-                    `(let [~x (first ~obj)]
-                       ~((compile-pattern (first p-tail*)
-                                          x
-                                          (fn [seen-vars]
-                                            (let [svec `svec#]
-                                              `(let [~svec (subvec ~obj 1)]
-                                                 ~((compile-pattern (subvec p-tail* 1) svec inner)
-                                                   seen-vars)))))
-                         seen-vars)))
+                    `(when-not (= ~obj [])
+                       (let [~x (nth ~obj 0 not-found#)]
+                         ~((compile-pattern (first p-tail*)
+                                            x
+                                            (fn [seen-vars]
+                                              (let [svec `svec#]
+                                                `(let [~svec (subvec ~obj 1)]
+                                                   ~((compile-pattern (subvec p-tail* 1) svec inner)
+                                                     seen-vars)))))
+                           seen-vars))))
 
                   [false true]
                   `(when (= (count ~obj) ~(count p))
@@ -1135,7 +1136,6 @@
                           p)))
                        seen-vars))    
                   
-
                   [false false]
                   (let [svec1 `svec1#]
                     `(let [~svec1 (subvec ~obj 0 ~(count p-init*))]
