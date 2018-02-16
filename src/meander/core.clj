@@ -1425,10 +1425,14 @@
 
 
 (defn compile-substitute
+  "Given a pattern and symbol which represents a bound substitution
+  `smap-sym`, return code which extracts and binds values from the
+  substitution and constructs the data structure described by
+  `pattern`."
   {:private true}
-  [pattern smap]
+  [pattern smap-sym]
   (let [var-syms (map (comp symbol name) (variables pattern))]
-    `(let [{:strs [~@var-syms]} ~smap]
+    `(let [{:strs [~@var-syms]} ~smap-sym]
        ~(postwalk
          (fn [x]
            (cond
