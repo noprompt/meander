@@ -1481,6 +1481,13 @@
         smap `smap#
         form* (parse-form form)]
     `(reify
+       protocols/ITermVariables
+       (protocols/-term-variables [this#]
+         #{~@(map
+              (fn [v]
+                `(make-variable ~(name v) ~(meta v)))
+              (variables form*))})
+
        protocols/IUnify*
        (protocols/-unify* [this# ~obj smap-outer#]
          (for [smap-inner# ~((compile-pattern
