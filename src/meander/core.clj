@@ -1452,7 +1452,6 @@
                x)
 
              (seq? x)
-
              (if (some splicing-variable? x)
                `(concat
                  ~@(map
@@ -1461,7 +1460,7 @@
                         (symbol (name y))
                         `(list ~y)))
                     x))
-               `(list ~x))
+               (cons `list x))
 
              (symbol? x)
              `'~x
