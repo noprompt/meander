@@ -1323,6 +1323,26 @@
         `(when (seq? ~obj)
            ~body)))))
 
+(defn compile-map-pattern
+  {:private true}
+  [p obj inner]
+  (if (ground? (keys p))
+    (fn do-map-1 [seen-vars]
+      `(when (map? ~obj)
+         ~((reduce-kv
+            (fn [f rk rv]
+              (let [lk (gensym "key__")
+                    lv (gensym "val__")]
+                (fn [seen-vars]
+                  `(when-some [[~lk ~lv] (find ~obj ~rk)]
+                     ~((compile-pattern rv lv f) seen-vars)))))
+            inner
+            p)
+           #{})))
+    (fn do-map-2 [seen-vars]
+      `(unify-map* (parse-form '~(unparse-form p))
+                   ~obj
+                   ~(compile-smap seen-vars)))))
 
 (defn compile-set-pattern
   {:private true}
@@ -1374,28 +1394,12 @@
         `(let [~(symbol (name p)) ~obj]
            ~(inner (conj seen-vars (name p))))))
 
-    (ground? p)
+    (and (ground? p)
+         (not (map? p)))
     (fn do-gound [seen-vars]
-      (cond
-        (map-entry? p)
-        (let [[k vr] p
-              vl `v#]
-          `(if-some [[_# ~vl] (find ~obj ~k)]
-             ~((compile-pattern vr vl inner) seen-vars)))
-
-        :else
-        `(if (= ~obj '~p)
-           ~(inner seen-vars))))
+      `(when (= ~obj '~p)
+         ~(inner seen-vars)))
     
-    (map-entry? p)
-    (fn do-map-entry [seen-vars]
-      (let [[k vr] p]
-        (if (ground? k)
-          (let [vl `v#]
-            `(if-some [[_# ~vl] (find ~obj ~k)]
-               ~((compile-pattern vr vl inner) seen-vars)))
-          (undefined))))
-
     (vector? p)
     (compile-vector-pattern p obj inner)
 
@@ -1403,18 +1407,7 @@
     (compile-seq-pattern p obj inner)
 
     (map? p)
-    (fn do-map [seen-vars]
-      `(if (map? ~obj)
-         ~(if (ground? (keys p))
-            ((reduce
-              (fn [f e]
-                (compile-pattern e obj f))
-              inner
-              p)
-             seen-vars)
-            `(unify-map* (parse-form '~(unparse-form p))
-                         ~obj
-                         ~(compile-smap seen-vars)))))
+    (compile-map-pattern p obj inner)
     
     (set? p)
     (compile-set-pattern p obj inner)))
