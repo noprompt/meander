@@ -255,7 +255,7 @@
    :style/indent 1}
   ([[smap* u v smap] then]
    `(if-unifies ~[smap* u v smap] ~then nil))
-  ([[smap* u v smap bottom] then else]
+  ([[smap* u v smap] then else]
    `(if-some [smap*# (unify ~u ~v ~smap)]
       (let [~smap* smap*#]
         ~then)
