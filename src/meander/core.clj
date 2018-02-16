@@ -1110,7 +1110,7 @@
                   [true false]
                   (let [x `x#]
                     `(when-not (= ~obj [])
-                       (let [~x (nth ~obj 0 not-found#)]
+                       (let [~x (nth ~obj 0)]
                          ~((compile-pattern (first p-tail*)
                                             x
                                             (fn [seen-vars]
