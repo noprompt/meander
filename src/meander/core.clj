@@ -1123,14 +1123,14 @@
                     `(unify* ~p* ~obj ~(compile-smap seen-vars)))
                   (let [svec (gensym "subvec__")]
                     `(let [~svec (subvec ~obj (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
-                       ~((compile-pattern (subvec p-tail 1)
-                                          svec
-                                          (fn [seen-vars]
-                                            (let [svec (gensym "subvec__")]
-                                              `(let [~svec (subvec ~obj 0 (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
-                                                 ~((compile-pattern (first p-tail) svec inner)
-                                                   seen-vars)))))
-                         seen-vars)))))
+                       ~(compile-pattern (subvec p-tail 1)
+                                         svec
+                                         (fn [seen-vars]
+                                           (let [svec (gensym "subvec__")]
+                                             `(let [~svec (subvec ~obj 0 (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
+                                                ~((compile-pattern (first p-tail) svec inner)
+                                                  seen-vars))))
+                                         seen-vars)))))
 
               ;; No splicing variables in the pattern.
               [false true]
@@ -1140,7 +1140,7 @@
                       (fn [seen-vars]
                         (let [x `x#]
                           `(let [~x ~obj]
-                             ~((compile-pattern v x f) seen-vars)))))
+                             ~(compile-pattern v x f seen-vars)))))
                     inner
                     (reverse
                      (map-indexed
@@ -1154,13 +1154,13 @@
               (let [svec (gensym "subvec__")]
                 `(when (<= ~(count p-init) (count ~obj))
                    (let [~svec (subvec ~obj 0 ~(count p-init))]
-                     ~((compile-pattern
-                        p-init
-                        svec
-                        (fn [seen-vars]
-                          (let [svec (gensym "subvec__")]
-                            `(let [~svec (subvec ~obj ~(count p-init))]
-                               ~((compile-pattern p-tail svec inner) seen-vars)))))
+                     ~(compile-pattern
+                       p-init
+                       svec
+                       (fn [seen-vars]
+                         (let [svec (gensym "subvec__")]
+                           `(let [~svec (subvec ~obj ~(count p-init))]
+                              ~(compile-pattern p-tail svec inner seen-vars))))
                        seen-vars))))))]
       ;; If `p` is a subvector then we assume it was produced by
       ;; this function and avoid type checking `obj` in the the
@@ -1215,7 +1215,7 @@
                                           protocols/IUnify*
                                           (protocols/-unify* [this# ~obj ~smap]
                                             (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
-                                              ~((compile-pattern x obj inner*) seen-vars*))))))
+                                              ~(compile-pattern x obj inner* seen-vars*))))))
                                      (into seen-vars* (map name (variables x)))])))
                               [seen-vars `(list)]
                               p)]
@@ -1227,15 +1227,15 @@
                     `(let [i# (max 0 (- (count ~obj) ~(count p-tail*)))
                            ~subseq (take i# ~obj)
                            ~rest-seq (drop i# ~obj)]
-                       ~((compile-pattern
-                          splice-var
-                          subseq
-                          (fn [seen-vars]
-                            ((compile-seq-pattern
-                              (with-meta p-tail* {::subseq? true})
-                              rest-seq
-                              inner)
-                             seen-vars)))
+                       ~(compile-pattern
+                         splice-var
+                         subseq
+                         (fn [seen-vars]
+                           ((compile-seq-pattern
+                             (with-meta p-tail* {::subseq? true})
+                             rest-seq
+                             inner)
+                            seen-vars))
                          seen-vars)))))
 
               ;; No splicing variables in the pattern.
@@ -1246,7 +1246,7 @@
                       (fn [seen-vars]
                         (let [x (gensym "seq_val__")]
                           `(let [~x (nth ~obj ~i)]
-                             ~((compile-pattern v x f) seen-vars)))))
+                             ~(compile-pattern v x f seen-vars)))))
                     inner
                     (reverse
                      (map-indexed vector p)))
@@ -1286,7 +1286,7 @@
                     lv (gensym "val__")]
                 (fn [seen-vars]
                   `(when-some [[~lk ~lv] (find ~obj ~rk)]
-                     ~((compile-pattern rv lv f) seen-vars)))))
+                     ~(compile-pattern rv lv f seen-vars)))))
             inner
             p)
            #{})))
@@ -1325,7 +1325,7 @@
                                   (fn [v]
                                     [(symbol v) `(get ~smap ~v)])
                                   (map name seen-vars))]
-                           ~((compile-pattern x obj inner*) seen-vars)))))))
+                           ~(compile-pattern x obj inner* seen-vars)))))))
                p))
         ~obj
         ~(compile-smap seen-vars)))))
