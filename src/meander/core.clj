@@ -1214,17 +1214,16 @@
                                           (~'-unify* [this# ~obj ~smap]
                                            ;; Bind everything we
                                            ;; know about.
-                                           (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap] 
+                                           (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
                                              ~((compile-pattern x obj inner*) seen-vars*))))))
                                      (into seen-vars* (map name (variables x)))])))
                               [seen-vars `(list)]
-                              p)] 
+                              p)]
                     `(unify* ~p*
                              ~obj
                              ~(compile-smap seen-vars)))
                   (let [sseq `init#]
-                    `(let [~sseq (take (max 0 (- (count ~obj)
-                                                 ~(dec (count p-tail))))
+                    `(let [~sseq (take (max 0 (- (count ~obj) ~(dec (count p-tail))))
                                        ~obj)]
                        ~((compile-seq-pattern
                           (with-meta (rest p-tail) {::subseq? true})
