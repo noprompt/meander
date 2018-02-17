@@ -47,9 +47,8 @@
   (prop/for-all [x gen/any 
                  u gen-var
                  smap gen-smap]
-    (let [smap* (r/extend-no-check smap u x)]
-      (= (r/unify u x smap)
-         (r/unify u x smap*)))))
+    (= (r/unify u x smap)
+       (r/unify u x (r/unify u x smap)))))
 
 
 (tc.t/defspec unifying-inequalities-always-fails
