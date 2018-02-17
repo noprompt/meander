@@ -152,10 +152,34 @@
     (t/is (= '(g 1 2)
              ((r/t (g (g ~x ~y))
                 (g ~x ~y))
-              '(g (g 1 2)))))))
+              '(g (g 1 2)))))
 
+    (let [thread-1a
+          (r/t (-> ~x ~f)
+            (~f ~x))
 
+          thread-1b
+          (r/t (-> ~x ~f ~@args)
+            (-> (~f ~x) ~@args))
 
+          thread-1c
+          (r/t (-> ~x)
+            ~x)
 
+          thread-1
+          (r/repeat
+           (r/choice thread-1a
+                     thread-1b
+                     thread-1c))]
 
+      (t/is (= '(f x)
+               (thread-1a '(-> x f))))
 
+      (t/is (= '(-> (f x))
+               (thread-1b '(-> x f))))
+
+      (t/is (= '(f x)
+               (thread-1c '(-> (f x)))))
+
+      (t/is (= '(f (g (h x)))
+               (thread-1 '(-> x h g f)))))))
