@@ -108,6 +108,57 @@
       (not (r/unify* u v)))))
 
 
+(t/deftest unify-test
+  (let [p (r/parse-form '(1 2 ~@xs))
+        m (r/pattern (1 2 ~@xs))
+        x (list 1 2 3 4 5 6 7 8 9)]
+    (t/is (= (r/unify* p x)
+             (r/unify* m x))))
+
+  (let [p (r/parse-form '[1 2 ~@xs])
+        m (r/pattern [1 2 ~@xs])
+        x [1 2 3 4 5 6 7 8 9]]
+    (t/is (= (r/unify* p x)
+             (r/unify* m x))))
+
+  (let [p (r/parse-form '(2 ~@xs 3))
+        m (r/pattern (2 ~@xs 3) )]
+    (t/is (= '({"xs" (4)})
+             (r/unify* p (list 2 4 3))
+             (r/unify* m (list 2 4 3)))))
+
+  (t/is (= {"z" 3, "xs" [1], "x" 1, "zs" [3], "ys" [], "y" 2}
+           (r/unify (r/pattern [~x [~y [~z ~@zs] ~@ys] ~@xs])
+                    [1 [2 [3 3] 3] 1])))
+
+  (t/is (= {"city" "CITY", "last" "LAST", "state" "STATE", "first" "FIRST"}
+           (r/unify
+            (r/pattern
+             {:user {:first ~first
+                     :last ~last
+                     :address {:city ~city
+                               :state ~state}}})
+            {:user {:first "FIRST"
+                    :last "LAST"
+                    :address {:city "CITY"
+                              :state "STATE"}}}))))
+
+
+;; ---------------------------------------------------------------------
+;; Combinators
+
+
+(t/deftest choice-test
+  (t/is (= ((r/choice (constantly :not-i)
+                      (constantly :pass!))
+            :not-i)
+           :pass!))
+
+  (t/is (= ((r/choice (constantly :not-i)
+                      (constantly :pass!))
+            :not-u)
+           :not-i)))
+
 ;; ---------------------------------------------------------------------
 ;; t
 
@@ -184,36 +235,4 @@
       (t/is (= '(f (g (h x)))
                (thread-1 '(-> x h g f)))))))
 
-(let [p (r/parse-form '(1 2 ~@xs))
-      m (r/pattern (1 2 ~@xs))
-      x (list 1 2 3 4 5 6 7 8 9)]
-  (t/is (= (r/unify* p x)
-           (r/unify* m x))))
 
-(let [p (r/parse-form '[1 2 ~@xs])
-      m (r/pattern [1 2 ~@xs])
-      x [1 2 3 4 5 6 7 8 9]]
-  (t/is (= (r/unify* p x)
-           (r/unify* m x))))
-
-(let [p (r/parse-form '(2 ~@xs 3))
-      m (r/pattern (2 ~@xs 3) )]
-  (t/is (= '({"xs" (4)})
-           (r/unify* p (list 2 4 3))
-           (r/unify* m (list 2 4 3)))))
-
-(t/is (= {"z" 3, "xs" [1], "x" 1, "zs" [3], "ys" [], "y" 2}
-         (r/unify (r/pattern [~x [~y [~z ~@zs] ~@ys] ~@xs])
-                  [1 [2 [3 3] 3] 1])))
-
-(t/is (= {"city" "CITY", "last" "LAST", "state" "STATE", "first" "FIRST"}
-         (r/unify
-          (r/pattern
-           {:user {:first ~first
-                   :last ~last
-                   :address {:city ~city
-                             :state ~state}}})
-          {:user {:first "FIRST"
-                  :last "LAST"
-                  :address {:city "CITY"
-                            :state "STATE"}}})))

@@ -1435,11 +1435,11 @@
 
        protocols/IUnify*
        (protocols/-unify* [this# ~obj smap-outer#]
-         (for [smap-inner# ~((compile-pattern
-                              form*
-                              obj
-                              (fn [seen-vars]
-                                `(list ~(compile-smap seen-vars))))
+         (for [smap-inner# ~(compile-pattern
+                             form*
+                             obj
+                             (fn [seen-vars]
+                               `(list ~(compile-smap seen-vars)))
                              #{})
                :when (every?
                       (fn [[ik# iv#]]
@@ -1618,6 +1618,54 @@
   ([p q & more]
    (apply pipe (pipe p q) more)))
 
+
+(def
+  ^{:arglists '([t])}
+  pass
+  "Strategy which returns t. Unifies with anything."
+  (reify 
+    clojure.lang.IFn
+    (clojure.lang.IFn/invoke [_ t]
+      t)
+
+    (clojure.lang.IFn/applyTo [_ args]
+      (first args))
+
+    protocols/IUnify
+    (protocols/-unify [_ _ smap]
+      smap)
+
+    protocols/IUnify*
+    (protocols/-unify* [_ _ smap]
+      (list smap))))
+
+
+(deftype Choice [p q]
+  clojure.lang.IFn
+  (clojure.lang.IFn/invoke [_ t]
+    (if-transform [t* p t]
+      t*
+      (q t)))
+
+  (clojure.lang.IFn/applyTo [this args]
+    (clojure.lang.AFn/applyToHelper this args))
+
+  protocols/IUnify
+  (protocols/-unify [_ v smap]
+    (or (protocols/-unify p v smap)
+        (protocols/-unify q v smap)))
+
+  protocols/IUnify*
+  (protocols/-unify* [_ v smap]
+    (let [ldisj (fn f [smaps1 smap2]
+                  (if (seq smaps1)
+                    (cons (first smaps1)
+                          (lazy-seq (f smap2 (next smaps1))))
+                    smap2))]
+      (ldisj (protocols/-unify* p v smap)
+             (protocols/-unify* q v smap)))))
+
+
 (defn choice
   "Build a strategy which applies `p` or `q` to `t`. If `p` rewrites,
   return the result, otherwise apply `q`. This is the strategy
@@ -1637,11 +1685,11 @@
     ;; =>
     :not-i
   "
+  ([] pass)
+  ([p]
+   (Choice. p pass))
   ([p q]
-   (fn [t]
-     (if-transform [t* p t]
-       t*
-       (q t))))
+   (Choice. p q))
   ([p q & more]
    (apply choice (choice p q) more)))
 
