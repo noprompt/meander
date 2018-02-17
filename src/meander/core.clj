@@ -1335,35 +1335,37 @@
 
 (defn compile-pattern
   {:private true}
-  [p obj inner]
-  (cond
-    ;; Handles splicing variables too.
-    (variable? p)
-    (fn do-var [seen-vars]
-      (if (contains? seen-vars (name p))
-        `(let [v# ~obj]
-           (if (= v# ~(symbol (name p)))
-             ~(inner seen-vars)))
-        `(let [~(symbol (name p)) ~obj]
-           ~(inner (conj seen-vars (name p))))))
+  ([p obj inner]
+   (cond
+     ;; Handles splicing variables too.
+     (variable? p)
+     (fn do-var [seen-vars]
+       (if (contains? seen-vars (name p))
+         `(let [v# ~obj]
+            (if (= v# ~(symbol (name p)))
+              ~(inner seen-vars)))
+         `(let [~(symbol (name p)) ~obj]
+            ~(inner (conj seen-vars (name p))))))
 
-    (and (ground? p)
-         (not (map? p)))
-    (fn do-gound [seen-vars]
-      `(when (= ~obj '~p)
-         ~(inner seen-vars)))
-    
-    (vector? p)
-    (compile-vector-pattern p obj inner)
+     (and (ground? p)
+          (not (map? p)))
+     (fn do-gound [seen-vars]
+       `(when (= ~obj '~p)
+          ~(inner seen-vars)))
 
-    (seq? p)
-    (compile-seq-pattern p obj inner)
+     (vector? p)
+     (compile-vector-pattern p obj inner)
 
-    (map? p)
-    (compile-map-pattern p obj inner)
-    
-    (set? p)
-    (compile-set-pattern p obj inner)))
+     (seq? p)
+     (compile-seq-pattern p obj inner)
+
+     (map? p)
+     (compile-map-pattern p obj inner)
+
+     (set? p)
+     (compile-set-pattern p obj inner)))
+  ([p obj inner seen-vars]
+   ((compile-pattern p obj inner) seen-vars)))
 
 
 ;; ---------------------------------------------------------------------
