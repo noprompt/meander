@@ -1457,7 +1457,7 @@
 
        clojure.lang.IFn
        (~'invoke [this# ~obj]
-        (protocols/-unify* this# ~obj {})))))
+        this#))))
 
 
 ;; ---------------------------------------------------------------------
