@@ -183,3 +183,21 @@
 
       (t/is (= '(f (g (h x)))
                (thread-1 '(-> x h g f)))))))
+
+(let [p (r/parse-form '(1 2 ~@xs))
+      m (r/pattern (1 2 ~@xs))
+      x (list 1 2 3 4 5 6 7 8 9)]
+  (t/is (= (r/unify* p x)
+           (r/unify* m x))))
+
+(let [p (r/parse-form '[1 2 ~@xs])
+      m (r/pattern [1 2 ~@xs])
+      x [1 2 3 4 5 6 7 8 9]]
+  (t/is (= (r/unify* p x)
+           (r/unify* m x))))
+
+(let [p (r/parse-form '(2 ~@xs 3))
+      m (r/pattern (2 ~@xs 3) )]
+  (t/is (= '({"xs" (4)})
+           (r/unify* p (list 2 4 3))
+           (r/unify* m (list 2 4 3)))))

@@ -1091,18 +1091,43 @@
               [true false]
               (let [splicing-var-count (count (filter splicing-variable? p-tail))]
                 (if (< 1 splicing-var-count)
-                  `(unify* (parse-form '~(unparse-form p))
-                           ~obj
-                           ~(compile-smap seen-vars))
-                  (let [svec `svec#]
-                    `(let [~svec (subvec ~obj (max 0 (- (count ~obj)
-                                                        ~(dec (count p-tail)))))]
+                  (let [inner* (fn [seen-vars]
+                                 `(list ~(compile-smap seen-vars)))
+                        smap (gensym "smap__")
+                        [p*] (reduce
+                              (fn [[p* seen-vars*] x]
+                                (cond
+                                  (splicing-variable? x)
+                                  [(conj p* `(make-splicing-variable ~(name x)))
+                                   (conj seen-vars* x)]
+
+                                  (variable? x)
+                                  [(conj p* `(make-variable ~(name x)))
+                                   (conj seen-vars* x)]
+
+                                  (ground? x)
+                                  [(conj p* x)
+                                   seen-vars*]
+
+                                  :else
+                                  (let [obj "object__"]
+                                    [(conj p*
+                                           `(reify
+                                              protocols/IUnify*
+                                              (protocols/-unify* [this# ~obj ~smap]
+                                                (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
+                                                  ~(compile-pattern x obj inner* seen-vars*)))))
+                                     (into seen-vars* (map name (variables x)))])))
+                              [seen-vars []]
+                              p)]
+                    `(unify* ~p* ~obj ~(compile-smap seen-vars)))
+                  (let [svec (gensym "subvec__")]
+                    `(let [~svec (subvec ~obj (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
                        ~((compile-pattern (subvec p-tail 1)
                                           svec
                                           (fn [seen-vars]
-                                            (let [svec `svec#]
-                                              `(let [~svec (subvec ~obj 0 (max 0 (- (count ~obj)
-                                                                                    ~(dec (count p-tail)))))]
+                                            (let [svec (gensym "subvec__")]
+                                              `(let [~svec (subvec ~obj 0 (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
                                                  ~((compile-pattern (first p-tail) svec inner)
                                                    seen-vars)))))
                          seen-vars)))))
@@ -1197,7 +1222,7 @@
                 (if (< 1 splicing-var-count)
                   (let [inner* (fn [seen-vars]
                                  `(list ~(compile-smap seen-vars)))
-                        smap `smap#
+                        smap (gensym "smap__")
                         [p*] (reduce
                               (fn [[p* seen-vars*] x]
                                 (cond
@@ -1219,33 +1244,29 @@
                                       p*
                                       `((reify
                                           protocols/IUnify*
-                                          (~'-unify* [this# ~obj ~smap]
-                                           ;; Bind everything we
-                                           ;; know about.
-                                           (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
-                                             ~((compile-pattern x obj inner*) seen-vars*))))))
+                                          (protocols/-unify* [this# ~obj ~smap]
+                                            (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
+                                              ~((compile-pattern x obj inner*) seen-vars*))))))
                                      (into seen-vars* (map name (variables x)))])))
                               [seen-vars `(list)]
                               p)]
-                    `(unify* ~p*
-                             ~obj
-                             ~(compile-smap seen-vars)))
-                  (let [sseq `init#]
-                    `(let [~sseq (take (max 0 (- (count ~obj) ~(dec (count p-tail))))
-                                       ~obj)]
-                       ~((compile-seq-pattern
-                          (with-meta (rest p-tail) {::subseq? true})
-                          sseq
+                    `(unify* ~p* ~obj ~(compile-smap seen-vars)))
+                  (let [subseq (gensym "subseq__")
+                        splice-var (first p-tail)
+                        p-tail* (rest p-tail)
+                        rest-seq (gensym "rest_seq__")]
+                    `(let [i# (max 0 (- (count ~obj) ~(count p-tail*)))
+                           ~subseq (take i# ~obj)
+                           ~rest-seq (drop i# ~obj)]
+                       ~((compile-pattern
+                          splice-var
+                          subseq
                           (fn [seen-vars]
-                            (let [sseq `tail#]
-                              `(let [~sseq (take (max 0 (- (count ~obj)
-                                                           ~(dec (count p-tail))))
-                                                 ~obj)]
-                                 ~((compile-pattern
-                                    (with-meta (first p-tail) {::subseq? true})
-                                    sseq
-                                    inner)
-                                   seen-vars)))))
+                            ((compile-seq-pattern
+                              (with-meta p-tail* {::subseq? true})
+                              rest-seq
+                              inner)
+                             seen-vars)))
                          seen-vars)))))
 
               ;; No splicing variables in the pattern.
@@ -1260,25 +1281,25 @@
                     inner
                     (reverse
                      (map-indexed vector p)))
-                   #{}))
+                   seen-vars))
 
               ;; Recurse with existing logic.
               [false false]
-              (let [sseq `sseq#]
-                `(when (<= ~(count p-init) (count ~obj))
-                   (let [~sseq (take ~(count p-init) ~obj)]
-                     ~((compile-seq-pattern
-                        (with-meta p-init {::subseq? true})
-                        sseq
-                        (fn [seen-vars]
-                          (let [sseq `sseq#]
-                            `(let [~sseq (drop ~(count p-init) ~obj)]
-                               ~((compile-seq-pattern
-                                  (with-meta p-tail {::subseq? true})
-                                  sseq
-                                  inner)
-                                 seen-vars)))))
-                       seen-vars))))))]
+              (let [subseq (gensym "subseq__")]
+                `(let [~subseq (take ~(count p-init) ~obj)]
+                   ~((compile-seq-pattern
+                      (with-meta p-init {::subseq? true})
+                      subseq
+                      (fn [seen-vars]
+                        (let [subseq (gensym "subseq__")]
+                          `(let [~subseq (drop ~(count p-init) ~obj)]
+                             ~((compile-seq-pattern
+                                (with-meta p-tail {::subseq? true})
+                                subseq
+                                inner)
+                               seen-vars)))))
+                     seen-vars)
+                   ))))]
       (if (::subseq? (meta p))
         body
         `(when (seq? ~obj)
@@ -1893,28 +1914,3 @@
   ([fsym id]
    {:pre [(symbol? fsym)]}
    `(monoid-t '~fsym ~id)))
-
-
-;; ---------------------------------------------------------------------
-;; Scratch
-
-#_
-(do
-  (require '[taoensso.tufte :as tufte])
-  (tufte/add-basic-println-handler! {}))
-
-(comment
-  ;; Comparing performance of "interpreted" pattern unification and
-  ;; "compiled" matcher unification.
-  (let [p (parse-form '[1 (2 ~@xs) {:first ~first :last ~last}])
-        m (pattern [1 (2 ~@xs) {:first ~first :last ~last}])
-        n 10000]
-    ;; ({"xs" (3), "last" "last", "first" "first"})
-    [(= (unify* p [1 '(2 3) {:first "first" :last "last"}] {})
-        (unify* m [1 '(2 3) {:first "first" :last "last"}] {}))
-     (time ;; "Elapsed time: 6791.037121 msecs"
-       (dotimes [_ n]
-         (unify* p [1 '(2 3) {:first "first" :last "last"}] {})))
-     (time ;; "Elapsed time: 11.289517 msecs"
-       (dotimes [_ n]
-         (unify* m [1 '(2 3) {:first "first" :last "last"}] {})))]))
