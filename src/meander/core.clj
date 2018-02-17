@@ -1424,8 +1424,8 @@
 
 (defmacro pattern
   [form]
-  (let [obj `obj#
-        smap `smap#
+  (let [obj (gensym "pattern_object__")
+        smap (gensym "pattern_smap__")
         form* (parse-form form)]
     `(reify
        protocols/ITermVariables
