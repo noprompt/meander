@@ -44,11 +44,10 @@
     (= smap
        (r/unify u u smap)))
 
-  (prop/for-all [x gen/any 
-                 u gen-var
-                 smap gen-smap]
-    (= (r/unify u x smap)
-       (r/unify u x (r/unify u x smap)))))
+  (prop/for-all [x gen/int 
+                 u gen-var]
+    (= (r/unify u x)
+       (r/unify u x (r/unify u x)))))
 
 
 (tc.t/defspec unifying-inequalities-always-fails
@@ -141,8 +140,9 @@
              (r/unify* dot-form-t1 '(.foo bar baz) {})))
 
     (t/is (= '()
-             (r/unify* dot-form-t1 '(. bar (foo baz)) {})))
+             (r/unify* dot-form-t1 '(. bar (foo baz)) {}))))
 
+  (t/testing "example transforms"
     (t/is (= '(g 1 2)
              ((r/t (~f (~f ~x ~y))
                 :when (= f 'g)
