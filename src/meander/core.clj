@@ -1134,64 +1134,33 @@
 
               ;; No splicing variables in the pattern.
               [false true]
-              (let [[p-init* p-tail*] (map vec (split-with (complement variable?) p-init))]
-                (case [(empty? p-init*) (empty? p-tail*)]
-                  [true true]
-                  (inner seen-vars)
-
-                  ;; Variables at the head.
-                  [true false]
-                  (let [x `x#]
-                    `(when-not (= ~obj [])
-                       (let [~x (nth ~obj 0)]
-                         ~((compile-pattern (first p-tail*)
-                                            x
-                                            (fn [seen-vars]
-                                              (let [svec `svec#]
-                                                `(let [~svec (subvec ~obj 1)]
-                                                   ~((compile-pattern (subvec p-tail* 1) svec inner)
-                                                     seen-vars)))))
-                           seen-vars))))
-
-                  [false true]
-                  `(when (= (count ~obj) ~(count p))
-                     ~((reduce
-                        (fn [f [v obj]]
-                          (fn [seen-vars]
-                            (let [x `x#]
-                              `(let [~x ~obj]
-                                 ~((compile-pattern v x f) seen-vars)))))
-                        inner
-                        (reverse
-                         (map-indexed
-                          (fn [i x]
-                            [x `(nth ~obj ~i)])
-                          p)))
-                       seen-vars))
-
-                  [false false]
-                  (let [svec1 `svec1#]
-                    `(let [~svec1 (subvec ~obj 0 ~(count p-init*))]
-                       ~((compile-pattern p-init*
-                                          svec1
-                                          (fn [seen-vars]
-                                            (let [svec `svec#]
-                                              `(let [~svec (subvec ~obj ~(count p-init*))]
-                                                 ~((compile-pattern p-tail* svec inner)
-                                                   seen-vars)))))
-                         seen-vars)))))
+              `(when (= (count ~obj) ~(count p))
+                 ~((reduce
+                    (fn [f [v obj]]
+                      (fn [seen-vars]
+                        (let [x `x#]
+                          `(let [~x ~obj]
+                             ~((compile-pattern v x f) seen-vars)))))
+                    inner
+                    (reverse
+                     (map-indexed
+                      (fn [i x]
+                        [x `(nth ~obj ~i)])
+                      p)))
+                   seen-vars))
 
               ;; Recurse with existing logic.
               [false false]
-              (let [svec `svec#]
+              (let [svec (gensym "subvec__")]
                 `(when (<= ~(count p-init) (count ~obj))
                    (let [~svec (subvec ~obj 0 ~(count p-init))]
-                     ~((compile-pattern p-init
-                                        svec
-                                        (fn [seen-vars]
-                                          (let [svec `svec#]
-                                            `(let [~svec (subvec ~obj ~(count p-init))]
-                                               ~((compile-pattern p-tail svec inner) seen-vars)))))
+                     ~((compile-pattern
+                        p-init
+                        svec
+                        (fn [seen-vars]
+                          (let [svec (gensym "subvec__")]
+                            `(let [~svec (subvec ~obj ~(count p-init))]
+                               ~((compile-pattern p-tail svec inner) seen-vars)))))
                        seen-vars))))))]
       ;; If `p` is a subvector then we assume it was produced by
       ;; this function and avoid type checking `obj` in the the

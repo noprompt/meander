@@ -201,3 +201,19 @@
   (t/is (= '({"xs" (4)})
            (r/unify* p (list 2 4 3))
            (r/unify* m (list 2 4 3)))))
+
+(t/is (= {"z" 3, "xs" [1], "x" 1, "zs" [3], "ys" [], "y" 2}
+         (r/unify (r/pattern [~x [~y [~z ~@zs] ~@ys] ~@xs])
+                  [1 [2 [3 3] 3] 1])))
+
+(t/is (= {"city" "CITY", "last" "LAST", "state" "STATE", "first" "FIRST"}
+         (r/unify
+          (r/pattern
+           {:user {:first ~first
+                   :last ~last
+                   :address {:city ~city
+                             :state ~state}}})
+          {:user {:first "FIRST"
+                  :last "LAST"
+                  :address {:city "CITY"
+                            :state "STATE"}}})))
