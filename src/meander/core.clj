@@ -409,6 +409,10 @@
     (.hashCode (.name this))))
 
 
+(defmethod print-method meander.core.Variable [v ^java.io.Writer w]
+  (.write w (str "~" (name v))))
+
+
 (defn make-variable
   ([]
    (Variable. (name (gensym)) {}))
@@ -473,6 +477,10 @@
 
   (hashCode [this]
     (.hashCode (.name this))))
+
+
+(defmethod print-method meander.core.SplicingVariable [v ^java.io.Writer w]
+  (.write w (str "~@" (name v))))
 
 
 (defn make-splicing-variable
