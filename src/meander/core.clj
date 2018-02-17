@@ -124,7 +124,7 @@
 
      (coll? term)
      (reduce into
-             #{""} 
+             #{""}
              (map-indexed
               (fn [i s-i]
                 (map str (clj/repeat i) (positions* s-i (inc level))))
@@ -161,7 +161,7 @@
      (fn [x]
        (if (variable? x)
          (if-some [[_ renamed-variable] (find (deref state) (name x))]
-           renamed-variable           
+           renamed-variable
            (let [new-name (format "%s_%d" prefix (count (deref state)))
                  renamed-variable (fmap (constantly new-name) x)]
              (vswap! state assoc (name x) renamed-variable)
@@ -654,7 +654,7 @@
   (-term-variables [this]
     (reduce set/union #{} (map variables this)))
 
-  
+
   protocols/ISubstitute
   (-substitute [this smap]
     (reduce
@@ -697,7 +697,7 @@
   (-unify* [this that smap]
     (unify-vector* this that smap))
 
-  
+
   protocols/IUnify
   (-unify [this that smap]
     (first (protocols/-unify* this that smap)))
@@ -765,13 +765,13 @@
   protocols/IFmap
   (-fmap [this f]
     (map f this))
-  
+
 
   protocols/IForm
   (-form [_]
     (map form seq))
 
-  
+
   protocols/ISubstitute
   (-substitute [this smap]
     (mapcat
@@ -803,7 +803,7 @@
   protocols/IWalk
   (-walk [this inner-f outer-f]
     (outer-f (protocols/-fmap this inner-f)))
-  
+
 
   protocols/IUnify*
   (-unify* [this that smap]
@@ -850,7 +850,7 @@
    (when (map? map-b)
      (when (= (count map-a) (count map-b))
        (if (not= map-a map-b)
-         (mapcat 
+         (mapcat
           (fn [!map-a]
             (let [entries (partition 2 (interleave !map-a map-b))]
               (when-some [smap* (unify-entries* entries smap)]
@@ -885,7 +885,7 @@
      {}
      this))
 
-  
+
   protocols/ITermVariables
   (-term-variables [this]
     (reduce set/union #{} (clojure.core/map variables (mapcat identity this))))
@@ -919,7 +919,7 @@
    (when (set? set-v)
      (when (= (count set-u) (count set-v))
        (if (not= set-u set-v)
-         (mapcat 
+         (mapcat
           (fn [!set-u]
             (let [pairs (partition 2 (interleave !set-u set-v))
                   goals (map (fn [[a b]]
@@ -927,7 +927,7 @@
                                  (unify* a b smap)))
                              pairs)]
               ((lconj* goals) smap)))
-          (util/permutations set-u))      
+          (util/permutations set-u))
          (list smap))))))
 
 
@@ -946,7 +946,7 @@
   (-substitute [this smap]
     (protocols/-fmap this (fn [x] (substitute x smap))))
 
-  
+
   protocols/ITermVariables
   (-term-variables [this]
     (reduce set/union #{} (map variables this)))
@@ -1134,8 +1134,8 @@
                           (fn [i x]
                             [x `(nth ~obj ~i)])
                           p)))
-                       seen-vars))    
-                  
+                       seen-vars))
+
                   [false false]
                   (let [svec1 `svec1#]
                     `(let [~svec1 (subvec ~obj 0 ~(count p-init*))]
@@ -1147,8 +1147,8 @@
                                                  ~((compile-pattern p-tail* svec inner)
                                                    seen-vars)))))
                          seen-vars)))))
-              
-              ;; Recurse with existing logic. 
+
+              ;; Recurse with existing logic.
               [false false]
               (let [svec `svec#]
                 `(when (<= ~(count p-init) (count ~obj))
@@ -1169,12 +1169,13 @@
            ~body)))))
 
 
+
 (defn compile-seq-pattern
   {:private true}
   [p obj inner]
   {:pre [(seq? p)]}
   (fn do-seq [seen-vars]
-    (let [body 
+    (let [body
           (let [[p-init p-tail] (map (partial apply list)
                                      (split-with not-splicing-variable? p))]
             (case [(empty? p-init) (empty? p-tail)]
@@ -1253,8 +1254,8 @@
                     (reverse
                      (map-indexed vector p)))
                    #{}))
-              
-              ;; Recurse with existing logic. 
+
+              ;; Recurse with existing logic.
               [false false]
               (let [sseq `sseq#]
                 `(when (<= ~(count p-init) (count ~obj))
@@ -1326,7 +1327,7 @@
                          (let [~@(mapcat
                                   (fn [v]
                                     [(symbol v) `(get ~smap ~v)])
-                                  (map name seen-vars))] 
+                                  (map name seen-vars))]
                            ~((compile-pattern x obj inner*) seen-vars)))))))
                p))
         ~obj
@@ -1595,7 +1596,7 @@
   return `t`. This is the strategy equivalent of `and`.
 
   Example:
-  
+
     ((pipe (constantly :not-i) ;; Fail
            (constantly :pass!))
      :not-i)
@@ -1699,10 +1700,10 @@
   "Return a lazy sequence of all instances of `v` in `t` that unify
   with `u`. If `u` supports implements substitution it will return
   a sequence of `v*` instead where `v*` is the result of applying the
-  substitution to `v`. Uses `tree-seq` to produce all subterms. 
+  substitution to `v`. Uses `tree-seq` to produce all subterms.
 
   Example:
-   
+
     (extract (pattern [:foo ~@xs :baz])
              [[:foo :bar :baz]
               [:foo :baz :bar]
@@ -1712,7 +1713,7 @@
     ([:foo :bar :baz]
      [:foo [:foo :baz] :baz]
      [:foo :baz])
-  
+
     (extract
      (t {:student/id ~id
          :test/score ~score}
@@ -1778,7 +1779,7 @@
 
 (defmacro zero-property
   "Examples:
-  
+
   ((zero-property * 0)
    '(* x y 0))
   ;; => 0
@@ -1801,7 +1802,7 @@
        (if-unifies [smap* this t {}]
          (protocols/-substitute this smap*)
          t))
-     
+
      protocols/ISubstitute
      (-substitute [this smap]
        (if-some [seq (get smap this)]
@@ -1815,7 +1816,7 @@
          (throw
           (ex-info "Associative transform not found in the substitution."
                    {:fsym fsym}))))
-     
+
 
      protocols/IUnify
      (-unify [this x smap]
@@ -1865,7 +1866,7 @@
              seq*))
          ;; Is the "right" thing to do?
          (throw
-          (ex-info "Monoid transform not found in the substitution map." 
+          (ex-info "Monoid transform not found in the substitution map."
                    {:fsym fsym
                     :id id}))))
 
