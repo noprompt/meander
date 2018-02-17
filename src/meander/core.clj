@@ -1242,59 +1242,17 @@
 
               ;; No splicing variables in the pattern.
               [false true]
-              (let [[p-init* p-tail*] (map (partial apply list)
-                                           (split-with (complement variable?) p-init))]
-                (case [(empty? p-init*) (empty? p-tail*)]
-                  [true true]
-                  `(when-not (seq ~obj)
-                     ~(inner seen-vars))
-
-                  ;; Variables at the head.
-                  [true false]
-                  (let [x `x#]
-                    `(let [~x (first ~obj)]
-                       ~((compile-pattern
-                          (first p-tail*)
-                          x
-                          (fn [seen-vars]
-                            (let [sseq `tail#]
-                              `(let [~sseq (rest ~obj)]
-                                 ~((compile-seq-pattern
-                                    (with-meta (rest p-tail*) {::subseq? true})
-                                    sseq
-                                    inner)
-                                   seen-vars)))))
-                         seen-vars)))
-
-                  [false true]
-                  `(when (= (count ~obj) ~(count p))
-                     ~((reduce
-                        (fn [f [i v]]
-                          (fn [seen-vars]
-                            (let [x (gensym "seq_val__")]
-                              `(let [~x (nth ~obj ~i)]
-                                 ~((compile-pattern v x f) seen-vars)))))
-                        inner
-                        (reverse
-                         (map-indexed vector p)))
-                       #{}))
-
-                  ;; No variables in head, variables in tail. 
-                  [false false]
-                  (let [sseq `init#]
-                    `(let [~sseq (take ~(count p-init*) ~obj)]
-                       ~((compile-seq-pattern
-                          (with-meta p-init* {::subseq? true})
-                          sseq
-                          (fn [seen-vars]
-                            (let [sseq `tail#]
-                              `(let [~sseq (drop ~(count p-init*) ~obj)]
-                                 ~((compile-seq-pattern
-                                    (with-meta p-tail* {::subseq? true})
-                                    sseq
-                                    inner)
-                                   seen-vars)))))
-                         seen-vars)))))
+              `(when (= (count ~obj) ~(count p))
+                 ~((reduce
+                    (fn [f [i v]]
+                      (fn [seen-vars]
+                        (let [x (gensym "seq_val__")]
+                          `(let [~x (nth ~obj ~i)]
+                             ~((compile-pattern v x f) seen-vars)))))
+                    inner
+                    (reverse
+                     (map-indexed vector p)))
+                   #{}))
               
               ;; Recurse with existing logic. 
               [false false]
