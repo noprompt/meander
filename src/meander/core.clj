@@ -1269,20 +1269,15 @@
                   [false true]
                   `(when (= (count ~obj) ~(count p))
                      ~((reduce
-                        (fn [f [v obj]]
+                        (fn [f [i v]]
                           (fn [seen-vars]
-                            (let [x `x#]
-                              `(let [~x ~obj]
-                                 ~((compile-pattern v x f)
-                                   seen-vars)))))
+                            (let [x (gensym "seq_val__")]
+                              `(let [~x (nth ~obj ~i)]
+                                 ~((compile-pattern v x f) seen-vars)))))
                         inner
                         (reverse
-                         (map-indexed
-                          (fn [i x]
-                            [x `(nth ~obj ~i)])
-                          p)))
-                       seen-vars))    
-                  
+                         (map-indexed vector p)))
+                       #{}))
 
                   ;; No variables in head, variables in tail. 
                   [false false]

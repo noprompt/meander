@@ -129,6 +129,7 @@
     :when (symbol? method)
     (. ~target ~method ~@args)))
 
+
 (t/deftest t-test
   (t/testing "transforms implement IFn"
     (t/is (= '(. bar foo baz)
@@ -141,8 +142,18 @@
              (r/unify* dot-form-t1 '(.foo bar baz) {})))
 
     (t/is (= '()
-             (r/unify* dot-form-t1 '(. bar (foo baz)) {})))))
+             (r/unify* dot-form-t1 '(. bar (foo baz)) {})))
 
+    (t/is (= '(g 1 2)
+             ((r/t (~f (~f ~x ~y))
+                :when (= f 'g)
+                (~f ~x ~y))
+              '(g (g 1 2)))))
+
+    (t/is (= '(g 1 2)
+             ((r/t (g (g ~x ~y))
+                (g ~x ~y))
+              '(g (g 1 2)))))))
 
 
 
