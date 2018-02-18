@@ -8,4 +8,5 @@
                                   [org.clojure/tools.nrepl "0.2.10"]
                                   [org.clojure/test.check "0.10.0-alpha2"]
                                   [com.taoensso/tufte "1.1.2"]
-                                  [fipp "0.6.10"]]}})
+                                  [fipp "0.6.10"]]
+                   :source-paths ["src" "dev"]}})
