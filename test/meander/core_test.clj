@@ -127,7 +127,7 @@
              (r/unify* p (list 2 4 3))
              (r/unify* m (list 2 4 3)))))
 
-  (t/is (= {"z" 3, "xs" [1], "x" 1, "zs" [3], "ys" [], "y" 2}
+  (t/is (= {"z" 3, "xs" [1], "x" 1, "zs" [3], "ys" [3], "y" 2}
            (r/unify (r/pattern [~x [~y [~z ~@zs] ~@ys] ~@xs])
                     [1 [2 [3 3] 3] 1])))
 
