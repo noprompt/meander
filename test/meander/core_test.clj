@@ -141,7 +141,15 @@
             {:user {:first "FIRST"
                     :last "LAST"
                     :address {:city "CITY"
-                              :state "STATE"}}}))))
+                              :state "STATE"}}})))
+
+
+  (t/is (= (set (r/unify* (r/choice (r/pattern [4 ~y ~z])
+                                    (r/pattern [~x 5 ~z])
+                                    (r/pattern [~x ~y 6]))
+                          [4 5 6]
+                          {}))
+           #{{"z" 6, "y" 5} {"x" 4, "y" 5} {"z" 6, "x" 4}})))
 
 
 ;; ---------------------------------------------------------------------
@@ -157,7 +165,19 @@
   (t/is (= ((r/choice (constantly :not-i)
                       (constantly :pass!))
             :not-u)
-           :not-i)))
+           :not-i))
+
+
+  (t/is (= ((r/choice (r/t [4 ~y ~z]
+                           :when (odd? z)
+                           :A)
+                      (r/choice (r/t [~x 5 ~z]
+                                     :when (odd? x)
+                                     :B)
+                                (r/t [~x ~y 6]
+                                     :C)))
+            [4 5 6])
+           :C)))
 
 ;; ---------------------------------------------------------------------
 ;; t
