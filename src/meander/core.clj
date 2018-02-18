@@ -1136,17 +1136,14 @@
               [false true]
               `(when (= (count ~obj) ~(count p))
                  ~((reduce
-                    (fn [f [v obj]]
+                    (fn [f [i v]]
                       (fn [seen-vars]
-                        (let [x `x#]
-                          `(let [~x ~obj]
+                        (let [x (gensym "vec_val__")]
+                          `(let [~x (nth ~obj ~i)]
                              ~(compile-pattern v x f seen-vars)))))
                     inner
                     (reverse
-                     (map-indexed
-                      (fn [i x]
-                        [x `(nth ~obj ~i)])
-                      p)))
+                     (map-indexed vector p)))
                    seen-vars))
 
               ;; Recurse with existing logic.
