@@ -1067,7 +1067,6 @@
   (-many [this s]
     (set (map s this)))
 
-
   
   protocols/IOne
   (-one [this s]
