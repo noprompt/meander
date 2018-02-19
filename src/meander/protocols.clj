@@ -61,10 +61,3 @@
 
 (defprotocol IMany
   (-many [term strategy]))
-
-
-(defprotocol IStream
-  (-stream-head [this no-head])
-  (-stream-tail [this]))
-
-
