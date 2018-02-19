@@ -653,10 +653,37 @@
 
 
 (extend-type clojure.lang.IPersistentVector
+  protocols/IAll
+  (-all [this s]
+    (reduce
+     (fn [v x]
+       (let [x* (s x)]
+         (if (not= x* x)
+           (conj v x*)
+           (reduced this))))
+     []
+     this))
+
   protocols/IFmap
   (-fmap [this f]
     (mapv f this))
 
+
+  protocols/IMany
+  (-many [this s]
+    (mapv s this))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce-kv
+     (fn [v i x]
+       (let [x* (s x)]
+         (if (not= x* x)
+           (reduced (assoc v i x*))
+           v)))
+     this
+     this))
 
   protocols/ITermVariables
   (-term-variables [this]
@@ -770,6 +797,19 @@
 
 
 (extend-type clojure.lang.ISeq
+  protocols/IAll
+  (-all [this s]
+    (seq
+     (reduce
+      (fn [v x]
+        (let [x* (s x)]
+          (if (not= x* x)
+            (conj v x*)
+            (reduced this))))
+      []
+      this)))
+
+
   protocols/IFmap
   (-fmap [this f]
     (map f this))
@@ -778,6 +818,26 @@
   protocols/IForm
   (-form [_]
     (map form seq))
+
+
+  protocols/IMany
+  (-many [this s]
+    (map s this))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (loop [this this
+           this* []]
+      (if (seq this)
+        (let [x (first this)
+              x* (s x)]
+          (if (not= x* x)
+            (seq (into (conj this* x*)
+                       (rest this)))
+            (recur (rest this)
+                   (conj this* x))))
+        (seq this*))))
 
 
   protocols/ISubstitute
@@ -873,9 +933,25 @@
 
 
 (extend-type clojure.lang.IPersistentMap
+  protocols/IAll
+  (-all [this s]
+    (reduce-kv
+     (fn [m k v]
+       (let [v* (s v)]
+         (if (not= v* v)
+           (let [k* (s k)]
+             (if (not= k* k)
+               (assoc m k* v*)
+               (reduced this)))
+           (reduced this))))
+     {}
+     this))
+
+
   protocols/IFmap
   (-fmap [this f]
     (into {} (map f this)))
+
 
   protocols/IForm
   (-form [this]
@@ -884,6 +960,31 @@
        (assoc m (form k) (form v)))
      {}
      this))
+
+
+  protocols/IMany
+  (-many [this s]
+    (reduce-kv
+     (fn [m k v]
+       (assoc m (s k) (s v)))
+     {}
+     this))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce-kv
+     (fn [m k v]
+       (let [k* (s k)]
+         (if (not= k* k)
+           (reduced (assoc m k* v)))
+         (let [v* (s v)]
+           (if (not= v* v)
+             (reduced (assoc m k v*))
+             v))))
+     this
+     this))
+
 
   protocols/ISubstitute
   (-substitute [this smap]
@@ -940,6 +1041,18 @@
 
 
 (extend-type clojure.lang.IPersistentSet
+  protocols/IAll
+  (-all [this s]
+    (reduce
+     (fn [this* x]
+       (let [x* (s x)]
+         (if (not= x* x)
+           (conj this* x*)
+           (reduced this))))
+     #{}
+     this))
+
+
   protocols/IFmap
   (-fmap [this f]
     (set (map f this)))
@@ -948,6 +1061,24 @@
   protocols/IForm
   (-form [this]
     (set (map form this)))
+
+
+  protocols/IMany
+  (-many [this s]
+    (set (map s this)))
+
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce
+     (fn [this* x]
+       (let [x* (s x)]
+         (if (not= x* x)
+           (reduced (conj (disj this* x) x*))
+           (conj this* x))))
+     this
+     this))
 
 
   protocols/ISubstitute
