@@ -51,6 +51,20 @@
   (-walk [this inner-f outer-f]))
 
 
+(defprotocol IAll
+  (-all [term strategy]))
+
+
+(defprotocol IOne
+  (-one [term strategy]))
+
+
+(defprotocol IMany
+  (-many [term strategy]))
+
+
 (defprotocol IStream
   (-stream-head [this no-head])
   (-stream-tail [this]))
+
+
