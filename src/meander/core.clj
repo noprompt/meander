@@ -1734,52 +1734,52 @@
 (defn all [s]
   (fn [t]
     (if (satisfies? protocols/IAll t)
-      (-all t s)
+      (protocols/-all t s)
       t)))
 
 
 (defn all-td [s]
   (fn rec [t]
-    ((r/choice s (all rec)) t)))
+    ((choice s (all rec)) t)))
 
 
 (defn all-bu [s]
   (fn rec [t]
-    ((r/choice (all rec) s) t)))
+    ((choice (all rec) s) t)))
 
 
 (defn one [s]
   (fn [t]
     (if (satisfies? protocols/IOne t)
-      (-one t s)
+      (protocols/-one t s)
       t)))
 
 
 (defn once-td [s]
   (fn rec [t]
-    ((r/choice s (one rec)) t)))
+    ((choice s (one rec)) t)))
 
 
 (defn once-bu [s]
   (fn rec [t]
-    ((r/choice (one rec) s) t)))
+    ((choice (one rec) s) t)))
 
 
 (defn many [s]
   (fn [t]
     (if (satisfies? protocols/IMany t)
-      (-many t s)
+      (protocols/-many t s)
       t)))
 
 
 (defn many-td [s]
   (fn rec [t]
-    ((r/choice s (many rec)) t)))
+    ((choice s (many rec)) t)))
 
 
 (defn many-bu [s]
   (fn rec [t]
-    ((r/choice (many rec) s) t)))
+    ((choice (many rec) s) t)))
 
 
 (defn bottom-up
