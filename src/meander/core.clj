@@ -1894,8 +1894,8 @@
    (reify
      clojure.lang.IFn
      (invoke [this t]
-       (if-unifies [smap* this t {}]
-         (protocols/-substitute this smap*)
+       (if-some [smap (protocols/-unify this t {})]
+         (protocols/-substitute this smap)
          t))
 
      protocols/IRule
