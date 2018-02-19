@@ -1928,11 +1928,10 @@
 
      protocols/IUnify
      (-unify [this x smap]
-       (if (and (seq? x)
-                (= (first x) fsym))
+       (when (and (seq? x)
+                  (= (first x) fsym))
          ;; Intentional use of `assoc` instead of `extend`.
-         (assoc smap this x)
-         nil)))))
+         (assoc smap this x))))))
 
 
 (defmacro monoid
