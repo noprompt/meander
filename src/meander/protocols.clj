@@ -48,16 +48,20 @@
 
 
 (defprotocol IWalk
+  "clojure.core.walk as a protocol."
   (-walk [this inner-f outer-f]))
 
 
 (defprotocol IAll
-  (-all [term strategy]))
+  (-all [term strategy]
+    "Apply strategy to all subterms in term."))
 
 
 (defprotocol IOne
-  (-one [term strategy]))
+  (-one [term strategy]
+    "Apply strategy to exactly one subterm in term."))
 
 
 (defprotocol IMany
-  (-many [term strategy]))
+  (-many [term strategy]
+    "Apply strategy to at least one subterm in term."))
