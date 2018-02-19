@@ -158,30 +158,28 @@
 
 (declare clj-ast)
 
-(def clj-number
-  (r/t ~x
-    :when (number? x)
-    {:op :const
-     :form ~x
-     :literal? true
-     :type :number
-     :val ~x
-     :children []}))
-
-(def clj-keyword
-  (r/t ~x
-    :when (keyword? x)
-    {:op :const
-     :form ~x
-     :literal? true
-     :type :keyword
-     :val ~x
-     :children []}))
-
 
 (def clj-scalar
-  (r/choice clj-number
-            clj-keyword))
+  (r/t ~x
+    :when (not (coll? x))
+    :let [type (cond
+                 (keyword? x)
+                 :keyword
+
+                 (number? x)
+                 :number
+
+                 (string? x)
+                 :string
+
+                 :else
+                 ::unkown)]
+    {:op :const
+     :form ~x
+     :literal? true
+     :type ~type
+     :val ~x
+     :children []}))
 
 
 (def clj-map
