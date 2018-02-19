@@ -1701,6 +1701,17 @@
         (r t)))))
 
 
+(defn guard
+  "Build a strategy which applies `p` to `t` iff `pred` is true for
+  `t`."
+  {:style/indent :defn}
+  [pred p]
+  (fn [t]
+    (if (pred t)
+      (p t)
+      t)))
+
+
 (defn repeat
   "Build a strategy which applies `p` to `t` repeatedly until fails.
 
