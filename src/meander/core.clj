@@ -1928,6 +1928,65 @@
     (prewalk p t)))
 
 
+(defn thread
+  "Build a strategy which applies each supplied strategy to `t` from
+  left to right regardless of failure.
+  
+  ((guard string?
+     (thread
+       (fn [s]
+         (. s replace \"_\" \"-\"))
+       keyword))
+   \"foo_bar\")
+  ;; =>
+  :foo-bar"
+  ([] identity)
+  ([p]
+   (fn thread-1 [t]
+     (p t)))
+  ([p q]
+   (fn thread-2 [t]
+     (q (p t))))
+  ([p q r]
+   (fn thread-3 [t]
+     (r (q (p t)))))
+  ([p q r s]
+   (fn thread-4 [t]
+     (s (r (q (p t))))))
+  ([p q r s & more]
+   (apply thread (thread p q r s) more)))
+
+
+(defn spread
+  "Build a strategey which applies the first `n` values of `t` to `f`
+  iff `t` is a coll. Behaves like apply if `n` is not supplied. Useful
+  in conjunction with `juxt`.
+
+  ((pipe
+    (juxt (thread keys (many keyword))
+          vals)
+    (spread zipmap 2))
+   {\"foo\" \"bar\"
+    \"baz\" \"quux\"})
+  ;; => 
+  {:foo \"bar\"
+   :baz \"quux\"}"
+  ([f]
+   (fn spread-all [t]
+     (if (coll? t)
+       (apply f t)
+       t)))
+  ([f n]
+   (fn spread-n [t]
+     (if (coll? t)
+       (let [args (take n t)]
+         (if (= (count args)
+                n)
+           (apply f args)
+           t))
+       t))))
+
+
 ;; ---------------------------------------------------------------------
 ;; Tools
 
