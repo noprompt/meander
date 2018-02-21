@@ -1240,7 +1240,7 @@
                                    seen-vars*]
 
                                   :else
-                                  (let [obj "object__"]
+                                  (let [obj (gensym "object__")]
                                     [(conj p*
                                            `(reify
                                               protocols/IUnify*
@@ -1248,7 +1248,7 @@
                                                 (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
                                                   ~(compile-pattern x obj inner* seen-vars*)))))
                                      (into seen-vars* (map name (variables x)))])))
-                              [seen-vars []]
+                              [[] seen-vars]
                               p)]
                     `(unify* ~p* ~obj ~(compile-smap seen-vars)))
                   (let [svec (gensym "subvec__")]
@@ -1344,7 +1344,7 @@
                                             (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
                                               ~(compile-pattern x obj inner* seen-vars*))))))
                                      (into seen-vars* (map name (variables x)))])))
-                              [seen-vars `(list)]
+                              [`(list) seen-vars]
                               p)]
                     `(unify* ~p* ~obj ~(compile-smap seen-vars)))
                   (let [subseq (gensym "subseq__")
