@@ -1335,7 +1335,7 @@
                                    seen-vars*]
 
                                   :else
-                                  (let [obj `obj#]
+                                  (let [obj (gensym "obj__")]
                                     [(concat
                                       p*
                                       `((reify
@@ -1394,8 +1394,7 @@
                                 subseq
                                 inner)
                                seen-vars)))))
-                     seen-vars)
-                   ))))]
+                     seen-vars)))))]
       (if (::subseq? (meta p))
         body
         `(when (seq? ~obj)
@@ -1547,8 +1546,20 @@
 ;; pattern macro
 
 
+(spec/def ::pattern-args
+  (spec/cat
+   :pattern any?
+   :when-clause (spec/? (spec/cat
+                         :when #{:when}
+                         :expr any?))))
+
+(spec/fdef pattern
+  :args ::pattern-args
+  :ret any?)
+
 (defmacro pattern
-  [form]
+  {:arglists '([form & {:keys [when]}])}
+  [form & {when-clause :when}]
   (let [obj (gensym "pattern_object__")
         smap (gensym "pattern_smap__")
         form* (parse-form form)]
@@ -1562,19 +1573,22 @@
 
        protocols/IUnify*
        (protocols/-unify* [this# ~obj smap-outer#]
-         (for [smap-inner# ~(compile-pattern
-                             form*
-                             obj
-                             (fn [seen-vars]
-                               `(list ~(compile-smap seen-vars)))
-                             #{})
+         (for [~smap ~(compile-pattern
+                       form*
+                       obj
+                       (fn [seen-vars]
+                         `(list ~(compile-smap seen-vars)))
+                       #{})
+               ~@(when when-clause
+                   [:let `[{:strs [~@(map (comp symbol name) (variables form*))]} ~smap]
+                    :when when-clause])
                :when (every?
                       (fn [[ik# iv#]]
                         (if-some [[_# ov#] (find smap-outer# ik#)]
                           (= iv# ov#)
                           true))
-                      smap-inner#)]
-           (merge smap-outer# smap-inner#)))
+                      ~smap)]
+           (merge smap-outer# ~smap)))
 
        protocols/ISubstitute
        (protocols/-substitute [this# ~smap]
