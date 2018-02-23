@@ -1641,21 +1641,42 @@
   (fn [_] t))
 
 
+(deftype Pipe [p q]
+  clojure.lang.IFn
+  (invoke [_ t]
+    (let [t* (p t)]
+      (let [t* (p t)]
+        (if (fail? t*)
+          *fail*
+          (q t*)))))
+
+  (applyTo [this args]
+    (clojure.lang.AFn/applyToHelper this args))
+
+  protocols/IUnify
+  (-unify [this v smap]
+    (first (protocols/-unify* this v smap)))
+  
+  protocols/IUnify*
+  (protocols/-unify* [_ v smap]
+    ((lconj
+      (fn [smap]
+        (protocols/-unify* p v smap))
+      (fn [smap]
+        (protocols/-unify* q v smap)))
+     smap)))
+
+
 (defn pipe
   "Build a strategy which applies `p` to `t` and then `q` iff `p` rewrites
   `t`. If `p` and `q` are successful, return the result, otherwise
-  return `fail`. This is the strategy equivalent of `and`.
-  "
+  return `*fail*`. This is the strategy equivalent of `and`."
   ([] *pass*)
   ([p] p)
   ([p q]
    (if (or (fail? p) (fail? q)) 
      *fail*
-     (fn [t]
-       (let [t* (p t)]
-         (if (fail? t*)
-           t*
-           (q t*))))))
+     (Pipe. p q)))
   ([p q & more]
    (apply pipe (pipe p q) more)))
 
