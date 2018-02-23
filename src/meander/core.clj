@@ -1517,9 +1517,9 @@
         clauses* (butlast rest-args)
         s-pattern (last rest-args)
         u-var-syms (map (comp symbol name)
-                        (vals (second (parse-form* u-pattern))))
+                        (variables (parse-form u-pattern)))
         s-var-syms (map (comp symbol name)
-                        (vals (second (parse-form* s-pattern))))
+                        (variables (parse-form s-pattern)))
         meta-smap (into {}
                         (map (juxt name identity)
                              (set/intersection
