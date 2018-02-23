@@ -25,9 +25,18 @@
    `(throw (ex-info "undefined" ~(meta &form)))))
 
 
+(spec/fdef fmap
+  :args (spec/cat :f ifn?
+                  :x any?)
+  :ret any?
+  :fn (fn [{:keys [args ret]}]
+        (let [[_ x] args]
+          (if (satisfies? protocols/IFmap x)
+            (instance? (class x) ret)
+            true))))
+
 (defn fmap
   ([f x]
-   {:post [(instance? (class x) %)]}
    (if (satisfies? protocols/IFmap x)
      (protocols/-fmap x f)
      (f x))))
