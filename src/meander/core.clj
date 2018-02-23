@@ -653,37 +653,10 @@
 
 
 (extend-type clojure.lang.IPersistentVector
-  protocols/IAll
-  (-all [this s]
-    (reduce
-     (fn [v x]
-       (let [x* (s x)]
-         (if (not= x* x)
-           (conj v x*)
-           (reduced this))))
-     []
-     this))
-
   protocols/IFmap
   (-fmap [this f]
     (mapv f this))
 
-
-  protocols/IMany
-  (-many [this s]
-    (mapv s this))
-
-  
-  protocols/IOne
-  (-one [this s]
-    (reduce-kv
-     (fn [v i x]
-       (let [x* (s x)]
-         (if (not= x* x)
-           (reduced (assoc v i x*))
-           v)))
-     this
-     this))
 
   protocols/ITermVariables
   (-term-variables [this]
@@ -797,19 +770,6 @@
 
 
 (extend-type clojure.lang.ISeq
-  protocols/IAll
-  (-all [this s]
-    (seq
-     (reduce
-      (fn [v x]
-        (let [x* (s x)]
-          (if (not= x* x)
-            (conj v x*)
-            (reduced this))))
-      []
-      this)))
-
-
   protocols/IFmap
   (-fmap [this f]
     (map f this))
@@ -818,26 +778,6 @@
   protocols/IForm
   (-form [_]
     (map form seq))
-
-
-  protocols/IMany
-  (-many [this s]
-    (map s this))
-
-  
-  protocols/IOne
-  (-one [this s]
-    (loop [this this
-           this* []]
-      (if (seq this)
-        (let [x (first this)
-              x* (s x)]
-          (if (not= x* x)
-            (seq (into (conj this* x*)
-                       (rest this)))
-            (recur (rest this)
-                   (conj this* x))))
-        (seq this*))))
 
 
   protocols/ISubstitute
@@ -932,22 +872,7 @@
    (first (unify-map* map-a map-b smap))))
 
 
-(extend-type clojure.lang.IPersistentMap
-  protocols/IAll
-  (-all [this s]
-    (reduce-kv
-     (fn [m k v]
-       (let [v* (s v)]
-         (if (not= v* v)
-           (let [k* (s k)]
-             (if (not= k* k)
-               (assoc m k* v*)
-               (reduced this)))
-           (reduced this))))
-     {}
-     this))
-
-
+(extend-type clojure.lang.IPersistentMap 
   protocols/IFmap
   (-fmap [this f]
     (into {} (map f this)))
@@ -959,30 +884,6 @@
      (fn [m k v]
        (assoc m (form k) (form v)))
      {}
-     this))
-
-
-  protocols/IMany
-  (-many [this s]
-    (reduce-kv
-     (fn [m k v]
-       (assoc m (s k) (s v)))
-     {}
-     this))
-
-  
-  protocols/IOne
-  (-one [this s]
-    (reduce-kv
-     (fn [m k v]
-       (let [k* (s k)]
-         (if (not= k* k)
-           (reduced (assoc m k* v)))
-         (let [v* (s v)]
-           (if (not= v* v)
-             (reduced (assoc m k v*))
-             v))))
-     this
      this))
 
 
@@ -1041,18 +942,6 @@
 
 
 (extend-type clojure.lang.IPersistentSet
-  protocols/IAll
-  (-all [this s]
-    (reduce
-     (fn [this* x]
-       (let [x* (s x)]
-         (if (not= x* x)
-           (conj this* x*)
-           (reduced this))))
-     #{}
-     this))
-
-
   protocols/IFmap
   (-fmap [this f]
     (set (map f this)))
@@ -1061,23 +950,6 @@
   protocols/IForm
   (-form [this]
     (set (map form this)))
-
-
-  protocols/IMany
-  (-many [this s]
-    (set (map s this)))
-
-  
-  protocols/IOne
-  (-one [this s]
-    (reduce
-     (fn [this* x]
-       (let [x* (s x)]
-         (if (not= x* x)
-           (reduced (conj (disj this* x) x*))
-           (conj this* x))))
-     this
-     this))
 
 
   protocols/ISubstitute
@@ -1683,34 +1555,6 @@
   [& args]
   `(transform ~@args))
 
-;; ---------------------------------------------------------------------
-;; if-transform macro
-
-
-(spec/def ::if-transform-args
-  (spec/cat
-   :binding+f+arg
-   (spec/and vector?
-             (spec/cat
-              :t* simple-symbol?
-              :f any?
-              :t any?))
-   :then any?
-   :else (spec/? any?)))
-
-(spec/fdef if-transform
-  :args ::if-transform-args
-  :ret any?)
-
-(defmacro if-transform
-  {:style/indent :defn}
-  ([& args]
-   (let [[[t* f t] then else] args]
-     `(let [~t* (~f ~t)]
-        (if (= ~t ~t*)
-          ~else
-          ~then)))))
-
 
 ;; ---------------------------------------------------------------------
 ;; Strategy combinators
@@ -1724,52 +1568,17 @@
 ;; p, q, r, s ∈ Strategy
 
 
-(defn build
-  "Returns a strategy which always returns `t`."
-  [t]
-  (fn [_] t))
-
-
-(defn pipe
-  "Build a strategy which applies `p` to `t` and then `q` iff `p` rewrites
-  `t`. If `p` and `q` successful rewrite, return the result, otherwise
-  return `t`. This is the strategy equivalent of `and`.
-
-  Example:
-
-    ((pipe (constantly :not-i) ;; Fail
-           (constantly :pass!))
-     :not-i)
-    ;; =>
-    :not-i
-
-    ((pipe (constantly :not-i) ;; Pass
-           (constantly :pass!)) ;; Pass
-     :not-u)
-    ;; =>
-    :pass!
-  "
-  ([p q]
-   (fn [t]
-     (if-transform [t* p t]
-       (if-transform [t** q t*]
-         t**
-         t)
-       t)))
-  ([p q & more]
-   (apply pipe (pipe p q) more)))
-
-
 (def
-  ^{:arglists '([t])}
-  pass
+  ^{:arglists '([t])
+    :dynamic true}
+  *pass*
   "Strategy which returns t. Unifies with anything."
   (reify 
     clojure.lang.IFn
-    (clojure.lang.IFn/invoke [_ t]
+    (invoke [_ t]
       t)
 
-    (clojure.lang.IFn/applyTo [_ args]
+    (applyTo [_ args]
       (first args))
 
     protocols/IUnify
@@ -1781,14 +1590,76 @@
       (list smap))))
 
 
+(def
+  ^{:arglists '([t])
+    :dynamic true}
+  *fail*
+  "Strategy which always fails. Unifies with nothing."
+  (reify
+    clojure.lang.IFn
+    (invoke [this _]
+      this)
+
+    (applyTo [this _]
+      this)
+
+    protocols/IUnify
+    (-unify [_ _ _]
+      nil)
+
+    protocols/IUnify*
+    (-unify* [_ _ _]
+      nil)
+
+    protocols/IFmap
+    (-fmap [this _]
+      this)))
+
+
+(defmethod print-method (class *fail*) [v ^java.io.Writer w]
+  (.write w "#meander/fail[]"))
+
+
+(defn fail?
+  "true if `x` is `*fail*`, false otherwise."
+  [x]
+  (identical? x *fail*))
+
+
+(defn build
+  "Build a strategy which always returns `t`."
+  [t]
+  (fn [_] t))
+
+
+(defn pipe
+  "Build a strategy which applies `p` to `t` and then `q` iff `p` rewrites
+  `t`. If `p` and `q` are successful, return the result, otherwise
+  return `fail`. This is the strategy equivalent of `and`.
+  "
+  ([] *pass*)
+  ([p] p)
+  ([p q]
+   (if (or (fail? p) (fail? q)) 
+     *fail*
+     (fn [t]
+       (let [t* (p t)]
+         (if (fail? t*)
+           t*
+           (q t*))))))
+  ([p q & more]
+   (apply pipe (pipe p q) more)))
+
+
 (deftype Choice [p q]
   clojure.lang.IFn
-  (clojure.lang.IFn/invoke [_ t]
-    (if-transform [t* p t]
-      t*
-      (q t)))
+  (invoke [_ t]
+    (let [t* (p t)]
+      (if (fail? t*)
+        (q t)
+        t*)))
 
-  (clojure.lang.IFn/applyTo [this args]
+  (applyTo [this args]
     (clojure.lang.AFn/applyToHelper this args))
 
   protocols/IUnify
@@ -1810,27 +1681,25 @@
 (defn choice
   "Build a strategy which applies `p` or `q` to `t`. If `p` rewrites,
   return the result, otherwise apply `q`. This is the strategy
-  equivalent of `or`.
-
-  Example:
-
-    ((choice (constantly :not-i) ;; Fail
-             (constantly :pass!)) ;; Pass
-     :not-i)
-    ;; =>
-    :pass!
-
-    ((choice (constantly :not-i) ;; Pass
-             (constantly :pass!))
-     :not-u)
-    ;; =>
-    :not-i
-  "
-  ([] pass)
+  equivalent of `or`."
+  ([] *fail*)
   ([p]
-   (Choice. p pass))
+   (if (fail? p)
+     *fail*
+     (Choice. p *fail*)))
   ([p q]
-   (Choice. p q))
+   (case [(fail? p) (fail? q)]
+     [true true]
+     *fail*
+
+     [true false]
+     q
+
+     [false true]
+     p
+
+     [false false]
+     (Choice. p q)))
   ([p q & more]
    (apply choice (choice p q) more)))
 
@@ -1840,20 +1709,34 @@
   [p q r]
   (fn [t]
     (let [t* (p t)]
-      (if (not= t t*)
-        (q t*)
-        (r t)))))
+      (if (fail? t*)
+        (r t)
+        (q t*)))))
+
+
+(defn attempt
+  "Build a strategy which attempts apply `s` to a term. If `s`
+  succeeds, it returns the result. If `s` fails return the original
+  term."
+  [s]
+  (choice s *pass*))
+
+
+(defn pred
+  "Build a strategy which returns `t` iff `p` is true for `t` and
+  fails otherwise."
+  [p]
+  (fn [t]
+    (if (p t)
+      t
+      *fail*)))
 
 
 (defn guard
-  "Build a strategy which applies `p` to `t` iff `pred` is true for
-  `t`."
+  "Build a strategy which applies `s` to `t` iff `p` is true for `t`."
   {:style/indent :defn}
-  [pred p]
-  (fn [t]
-    (if (pred t)
-      (p t)
-      t)))
+  [p s]
+  (attempt (pipe (pred p) s)))
 
 
 (defn repeat
@@ -1861,114 +1744,167 @@
 
   Example:
 
-    ((repeat
-       (fn [v]
-         (if (= 2 (peek v))
-         v ;; Fail
-         (pop v))))
-       [1 2 3 4 5])
-    ;; =>
-    [1 2]
+  ((repeat
+    (pipe (pred vector?)
+          (fn [v]
+            (if (seq v)
+              (if (= (peek v) 2)
+                *fail*
+                (pop v))
+              *fail*))))
+   [1 2 3 4])
+  ;; =>
+  [1 2]
   "
-  [p]
-  (fn repeat* [t]
-    ((branch p repeat* (constantly t)) t)))
+  [s]
+  (fn rec [t]
+    ((attempt (pipe s rec)) t)))
+
+
+(defn iall? [x]
+  (satisfies? protocols/IAll x))
 
 
 (defn all [s]
   (fn [t]
-    (if (satisfies? protocols/IAll t)
+    (if (iall? t)
       (protocols/-all t s)
-      t)))
+      *fail*)))
 
 
-(defn all-td [s]
+(defn all-top-down
+  "Apply the all strategy with `s` to every subterm in `t` from the
+  top down."
+  [s]
   (fn rec [t]
     ((choice s (all rec)) t)))
 
 
-(defn all-bu [s]
+(defn all-bottom-up
+  "Apply the all strategy with `s` to every subterm in `t` from the
+  bottom up."
+  [s]
   (fn rec [t]
     ((choice (all rec) s) t)))
 
 
+(defn ione? [x]
+  (satisfies? protocols/IOne x))
+
+
 (defn one [s]
   (fn [t]
-    (if (satisfies? protocols/IOne t)
+    (if (ione? t)
       (protocols/-one t s)
-      t)))
+      *fail*)))
 
 
-(defn once-td [s]
+(defn one-top-down
+  "Apply the `one` strategy with `s` to every subterm in `t` from the
+  top down."
+  [s]
   (fn rec [t]
     ((choice s (one rec)) t)))
 
 
-(defn once-bu [s]
+(defn one-bottom-up
+  "Apply the `one` strategy with `s` to every subterm in `t` from the
+  bottom up."
+  [s]
   (fn rec [t]
     ((choice (one rec) s) t)))
 
 
-(defn many [s]
+(defn imany? [x]
+  (satisfies? protocols/IMany x))
+
+;; The some(s) strategy transforms a constructor application by
+;; applying the parameter strategy s to as many direct subterms as
+;; possible and at least one. An application of some(s) fails if the
+;; application to all of the subterms fails.
+(defn many
+  "Build a strategy which applies `s` to as many direct subterms of
+  `t` as possible. Succeeds if at least one application applies, fails
+  otherwise."
+  [s]
   (fn [t]
-    (if (satisfies? protocols/IMany t)
+    (if (imany? t)
       (protocols/-many t s)
-      t)))
+      ;; Note: We don't fail here since
+      *fail*)))
 
 
-(defn many-td [s]
+(defn many-top-down
+  [s]
   (fn rec [t]
     ((choice s (many rec)) t)))
 
 
-(defn many-bu [s]
+(defn many-bottom-up
+  [s]
   (fn rec [t]
     ((choice (many rec) s) t)))
 
 
+(defn spine-top-down
+  [s]
+  (fn rec [t]
+    ((pipe s (attempt (one rec))))))
+
+
+(defn spine-bottom-up
+  [s]
+  (fn rec [t]
+    ((pipe (attempt (one rec)) s))))
+
+
+(defn breadth-first [s]
+  (fn rec [t]
+    ((pipe (all s) (all rec)) t)))
+
+
 (defn bottom-up
-  "Build a strategy which applies `p` to each subterm of `t` from
+  "Build a strategy which applies `s` to each subterm of `t` from
   bottom to top."
-  [p]
-  (fn [t]
-    (postwalk p t)))
+  [s]
+  (fn rec [t]
+    ((pipe (all rec) s) t)))
 
 
 (defn top-down
-  "Build a strategy which applies `p` to each subterm of `t` from
+  "Build a strategy which applies `s` to each subterm of `t` from
   top to bottom."
-  [p]
-  (fn [t]
-    (prewalk p t)))
+  [s]
+  (fn rec [t]
+    ((pipe s (all rec)) t)))
 
 
-(defn thread
-  "Build a strategy which applies each supplied strategy to `t` from
-  left to right regardless of failure.
-  
-  ((guard string?
-     (thread
-       (fn [s]
-         (. s replace \"_\" \"-\"))
-       keyword))
-   \"foo_bar\")
-  ;; =>
-  :foo-bar"
-  ([] identity)
-  ([p]
-   (fn thread-1 [t]
-     (p t)))
-  ([p q]
-   (fn thread-2 [t]
-     (q (p t))))
-  ([p q r]
-   (fn thread-3 [t]
-     (r (q (p t)))))
-  ([p q r s]
-   (fn thread-4 [t]
-     (s (r (q (p t))))))
-  ([p q r s & more]
-   (apply thread (thread p q r s) more)))
+(defn outermost
+  "Build a strategy which repeatedly applies `s` to `t` starting from
+  the outermost subterm in `t` until it fails."
+  [s]
+  (repeat (one-top-down s)))
+
+
+(defn innermost
+  "Build a strategy which repeatedly applies `s` to `t` starting from
+  the innermost subterm in `t`."
+  [s]
+  (fn rec [t]
+    ((bottom-up (repeat s)) t)))
+
+
+(defn trace
+  "Build a strategy which monitors the entry and exit values of `s`."
+  ([s]
+   (trace s prn))
+  ([s f]
+   (let [id (gensym "t_")]
+     (fn [t]
+       (f {:id id, :in t})
+       (let [t* (s t)]
+         (f {:id id, :out t*})
+         t*)))))
 
 
 (defn spread
@@ -1999,6 +1935,187 @@
            (apply f args)
            t))
        t))))
+
+(extend-type clojure.lang.IPersistentVector
+  protocols/IAll
+  (-all [this s]
+    (reduce
+     (fn [this* x]
+       (let [x* (s x)]
+         (if (fail? x*)
+           (reduced *fail*)
+           (conj this* x*))))
+     []
+     this))
+
+
+  protocols/IMany
+  (-many [this s]
+    (let [[this* pass?]
+          (reduce-kv
+           (fn [[this* pass?] i x]
+             (let [x* (s x)]
+               (if (fail? x*)
+                 [this* pass?]
+                 [(assoc this* i x*) true])))
+           [this false]
+           this)]
+      (if pass?
+        this*
+        *fail*)))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce-kv
+     (fn [acc i x]
+       (let [x* (s x)]
+         (if (fail? x*)
+           acc
+           (reduced (assoc this i x*)))))
+     *fail*
+     this)))
+
+
+(extend-type clojure.lang.ISeq
+  protocols/IAll
+  (-all [this s]
+    (reduce
+     (fn [this* x]
+       (let [x* (s x)]
+         (if (fail? x*)
+           (reduced *fail*)
+           (concat this* (list x*)))))
+     ()
+     this))
+
+
+  protocols/IMany
+  (-many [this s]
+    (let [[this* pass?]
+          (reduce
+           (fn [[this* pass?] x]
+             (let [x* (s x)]
+               (if (fail? x*)
+                 [(cons x this*) pass?]
+                 [(cons x* this*) true])))
+           [() false]
+           (reverse this))]
+      (if pass?
+        this*
+        *fail*)))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce
+     (fn [_acc [i x]]
+       (let [x* (s x)]
+         (if (fail? x*)
+           *fail*
+           (reduced (concat (take i this)
+                            (list x*)
+                            (drop (inc i) this))))))
+     *fail*
+     (map-indexed vector this))))
+
+
+(extend-type clojure.lang.IPersistentMap
+  protocols/IAll
+  (-all [this s]
+    (reduce-kv
+     (fn [this* k v]
+       (let [k* (s k)]
+         (if (fail? k*)
+           *fail*
+           (let [v* (s v)]
+             (if (fail? v*)
+               *fail*
+               (assoc this* k* v*))))))
+     {}
+     this))
+
+
+  protocols/IMany
+  (-many [this s]
+    (let [[this* pass?]
+          (reduce-kv
+           (fn [[this* pass?] k v]
+             (let [k* (s k)
+                   v* (s v)]
+               (case [(fail? k*) (fail? v*)]
+                 [true true]
+                 [(assoc this* k v) pass?]
+
+                 [true false]
+                 [(assoc this* k v*) true]
+
+                 [false true]
+                 [(assoc this* k* v) true]
+
+                 [false false]
+                 [(assoc this* k* v*) true])))
+           [{} false]
+           this)]
+      (if pass?
+        this*
+        *fail*)))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce-kv
+     (fn [acc k v]
+       (let [k* (s k)]
+         (if (fail? k*)
+           (let [v* (s v)]
+             (if (fail? v*)
+               acc
+               (reduced (assoc this k v*))))
+           (reduced (assoc this k* v)))))
+     *fail*
+     this)))
+
+
+(extend-type clojure.lang.IPersistentSet
+  protocols/IAll
+  (-all [this s]
+    (reduce
+     (fn [this* x]
+       (let [x* (s x)]
+         (if (fail? x*)
+           (reduced *fail*)
+           (conj this* x*))))
+     #{}
+     this))
+
+
+  protocols/IMany
+  (-many [this s]
+    (let [[this* pass?] 
+          (reduce
+           (fn [[this* pass?] x]
+             (let [x* (s x)]
+               (if (fail? x*)
+                 [(conj this* x) pass?]
+                 [(conj this* x*) true])))
+           [#{} false]
+           this)]
+      (if pass?
+        this*
+        *fail*)))
+
+  
+  protocols/IOne
+  (-one [this s]
+    (reduce
+     (fn [acc x]
+       (let [x* (s x)]
+         (if (fail? x*)
+           *fail*
+           (reduced (conj (disj this x) x*)))))
+     *fail*
+     this)))
 
 
 ;; ---------------------------------------------------------------------

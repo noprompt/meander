@@ -155,29 +155,236 @@
 ;; ---------------------------------------------------------------------
 ;; Combinators
 
+(def inc-number
+  (r/pipe (r/pred number?) inc))
+
+
+(def upper-case-string
+  (r/pipe (r/pred string?) (memfn ^String toUpperCase)))
+
 
 (t/deftest choice-test
-  (t/is (= ((r/choice (constantly :not-i)
-                      (constantly :pass!))
-            :not-i)
-           :pass!))
+  (t/is (r/fail? ((r/choice r/*fail*)
+                  :foo)))
 
-  (t/is (= ((r/choice (constantly :not-i)
-                      (constantly :pass!))
-            :not-u)
-           :not-i))
+  (t/is (r/fail? ((r/choice inc-number upper-case-string)
+                  :foo)))
+
+  (t/is (r/fail? ((r/choice upper-case-string)
+                  :foo)))
+
+  (t/is (r/fail? ((r/choice r/*fail*)
+                  :foo)))
+
+  (t/is (r/fail? ((r/choice)
+                  :foo)))
+
+  (t/is (r/fail? ((r/choice r/*fail* r/*fail*)
+                  :foo)))
+
+  (t/is (= 42
+           ((r/choice inc-number upper-case-string)
+            41)))
+
+  (t/is (= 42
+           ((r/choice inc-number)
+            41)))
+
+  (t/is (= 42
+           ((r/choice r/*fail* inc-number)
+            41)))
+
+  (t/is (= 42
+           ((r/choice inc-number r/*fail*)
+            41))))
 
 
-  (t/is (= ((r/choice (r/t [4 ~y ~z]
-                           :when (odd? z)
-                           :A)
-                      (r/choice (r/t [~x 5 ~z]
-                                     :when (odd? x)
-                                     :B)
-                                (r/t [~x ~y 6]
-                                     :C)))
-            [4 5 6])
-           :C)))
+(t/deftest all-implementation-test
+  (t/testing "clojure.lang.IPersistentSeq"
+    (t/is (= ()
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              ())))
+
+    (t/is (r/fail? ((r/all (r/pipe (r/pred number?)
+                                   inc))
+                    (list "A" "B" "C" "D"))))
+
+    (t/is (= (list 1 2 3 4)
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              (list 0 1 2 3)))))
+
+
+  (t/testing "clojure.lang.IPersistentVector"
+    (t/is (= []
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              [])))
+
+    (t/is (r/fail? ((r/all (r/pipe (r/pred number?)
+                                   inc))
+                    ["A" "B" "C" "D"])))
+
+    (t/is (r/fail? ((r/all (r/pipe (r/pred number?)
+                                   inc))
+                    ["A" 1 "C" 3]))))
+
+
+  (t/testing "clojure.lang.IPersistentMap"
+    (t/is (= {}
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              {})))
+
+    (t/is (r/fail? ((r/all (r/pipe (r/pred number?)
+                                   inc))
+                    {"A" "B" "C" "D"})))
+
+
+    (t/is (= {1 2 3 4}
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              {0 1 2 3}))))
+
+  (t/testing "clojure.lang.IPersistentSet"
+    (t/is (= #{}
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              #{})))
+
+    (t/is (r/fail? ((r/all (r/pipe (r/pred number?)
+                                   inc))
+                    #{"A" "B" "C" "D"})))
+
+    (t/is (= #{1 2 3 4}
+             ((r/all (r/pipe (r/pred number?)
+                             inc))
+              #{0 1 2 3})))))
+
+(t/deftest one-implementation-test
+  (t/testing "clojure.lang.IPersistentSeq"
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    ())))
+
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    (list "A" "B" "C" "D"))))
+
+    (t/is (= (list "A" 2 "C" 3)
+             ((r/one (r/pipe (r/pred number?)
+                             inc))
+              (list "A" 1 "C" 3)))))
+
+
+  (t/testing "clojure.lang.IPersistentVector"
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    [])))
+
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    ["A" "B" "C" "D"])))
+
+    (t/is (= ["A" 2 "C" 3]
+             ((r/one (r/pipe (r/pred number?)
+                             inc))
+              ["A" 1 "C" 3]))))
+
+
+  (t/testing "clojure.lang.IPersistentMap"
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    {})))
+
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    {"A" "B" "C" "D"})))
+
+
+    (t/is (= {"A" 2 "C" 3}
+             ((r/one (r/pipe (r/pred number?)
+                             inc))
+              (assoc (sorted-map)
+                     "A" 1
+                     "C" 3)))))
+
+  (t/testing "clojure.lang.IPersistentSet"
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    #{})))
+
+    (t/is (r/fail? ((r/one (r/pipe (r/pred number?)
+                                   inc))
+                    #{"A" "B" "C" "D"})))
+
+    (t/is (= #{2 3}
+             ((r/one (r/pipe (r/pred number?)
+                             inc))
+              (into (sorted-set) #{1 3}))))))
+
+
+(t/deftest many-implementation-test
+  (t/testing "clojure.lang.IPersistentSeq"
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    ())))
+
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    (list "A" "B" "C" "D"))))
+
+    (t/is (= (list "A" 2 "C" 4)
+             ((r/many (r/pipe (r/pred number?)
+                              inc))
+              (list "A" 1 "C" 3)))))
+
+
+  (t/testing "clojure.lang.IPersistentVector"
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    [])))
+
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    ["A" "B" "C" "D"])))
+
+    (t/is (= ["A" 2 "C" 4]
+             ((r/many (r/pipe (r/pred number?)
+                              inc))
+              ["A" 1 "C" 3]))))
+
+
+  (t/testing "clojure.lang.IPersistentMap"
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    {})))
+
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    {"A" "B" "C" "D"})))
+
+
+    (t/is (= {"A" 2 "C" 4}
+             ((r/many (r/pipe (r/pred number?)
+                              inc))
+              {"A" 1 "C" 3}))))
+
+  (t/testing "clojure.lang.IPersistentSet"
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    #{})))
+
+    (t/is (r/fail? ((r/many (r/pipe (r/pred number?)
+                                    inc))
+                    #{"A" "B" "C" "D"})))
+
+    (t/is (= #{"A" 2 "C" 4}
+             ((r/many (r/pipe (r/pred number?)
+                              inc))
+              #{"A" 1 "C" 3})))))
+
 
 ;; ---------------------------------------------------------------------
 ;; t
@@ -199,6 +406,7 @@
     (. ~target ~method ~@args)))
 
 
+#_
 (t/deftest t-test
   (t/testing "transforms implement IFn"
     (t/is (= '(. bar foo baz)
@@ -254,5 +462,3 @@
 
       (t/is (= '(f (g (h x)))
                (thread-1 '(-> x h g f)))))))
-
-
