@@ -1802,7 +1802,7 @@
       *fail*)))
 
 
-(defn all-top-down
+(defn all-td
   "Apply the all strategy with `s` to every subterm in `t` from the
   top down."
   [s]
@@ -1810,7 +1810,7 @@
     ((choice s (all rec)) t)))
 
 
-(defn all-bottom-up
+(defn all-bu
   "Apply the all strategy with `s` to every subterm in `t` from the
   bottom up."
   [s]
@@ -1829,7 +1829,7 @@
       *fail*)))
 
 
-(defn one-top-down
+(defn once-td
   "Apply the `one` strategy with `s` to every subterm in `t` from the
   top down."
   [s]
@@ -1837,7 +1837,7 @@
     ((choice s (one rec)) t)))
 
 
-(defn one-bottom-up
+(defn once-bu
   "Apply the `one` strategy with `s` to every subterm in `t` from the
   bottom up."
   [s]
@@ -1848,10 +1848,7 @@
 (defn imany? [x]
   (satisfies? protocols/IMany x))
 
-;; The some(s) strategy transforms a constructor application by
-;; applying the parameter strategy s to as many direct subterms as
-;; possible and at least one. An application of some(s) fails if the
-;; application to all of the subterms fails.
+
 (defn many
   "Build a strategy which applies `s` to as many direct subterms of
   `t` as possible. Succeeds if at least one application applies, fails
@@ -1860,29 +1857,28 @@
   (fn [t]
     (if (imany? t)
       (protocols/-many t s)
-      ;; Note: We don't fail here since
       *fail*)))
 
 
-(defn many-top-down
+(defn many-td
   [s]
   (fn rec [t]
     ((choice s (many rec)) t)))
 
 
-(defn many-bottom-up
+(defn many-bu
   [s]
   (fn rec [t]
     ((choice (many rec) s) t)))
 
 
-(defn spine-top-down
+(defn spine-td
   [s]
   (fn rec [t]
     ((pipe s (attempt (one rec))))))
 
 
-(defn spine-bottom-up
+(defn spine-bu
   [s]
   (fn rec [t]
     ((pipe (attempt (one rec)) s))))
@@ -1913,7 +1909,7 @@
   "Build a strategy which repeatedly applies `s` to `t` starting from
   the outermost subterm in `t` until it fails."
   [s]
-  (repeat (one-top-down s)))
+  (repeat (once-td s)))
 
 
 (defn innermost
