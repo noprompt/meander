@@ -39,51 +39,6 @@
          (let [result__24960 (+ y__24959 y__24959)]
            result__24960)))))
 
-
-;; ---------------------------------------------------------------------
-;; Clojure AST
-
-(declare clj-ast)
-
-(def dot-form-t1
-  ;; (.foo bar baz)
-  ;; =>
-  ;; (. bar foo baz)
-  (r/t (~method ~target ~@args)
-    :when (symbol? method)
-    :let [method-name (name method)]
-    :when (re-find #"\A\.." method-name)
-    :let [method* (symbol (subs method-name 1))]
-    (. ~target ~method* ~@args)))
-
-
-(def dot-form-t2
-  ;; (. bar (foo baz))
-  ;; =>
-  ;; (. bar foo baz)
-  (r/t (. ~target (~method ~@args))
-    :when (symbol? method)
-    (. ~target ~method ~@args)))
-
-
-(def dot-form-t
-  (r/choice dot-form-t1 dot-form-t2))
-
-;; BUG
-;; The replacement in the following pattern can cause a confusing
-;; error: Wrong number of arguments passed to Symbol. The culprit
-;; is @args missing the leading ~.
-#_
-(r/t (. ~target (~method ~@args))
-     :when (symbol? method)
-     (. ~target ~method @args))
-
-(let [dot-form-1 '(. "foo" (substring 1))
-      dot-form-2 '(.substring "foo" 1)]
-  (= '(. "foo" substring 1)
-     (dot-form-t dot-form-1)
-     (dot-form-t dot-form-2)))
-
 ;; ---------------------------------------------------------------------
 ;; module prop-desugar
 ;; imports prop libstrategolib
@@ -150,12 +105,49 @@
   (r/top-down (r/choice prop-i-t prop-e-t)))
 
 
-
-
 ;; ---------------------------------------------------------------------
-;; AST
+;; Clojure AST
 
 (declare clj-ast)
+
+(def dot-form-t1
+  ;; (.foo bar baz)
+  ;; =>
+  ;; (. bar foo baz)
+  (r/t (~method ~target ~@args)
+    :when (symbol? method)
+    :let [method-name (name method)]
+    :when (re-find #"\A\.." method-name)
+    :let [method* (symbol (subs method-name 1))]
+    (. ~target ~method* ~@args)))
+
+
+(def dot-form-t2
+  ;; (. bar (foo baz))
+  ;; =>
+  ;; (. bar foo baz)
+  (r/t (. ~target (~method ~@args))
+    :when (symbol? method)
+    (. ~target ~method ~@args)))
+
+
+(def dot-form-t
+  (r/choice dot-form-t1 dot-form-t2))
+
+;; BUG
+;; The replacement in the following pattern can cause a confusing
+;; error: Wrong number of arguments passed to Symbol. The culprit
+;; is @args missing the leading ~.
+#_
+(r/t (. ~target (~method ~@args))
+     :when (symbol? method)
+     (. ~target ~method @args))
+
+(let [dot-form-1 '(. "foo" (substring 1))
+      dot-form-2 '(.substring "foo" 1)]
+  (= '(. "foo" substring 1)
+     (dot-form-t dot-form-1)
+     (dot-form-t dot-form-2)))
 
 ;; TOOD: :type, :record, :class, :var
 (defn clj-const [x]
@@ -532,6 +524,3 @@
                  :reason :requested}}]))
 
 (t/is (match? [~x 2] [1 2 3]))
-
-
-
