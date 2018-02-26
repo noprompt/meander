@@ -8,21 +8,19 @@
    [meander.protocols :as protocols]))
 
 ;; ---------------------------------------------------------------------
-;; Clojure AST
+;; Tools
 
 
 (def strip-ns
-  (r/t ~x
-    :when (qualified-symbol? x)
-    :let [x* (symbol (name x))]
-    ~x*))
+  (r/guard qualified-symbol?
+    (r/pipe name symbol)))
 
 
-(def strip-auto-gensym-tail
-  (r/t ~x
-    :when (simple-symbol? x)
-    :let [x* (symbol (string/replace (name x) #"(.*)__auto__\z" "$1"))]
-    ~x*))
+(defn strip-auto-gensym-tail
+  [t]
+  (if (simple-symbol? t)
+    (symbol (string/replace (name t) #"(.*)__auto__\z" "$1"))
+    t))
 
 
 (comment
@@ -31,12 +29,10 @@
                   (when (number? y#)
                     (let [result# (+ y# y#)]
                       result#))))]
-    ((r/bottom-up
-      (r/choice strip-ns
-                strip-auto-gensym-tail))
+    ((r/bottom-up (r/pipe strip-ns
+                          strip-auto-gensym-tail))
      form))
   ;; =>
-
   '(when (vector? x__24958)
      (let [y__24959 (first x__24958)]
        (when (number? y__24959)
@@ -46,6 +42,8 @@
 
 ;; ---------------------------------------------------------------------
 ;; Clojure AST
+
+(declare clj-ast)
 
 (def dot-form-t1
   ;; (.foo bar baz)
@@ -82,10 +80,41 @@
 
 (let [dot-form-1 '(. "foo" (substring 1))
       dot-form-2 '(.substring "foo" 1)]
-  (dot-form-t1 dot-form-2))
+  (= '(. "foo" substring 1)
+     (dot-form-t dot-form-1)
+     (dot-form-t dot-form-2)))
 
 ;; ---------------------------------------------------------------------
-
+;; module prop-desugar
+;; imports prop libstrategolib
+;;
+;; rules
+;;
+;;   DefN  : Not(x)     -> Impl(x, False)
+;;   DefI  : Impl(x, y) -> Or(Not(x), y)
+;;   DefE  : Eq(x, y)   -> And(Impl(x, y), Impl(y, x))
+;;   DefO1 : Or(x, y)   -> Impl(Not(x), y)
+;;   DefO2 : Or(x, y)   -> Not(And(Not(x), Not(y)))
+;;   DefA1 : And(x, y)  -> Not(Or(Not(x), Not(y)))
+;;   DefA2 : And(x, y)  -> Not(Impl(x, Not(y)))
+;;
+;;   IDefI : Or(Not(x), y) -> Impl(x, y)
+;;
+;;   IDefE : And(Impl(x, y), Impl(y, x)) -> Eq(x, y)
+;;
+;; strategies
+;;
+;;   desugar =
+;;     topdown(try(DefI <+ DefE))
+;;
+;;   impl-nf =
+;;     topdown(repeat(DefN <+ DefA2 <+ DefO1 <+ DefE))
+;;
+;;   main-desugar =
+;;     io-wrap(desugar)
+;;
+;;   main-inf =
+;;     io-wrap(impl-nf)
 
 (def prop-n-t
   (r/t (not ~x)
@@ -121,144 +150,98 @@
   (r/top-down (r/choice prop-i-t prop-e-t)))
 
 
-;; module prop-desugar
-;; imports prop libstrategolib
-;; 
-;; rules
-;; 
-;;   DefN  : Not(x)     -> Impl(x, False)
-;;   DefI  : Impl(x, y) -> Or(Not(x), y)
-;;   DefE  : Eq(x, y)   -> And(Impl(x, y), Impl(y, x))
-;;   DefO1 : Or(x, y)   -> Impl(Not(x), y)
-;;   DefO2 : Or(x, y)   -> Not(And(Not(x), Not(y)))
-;;   DefA1 : And(x, y)  -> Not(Or(Not(x), Not(y)))
-;;   DefA2 : And(x, y)  -> Not(Impl(x, Not(y)))
-;; 
-;;   IDefI : Or(Not(x), y) -> Impl(x, y)
-;; 
-;;   IDefE : And(Impl(x, y), Impl(y, x)) -> Eq(x, y)
-;; 
-;; strategies
-;; 
-;;   desugar = 
-;;     topdown(try(DefI <+ DefE))
-;; 
-;;   impl-nf = 
-;;     topdown(repeat(DefN <+ DefA2 <+ DefO1 <+ DefE))
-;; 
-;;   main-desugar = 
-;;     io-wrap(desugar)
-;;   
-;;   main-inf =
-;;     io-wrap(impl-nf)
 
 
 ;; ---------------------------------------------------------------------
-;;
+;; AST
 
 (declare clj-ast)
 
+;; TOOD: :type, :record, :class, :var
+(defn clj-const [x]
+  (let [type (cond
+               (char? x)
+               :char
 
-(def clj-scalar
-  (r/t ~x
-    :when (not (coll? x))
-    :let [type (cond
-                 (keyword? x)
-                 :keyword
+               (boolean? x)
+               :bool
 
-                 (number? x)
-                 :number
+               (keyword? x)
+               :keyword
 
-                 (string? x)
-                 :string
+               (nil? x)
+               :nil
 
-                 :else
-                 ::unkown)]
+               (number? x)
+               :number
+
+               (map? x)
+               :map
+
+               (instance? java.util.regex.Pattern x)
+               :regex
+
+               (set? x)
+               :set
+
+               (seq? x)
+               :seq
+
+               (string? x)
+               :string
+
+               (symbol? x)
+               :symbol
+
+               (vector? x)
+               :vector
+
+               :else
+               :unkown)]
     {:op :const
-     :form ~x
+     :form x
      :literal? true
-     :type ~type
-     :val ~x
+     :type type
+     :val x
      :children []}))
 
-
-(def clj-map
-  (r/t ~x
-    :when (map? x)
-    :let [keys (mapv clj-ast (keys x))
-          vals (mapv clj-ast (vals x))]
-    {:op :map
-     :form ~x
-     :keys ~keys
-     :vals ~vals}))
+(defn at-key [k s]
+  (fn [t]
+    (if (map? t)
+      (update t k s)
+      t)))
 
 
-(def clj-vector
-  (r/t ~x
-    :when (vector? x)
-    :let [items (mapv clj-ast x)]
-    {:op :vector
-     :form ~x
-     :items ~items
-     :children [:items]}))
 
-(def clj-set
-  (r/t ~x
-    :when (set? x)
-    :let [items (mapv clj-ast x)]
-    {:op :set
-     :form ~x
-     :items ~items
-     :children [:items]}))
+;; Special
 
+(def clj-def
+  (r/repeat
+   (r/choice
+    (r/t (def ~name)
+      (def ~name nil nil))
+    (r/t (def ~name ~init)
+      (def ~name nil ~init))
+    (r/t (def ~name ~docstring ~init)
+      :as form
+      :let [init (clj-ast init)
+            var (ns-resolve *ns* name)
+            meta (when var (meta var))
+            children (cond-> []
+                       (some? meta)
+                       (conj :meta)
 
-(def clj-compound
-  (r/choice clj-vector
-            clj-map
-            clj-set))
+                       (some? init)
+                       (conj :init))]
+      {:op :def
+       :form ~form
+       :name ~name
+       :var ~var
+       :meta ~meta
+       :init ~init
+       :doc ~docstring
+       :children ~children}))))
 
-
-(def clj-def-1
-  (r/t (def ~name ~init)
-    :as form
-    :let [init (clj-ast init)
-          var (ns-resolve *ns* name)
-          meta (when var (meta var))
-          children (cond-> []
-                     (some? meta)
-                     (conj :meta)
-
-                     (some? init)
-                     (conj :init))]
-    {:op :def
-     :form ~form
-     :name ~name
-     :var ~var
-     :meta ~meta
-     :init ~init
-     :children ~children}))
-
-
-(def clj-def-2
-  (r/t (def ~name ~docstring ~init)
-    :as form
-    :let [init (clj-ast init)
-          var (ns-resolve *ns* name)
-          meta (when var (meta var))
-          children (cond-> []
-                     (some? meta)
-                     (conj :meta)
-
-                     (some? init)
-                     (conj :init))]
-    {:op :def
-     :form ~form
-     :name ~name
-     :var ~var
-     :meta ~meta
-     :init ~init
-     :doc ~docstring
-     :children ~children}))
 
 (def clj-do
   (r/t (do ~@statements ~ret)
@@ -272,14 +255,11 @@
      :ret ~ret
      :children [:statements :ret]}))
 
-(def clj-def
-  (r/choice clj-def-1
-            clj-def-2))
-
 
 (def clj-fn-1
   (r/t (fn* [~@args] ~@body)
     (fn* ([~@args] ~@body))))
+
 
 (def clj-fn-binding
   (r/t ~x
@@ -293,12 +273,13 @@
      :arg-id ~arg-id
      :variadic? false}))
 
+
 (def clj-fn-method
   (r/t ([~@params] ~@body)
     :as form
     :let [loop-id (gensym "loop__")
           variadic? (boolean (some '#{&} params))
-          params (vec (map clj-fn-binding (remove '#{&} params)))
+          params (mapv clj-fn-binding (remove '#{&} params))
           params (if (seq params)
                    (conj (pop params)
                          (assoc (peek params) :variadic? variadic?))
@@ -339,20 +320,171 @@
    (r/choice clj-fn-1
              clj-fn-2)))
 
+(def clj-host-field
+  (r/t (. ~target ~field)
+    :as form
+    :when (and (simple-symbol? field)
+               (. (name field) startsWith "-"))
+    :let [target* (clj-ast target)
+          field* (symbol (subs (name field) 1))]
+    {:op :host-field
+     :env nil
+     :form ~form
+     :target ~target*
+     :field ~field*
+     :children [:target]}))
+
+(def clj-host-call
+  (r/t (. ~target ~method ~@args)
+    :as form
+    :when (and (simple-symbol? method)
+               (not (. (name method) startsWith "-")))
+    :let [target* (clj-ast target)
+          args* (mapv clj-ast args)]
+    {:op :host-call
+     :env nil
+     :form ~form
+     :target ~target*
+     :method ~method
+     :args ~args*
+     :children [:target :args]}))
+
+
+(def clj-bad-host-expr
+  (r/t (. ~target ~method ~@args)
+    :as form
+    {:op :bad-host-expr
+     :form ~form}))
+
+
+(def clj-if
+  (r/t (if ~test ~then ~@rest)
+    :as form
+    :when (<= 0 (count rest) 1)
+    :let [test* (clj-ast test)
+          then* (clj-ast then)
+          else* (clj-ast (first rest))]
+    {:op :if
+     :env nil
+     :form ~form
+     :test ~test*
+     :then ~test*
+     :else ~else*
+     :children [:test :then :else]}))
+
+(def clj-quote
+  (fn [x]
+    (if (seq? x)
+      (let [[a expr & rest] x]
+        (if (and (= a 'quote)
+                 (not (seq rest)))
+          {:op :quote
+           :env nil
+           :expr (clj-const expr)
+           :form x
+           :literal? true
+           :chidren [:expr]}
+          x))
+      x))
+  ;; TODO: This results in a bug because parse-form is handling this
+  ;; wrong.
+  #_
+  (r/t (quote ~expr)
+    :as form
+    :let [expr* (clj-const expr)]
+    {:op :quote
+     :env nil
+     :expr ~expr*
+     :form ~form
+     :literal? true
+     :chidren [:expr]}))
+
+
+(def clj-invoke
+  (r/t (~f ~@args)
+    :as form
+    :let [fn (clj-ast f)
+          args (mapv clj-ast args)
+          meta (meta form)]
+    {:op :invoke
+     :env nil
+     :fn ~fn
+     :args ~args
+     :meta ~meta
+     :children [:fn :args]}))
+
+
+(def clj-new
+  (r/choice
+   (r/t (new ~class ~@args)
+     :as form
+     :when (symbol? class)
+     :let [args (mapv clj-ast args)]
+     {:op :new
+      :env nil
+      :form ~form
+      :class ~class
+      :args ~args
+      :children [:args]})
+   (r/t (new ~@args)
+     :as form
+     {:op :bad-new
+      :form ~form})))
+
+
 (def clj-special
   (r/choice clj-def
             clj-do
-            clj-fn))
+            clj-fn
+            clj-host-field
+            clj-host-call
+            clj-bad-host-expr
+            clj-if
+            clj-quote
+            clj-new
+            clj-invoke))
 
+
+(def clj-compound
+  (r/pipe (r/many clj-ast)
+          (r/choice
+           (r/t ~x
+             :when ((some-fn vector? set?) x)
+             :let [op (cond
+                        (vector? x)
+                        :vector
+
+                        (set? x)
+                        :set)
+                   form (into (empty x)
+                              (mapv (some-fn :form identity) x))]
+             {:op ~op
+              :env nil
+              :form ~form
+              :items ~x
+              :children [:items]})
+           (r/t ~x
+             :when (map? x)
+             :let [form (reduce-kv
+                         (fn [form k v]
+                           (assoc form (:form k) (:form v)))
+                         {}
+                         x)
+                   keys (vec (keys x))
+                   vals (vec (vals x))]
+             {:op :map
+              :env nil
+              :form ~form
+              :keys ~keys
+              :vals ~vals
+              :children [:keys :vals]}))))
 
 (def clj-ast
-  (r/choice clj-special
-            clj-scalar
-            clj-compound))
-
-(clj-ast
- '(def clj-ast
-    (fn* [x y] (do 3 2 1))))
+  (r/many-td
+   (r/choice (r/pipe macroexpand clj-ast)
+             clj-special
+             clj-compound
+             clj-const)))
 
 
 ;; ---------------------------------------------------------------------
