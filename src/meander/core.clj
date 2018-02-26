@@ -1717,7 +1717,7 @@
   (fn [t]
     (if (iall? t)
       (protocols/-all t s)
-      *fail*)))
+      t)))
 
 
 (defn all-td
@@ -1744,7 +1744,7 @@
   (fn [t]
     (if (ione? t)
       (protocols/-one t s)
-      *fail*)))
+      t)))
 
 
 (defn once-td
@@ -1775,7 +1775,7 @@
   (fn [t]
     (if (imany? t)
       (protocols/-many t s)
-      *fail*)))
+      t)))
 
 
 (defn many-td
