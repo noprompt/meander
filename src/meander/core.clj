@@ -1513,6 +1513,10 @@
       (list smap))))
 
 
+(defmethod print-method (class *pass*) [v ^java.io.Writer w]
+  (.write w "#meander/pass[]"))
+
+
 (def
   ^{:arglists '([t])
     :dynamic true}
