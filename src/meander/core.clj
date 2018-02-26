@@ -1179,7 +1179,6 @@
            ~body)))))
 
 
-
 (defn compile-seq-pattern
   {:private true}
   [p obj inner]
@@ -1481,91 +1480,6 @@
 
 
 ;; ---------------------------------------------------------------------
-;; transform macro
-
-(spec/def ::transform-args
-  (spec/cat
-   :pattern any?
-   :as-clause (spec/?
-               (spec/cat :as #{:as}
-                         :sym symbol?))
-   :clauses (spec/*
-             (spec/alt
-              :when-clause (spec/cat
-                            :when #{:when}
-                            :expr any?)
-              :let-clause (spec/cat
-                           :let #{:let}
-                           :bindings ::core.specs/bindings)))
-   :ret any?))
-
-
-(spec/fdef meander.core/transform
-  :args ::transform-args
-  :ret any?)
-
-(defmacro transform
-  {:arglists '([u-pattern clauses* s-pattern])
-   :style/indent :defn}
-  [& args]
-  (let [[u-pattern & rest-args] args
-        as (if (= (first rest-args) :as)
-             (second rest-args))
-        rest-args (if as
-                    (nnext rest-args)
-                    rest-args)
-        clauses* (butlast rest-args)
-        s-pattern (last rest-args)
-        u-var-syms (map (comp symbol name)
-                        (variables (parse-form u-pattern)))
-        s-var-syms (map (comp symbol name)
-                        (variables (parse-form s-pattern)))
-        meta-smap (into {}
-                        (map (juxt name identity)
-                             (set/intersection
-                              (set s-var-syms)
-                              (set (mapcat
-                                    (fn [clause]
-                                      (when (= (first clause) :let)
-                                        (take-nth 2 (destructure (second clause)))))
-                                    (partition 2 clauses*))))))
-        meta-smap (if as
-                    (assoc meta-smap (name as) as)
-                    meta-smap)
-        v `v#]
-    `(let [u-pattern# (pattern ~u-pattern)
-           s-pattern# (pattern ~s-pattern)]
-       (reify
-         clojure.lang.IFn
-         (clojure.lang.IFn/invoke [this# x#]
-           (if-some [smap# (protocols/-unify this# x# {})]
-             (protocols/-substitute this# (merge smap# (meta smap#)))
-             x#))
-
-         protocols/IUnify
-         (protocols/-unify [this# v# smap#]
-           (first (protocols/-unify* this# v# smap#)))
-
-         protocols/IUnify*
-         (protocols/-unify* [this# ~v smap#]
-           (for [~'&smap (unify* u-pattern# ~v smap#)
-                 :let [{:strs [~@u-var-syms]} ~'&smap
-                       ~@(when as (list as v))]
-                 ~@clauses*]
-             (with-meta ~'&smap ~meta-smap)))
-
-         protocols/ISubstitute
-         (protocols/-substitute [this# smap#]
-           (protocols/-substitute s-pattern# (merge smap# (meta smap#))))))))
-
-
-(defmacro t
-  {:style/indent :defn}
-  [& args]
-  `(transform ~@args))
-
-
-;; ---------------------------------------------------------------------
 ;; Strategy combinators
 ;;
 ;; A strategy is a unary function of a term and returns the term
@@ -1658,7 +1572,7 @@
     (first (protocols/-unify* this v smap)))
   
   protocols/IUnify*
-  (protocols/-unify* [_ v smap]
+  (-unify* [_ v smap]
     ((lconj
       (fn [smap]
         (protocols/-unify* p v smap))
@@ -2205,7 +2119,7 @@
      (invoke [this t]
        (if-unifies [smap* this t {}]
          (protocols/-substitute this smap*)
-         t))
+         *fail*))
 
 
      protocols/ISubstitute
@@ -2253,7 +2167,7 @@
      (invoke [this t]
        (if-unifies [smap* this t {}]
          (protocols/-substitute this smap*)
-         t))
+         *fail*))
 
      protocols/ISubstitute
      (-substitute [this smap]
@@ -2293,9 +2207,8 @@
      (invoke [this t]
        (if-some [smap (protocols/-unify this t {})]
          (protocols/-substitute this smap)
-         t))
+         *fail*))
 
-     protocols/IRule
 
      protocols/ISubstitute
      (-substitute [this smap]
@@ -2335,3 +2248,86 @@
   ([fsym id]
    {:pre [(symbol? fsym)]}
    `(monoid-t '~fsym ~id)))
+
+
+;; ---------------------------------------------------------------------
+;; transform macro
+
+(spec/def ::t
+  (spec/cat
+   :pattern any?
+   :as-clause (spec/?
+               (spec/cat :as #{:as}
+                         :sym symbol?))
+   :clauses (spec/*
+             (spec/alt
+              :when-clause (spec/cat
+                            :when #{:when}
+                            :expr any?)
+              :let-clause (spec/cat
+                           :let #{:let}
+                           :bindings ::core.specs/bindings)))
+   :ret any?))
+
+
+(spec/fdef meander.core/t
+  :args ::t
+  :ret any?)
+
+
+(defmacro t
+  {:arglists '([u-pattern clauses* s-pattern])
+   :style/indent :defn}
+  [& args]
+  (let [[u-pattern & rest-args] args
+        as (if (= (first rest-args) :as)
+             (second rest-args))
+        rest-args (if as
+                    (nnext rest-args)
+                    rest-args)
+        clauses* (butlast rest-args)
+        s-pattern (last rest-args)
+        u-var-syms (map (comp symbol name)
+                        (variables (parse-form u-pattern)))
+        s-var-syms (map (comp symbol name)
+                        (variables (parse-form s-pattern)))
+        meta-smap (into {}
+                        (map (juxt name identity)
+                             (set/intersection
+                              (set s-var-syms)
+                              (set (mapcat
+                                    (fn [clause]
+                                      (when (= (first clause) :let)
+                                        (take-nth 2 (destructure (second clause)))))
+                                    (partition 2 clauses*))))))
+        meta-smap (if as
+                    (assoc meta-smap (name as) as)
+                    meta-smap)
+        v `v#]
+    `(let [u-pattern# (pattern ~u-pattern)
+           s-pattern# (pattern ~s-pattern)]
+       (reify
+         clojure.lang.IFn
+         (clojure.lang.IFn/invoke [this# x#]
+           (if-some [smap# (protocols/-unify this# x# {})]
+             (protocols/-substitute this# (merge smap# (meta smap#)))
+             *fail*))
+
+         (clojure.lang.IFn/applyTo [this# args#]
+           (clojure.lang.AFn/applyToHelper this# args#))
+
+         protocols/IUnify
+         (protocols/-unify [this# v# smap#]
+           (first (protocols/-unify* this# v# smap#)))
+
+         protocols/IUnify*
+         (protocols/-unify* [this# ~v smap#]
+           (for [~'&smap (unify* u-pattern# ~v smap#)
+                 :let [{:strs [~@u-var-syms]} ~'&smap
+                       ~@(when as (list as v))]
+                 ~@clauses*]
+             (with-meta ~'&smap ~meta-smap)))
+
+         protocols/ISubstitute
+         (protocols/-substitute [this# smap#]
+           (protocols/-substitute s-pattern# (merge smap# (meta smap#))))))))
