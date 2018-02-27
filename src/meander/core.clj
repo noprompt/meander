@@ -1931,7 +1931,7 @@
   in conjunction with `juxt`.
 
   ((pipe
-    (juxt (thread keys (many keyword))
+    (juxt (comp (many keyword) keys)
           vals)
     (spread zipmap 2))
    {\"foo\" \"bar\"
