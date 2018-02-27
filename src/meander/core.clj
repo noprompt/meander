@@ -2140,6 +2140,15 @@
 ;; Tools
 
 
+(defn match?
+  "true if u unifies with v."
+  ([u]
+   (fn [v]
+     (match? u v)))
+  ([u v]
+   (some? (unify u v))))
+
+
 (defn extract
   "Return a lazy sequence of all instances of `v` in `t` that unify
   with `u`. If `u` supports implements substitution it will return
