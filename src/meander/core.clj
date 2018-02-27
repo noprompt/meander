@@ -1101,7 +1101,10 @@
 
               ;; Handle splicing variables in tail.
               [true false]
-              (let [splicing-var-count (count (filter splicing-variable? p-tail))]
+              (let [sub-var-syms (set/difference (set (map (comp symbol name) (variables p-tail)))
+                                                 seen-vars)
+                    splicing-vars (filter splicing-variable? p-tail)
+                    splicing-var-count (count splicing-vars)]
                 (if (< 1 splicing-var-count)
                   (let [inner* (fn [seen-vars]
                                  `(list ~(compile-smap seen-vars)))
@@ -1133,8 +1136,10 @@
                                 (into seen-vars* (variables x))])))
                          [[] seen-vars]
                          p)]
-                    `(when-some [~smap (unify* ~p* ~obj ~(compile-smap seen-vars))]
-                       ~(inner seen-vars*)))
+                    `(mapcat
+                      (fn [{:strs [~@sub-var-syms] :as ~smap}]
+                        ~(inner seen-vars*))
+                      (unify* ~p* ~obj ~(compile-smap seen-vars))))
                   (let [svec (gensym "subvec__")]
                     `(let [~svec (subvec ~obj (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
                        ~(compile-pattern (subvec p-tail 1)
