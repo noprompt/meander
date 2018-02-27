@@ -1439,7 +1439,8 @@
   :ret any?)
 
 (defmacro pattern
-  {:arglists '([form & {:keys [when]}])}
+  {:arglists '([form & {:keys [when]}])
+   :style/indent :defn}
   [form & {when-clause :when}]
   (let [obj (gensym "pattern_object__")
         smap (gensym "pattern_smap__")
