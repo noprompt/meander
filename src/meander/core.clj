@@ -2,6 +2,7 @@
   (:refer-clojure
    :exclude [bound?
              extend
+             while
              repeat
              replace
              resolve])
@@ -1688,7 +1689,10 @@
 
 
 (defn repeat
-  "Build a strategy which applies `p` to `t` repeatedly until fails.
+  "Build a strategy which applies `s` to `t` repeatedly until failure.
+  Note that, if used in conjunction with a strategy which never fails
+  i.e. `attempt`, this will cause a stack overflow. To avoid this, use
+  `while` or `until`.
 
   Example:
 
@@ -1707,6 +1711,55 @@
   [s]
   (fn rec [t]
     ((attempt (pipe s rec)) t)))
+
+
+(defn while
+  "Build a strategy which repeatedly applies `s` to `t` so long as `pred`
+  is false for `t` and `t*`.
+
+  ((while not=
+     (t (let [~@bvs ~b ~v] ~@body)
+       (let [~@bvs] ((fn [~b] ~@body) ~v))))
+   '(let [a 1
+          b 2
+          c 3]
+      (+ a b c)))
+  =>
+  (let [] ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1))"
+  {:style/indent :defn}
+  [pred s]
+  (fn rec [t]
+    ((pipe (attempt s)
+           (fn [t*]
+             (if (pred t t*)
+               (rec t*)
+               t*)))
+     t)))
+
+
+(defn until
+  "Build a strategy which repeatedly applies `s` to `t` so long as `pred`
+  is false for `t` and `t*`.
+
+  ((until =
+     (t (let [~@bvs ~b ~v] ~@body)
+       (let [~@bvs] ((fn [~b] ~@body) ~v))))
+   '(let [a 1
+          b 2
+          c 3]
+      (+ a b c)))
+  =>
+  (let [] ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1))"
+  {:style/indent :defn}
+  [pred s]
+  (fn rec [t]
+    ((pipe (attempt s)
+           (fn [t*]
+             (if (pred t t*)
+               t*
+               (rec t*))))
+     t)))
+
 
 
 (defn iall? [x]
@@ -1821,6 +1874,26 @@
   [s]
   (fn rec [t]
     ((pipe s (all rec)) t)))
+
+
+(defn top-down-while
+  "Build a strategy which applies `s` to each subterm of `t` from
+  top to bottom so long as `pred` is true for some subterm of `t`."
+  [pred s]
+  (fn rec [t]
+    (if (pred t)
+      ((pipe s (all rec)) t)
+      t)))
+
+
+(defn top-down-until
+  "Build a strategy which applies `s` to each subterm of `t` from
+  top to bottom untl as `pred` is false for some subterm of `t`."
+  [pred s]
+  (fn rec [t]
+    (if (pred t)
+      t
+      ((pipe s (all rec)) t))))
 
 
 (defn outermost
