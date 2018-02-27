@@ -1106,33 +1106,35 @@
                   (let [inner* (fn [seen-vars]
                                  `(list ~(compile-smap seen-vars)))
                         smap (gensym "smap__")
-                        [p*] (reduce
-                              (fn [[p* seen-vars*] x]
-                                (cond
-                                  (splicing-variable? x)
-                                  [(conj p* `(make-splicing-variable ~(name x)))
-                                   (conj seen-vars* x)]
+                        [p* seen-vars*]
+                        (reduce
+                         (fn [[p* seen-vars*] x]
+                           (cond
+                             (splicing-variable? x)
+                             [(conj p* `(make-splicing-variable ~(name x)))
+                              (conj seen-vars* x)]
 
-                                  (variable? x)
-                                  [(conj p* `(make-variable ~(name x)))
-                                   (conj seen-vars* x)]
+                             (variable? x)
+                             [(conj p* `(make-variable ~(name x)))
+                              (conj seen-vars* x)]
 
-                                  (ground? x)
-                                  [(conj p* x)
-                                   seen-vars*]
+                             (ground? x)
+                             [(conj p* x)
+                              seen-vars*]
 
-                                  :else
-                                  (let [obj (gensym "object__")]
-                                    [(conj p*
-                                           `(reify
-                                              protocols/IUnify*
-                                              (protocols/-unify* [this# ~obj ~smap]
-                                                (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
-                                                  ~(compile-pattern x obj inner* seen-vars*)))))
-                                     (into seen-vars* (map name (variables x)))])))
-                              [[] seen-vars]
-                              p)]
-                    `(unify* ~p* ~obj ~(compile-smap seen-vars)))
+                             :else
+                             (let [obj (gensym "object__")]
+                               [(conj p*
+                                      `(reify
+                                         protocols/IUnify*
+                                         (protocols/-unify* [this# ~obj ~smap]
+                                           (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
+                                             ~(compile-pattern x obj inner* seen-vars*)))))
+                                (into seen-vars* (variables x))])))
+                         [[] seen-vars]
+                         p)]
+                    `(when-some [~smap (unify* ~p* ~obj ~(compile-smap seen-vars))]
+                       ~(inner seen-vars*)))
                   (let [svec (gensym "subvec__")]
                     `(let [~svec (subvec ~obj (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
                        ~(compile-pattern (subvec p-tail 1)
@@ -1296,7 +1298,7 @@
                      ~(compile-pattern rv lv f seen-vars)))))
             inner
             p)
-           #{})))
+           seen-vars)))
     (fn do-map-2 [seen-vars]
       `(unify-map* (parse-form '~(unparse-form p))
                    ~obj
