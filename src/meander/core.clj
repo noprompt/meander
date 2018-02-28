@@ -1572,10 +1572,9 @@
   clojure.lang.IFn
   (invoke [_ t]
     (let [t* (p t)]
-      (let [t* (p t)]
-        (if (fail? t*)
-          *fail*
-          (q t*)))))
+      (if (fail? t*)
+        *fail*
+        (q t*))))
 
   (applyTo [this args]
     (clojure.lang.AFn/applyToHelper this args))
