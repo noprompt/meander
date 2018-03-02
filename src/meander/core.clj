@@ -1164,8 +1164,10 @@
                          (reverse (map vector (range) pattern envs)))]
         `(if ~(if (type-check? pattern)
                 `(and (seq? ~target)
-                      (= ~m (count (take ~m ~target))))
-                `(= ~m (count (take ~m ~target))))
+                      (= ~m (count (take ~m ~target)))
+                      (not (seq (drop ~m ~target))))
+                `(and (= ~m (count (take ~m ~target)))
+                      (not (seq (drop ~m ~target)))))
            ~inner-form*))
 
       ;; The sequence has a variable length.
