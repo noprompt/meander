@@ -2,10 +2,12 @@
   (:require
    [clojure.core :as clj]
    [clojure.zip :as zip]
+   [clojure.set :as set]
    [clojure.string :as string]
    [clojure.test :as t]
    [meander.core :as r]
-   [meander.protocols :as protocols]))
+   [meander.protocols :as protocols])
+  (:import [meander.core.Variable]))
 
 ;; ---------------------------------------------------------------------
 ;; Tools
@@ -22,6 +24,11 @@
     (symbol (string/replace (name t) #"(.*)__auto__\z" "$1"))
     t))
 
+
+(def clean-macroexpand
+  (r/top-down
+   (r/choice strip-ns
+             strip-auto-gensym-tail)))
 
 (comment
   (let [form `(when (vector? x#)
@@ -509,6 +516,7 @@
 
 
 
+#_
 (t/is (match? [{:a
                 {:reason :requested
                  :date "2018-02-02"}}]
@@ -516,6 +524,7 @@
                 {:date "2018-02-02"
                  :reason :requested}}]))
 
+#_
 (t/is (match? [{:a
                 {:reason :ordered
                  :date ~date}}]
@@ -523,4 +532,175 @@
                 {:date "2018-02-02"
                  :reason :requested}}]))
 
+#_
 (t/is (match? [~x 2] [1 2 3]))
+
+
+
+(def garden-declaration-block
+  (r/guard map?
+    (fn [m]
+      (reduce-kv
+       (fn [decl k v]
+         (conj decl
+               [:css/declaration
+                [:css.declaration/property k]
+                [:css.declaration/value v]]))
+       [:css.declaration/block]
+       m))))
+
+(defn garden-atomic-selector
+  [x]
+  (cond
+    (keyword? x)
+    [:css.selector/simple (name x)]
+
+    (symbol? x)
+    [:css.selector/simple (name x)]
+
+    (string? x)
+    [:css.selector/simple x]
+
+    :else
+    r/*fail*))
+
+
+(def garden-compound-selector
+  (r/t [~@selectors]
+    :when (seq selectors)
+    :let [selectors* ((r/all garden-atomic-selector) selectors)]
+    [:css.selector/compound ~@selectors*]))
+
+(garden-compound-selector [:h1 :h2])
+
+
+(require '[fipp.edn])
+(require '[fipp.engine])
+
+(defn fipp-text-node
+  [s]
+  (r/pipe (juxt (r/build [:text]) s)
+          (r/spread conj 2)))
+
+(def fipp-line
+  (r/build [:line "\n" ""]))
+
+(declare to-fipp)
+
+(defn fipp-when [t]
+  ((r/t (when ~p ~@body)
+     :let [p* (to-fipp p)
+           body* (butlast (mapcat (juxt to-fipp fipp-line) body))]
+     [:span
+      [:text "(when "]
+      ~p*
+      [:line "\n" ""]
+      [:nest ~@body*]
+      [:text ")"]])
+   t))
+
+
+(defn fipp-if [t]
+  ((r/choice
+    (r/pipe (r/t (if ~test ~then)
+              (if ~test ~then nil))
+            fipp-if)
+    (r/t (if ~test ~then ~else)
+      :let [test* (to-fipp test)
+            then* (to-fipp then)
+            else* (to-fipp else)]
+      [:span
+       [:text "(if "]
+       ~test*
+       [:line "\n" ""]
+       [:nest ~then*]
+       [:line "\n" ""]
+       [:nest ~else*]
+       [:text ")"]]))
+   t))
+
+
+(def fipp-symbol
+  (r/pipe (r/pred symbol?)
+          (fipp-text-node pr-str)))
+
+(def fipp-constant
+  (r/pipe
+   (r/pred (some-fn keyword? nil? number? string?))
+   (fipp-text-node pr-str)))
+
+
+(defn fipp-span [& ps]
+  (r/pipe
+   (r/tuple (r/build [:span])
+            (apply r/tuple ps))
+   (r/spread into)))
+
+
+(defn fipp-sep-by
+  ([x]
+   (r/pipe (r/tuple (r/build x) identity)
+           (r/spread interpose)))
+  ([s x]
+   (r/pipe s (fipp-sep-by x))))
+
+
+(defn fipp-span [& ps]
+  (r/pipe
+   (r/tuple (r/build [:span])
+            (apply r/tuple ps))
+   (r/spread into)))
+
+
+(defn to-fipp [form]
+  ((r/bottom-up
+    (r/choice
+     (r/t (if ~test ~then ~else)
+       [:span
+        [:text "(if "]
+        ~test
+        [:line "\n" ""]
+        [:nest ~then]
+        [:line "\n" ""]
+        [:nest ~else]
+        [:text ")"]])
+     (r/t (when ~test ~@body)
+       [:span
+        [:text "(when"]])
+     (r/pipe (r/pred seq?)
+             (fipp-span
+              (r/build [:text "("])
+              (fipp-sep-by (r/all (r/attempt fipp-symbol))
+                           [:text " "])
+              (r/build [:text ")"])))
+     (r/pipe (r/pred map?)
+             (fipp-span
+              (r/build [:text "{"])
+              (r/pipe seq
+                      (r/all
+                       (fn [[k v]]
+                         [[:align 1
+                           [:span
+                            k
+                            [:text " "]
+                            v]]
+                          [:line "\n" ""]]))
+                      (r/spread concat)
+                      butlast)
+              (r/build [:text "}"])))
+     (r/pipe (r/pred vector?)
+             (fipp-span
+              (r/build [:text "["])
+              (r/pipe (r/tuple (r/build [:text " "])
+                               seq)
+                      (r/spread interpose))
+              (r/build [:text "]"])))
+     fipp-constant
+     r/*pass*))
+   form))
+
+
+#_
+(fipp.engine/pprint-document
+ (to-fipp '(if (= foo bar) {:foo "bar"} 2))
+ {})
