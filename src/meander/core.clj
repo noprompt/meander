@@ -2077,6 +2077,27 @@
            t))
        t))))
 
+
+(defn tuple
+  "Build a s juxt"
+  ([]
+   (build []))
+  ([p]
+   (pipe p vector))
+  ([p q]
+   (fn [t]
+     (let [t*1 (p t)]
+       (if (fail? t*1)
+         *fail*
+         (let [t*2 (q t)]
+           (if (fail? t*2)
+             *fail*
+             [t*1 t*2]))))))
+  ([p q & more]
+   (pipe (apply tuple (tuple p q) more)
+         (spread conj))))
+
+
 (extend-type clojure.lang.IPersistentVector
   protocols/IAll
   (-all [this s]
