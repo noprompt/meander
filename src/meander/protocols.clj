@@ -65,3 +65,8 @@
 (defprotocol IMany
   (-many [term strategy]
     "Apply strategy to at least one subterm in term."))
+
+
+(defprotocol ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    "Compile to Clojure code."))

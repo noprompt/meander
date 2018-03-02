@@ -1066,318 +1066,436 @@
 ;; ---------------------------------------------------------------------
 ;; Pattern compilation
 
-(defn subvec?
+
+(defn type-check?
   {:private true}
-  [x]
-  (instance? clojure.lang.APersistentVector$SubVector x))
+  [pattern]
+  (get (meta pattern) ::type-check? true))
+
+
+(defn no-type-check
+  {:private true}
+  [pattern]
+  (vary-meta pattern assoc ::type-check? false))
 
 
 (defn compile-smap
   {:private true}
-  [seen-vars]
-  `(hash-map
-    ~@(mapcat
-       (fn [v]
-         `(~(name v)
-           ~(symbol (name v))))
-       seen-vars)))
+  [env]
+  `(hash-map ~@(mapcat (juxt identity symbol) env)))
 
 
-(declare compile-pattern)
-
-
-(defn compile-vector-pattern
+(defn derive-env
   {:private true}
-  [p obj inner]
-  {:pre [(vector? p)]}
-  (fn do-vec [seen-vars]
-    (let [body
-          (let [[p-init p-tail] (map vec (split-with not-splicing-variable? p))]
-            (case [(empty? p-init) (empty? p-tail)]
-              ;; Nothing there.
-              [true true]
-              `(when (seq ~obj)
-                 ~(inner seen-vars))
-
-              ;; Handle splicing variables in tail.
-              [true false]
-              (let [sub-var-syms (set/difference (set (map (comp symbol name) (variables p-tail)))
-                                                 seen-vars)
-                    splicing-vars (filter splicing-variable? p-tail)
-                    splicing-var-count (count splicing-vars)]
-                (if (< 1 splicing-var-count)
-                  (let [inner* (fn [seen-vars]
-                                 `(list ~(compile-smap seen-vars)))
-                        smap (gensym "smap__")
-                        [p* seen-vars*]
-                        (reduce
-                         (fn [[p* seen-vars*] x]
-                           (cond
-                             (splicing-variable? x)
-                             [(conj p* `(make-splicing-variable ~(name x)))
-                              (conj seen-vars* x)]
-
-                             (variable? x)
-                             [(conj p* `(make-variable ~(name x)))
-                              (conj seen-vars* x)]
-
-                             (ground? x)
-                             [(conj p* x)
-                              seen-vars*]
-
-                             :else
-                             (let [obj (gensym "object__")]
-                               [(conj p*
-                                      `(reify
-                                         protocols/IUnify*
-                                         (protocols/-unify* [this# ~obj ~smap]
-                                           (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
-                                             ~(compile-pattern x obj inner* seen-vars*)))))
-                                (into seen-vars* (variables x))])))
-                         [[] seen-vars]
-                         p)]
-                    `(mapcat
-                      (fn [{:strs [~@sub-var-syms] :as ~smap}]
-                        ~(inner seen-vars*))
-                      (unify* ~p* ~obj ~(compile-smap seen-vars))))
-                  (let [svec (gensym "subvec__")]
-                    `(let [~svec (subvec ~obj (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
-                       ~(compile-pattern (subvec p-tail 1)
-                                         svec
-                                         (fn [seen-vars]
-                                           (let [svec (gensym "subvec__")]
-                                             `(let [~svec (subvec ~obj 0 (max 0 (- (count ~obj) ~(dec (count p-tail)))))]
-                                                ~((compile-pattern (first p-tail) svec inner)
-                                                  seen-vars))))
-                                         seen-vars)))))
-
-              ;; No splicing variables in the pattern.
-              [false true]
-              `(when (= (count ~obj) ~(count p))
-                 ~((reduce
-                    (fn [f [i v]]
-                      (fn [seen-vars]
-                        (let [x (gensym "vec_val__")]
-                          `(let [~x (nth ~obj ~i)]
-                             ~(compile-pattern v x f seen-vars)))))
-                    inner
-                    (reverse
-                     (map-indexed vector p)))
-                   seen-vars))
-
-              ;; Recurse with existing logic.
-              [false false]
-              (let [svec (gensym "subvec__")]
-                `(when (<= ~(count p-init) (count ~obj))
-                   (let [~svec (subvec ~obj 0 ~(count p-init))]
-                     ~(compile-pattern
-                       p-init
-                       svec
-                       (fn [seen-vars]
-                         (let [svec (gensym "subvec__")]
-                           `(let [~svec (subvec ~obj ~(count p-init))]
-                              ~(compile-pattern p-tail svec inner seen-vars))))
-                       seen-vars))))))]
-      ;; If `p` is a subvector then we assume it was produced by
-      ;; this function and avoid type checking `obj` in the the
-      ;; generated code.
-      (if (subvec? p)
-        body
-        `(when (vector? ~obj)
-           ~body)))))
-
-
-(defn compile-seq-pattern
-  {:private true}
-  [p obj inner]
-  {:pre [(seq? p)]}
-  (fn do-seq [seen-vars]
-    (let [body
-          (let [[p-init p-tail] (map (partial apply list)
-                                     (split-with not-splicing-variable? p))]
-            (case [(empty? p-init) (empty? p-tail)]
-              ;; Nothing there.
-              [true true]
-              (inner seen-vars)
-
-              ;; Handle splicing variables in tail.
-              [true false]
-              (let [splicing-var-count (count (filter splicing-variable? p-tail))]
-                (if (< 1 splicing-var-count)
-                  (let [inner* (fn [seen-vars]
-                                 `(list ~(compile-smap seen-vars)))
-                        smap (gensym "smap__")
-                        [p*] (reduce
-                              (fn [[p* seen-vars*] x]
-                                (cond
-                                  (splicing-variable? x)
-                                  [(concat p* `((make-splicing-variable ~(name x))))
-                                   (conj seen-vars* x)]
-
-                                  (variable? x)
-                                  [(concat p* `((make-variable ~(name x))))
-                                   (conj seen-vars* x)]
-
-                                  (ground? x)
-                                  [(concat p* (list x))
-                                   seen-vars*]
-
-                                  :else
-                                  (let [obj (gensym "obj__")]
-                                    [(concat
-                                      p*
-                                      `((reify
-                                          protocols/IUnify*
-                                          (protocols/-unify* [this# ~obj ~smap]
-                                            (let [{:strs [~@(map (comp symbol name) seen-vars*)]} ~smap]
-                                              ~(compile-pattern x obj inner* seen-vars*))))))
-                                     (into seen-vars* (map name (variables x)))])))
-                              [`(list) seen-vars]
-                              p)]
-                    `(unify* ~p* ~obj ~(compile-smap seen-vars)))
-                  (let [subseq (gensym "subseq__")
-                        splice-var (first p-tail)
-                        p-tail* (rest p-tail)
-                        rest-seq (gensym "rest_seq__")]
-                    `(let [i# (max 0 (- (count ~obj) ~(count p-tail*)))
-                           ~subseq (take i# ~obj)
-                           ~rest-seq (drop i# ~obj)]
-                       ~(compile-pattern
-                         splice-var
-                         subseq
-                         (fn [seen-vars]
-                           ((compile-seq-pattern
-                             (with-meta p-tail* {::subseq? true})
-                             rest-seq
-                             inner)
-                            seen-vars))
-                         seen-vars)))))
-
-              ;; No splicing variables in the pattern.
-              [false true]
-              `(when (= (count ~obj) ~(count p))
-                 ~((reduce
-                    (fn [f [i v]]
-                      (fn [seen-vars]
-                        (let [x (gensym "seq_val__")]
-                          `(let [~x (nth ~obj ~i)]
-                             ~(compile-pattern v x f seen-vars)))))
-                    inner
-                    (reverse
-                     (map-indexed vector p)))
-                   seen-vars))
-
-              ;; Recurse with existing logic.
-              [false false]
-              (let [subseq (gensym "subseq__")]
-                `(let [~subseq (take ~(count p-init) ~obj)]
-                   ~((compile-seq-pattern
-                      (with-meta p-init {::subseq? true})
-                      subseq
-                      (fn [seen-vars]
-                        (let [subseq (gensym "subseq__")]
-                          `(let [~subseq (drop ~(count p-init) ~obj)]
-                             ~((compile-seq-pattern
-                                (with-meta p-tail {::subseq? true})
-                                subseq
-                                inner)
-                               seen-vars)))))
-                     seen-vars)))))]
-      (if (::subseq? (meta p))
-        body
-        `(when (seq? ~obj)
-           ~body)))))
-
-(defn compile-map-pattern
-  {:private true}
-  [p obj inner]
-  (if (ground? (keys p))
-    (fn do-map-1 [seen-vars]
-      `(when (map? ~obj)
-         ~((reduce-kv
-            (fn [f rk rv]
-              (let [lk (gensym "key__")
-                    lv (gensym "val__")]
-                (fn [seen-vars]
-                  `(when-some [[~lk ~lv] (find ~obj ~rk)]
-                     ~(compile-pattern rv lv f seen-vars)))))
-            inner
-            p)
-           seen-vars)))
-    (fn do-map-2 [seen-vars]
-      `(unify-map* (parse-form '~(unparse-form p))
-                   ~obj
-                   ~(compile-smap seen-vars)))))
-
-(defn compile-set-pattern
-  {:private true}
-  [p obj inner]
-  (fn do-set [seen-vars]
-    `(when (set? ~obj)
-       (unify*
-        ~(set (map
-               (fn [x]
-                 (cond
-                   (splicing-variable? x)
-                   `(make-splicing-variable ~(name x))
-
-                   (variable? x)
-                   `(make-variable ~(name x))
-
-                   (ground? x)
-                   x
-
-                   :else
-                   (let [obj `obj#
-                         smap `smap#
-                         inner* (fn [seen-vars]
-                                  `(list (merge ~smap ~(compile-smap seen-vars))))]
-                     `(reify
-                        protocols/IUnify*
-                        (~'-unify* [this# ~obj ~smap]
-                         (let [~@(mapcat
-                                  (fn [v]
-                                    [(symbol v) `(get ~smap ~v)])
-                                  (map name seen-vars))]
-                           ~(compile-pattern x obj inner* seen-vars)))))))
-               p))
-        ~obj
-        ~(compile-smap seen-vars)))))
+  [form]
+  (fmap name (variables form)))
 
 
 (defn compile-pattern
   {:private true}
-  ([p obj inner]
-   (cond
-     ;; Handles splicing variables too.
-     (variable? p)
-     (fn do-var [seen-vars]
-       (if (contains? seen-vars (name p))
-         `(let [v# ~obj]
-            (if (= v# ~(symbol (name p)))
-              ~(inner seen-vars)))
-         `(let [~(symbol (name p)) ~obj]
-            ~(inner (conj seen-vars (name p))))))
+  [pattern target inner-form env]
+  (if (satisfies? protocols/ICompilePattern pattern)
+    (protocols/-compile-pattern pattern target inner-form env)
+    `(if (= ~target ~pattern)
+       ~inner-form)))
 
-     (and (ground? p)
-          (not (map? p)))
-     (fn do-gound [seen-vars]
-       `(when (= ~obj '~p)
-          ~(inner seen-vars)))
 
-     (vector? p)
-     (compile-vector-pattern p obj inner)
+(defn compile-seq-pattern
+  {:private true}
+  [pattern target inner-form env]
+  (let [;; Divorce the non-variable and variable length portions of the
+        ;; collection.
+        [non-var-side var-side] (split-with not-splicing-variable? pattern)]
+    (case [(empty? non-var-side) (empty? var-side)]
+      ;; If the right side is an empty seq we can execute inner-form.
+      [true true]
+      `(if ~(if (type-check? pattern)
+              `(and (seq? ~target)
+                    (not (seq ~target)))
+              `(not (seq ~target)))
+         ~inner-form)
 
-     (seq? p)
-     (compile-seq-pattern p obj inner)
+      ;; The sequence has a non-variable length.
+      [false true]
+      (let [ ;; Because we're compiling from left to right, each term in
+            ;; the sequence needs to be compiled with the union of it's
+            ;; left siblings environments. The first term in the
+            ;; sequence uses the current environment. So if we had a
+            ;; current environment of #{} and the sequence
+            ;;
+            ;;   (~x ~y ~z)
+            ;;
+            ;; we'd have an environment sequence of
+            ;;
+            ;;   (#{} #{"x"} #{"x" "y"} #{"x" "y" "z"})
+            ;;
+            envs (reductions set/union (cons env (map derive-env pattern)))
+            ;; Now we want to compile something which looks similar to
+            ;;
+            ;;   (if (and (seq? TARGET)
+            ;;            (= M (count (take M TARGET))))
+            ;;     (let [NEW_TARGET (nth TARGET INDEX)]
+            ;;       INNER-FORM*))
+            ;;
+            ;; where
+            ;;
+            ;;    TARGET is our current target,
+            ;;    M is the size of the pattern,
+            ;;    INDEX is the element index, and
+            ;;    INNER-FORM* is the current inner form.
+            ;;
+            ;; To do this we build a triple of index, pattern element,
+            ;; environment,
+            ;;
+            ;;    ([0 ~x #{}], [1 ~y #{"x"}], [2 ~z #{"x" "y"}])
+            ;;
+            ;; and compile each inner form from right to left. We go
+            ;; right to left because the right side compiles the inner
+            ;; most form. Note, the final element of the environment
+            ;; sequence is not needed in this case, however, it is
+            ;; needed when compiling variable length sequences.
+            m (count pattern)
+            inner-form* (reduce
+                         (fn [inner-form* [index term env]]
+                           (let [target* (gensym (str "nth_" index "__"))]
+                             `(let [~target* (nth ~target ~index)]
+                                ~(compile-pattern term target* inner-form* env))))
+                         inner-form
+                         (reverse (map vector (range) pattern envs)))]
+        `(if ~(if (type-check? pattern)
+                `(and (seq? ~target)
+                      (= ~m (count (take ~m ~target))))
+                `(= ~m (count (take ~m ~target))))
+           ~inner-form*))
 
-     (map? p)
-     (compile-map-pattern p obj inner)
+      ;; The sequence has a variable length.
+      [true false]
+      (let [envs (reductions set/union (cons env (map derive-env pattern)))
+            pattern* (map
+                      (fn [term env ret-env]
+                        (cond
+                          (splicing-variable? term)
+                          (if (contains? env (name term))
+                            (symbol (name term))
+                            `(list (make-splicing-variable ~(name term))))
 
-     (set? p)
-     (compile-set-pattern p obj inner)))
-  ([p obj inner seen-vars]
-   ((compile-pattern p obj inner) seen-vars)))
+                          (variable? term)
+                          (if (contains? env (name term))
+                            `(list ~(symbol (name term)))
+                            `(list (make-variable ~(name term))))
+
+                          (ground? term)
+                          `(list ~term)
+
+                          :else
+                          (let [target (gensym "nth__")]
+                            `(list
+                              (reify
+                                protocols/IUnify*
+                                (protocols/-unify* [~'_ ~target smap#]
+                                  ~(compile-pattern
+                                    term
+                                    target
+                                    `(list ~(compile-smap ret-env))
+                                    env)))))))
+                      pattern
+                      envs
+                      (rest envs))
+            inner-form* `(unify* (concat ~@pattern*) ~target ~(compile-smap env))]
+        (if (type-check? pattern)
+          `(if (and (seq? ~target)
+                    (seq target))
+             ~inner-form*)
+          inner-form*))
+
+      [false false]
+      (let [subseq-1 (gensym "seq__")
+            subseq-2 (gensym "seq__")
+            inner-form* `(let [~subseq-2 (drop ~(count non-var-side) ~target)]
+                           ~(compile-seq-pattern (no-type-check var-side)
+                                                 subseq-2
+                                                 inner-form
+                                                 (set/union env (derive-env non-var-side))))
+            inner-form* `(let [~subseq-1 (take ~(count non-var-side) ~target)]
+                           ~(compile-seq-pattern (no-type-check non-var-side)
+                                                 subseq-1
+                                                 inner-form*
+                                                 env))]
+        (if (type-check? pattern)
+          `(if (seq? ~target)
+             ~inner-form*)
+          inner-form*)))))
+
+
+(defn compile-vector-pattern
+  {:private true}
+  [pattern target inner-form env]
+  (let [[non-var-side var-side] (split-with not-splicing-variable? pattern)]
+    (case [(empty? non-var-side) (empty? var-side)]
+      [true true]
+      `(if ~(if (type-check? pattern)
+              `(and (vector? ~target)
+                    (not (= ~target [])))
+              `(not (= ~target [])))
+         ~inner-form)
+
+      [false true]
+      (let [envs (reductions set/union (cons env (map derive-env pattern)))
+            m (count pattern)
+            inner-form* (reduce
+                         (fn [inner-form* [index term env]]
+                           (let [target* (gensym (str "nth_" index "__"))]
+                             `(let [~target* (nth ~target ~index)]
+                                ~(compile-pattern term target* inner-form* env))))
+                         inner-form
+                         (reverse (map vector (range) pattern envs)))]
+        `(if ~(if (type-check? pattern)
+                `(and (vector? ~target)
+                      (= ~m (count ~target)))
+                `(= ~m (count ~target)))
+           ~inner-form*))
+
+      ;; The sequence has a variable length.
+      [true false]
+      (let [envs (reductions set/union (cons env (map derive-env pattern)))
+            ;; Build vector pattern.
+            pattern* (reduce
+                      (fn [vec-form [term env ret-env]]
+                        (cond
+                          (splicing-variable? term)
+                          (if (contains? env (name term))
+                            `(into ~vec-form ~(symbol (name term)))
+                            `(conj ~vec-form (make-splicing-variable ~(name term))))
+
+                          (variable? term)
+                          ~(if (contains? env (name term))
+                             `(conj ~vec-form ~(symbol (name term)))
+                             `(conj ~vec-form (make-variable ~(name term))))
+
+                          (ground? term)
+                          `(conj ~vec-form ~term)
+
+                          :else
+                          (let [target (gensym "nth__")]
+                            `(conj ~vec-form
+                                   (reify
+                                     protocols/IUnify*
+                                     (protocols/-unify* [~'_ ~target smap#]
+                                       ~(compile-pattern
+                                         term
+                                         target
+                                         `(list ~(compile-smap ret-env))
+                                         env)))))))
+                      []
+                      (map vector pattern envs (rest envs)))
+            smap (gensym "smap__")
+            ret-env (derive-env pattern)
+            inner-form* `(mapcat
+                          (fn [~smap]
+                            (let [{:strs ~(mapv symbol ret-env)} ~smap]
+                              ~inner-form))
+                          (unify* ~pattern* ~target ~(compile-smap env)))]
+        (if (type-check? pattern)
+          `(if (and (seq? ~target)
+                    (seq ~target))
+             ~inner-form*)
+          inner-form*))
+
+      [false false]
+      (let [subvec-1 (gensym "vec__")
+            subvec-2 (gensym "vec__")
+            inner-form*
+            `(let [~subvec-2 (subvec ~target ~(count non-var-side))]
+               ~(compile-vector-pattern (no-type-check var-side)
+                                        subvec-2
+                                        inner-form
+                                        (set/union env (derive-env non-var-side))))
+            inner-form*
+            `(if (contains? ~target ~(dec (count non-var-side))) ;; Bounds check.
+               (let [~subvec-1 (subvec ~target 0 ~(count non-var-side))]
+                 ~(compile-vector-pattern (no-type-check non-var-side)
+                                          subvec-1
+                                          inner-form*
+                                          env)))]
+        (if (type-check? pattern)
+          `(if (vector? ~target)
+             ~inner-form*)
+          inner-form*)))))
+
+
+(defn compile-set-pattern
+  {:private true}
+  [pattern target inner-form env]
+  (let [pattern* (fmap
+                  (fn [x]
+                    (cond
+                      ;; Currently not supported.
+                      (splicing-variable? x)
+                      (if (contains? env (name x))
+                        (symbol (name x))
+                        `(make-splicing-variable ~(name x)))
+
+                      (variable? x)
+                      (if (contains? env (name x))
+                        (symbol (name x))
+                        `(make-variable ~(name x)))
+
+                      (ground? x)
+                      x
+
+                      :else
+                      (let [target (gensym "target__")
+                            smap-in (gensym "smap_in__")
+                            smap-out (gensym "smap_out__")
+                            ret-env (set/union env (derive-env x))]
+                        `(reify
+                           protocols/IUnify*
+                           (protocols/-unify* [~'_ ~target ~smap-in]
+                             ~(compile-pattern
+                               x
+                               target
+                               `(mapcat
+                                 (fn [~smap-out]
+                                   (if (and ~@(map
+                                               (fn [var-name]
+                                                 `(or (not (contains? ~smap-in ~var-name))
+                                                      (= (get ~smap-out ~var-name)
+                                                         (get ~smap-in ~var-name))))
+                                               ret-env))
+                                     (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) ret-env)))))
+                                 (list ~(compile-smap ret-env))) 
+                               env))))))
+                  pattern)
+        smap (gensym "smap__")
+        ret-env (derive-env pattern)]
+    `(if (set? ~target)
+       (mapcat
+        (fn [~smap]
+          (let [{:strs ~(mapv symbol ret-env)} ~smap]
+            ~inner-form))
+        (unify* ~pattern* ~target)))))
+
+
+(defn compile-map-pattern
+  {:private true}
+  [pattern target inner-form env]
+  (if (ground? (keys pattern))
+    (reduce-kv
+     (fn [inner-form* k v]
+       (let [val-target (gensym "val__")
+             ret-env (set/union env (derive-env v))]
+         `(if-some [[~'_ ~val-target] (find ~target ~k)]
+            ~(compile-pattern v
+                              val-target
+                              inner-form*
+                              env))))
+     inner-form
+     pattern)
+    (let [pattern* (fmap
+                    (fn [[k v]]
+                      (let [k* (cond
+                                 (ground? k)
+                                 k
+
+                                 (variable? k)
+                                 `(make-variable ~(name k)))
+                            val-target (gensym "val__")
+                            smap-in (gensym "smap_in__")
+                            smap-out (gensym "smap_out__")
+                            ret-env (set/union env (derive-env v))
+                            v* `(reify
+                                  protocols/IUnify*
+                                  (protocols/-unify* [~'_ ~val-target ~smap-in]
+                                    ~(compile-pattern
+                                      v
+                                      val-target
+                                      `(do
+                                         (mapcat
+                                          (fn [~smap-out]
+                                            (if (and ~@(map
+                                                        (fn [var-name]
+                                                          `(or (not (contains? ~smap-in ~var-name))
+                                                               (= (get ~smap-out ~var-name)
+                                                                  (get ~smap-in ~var-name))))
+                                                        ret-env))
+                                              (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) ret-env)))))
+                                          (list ~(compile-smap ret-env))))
+                                      env)))]
+                        [k* v*]))
+                    pattern)
+          smap (gensym "smap__")
+          ret-env (derive-env pattern)]
+      `(if (map? ~target)
+         (mapcat
+          (fn [~smap]
+            (let [{:strs ~(mapv symbol ret-env)} ~smap]
+              (list ~smap)))
+          (unify* ~pattern* ~target))))))
+
+
+(extend-type meander.core.Variable
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (if (contains? env (name this))
+      `(let [target# ~target]
+         (if (= target# ~(symbol (name this)))
+           ~inner-form))
+      `(let [~(symbol (name this)) ~target]
+         ~inner-form))))
+
+
+(extend-type clojure.lang.Symbol
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    `(if (= ~target '~this)
+       ~inner-form)))
+
+
+(extend-type meander.core.SplicingVariable
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (if (contains? env (name this))
+      `(let [target# ~target]
+         (if (= target# ~(symbol (name this)))
+           ~inner-form))
+      `(let [~(symbol (name this)) ~target]
+         ~inner-form))))
+
+
+(extend-type clojure.lang.ISeq
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (if (ground? this)
+      `(if (= ~target '~this)
+         ~inner-form) 
+      (compile-seq-pattern this target inner-form env))))
+
+
+(extend-type clojure.lang.IPersistentVector
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (if (ground? this)
+      `(if (= ~target ~this)
+         ~inner-form)
+      (compile-vector-pattern this target inner-form env))))
+
+
+(extend-type clojure.lang.IPersistentSet
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (if (ground? this)
+      `(if (= ~target ~this)
+         ~inner-form)
+      (compile-set-pattern this target inner-form env))))
+
+
+(extend-type clojure.lang.IPersistentMap
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (if (ground? this)
+      `(if (= ~target ~this)
+         ~inner-form)
+      (compile-map-pattern this target inner-form env))))
 
 
 ;; ---------------------------------------------------------------------
@@ -1449,8 +1567,8 @@
   {:arglists '([form & {:keys [when]}])
    :style/indent :defn}
   [form & {when-clause :when}]
-  (let [obj (gensym "pattern_object__")
-        smap (gensym "pattern_smap__")
+  (let [target (gensym "target__")
+        smap (gensym "smap__")
         form* (parse-form form)]
     `(reify
        protocols/ITermVariables
@@ -1461,12 +1579,11 @@
               (variables form*))})
 
        protocols/IUnify*
-       (protocols/-unify* [this# ~obj smap-outer#]
+       (protocols/-unify* [this# ~target smap-outer#]
          (for [~smap ~(compile-pattern
                        form*
-                       obj
-                       (fn [seen-vars]
-                         `(list ~(compile-smap seen-vars)))
+                       target
+                       `(list ~(compile-smap (derive-env form*)))
                        #{})
                ~@(when when-clause
                    [:let `[{:strs [~@(map (comp symbol name) (variables form*))]} ~smap]
@@ -1484,7 +1601,7 @@
          ~(compile-substitute form* smap))
 
        clojure.lang.IFn
-       (~'invoke [this# ~obj]
+       (~'invoke [this# ~target]
         this#))))
 
 
