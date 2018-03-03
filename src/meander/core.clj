@@ -1117,7 +1117,7 @@
                                     (get ~smap-in ~var-name))))
                           env))
                 (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) env))))
-             `(list (assoc ~smap-in ~@(mapcat (juxt identity symbol) env))))
+             `(list ~smap-in))
            env)))))
 
 
