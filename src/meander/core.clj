@@ -1346,27 +1346,7 @@
                       x
 
                       :else
-                      (let [target (gensym "target__")
-                            smap-in (gensym "smap_in__")
-                            smap-out (gensym "smap_out__")
-                            ret-env (set/union env (derive-env x))]
-                        `(reify
-                           protocols/IUnify*
-                           (protocols/-unify* [~'_ ~target ~smap-in]
-                             ~(compile-pattern
-                               x
-                               target
-                               `(mapcat
-                                 (fn [~smap-out]
-                                   (if (and ~@(map
-                                               (fn [var-name]
-                                                 `(or (not (contains? ~smap-in ~var-name))
-                                                      (= (get ~smap-out ~var-name)
-                                                         (get ~smap-in ~var-name))))
-                                               ret-env))
-                                     (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) ret-env)))))
-                                 (list ~(compile-smap ret-env))) 
-                               env))))))
+                      (compile-unify* x (gensym "elem__") env)))
                   pattern)
         smap (gensym "smap__")
         ret-env (derive-env pattern)]
@@ -1384,13 +1364,9 @@
   (if (ground? (keys pattern))
     (reduce-kv
      (fn [inner-form* k v]
-       (let [val-target (gensym "val__")
-             ret-env (set/union env (derive-env v))]
+       (let [val-target (gensym "val__")]
          `(if-some [[~'_ ~val-target] (find ~target ~k)]
-            ~(compile-pattern v
-                              val-target
-                              inner-form*
-                              env))))
+            ~(compile-pattern v val-target inner-form* env))))
      inner-form
      pattern)
     (let [pattern* (fmap
@@ -1401,28 +1377,7 @@
 
                                  (variable? k)
                                  `(make-variable ~(name k)))
-                            val-target (gensym "val__")
-                            smap-in (gensym "smap_in__")
-                            smap-out (gensym "smap_out__")
-                            ret-env (set/union env (derive-env v))
-                            v* `(reify
-                                  protocols/IUnify*
-                                  (protocols/-unify* [~'_ ~val-target ~smap-in]
-                                    ~(compile-pattern
-                                      v
-                                      val-target
-                                      `(do
-                                         (mapcat
-                                          (fn [~smap-out]
-                                            (if (and ~@(map
-                                                        (fn [var-name]
-                                                          `(or (not (contains? ~smap-in ~var-name))
-                                                               (= (get ~smap-out ~var-name)
-                                                                  (get ~smap-in ~var-name))))
-                                                        ret-env))
-                                              (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) ret-env)))))
-                                          (list ~(compile-smap ret-env))))
-                                      env)))]
+                            v* (compile-unify* v (gensym "val__") env)]
                         [k* v*]))
                     pattern)
           smap (gensym "smap__")
