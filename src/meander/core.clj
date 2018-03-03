@@ -1102,24 +1102,22 @@
 
 (defn compile-unify*
   [pattern target env]
-  (let [smap-in (gensym "smap_in__")
-        smap-out (gensym "smap_out__")]
+  (let [smap-in (gensym "smap_in__")]
     `(reify
        protocols/IUnify*
        (protocols/-unify* [~'_ ~target ~smap-in]
          ~(compile-pattern
            pattern
            target
-           `(mapcat
-             (fn [~smap-out]
-               (if (and ~@(map
-                           (fn [var-name]
-                             `(or (not (contains? ~smap-in ~var-name))
-                                  (= (get ~smap-out ~var-name)
-                                     (get ~smap-in ~var-name))))
-                           env))
-                 (list ~smap-out)))
-             (list ~(compile-smap env)))
+           (if (seq env)
+             `(if (and ~@(map
+                          (fn [var-name]
+                            `(or (not (contains? ~smap-in ~var-name))
+                                 (= ~(symbol var-name)
+                                    (get ~smap-in ~var-name))))
+                          env))
+                (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) env))))
+             (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) env))))
            env)))))
 
 
@@ -1195,9 +1193,8 @@
 
       ;; The sequence has a variable length.
       [true false]
-      (let [envs (reductions set/union (cons env (map derive-env pattern)))
-            pattern* (map
-                      (fn [term env ret-env]
+      (let [pattern* (map
+                      (fn [term]
                         (cond
                           (splicing-variable? term)
                           (if (contains? env (name term))
@@ -1213,19 +1210,8 @@
                           `(list ~term)
 
                           :else
-                          (let [target (gensym "nth__")]
-                            `(list
-                              (reify
-                                protocols/IUnify*
-                                (protocols/-unify* [~'_ ~target smap#]
-                                  ~(compile-pattern
-                                    term
-                                    target
-                                    `(list ~(compile-smap ret-env))
-                                    env)))))))
-                      pattern
-                      envs
-                      (rest envs))
+                          `(list ~(compile-unify* term (gensym "nth__") env))))
+                      pattern)
             inner-form* `(unify* (concat ~@pattern*) ~target ~(compile-smap env))]
         (if (type-check? pattern)
           `(if (and (seq? ~target)
