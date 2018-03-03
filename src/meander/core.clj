@@ -1079,16 +1079,16 @@
   (vary-meta pattern assoc ::type-check? false))
 
 
-(defn compile-smap
-  {:private true}
-  [env]
-  `(hash-map ~@(mapcat (juxt identity symbol) env)))
-
-
 (defn derive-env
   {:private true}
   [form]
   (fmap name (variables form)))
+
+
+(defn compile-smap
+  {:private true}
+  [env]
+  `(hash-map ~@(mapcat (juxt identity symbol) env)))
 
 
 (defn compile-pattern
@@ -1098,6 +1098,29 @@
     (protocols/-compile-pattern pattern target inner-form env)
     `(if (= ~target ~pattern)
        ~inner-form)))
+
+
+(defn compile-unify*
+  [pattern target env]
+  (let [smap-in (gensym "smap_in__")
+        smap-out (gensym "smap_out__")]
+    `(reify
+       protocols/IUnify*
+       (protocols/-unify* [~'_ ~target ~smap-in]
+         ~(compile-pattern
+           pattern
+           target
+           `(mapcat
+             (fn [~smap-out]
+               (if (and ~@(map
+                           (fn [var-name]
+                             `(or (not (contains? ~smap-in ~var-name))
+                                  (= (get ~smap-out ~var-name)
+                                     (get ~smap-in ~var-name))))
+                           env))
+                 (list ~smap-out)))
+             (list ~(compile-smap env)))
+           env)))))
 
 
 (defn compile-seq-pattern
@@ -1259,10 +1282,9 @@
 
       ;; The sequence has a variable length.
       [true false]
-      (let [envs (reductions set/union (cons env (map derive-env pattern)))
-            ;; Build vector pattern.
+      (let [;; Build vector pattern.
             pattern* (reduce
-                      (fn [vec-form [term env ret-env]]
+                      (fn [vec-form term]
                         (cond
                           (splicing-variable? term)
                           (if (contains? env (name term))
@@ -1278,18 +1300,10 @@
                           `(conj ~vec-form ~term)
 
                           :else
-                          (let [target (gensym "nth__")]
-                            `(conj ~vec-form
-                                   (reify
-                                     protocols/IUnify*
-                                     (protocols/-unify* [~'_ ~target smap#]
-                                       ~(compile-pattern
-                                         term
-                                         target
-                                         `(list ~(compile-smap ret-env))
-                                         env)))))))
+                          `(conj ~vec-form
+                                 ~(compile-unify* term (gensym "nth__") env))))
                       []
-                      (map vector pattern envs (rest envs)))
+                      pattern)
             smap (gensym "smap__")
             ret-env (derive-env pattern)
             inner-form* `(mapcat
