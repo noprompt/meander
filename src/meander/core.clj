@@ -1298,7 +1298,7 @@
                               ~inner-form))
                           (unify* ~pattern* ~target ~(compile-smap env)))]
         (if (type-check? pattern)
-          `(if (and (seq? ~target)
+          `(if (and (vector? ~target)
                     (seq ~target))
              ~inner-form*)
           inner-form*))
