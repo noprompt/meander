@@ -1207,7 +1207,7 @@
                             `(list (make-variable ~(name term))))
 
                           (ground? term)
-                          `(list ~term)
+                          `(list '~term)
 
                           :else
                           `(list ~(compile-unify* term (gensym "nth__") env))))
@@ -1283,7 +1283,7 @@
                             `(conj ~vec-form (make-variable ~(name term))))
 
                           (ground? term)
-                          `(conj ~vec-form ~term)
+                          `(conj ~vec-form '~term)
 
                           :else
                           `(conj ~vec-form
@@ -1343,7 +1343,7 @@
                         `(make-variable ~(name x)))
 
                       (ground? x)
-                      x
+                      `'~x
 
                       :else
                       (compile-unify* x (gensym "elem__") env)))
@@ -1373,7 +1373,7 @@
                     (fn [[k v]]
                       (let [k* (cond
                                  (ground? k)
-                                 k
+                                 `'~k
 
                                  (variable? k)
                                  `(make-variable ~(name k)))
