@@ -1278,9 +1278,9 @@
                             `(conj ~vec-form (make-splicing-variable ~(name term))))
 
                           (variable? term)
-                          ~(if (contains? env (name term))
-                             `(conj ~vec-form ~(symbol (name term)))
-                             `(conj ~vec-form (make-variable ~(name term))))
+                          (if (contains? env (name term))
+                            `(conj ~vec-form ~(symbol (name term)))
+                            `(conj ~vec-form (make-variable ~(name term))))
 
                           (ground? term)
                           `(conj ~vec-form ~term)
