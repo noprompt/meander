@@ -2044,24 +2044,38 @@
        t))))
 
 
+(defmacro tuple-body
+  {:private true}
+  [params]
+  (let [t (gensym "t__")
+        t*s (mapv gensym (clj/repeat (count params) "t__"))]
+    `(fn [~t]
+       ~(reduce
+         (fn [inner-form [t* param]]
+           `(let [~t* (~param ~t)]
+              (if (fail? ~t*)
+                *fail*
+                ~inner-form)))
+         t*s
+         (reverse (map vector t*s params))))))
+
+
 (defn tuple
-  "Build a s juxt"
+  "Build a strategy which behaves similarly to juxt but fails if any
+  of the strategies which compose it fail."
+  {:arglists '([] [p] [p q] [p q & more])}
   ([]
    (build []))
   ([p]
    (pipe p vector))
   ([p q]
-   (fn [t]
-     (let [t*1 (p t)]
-       (if (fail? t*1)
-         *fail*
-         (let [t*2 (q t)]
-           (if (fail? t*2)
-             *fail*
-             [t*1 t*2]))))))
-  ([p q & more]
-   (pipe (apply tuple (tuple p q) more)
-         (spread conj))))
+   (tuple-body [p q]))
+  ([p q r]
+   (tuple-body [p q r]))
+  ([p q r s]
+   (tuple-body [p q r s]))
+  ([p q r s & more]
+   (apply tuple (tuple-body [p q r s]) more)))
 
 
 (extend-type clojure.lang.IPersistentVector
