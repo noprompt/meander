@@ -1377,26 +1377,26 @@
          `(if-some [[~'_ ~val-target] (find ~target ~k)]
             ~(compile-pattern v val-target inner-form* env))))
      inner-form
-     pattern)
-    (let [pattern* (fmap
-                    (fn [[k v]]
-                      (let [k* (cond
-                                 (ground? k)
-                                 `'~k
+     pattern))
+  (let [pattern* (fmap
+                  (fn [[k v]]
+                    (let [k* (cond
+                               (ground? k)
+                               `'~k
 
-                                 (variable? k)
-                                 `(make-variable ~(name k)))
-                            v* (compile-unify* v (gensym "val__") env)]
-                        [k* v*]))
-                    pattern)
-          smap (gensym "smap__")
-          ret-env (derive-env pattern)]
-      `(if (map? ~target)
-         (mapcat
-          (fn [~smap]
-            (let [{:strs ~(mapv symbol ret-env)} ~smap]
-              (list ~smap)))
-          (unify* ~pattern* ~target))))))
+                               (variable? k)
+                               `(make-variable ~(name k)))
+                          v* (compile-unify* v (gensym "val__") env)]
+                      [k* v*]))
+                  pattern)
+        smap (gensym "smap__")
+        ret-env (derive-env pattern)]
+    `(if (map? ~target)
+       (mapcat
+        (fn [~smap]
+          (let [{:strs ~(mapv symbol ret-env)} ~smap]
+            ~inner-form))
+        (unify* ~pattern* ~target)))))
 
 
 (extend-type meander.core.Variable
