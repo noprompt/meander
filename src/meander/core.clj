@@ -1102,21 +1102,23 @@
 
 (defn compile-unify*
   [pattern target env]
-  (let [smap-in (gensym "smap_in__")]
+  (let [smap-in (gensym "smap_in__")
+        ret-env (derive-env pattern)
+        all-env (set/union env ret-env)]
     `(reify
        protocols/IUnify*
        (protocols/-unify* [~'_ ~target ~smap-in]
          ~(compile-pattern
            pattern
            target
-           (if (seq env)
+           (if (seq all-env)
              `(if (and ~@(map
                           (fn [var-name]
                             `(or (not (contains? ~smap-in ~var-name))
                                  (= ~(symbol var-name)
                                     (get ~smap-in ~var-name))))
-                          env))
-                (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) env))))
+                          (set/union env ret-env)))
+                (list (assoc ~smap-in ~@(mapcat (juxt identity symbol) all-env))))
              `(list ~smap-in))
            env)))))
 
