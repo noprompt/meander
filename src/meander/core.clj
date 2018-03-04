@@ -1214,7 +1214,14 @@
                           :else
                           `(list ~(compile-unify* term (gensym "nth__") env))))
                       pattern)
-            inner-form* `(unify* (concat ~@pattern*) ~target ~(compile-smap env))]
+            pattern* `(concat ~@pattern*)
+            smap (gensym "smap__")
+            ret-env (derive-env pattern)
+            inner-form* `(mapcat
+                          (fn [~smap]
+                            (let [{:strs ~(mapv symbol ret-env)} ~smap]
+                              ~inner-form))
+                          (unify* ~pattern* ~target ~(compile-smap env)))]
         (if (type-check? pattern)
           `(if (and (seq? ~target)
                     (seq ~target))
