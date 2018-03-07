@@ -1000,44 +1000,52 @@
          [x env]
 
          (= (first x) `unquote)
-         (let [var (make-variable (second x))]
+         (let [var (make-variable (second x) (meta x))]
            [var (assoc env x var)])
 
          (= (first x) `unquote-splicing)
-         (let [var (make-splicing-variable (second x))]
+         (let [var (make-splicing-variable (second x) (meta x))]
            [var (assoc env x var)])
 
          :else
+         (with-meta
+           (reduce
+            (fn [[s env*] y]
+              (let [[y* env**] (parse-form* y env*)]
+                [(concat s (list y*)) env**]))
+            [() env]
+            x)
+           (meta x)))
+
+       (vector? x)
+       (with-meta
+         (reduce
+          (fn [[v env*] y]
+            (let [[y* env**] (parse-form* y env*)]
+              [(conj v y*) env**]))
+          [[] env]
+          x)
+         (meta x))
+
+       (map? x)
+       (with-meta
+         (reduce
+          (fn [[m env*] e]
+            (let [[e* env**] (parse-form* e env*)]
+              [(conj m e*) env**]))
+          [{} env]
+          x)
+         (meta x))
+
+       (set? x)
+       (with-meta
          (reduce
           (fn [[s env*] y]
             (let [[y* env**] (parse-form* y env*)]
-              [(concat s (list y*)) env**]))
-          [() env]
-          x))
-
-       (vector? x)
-       (reduce
-        (fn [[v env*] y]
-          (let [[y* env**] (parse-form* y env*)]
-            [(conj v y*) env**]))
-        [[] env]
-        x)
-
-       (map? x)
-       (reduce
-        (fn [[m env*] e]
-          (let [[e* env**] (parse-form* e env*)]
-            [(conj m e*) env**]))
-        [{} env]
-        x)
-
-       (set? x)
-       (reduce
-        (fn [[s env*] y]
-          (let [[y* env**] (parse-form* y env*)]
-            [(conj s y*) env**]))
-        [#{} env]
-        x)
+              [(conj s y*) env**]))
+          [#{} env]
+          x)
+         (meta x))
 
        :else
        [x env]))))
