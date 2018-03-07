@@ -1529,6 +1529,7 @@
   :args ::pattern-args
   :ret any?)
 
+
 (defmacro pattern
   {:arglists '([form & {:keys [when]}])
    :style/indent :defn}
@@ -1541,7 +1542,9 @@
        (protocols/-term-variables [this#]
          #{~@(map
               (fn [v]
-                `(make-variable ~(name v) ~(meta v)))
+                (if (splicing-variable? v)
+                  `(make-splicing-variable ~(name v) ~(meta v))
+                  `(make-variable ~(name v) ~(meta v))))
               (variables form*))})
 
        protocols/IUnify*
