@@ -1264,8 +1264,8 @@
             m (count pattern)
             inner-form* (reduce
                          (fn [inner-form* [index term env]]
-                           (let [target* (gensym (str "nth_" index "__"))]
-                             `(let [~target* (nth ~target ~index)]
+                           (let [target* (gensym (str "get_" index "__"))]
+                             `(let [~target* (~target ~index)]
                                 ~(compile-pattern term target* inner-form* env))))
                          inner-form
                          (reverse (map vector (range) pattern envs)))]
@@ -1305,7 +1305,7 @@
                           (fn [~smap]
                             (let [{:strs ~(mapv symbol ret-env)} ~smap]
                               ~inner-form))
-                          (unify* ~pattern* ~target ~(compile-smap env)))]
+                          (unify-vector* ~pattern* ~target ~(compile-smap env)))]
         (if (type-check? pattern)
           `(if (and (vector? ~target)
                     (seq ~target))
