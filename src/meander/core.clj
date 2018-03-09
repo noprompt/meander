@@ -1391,8 +1391,11 @@
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
     (if (ground? this)
-      `(if (= ~target '~this)
-         ~inner-form) 
+      (if (= this ())
+        `(if (= ~target ())
+           ~inner-form)
+        `(if (= ~target '~this)
+           ~inner-form)) 
       (compile-seq-pattern this target inner-form env))))
 
 
