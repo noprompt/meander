@@ -1091,7 +1091,7 @@
 
       ;; The sequence has a non-variable length.
       [false true]
-      (let [ ;; Because we're compiling from left to right, each term in
+      (let [;; Because we're compiling from left to right, each term in
             ;; the sequence needs to be compiled with the union of it's
             ;; left siblings environments. The first term in the
             ;; sequence uses the current environment. So if we had a
