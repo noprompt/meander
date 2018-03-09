@@ -919,73 +919,84 @@
     (outer-f (set (map inner-f this)))))
 
 
-(defn parse-form*
+(deftype LocalVariable [name meta]
+  clojure.lang.IMeta
+  (meta [this]
+    (.-meta this))
+
+  clojure.lang.IObj
+  (withMeta [this m]
+    (LocalVariable. (.-name this) m))
+
+  clojure.lang.Named
+  (getName [this]
+    (.-name this)))
+
+
+(defn make-local-variable
+  ([]
+   (LocalVariable. (gensym "local__") {}))
+  ([name]
+   {:pre [(or (instance? clojure.lang.Named name)
+              (string? name))]}
+   (LocalVariable. (clj/name name) {}))
+  ([name meta]
+   {:pre [(or (instance? clojure.lang.Named name)
+              (string? name))
+          (or (nil? meta)
+              (map? meta))]}
+   (LocalVariable. (clj/name name) meta)))
+
+
+(defn local-variable?
   ([x]
-   (parse-form* x {}))
-  ([x env]
-   (if-some [[_ val] (find env x)]
-     [val env]
-     (cond
-       (seq? x)
-       (cond
-         (= (first x) 'quote)
-         [x env]
-
-         (= (first x) `unquote)
-         (let [var (make-variable (second x) (meta x))]
-           [var (assoc env x var)])
-
-         (= (first x) `unquote-splicing)
-         (let [var (make-splicing-variable (second x) (meta x))]
-           [var (assoc env x var)])
-
-         :else
-         (with-meta
-           (reduce
-            (fn [[s env*] y]
-              (let [[y* env**] (parse-form* y env*)]
-                [(concat s (list y*)) env**]))
-            [() env]
-            x)
-           (meta x)))
-
-       (vector? x)
-       (with-meta
-         (reduce
-          (fn [[v env*] y]
-            (let [[y* env**] (parse-form* y env*)]
-              [(conj v y*) env**]))
-          [[] env]
-          x)
-         (meta x))
-
-       (map? x)
-       (with-meta
-         (reduce
-          (fn [[m env*] e]
-            (let [[e* env**] (parse-form* e env*)]
-              [(conj m e*) env**]))
-          [{} env]
-          x)
-         (meta x))
-
-       (set? x)
-       (with-meta
-         (reduce
-          (fn [[s env*] y]
-            (let [[y* env**] (parse-form* y env*)]
-              [(conj s y*) env**]))
-          [#{} env]
-          x)
-         (meta x))
-
-       :else
-       [x env]))))
+   (instance? LocalVariable x)))
 
 
 (defn parse-form
-  [x]
-  (first (parse-form* x {})))
+  ([x]
+   (parse-form x {}))
+  ([x env]
+   (cond
+     (seq? x)
+     (cond
+       (= (first x) 'quote)
+       x
+
+       (= (first x) `unquote)
+       (if (simple-symbol? (second x))
+         (let [var (if (:local (meta x))
+                     (make-local-variable (second x) (meta x))
+                     (make-variable (second x) (meta x)))]
+           var)
+         (undefined))
+
+       (= (first x) `unquote-splicing)
+       (if (simple-symbol? (second x))
+         (let [var (make-splicing-variable (second x) (meta x))]
+           var)
+         (undefined))
+
+       :else
+       (with-meta
+         (map parse-form x (clj/repeat env))
+         (meta x)))
+
+     (vector? x)
+     (with-meta
+       (mapv parse-form x (clj/repeat env))
+       (meta x))
+
+     (map? x)
+     (with-meta
+       (into {} (map parse-form x (clj/repeat env)))
+       (meta x))
+
+     (set? x)
+     (into #{} (map parse-form x (clj/repeat env)))
+
+     :else
+     x)))
 
 
 (defn unparse-form [form]
@@ -1339,6 +1350,13 @@
         (unify* ~pattern* ~target)))))
 
 
+(extend-type clojure.lang.Symbol
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    `(if (= ~target '~this)
+       ~inner-form)))
+
+
 (extend-type meander.core.Variable
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
@@ -1350,11 +1368,12 @@
          ~inner-form))))
 
 
-(extend-type clojure.lang.Symbol
+(extend-type meander.core.LocalVariable
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
-    `(if (= ~target '~this)
-       ~inner-form)))
+    (let [sym (symbol (name this))]
+      `(if (= ~target ~sym)
+         ~inner-form))))
 
 
 (extend-type meander.core.SplicingVariable
@@ -1420,8 +1439,9 @@
        ~(postwalk
          (fn [x]
            (cond
-             (and (variable? x)
-                  (not (splicing-variable? x)))
+             (or (and (variable? x)
+                      (not (splicing-variable? x)))
+                 (local-variable? x))
              (symbol (name x))
 
              (vector? x)
