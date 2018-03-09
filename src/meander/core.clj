@@ -433,7 +433,8 @@
   ([name meta]
    {:pre [(or (instance? clojure.lang.Named name)
               (string? name))
-          (map? meta)]}
+          (or (nil? meta)
+              (map? meta))]}
    (Variable. (clj/name name) meta)))
 
 
