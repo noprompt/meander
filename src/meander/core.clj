@@ -557,83 +557,24 @@
 ;; ---------------------------------------------------------------------
 ;; Vector terms
 
+
 (defn unify-splicing-vector*
   "Return a sequence of all possible substutitions satisfying `u-vec`
   and `v-vec` where `u-vec` contains splicing variables."
   {:private true}
   ([u-vec v-vec smap]
-   (let [;; Split the pattern at the boundary of the first splicing
-         ;; var.  For example, if the pattern was `[1 ~x 3 ~@xs 6 7 ~@ys]`
-         ;; the result will be `[[1 ~x 3] [~@xs 6 7 ~@ys]]`.
-         [u-left u-right] (map vec (split-with not-splicing-variable? u-vec))
-         ;; Split the vector at the boundary index derived by
-         ;; counting the number of values in `u-left`. Continuing
-         ;; with the example above with `v-vec` as `[1 2 3 4 5 6 7 8]`
-         ;; the result will be `[[1 2 3] [4 5 6 7 8]]`.
-         [v-left v-right] (util/vsplit-at (count u-left) v-vec)]
-     (->>
-      ;; Unify `u-left` and `v-left` to get a sequence of solutions
-      ;; for the non-variable porition of the vector. With our
-      ;; example `u-left` and `v-left` we'd get back the sequence
-      ;; `({"x" 2})`.
-      (unify* u-left v-left smap)
-      ;; Now the interesting part: finding all of the solutions for
-      ;; `u-right` and `v-right`
-      (mapcat
-       (fn [smap]
-         (let [;; Once again we need to break the pattern down into
-               ;; pieces we can easily reason about. This time we
-               ;; want to partition our pattern in a way that
-               ;; isolates runs of splicing variables. Applying this
-               ;; to `u-right` we get `[[~@xs] [6 7] [~@ys]]`.
-               u-parts (mapv vec (partition-by splicing-variable? u-right))
-               ;; Next we'll need to build a search space from
-               ;; `v-right` that has parity with `u-parts`.
-               ;;
-               ;;   (,,,
-               ;;    [[4] [5 6 7] [8 9]]
-               ;;    [[4 5] [6 7] [8 9]]
-               ;;    [[4 5 6] [7] [8 9]]
-               ;;    ,,,)
-               ;;
-               v-space (util/partitions (count u-parts) v-right)]
-           ;; With our search space in hand we can begin to look
-           ;; for possible solutions.
-           ;;
-           ;; First we'll need to pair up each n-tuple in `v-space`
-           ;; with each element `u-parts`.
-           ;;
-           ;; (,,,
-           ;;  (([~@xs] [4]), ([6 7] [5 6 7]), ([~@ys] [8 9]))
-           ;;  (([~@xs] [4 5]), ([6 7] [6 7]), ([~@ys] [8 9]))
-           ;;  (([~@xs] [4 5 6]), ([6 7] [7]), ([~@ys] [8 9]))
-           ;;  ,,,)
-           ;;
-           ;; Each pair in each row is then unified from left to
-           ;; right using a logical conjunction goal. Notice second
-           ;; row above will successfully unify `~@xs` with `[4 5]`,
-           ;; `[6 7]` with `[6 7]`, and `~@ys` with `[8 9]`. This
-           ;; happens to be the only solution in this case, however,
-           ;; if we insert the sequence `6 7` anywhere after `3` and
-           ;; not in between `6` and `7`, we would find an
-           ;; additional solution.
-           (->> (map (comp (partial partition 2)
-                           (partial interleave u-parts))
-                     v-space)
-                (mapcat
-                 (fn [row]
-                   ((lconj*
-                     (map
-                      (fn [f [u-part v-part]]
-                        (fn [smap]
-                          (f u-part v-part smap)))
-                      ;; We use a special function to find solutions
-                      ;; for splicing variables.
-                      (cycle [unify-splicing-variables*
-                              unify*])
-                      row))
-                    smap)))))))))))
-
+   (when (vector? v-vec)
+     (let [[s-vars u-vec*] (split-with splicing-variable? u-vec)]
+       (if (seq u-vec*)
+         (let [[u & u-vec*] u-vec*]
+           (for [[i v] (map-indexed vector v-vec)
+                 smap (unify* u v smap)
+                 :let [[a-vec b-vec] (util/vsplit-at i v-vec)
+                       b-vec (subvec b-vec 1)]
+                 smap (unify-splicing-variables* s-vars a-vec smap)
+                 smap (unify-splicing-vector* u-vec* b-vec smap)]
+             smap))
+         (unify-splicing-variables* s-vars v-vec smap))))))
 
 
 (defn unify-vector*
@@ -734,27 +675,17 @@
 (defn unify-splicing-seq*
   ([u-seq v-seq smap]
    (when (seq? v-seq)
-     (let [[u-left u-right] (split-with not-splicing-variable? u-seq)
-           [v-left v-right] (split-at (count u-left) v-seq)]
-       (mapcat
-        (fn [smap]
-          (let [u-parts (partition-by splicing-variable? u-right)
-                v-space (util/partitions (count u-parts) v-right)]
-            (mapcat
-             (fn [row]
-               ((lconj*
-                 (map
-                  (fn [f [u-part v-part]]
-                    (fn [smap]
-                      (f u-part v-part smap)))
-                  (cycle [unify-splicing-variables*
-                          unify*])
-                  row))
-                smap))
-             (map (comp (partial partition 2)
-                        (partial interleave u-parts))
-                  v-space))))
-        (unify* u-left v-left smap))))))
+     (let [[s-vars u-seq*] (split-with splicing-variable? u-seq)]
+       (if (seq u-seq*)
+         (let [[u & u-seq*] u-seq*]
+           (for [[i v] (map-indexed vector v-seq)
+                 smap (unify* u v smap)
+                 :let [[a-seq b-seq] (split-at i v-seq)
+                       b-seq (rest b-seq)]
+                 smap (unify-splicing-variables* s-vars a-seq smap)
+                 smap (unify-splicing-seq* u-seq* b-seq smap)]
+             smap))
+         (unify-splicing-variables* s-vars v-seq smap))))))
 
 
 (defn unify-seq*
