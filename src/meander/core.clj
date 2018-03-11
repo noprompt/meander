@@ -411,9 +411,10 @@
         (extend smap this that))))
 
   Object
-  (equals [_ that]
+  (equals [this that]
     (and (instance? Variable that)
-         (= name (.name that))))
+         (= (.-name this)
+            (.-name ^Variable that))))
 
   (hashCode [this]
     (.hashCode (.name this))))
@@ -482,9 +483,10 @@
           (extend smap this that)))))
 
   Object
-  (equals [_ that]
+  (equals [this that]
     (and (instance? SplicingVariable that)
-         (= name (.name that))))
+         (= (.-name this)
+            (.-name ^SplicingVariable that))))
 
   (hashCode [this]
     (.hashCode (.name this))))
