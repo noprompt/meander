@@ -540,20 +540,17 @@
   "
   {:private true}
   ([s-vars u-coll smap]
-   (let [n (count s-vars)]
-     (mapcat
-      (fn [pairs]
-        (loop [smap smap
-               pairs pairs]
-          (if-some [[[s-var coll] & pairs*] (seq pairs)]
-            (if-unifies [smap* s-var coll smap]
-              (recur smap*
-                     pairs*))
-            (list smap))))
-      (map (partial partition 2)
-           (map interleave
-                (clj/repeat s-vars)
-                (util/partitions n u-coll)))))))
+   (map
+    (fn [s-vars parts]
+      (reduce
+       (fn [smap* [s-var coll]]
+         (if-some [smap* (unify s-var coll smap*)]
+           smap*
+           (reduced nil)))
+       smap
+       (partition 2 (interleave s-vars parts))))
+    (clj/repeat s-vars)
+    (util/partitions (count s-vars) u-coll))))
 
 
 ;; ---------------------------------------------------------------------
