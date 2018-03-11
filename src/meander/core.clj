@@ -1145,38 +1145,43 @@
 
       ;; The sequence has a variable length.
       [true false]
-      (let [pattern* (map
-                      (fn [term]
-                        (cond
-                          (splicing-variable? term)
-                          (if (contains? env (name term))
-                            (symbol (name term))
-                            `(list (make-splicing-variable ~(name term))))
+      (cond
+        (= (count pattern) 1)
+        (protocols/-compile-pattern (first pattern) target inner-form env)
 
-                          (variable? term)
-                          (if (contains? env (name term))
-                            `(list ~(symbol (name term)))
-                            `(list (make-variable ~(name term))))
+        :else
+        (let [pattern* (map
+                        (fn [term]
+                          (cond
+                            (splicing-variable? term)
+                            (if (contains? env (name term))
+                              (symbol (name term))
+                              `(list (make-splicing-variable ~(name term))))
 
-                          (ground? term)
-                          `(list '~term)
+                            (variable? term)
+                            (if (contains? env (name term))
+                              `(list ~(symbol (name term)))
+                              `(list (make-variable ~(name term))))
 
-                          :else
-                          `(list ~(compile-unify* term (gensym "nth__") env))))
-                      pattern)
-            pattern* `(concat ~@pattern*)
-            smap (gensym "smap__")
-            ret-env (derive-env pattern)
-            inner-form* `(mapcat
-                          (fn [~smap]
-                            (let [{:strs ~(mapv symbol ret-env)} ~smap]
-                              ~inner-form))
-                          (unify* ~pattern* ~target ~(compile-smap env)))]
-        (if (type-check? pattern)
-          `(if (and (seq? ~target)
-                    (seq ~target))
-             ~inner-form*)
-          inner-form*))
+                            (ground? term)
+                            `(list '~term)
+
+                            :else
+                            `(list ~(compile-unify* term (gensym "nth__") env))))
+                        pattern)
+              pattern* `(concat ~@pattern*)
+              smap (gensym "smap__")
+              ret-env (derive-env pattern)
+              inner-form* `(mapcat
+                            (fn [~smap]
+                              (let [{:strs ~(mapv symbol ret-env)} ~smap]
+                                ~inner-form))
+                            (unify* ~pattern* ~target ~(compile-smap env)))]
+          (if (type-check? pattern)
+            `(if (and (seq? ~target)
+                      (seq ~target))
+               ~inner-form*)
+            inner-form*)))
 
       [false false]
       (let [subseq-1 (gensym "seq__")
@@ -1227,40 +1232,45 @@
 
       ;; The sequence has a variable length.
       [true false]
-      (let [;; Build vector pattern.
-            pattern* (reduce
-                      (fn [vec-form term]
-                        (cond
-                          (splicing-variable? term)
-                          (if (contains? env (name term))
-                            `(into ~vec-form ~(symbol (name term)))
-                            `(conj ~vec-form (make-splicing-variable ~(name term))))
+      (cond
+        (= (count pattern) 1)
+        (protocols/-compile-pattern (first pattern) target inner-form env)
 
-                          (variable? term)
-                          (if (contains? env (name term))
-                            `(conj ~vec-form ~(symbol (name term)))
-                            `(conj ~vec-form (make-variable ~(name term))))
+        :else
+        (let [;; Build vector pattern.
+              pattern* (reduce
+                        (fn [vec-form term]
+                          (cond
+                            (splicing-variable? term)
+                            (if (contains? env (name term))
+                              `(into ~vec-form ~(symbol (name term)))
+                              `(conj ~vec-form (make-splicing-variable ~(name term))))
 
-                          (ground? term)
-                          `(conj ~vec-form '~term)
+                            (variable? term)
+                            (if (contains? env (name term))
+                              `(conj ~vec-form ~(symbol (name term)))
+                              `(conj ~vec-form (make-variable ~(name term))))
 
-                          :else
-                          `(conj ~vec-form
-                                 ~(compile-unify* term (gensym "nth__") env))))
-                      []
-                      pattern)
-            smap (gensym "smap__")
-            ret-env (derive-env pattern)
-            inner-form* `(mapcat
-                          (fn [~smap]
-                            (let [{:strs ~(mapv symbol ret-env)} ~smap]
-                              ~inner-form))
-                          (unify-vector* ~pattern* ~target ~(compile-smap env)))]
-        (if (type-check? pattern)
-          `(if (and (vector? ~target)
-                    (seq ~target))
-             ~inner-form*)
-          inner-form*))
+                            (ground? term)
+                            `(conj ~vec-form '~term)
+
+                            :else
+                            `(conj ~vec-form
+                                   ~(compile-unify* term (gensym "nth__") env))))
+                        []
+                        pattern)
+              smap (gensym "smap__")
+              ret-env (derive-env pattern)
+              inner-form* `(mapcat
+                            (fn [~smap]
+                              (let [{:strs ~(mapv symbol ret-env)} ~smap]
+                                ~inner-form))
+                            (unify-vector* ~pattern* ~target ~(compile-smap env)))]
+          (if (type-check? pattern)
+            `(if (and (vector? ~target)
+                      (seq ~target))
+               ~inner-form*)
+            inner-form*)))
 
       [false false]
       (let [subvec-1 (gensym "vec__")
