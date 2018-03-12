@@ -2124,7 +2124,7 @@
 
 
 (defn tuple
-  "Build a strategy which behaves similarly to juxt but fails if any
+  "Build a strategy which behaves similarly to `juxt` but fails if any
   of the strategies which compose it fail."
   {:arglists '([] [p] [p q] [p q & more])}
   ([]
