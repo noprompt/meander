@@ -1024,6 +1024,26 @@
 ;; ---------------------------------------------------------------------
 ;; Pattern compilation
 
+;; Certain patterns may have multiple unifiers. These patterns are
+;;
+;; * a map pattern with any variable keys,
+;; * a set pattern with more than one variable, and
+;; * a sequential pattern with more than one splicing variable.
+
+(defn multiple-unifiers?
+  "true if pattern has multiple unifiers."
+  [pattern]
+  (boolean
+   (some
+    (fn [x]
+      (and (coll? x)
+           (or (and (set? x)
+                    (< 1 (count (filter variable? x))))
+               (and (map? x)
+                    (seq (variables (keys x))))
+               (< 1 (count (filter splicing-variable? x))))))
+    (tree-seq coll? seq pattern))))
+
 
 (defn type-check?
   {:private true}
@@ -1510,48 +1530,116 @@
   :ret any?)
 
 
+(defn compile-syntactic-pattern
+  {:private true}
+  [pattern {when-clause :when}]
+  (let [this (gensym "this__")
+        smap-outer (gensym "smap__")
+        smap-inner (gensym "smap__")
+        target (gensym "target__")]
+    `(reify
+       clojure.lang.IFn
+       (clojure.lang.IFn/invoke [~this ~target]
+         ~this)
+
+       protocols/ISubstitute
+       (protocols/-substitute [~this ~smap-outer]
+         ~(compile-substitute pattern smap-outer))
+
+       protocols/ITermVariables
+       (protocols/-term-variables [~this]
+         (hash-set
+          ~@(map
+             (fn [v]
+               (if (splicing-variable? v)
+                 `(make-splicing-variable ~(name v) ~(meta v))
+                 `(make-variable ~(name v) ~(meta v))))
+             (variables pattern))))
+
+       protocols/IUnify
+       (protocols/-unify [~this ~target ~smap-outer]
+         (if-some [~smap-inner ~(compile-pattern pattern
+                                                 target
+                                                 (compile-smap (derive-env pattern))
+                                                 #{})]
+           ~(let [check `(reduce
+                          (fn [smap-out# [inner-k# inner-v#]]
+                            (if-some [[_# outer-v#] (find ~smap-outer inner-k#)]
+                              (if (= inner-v# outer-v#)
+                                smap-out#
+                                (reduced nil))
+                              (assoc smap-out# inner-k# inner-v#)))
+                          ~smap-outer
+                          ~smap-inner)]
+              (if when-clause
+                `(let [{:strs ~(mapv (comp symbol name) (variables pattern))} ~smap-inner]
+                   (if ~when-clause ~check))
+                check))))
+
+       protocols/IUnify*
+       (protocols/-unify* [~this ~target ~smap-outer]
+         (if-some [~smap-inner (protocols/-unify ~this ~target ~smap-outer)]
+           (list ~smap-inner))))))
+
+
+(defn compile-e-pattern
+  {:private true}
+  [pattern {when-clause :when}]
+  (let [this (gensym "this__")
+        smap-outer (gensym "smap__")
+        smap-inner (gensym "smap__")
+        target (gensym "target__")]
+    `(reify
+       clojure.lang.IFn
+       (clojure.lang.IFn/invoke [~this ~target]
+         ~this)
+       
+       protocols/ITermVariables
+       (protocols/-term-variables [~this]
+         (hash-set
+          ~@(map
+             (fn [v]
+               (if (splicing-variable? v)
+                 `(make-splicing-variable ~(name v) ~(meta v))
+                 `(make-variable ~(name v) ~(meta v))))
+             (variables pattern))))
+
+       
+       protocols/ISubstitute
+       (protocols/-substitute [~this ~smap-outer]
+         ~(compile-substitute pattern smap-outer))
+
+       protocols/IUnify
+       (protocols/-unify [~this ~target ~smap-outer]
+         (first (protocols/-unify* ~this ~target ~smap-outer)))
+
+       protocols/IUnify*
+       (protocols/-unify* [~this ~target ~smap-outer]
+         (for [~smap-inner ~(compile-pattern
+                             pattern
+                             target
+                             `(list ~(compile-smap (derive-env pattern)))
+                             #{})
+               ~@(when when-clause
+                   [:let `[{:strs ~(mapv (comp symbol name) (variables pattern))} ~smap-inner]
+                    :when when-clause])
+               :when (every?
+                      (fn [[inner-k# inner-v#]]
+                        (if-some [[outer-k# outer-v#] (find ~smap-outer inner-k#)]
+                          (= inner-v# outer-v#)
+                          true))
+                      ~smap-inner)]
+           (merge ~smap-outer ~smap-inner))))))
+
+
 (defmacro pattern
   {:arglists '([form & {:keys [when]}])
    :style/indent :defn}
-  [form & {when-clause :when}]
-  (let [target (gensym "target__")
-        smap (gensym "smap__")
-        form* (parse-form form)]
-    `(reify
-       protocols/ITermVariables
-       (protocols/-term-variables [this#]
-         #{~@(map
-              (fn [v]
-                (if (splicing-variable? v)
-                  `(make-splicing-variable ~(name v) ~(meta v))
-                  `(make-variable ~(name v) ~(meta v))))
-              (variables form*))})
-
-       protocols/IUnify*
-       (protocols/-unify* [this# ~target smap-outer#]
-         (for [~smap ~(compile-pattern
-                       form*
-                       target
-                       `(list ~(compile-smap (derive-env form*)))
-                       #{})
-               ~@(when when-clause
-                   [:let `[{:strs [~@(map (comp symbol name) (variables form*))]} ~smap]
-                    :when when-clause])
-               :when (every?
-                      (fn [[ik# iv#]]
-                        (if-some [[_# ov#] (find smap-outer# ik#)]
-                          (= iv# ov#)
-                          true))
-                      ~smap)]
-           (merge smap-outer# ~smap)))
-
-       protocols/ISubstitute
-       (protocols/-substitute [this# ~smap]
-         ~(compile-substitute form* smap))
-
-       clojure.lang.IFn
-       (~'invoke [this# ~target]
-        this#))))
+  [form & {:as constraints}]
+  (let [pattern (parse-form form)]
+    (if (multiple-unifiers? pattern)
+      (compile-e-pattern pattern constraints)
+      (compile-syntactic-pattern pattern constraints))))
 
 
 ;; ---------------------------------------------------------------------
