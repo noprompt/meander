@@ -1722,43 +1722,38 @@
   (fn [_] t))
 
 
-(deftype Pipe [p q]
-  clojure.lang.IFn
-  (invoke [_ t]
-    (let [t* (p t)]
-      (if (fail? t*)
+(defmacro pipe-body
+  {:private true}
+  ([params]
+   (let [t (gensym "t__")]
+     `(if (or ~@(map (partial list `fail?) params))
         *fail*
-        (q t*))))
-
-  (applyTo [this args]
-    (clojure.lang.AFn/applyToHelper this args))
-
-  protocols/IUnify
-  (-unify [this v smap]
-    (first (protocols/-unify* this v smap)))
-  
-  protocols/IUnify*
-  (-unify* [_ v smap]
-    ((lconj
-      (fn [smap]
-        (protocols/-unify* p v smap))
-      (fn [smap]
-        (protocols/-unify* q v smap)))
-     smap)))
+        (fn [~t]
+          ~(reduce
+            (fn [inner-form p]
+              `(let [~t (~p ~t)]
+                 (if (fail? ~t)
+                   *fail*
+                   ~inner-form)))
+            t
+            (reverse params)))))))
 
 
 (defn pipe
   "Build a strategy which applies `p` to `t` and then `q` iff `p` rewrites
   `t`. If `p` and `q` are successful, return the result, otherwise
   return `*fail*`. This is the strategy equivalent of `and`."
+  {:arglists '([] [p] [p q] [p q & more])}
   ([] *pass*)
   ([p] p)
   ([p q]
-   (if (or (fail? p) (fail? q)) 
-     *fail*
-     (Pipe. p q)))
-  ([p q & more]
-   (apply pipe (pipe p q) more)))
+   (pipe-body [p q]))
+  ([p q r]
+   (pipe-body [p q r]))
+  ([p q r s]
+   (pipe-body [p q r s]))
+  ([p q r s & more]
+   (apply pipe (pipe-body [p q r s]) more)))
 
 
 (deftype Choice [p q]
