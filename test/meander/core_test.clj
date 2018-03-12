@@ -474,3 +474,33 @@
 
       (t/is (= '(f (g (h x)))
                (thread-1 '(-> x h g f)))))))
+
+
+(t/deftest mutliple-solutions?-test
+  (t/testing "inductive patterns"
+    (t/testing "vectors"
+      (t/is (not (r/multiple-unifiers? (r/parse-form '[~@ys ~x]))))
+      (t/is (not (r/multiple-unifiers? (r/parse-form '[~x ~@ys]))))
+      (t/is (r/multiple-unifiers? (r/parse-form '[~@ys ~x ~@zs])))
+      (t/is (r/multiple-unifiers? (r/parse-form '[~x ~@ys ~@zs])))
+      (t/is (r/multiple-unifiers? (r/parse-form '[~@ys ~x ~@zs]))))
+
+    (t/testing "seqs"
+      (t/is (not (r/multiple-unifiers? (r/parse-form '(~@ys ~x)))))
+      (t/is (not (r/multiple-unifiers? (r/parse-form '(~x ~@ys)))))
+      (t/is (r/multiple-unifiers? (r/parse-form '(~@ys ~x ~@zs))))
+      (t/is (r/multiple-unifiers? (r/parse-form '(~x ~@ys ~@zs))))
+      (t/is (r/multiple-unifiers? (r/parse-form '(~@ys ~x ~@zs))))))
+
+  (t/testing "non-inductive patterns"
+    (t/testing "maps"
+      (t/is (not (r/multiple-unifiers? (r/parse-form '{x foo}))))
+      (t/is (not (r/multiple-unifiers? (r/parse-form '{}))))
+      (t/is (r/multiple-unifiers? (r/parse-form '{~x foo}))))
+
+    (t/testing "sets"
+      (t/is (not (r/multiple-unifiers? (r/parse-form '#{~x}))))
+      (t/is (not (r/multiple-unifiers? (r/parse-form '#{x}))))
+      (t/is (not (r/multiple-unifiers? (r/parse-form '#{x}))))
+
+      (t/is (r/multiple-unifiers? (r/parse-form '#{~x ~y}))))))
