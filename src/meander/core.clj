@@ -932,6 +932,10 @@
     (.-name this)))
 
 
+;; ---------------------------------------------------------------------
+;; Local variable
+
+
 (defn make-local-variable
   ([]
    (LocalVariable. (gensym "local__") {}))
@@ -950,6 +954,10 @@
 (defn local-variable?
   ([x]
    (instance? LocalVariable x)))
+
+
+;; ---------------------------------------------------------------------
+;; Pattern parsing
 
 
 (defn parse-form
