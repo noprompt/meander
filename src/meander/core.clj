@@ -1908,14 +1908,11 @@
   (let [] ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1))"
   {:style/indent :defn}
   [pred s]
-  (fn rec [t]
-    ((pipe (attempt s)
-           (fn [t*]
-             (if (pred t t*)
-               t*
-               (rec t*))))
-     t)))
-
+  (fn [t]
+    (let [t* ((attempt s) t)]
+      (if (pred t t*)
+        t*
+        (recur t*)))))
 
 
 (defn iall? [x]
