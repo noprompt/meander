@@ -418,7 +418,6 @@
     (. ~target ~method ~@args)))
 
 
-#_
 (t/deftest t-test
   (t/testing "transforms implement IFn"
     (t/is (= '(. bar foo baz)
