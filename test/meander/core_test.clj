@@ -476,7 +476,7 @@
                (thread-1 '(-> x h g f)))))))
 
 
-(t/deftest mutliple-solutions?-test
+(t/deftest mutliple-unifiers?-test
   (t/testing "inductive patterns"
     (t/testing "vectors"
       (t/is (not (r/multiple-unifiers? (r/parse-form '[~@ys ~x]))))
