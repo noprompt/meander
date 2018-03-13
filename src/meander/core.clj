@@ -563,16 +563,27 @@
   ([u-vec v-vec smap]
    (when (vector? v-vec)
      (let [[s-vars u-vec*] (split-with splicing-variable? u-vec)]
-       (if (seq u-vec*)
+       (cond
+         (seq u-vec*)
          (let [[u & u-vec*] u-vec*]
-           (for [[i v] (map-indexed vector v-vec)
-                 smap (unify* u v smap)
-                 :let [[a-vec b-vec] (util/vsplit-at i v-vec)
-                       b-vec (subvec b-vec 1)]
-                 smap (unify-splicing-variables* s-vars a-vec smap)
-                 smap (unify-splicing-vector* u-vec* b-vec smap)]
-             smap))
-         (unify-splicing-variables* s-vars v-vec smap))))))
+           (seq
+            (for [[i v] (map-indexed vector v-vec)
+                  smap (unify* u v smap)
+                  :let [[a-vec b-vec] (util/vsplit-at i v-vec)
+                        b-vec (subvec b-vec 1)]
+                  smap (unify-splicing-variables* s-vars a-vec smap)
+                  smap (unify-splicing-vector* u-vec* b-vec smap)]
+              smap)))
+
+         (seq s-vars)
+         (unify-splicing-variables* s-vars v-vec smap)
+
+         (seq v-vec)
+         nil
+
+         :else
+         (list smap))))))
+
 
 
 (defn unify-vector*
@@ -674,7 +685,8 @@
   ([u-seq v-seq smap]
    (when (seq? v-seq)
      (let [[s-vars u-seq*] (split-with splicing-variable? u-seq)]
-       (if (seq u-seq*)
+       (cond
+         (seq u-seq*)
          (let [[u & u-seq*] u-seq*]
            (for [[i v] (map-indexed vector v-seq)
                  smap (unify* u v smap)
@@ -683,7 +695,15 @@
                  smap (unify-splicing-variables* s-vars a-seq smap)
                  smap (unify-splicing-seq* u-seq* b-seq smap)]
              smap))
-         (unify-splicing-variables* s-vars v-seq smap))))))
+
+         (seq s-vars)
+         (unify-splicing-variables* s-vars v-seq smap)
+
+         (seq v-seq)
+         nil
+
+         :else
+         (list smap))))))
 
 
 (defn unify-seq*
