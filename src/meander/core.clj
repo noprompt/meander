@@ -1467,6 +1467,47 @@
 ;; Substitution compilation
 
 
+(defn compile-substitute-body
+  {:private true}
+  [pattern]
+  (postwalk
+   (fn [x]
+     (cond
+       (or (and (variable? x)
+                (not (splicing-variable? x)))
+           (local-variable? x))
+       (symbol (name x))
+
+       (vector? x)
+       (if (some splicing-variable? x)
+         (reduce
+          (fn [v y]
+            (if (splicing-variable? y)
+              `(into ~v ~(symbol (name y)))
+              `(conj ~v ~y)))
+          []
+          x)
+         x)
+
+       (seq? x)
+       (if (some splicing-variable? x)
+         `(concat
+           ~@(map
+              (fn [y]
+                (if (splicing-variable? y)
+                  (symbol (name y))
+                  `(list ~y)))
+              x))
+         (cons `list x))
+
+       (symbol? x)
+       `'~x
+
+       :else
+       x))
+   pattern))
+
+
 (defn compile-substitute
   "Given a pattern and symbol which represents a bound substitution
   `smap-sym`, return code which extracts and binds values from the
@@ -1476,42 +1517,7 @@
   [pattern smap-sym]
   (let [var-syms (map (comp symbol name) (variables pattern))]
     `(let [{:strs [~@var-syms]} ~smap-sym]
-       ~(postwalk
-         (fn [x]
-           (cond
-             (or (and (variable? x)
-                      (not (splicing-variable? x)))
-                 (local-variable? x))
-             (symbol (name x))
-
-             (vector? x)
-             (if (some splicing-variable? x)
-               (reduce
-                (fn [v y]
-                  (if (splicing-variable? y)
-                    `(into ~v ~(symbol (name y)))
-                    `(conj ~v ~y)))
-                []
-                x)
-               x)
-
-             (seq? x)
-             (if (some splicing-variable? x)
-               `(concat
-                 ~@(map
-                    (fn [y]
-                      (if (splicing-variable? y)
-                        (symbol (name y))
-                        `(list ~y)))
-                    x))
-               (cons `list x))
-
-             (symbol? x)
-             `'~x
-
-             :else
-             x))
-         pattern))))
+       ~(compile-substitute-body pattern))))
 
 
 ;; ---------------------------------------------------------------------
