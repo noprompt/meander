@@ -2554,7 +2554,9 @@
   :args ::t
   :ret any?)
 
-(defn compile-t [compile-t-args]  
+(defn compile-t
+  {:private true}
+  [compile-t-args]  
   (let [[u-form & rest-args] compile-t-args
         as (if (= (first rest-args) :as)
              (second rest-args))
