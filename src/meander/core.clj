@@ -1368,7 +1368,7 @@
           (reduce
            (fn [inner-form* [key term env]]
              (let [target* (gensym (str "map_val__"))]
-               `(let [~target* (~target ~key)]
+               `(if-some [[_# ~target*] (find ~target ~key)]
                   ~(compile-pattern term target* inner-form* env))))
            inner-form
            (reverse (map vector (keys pattern) (vals pattern) envs)))]
