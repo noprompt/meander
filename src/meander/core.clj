@@ -1362,25 +1362,37 @@
 (defn compile-map-pattern
   {:private true}
   [pattern target inner-form env]
-  (let [pattern* (fmap
-                  (fn [[k v]]
-                    (let [k* (cond
-                               (ground? k)
-                               `'~k
+  (if (ground? (keys pattern))
+    (let [envs (reductions set/union (cons env (map derive-env (vals pattern))))
+          inner-form*
+          (reduce
+           (fn [inner-form* [key term env]]
+             (let [target* (gensym (str "map_val__"))]
+               `(let [~target* (~target ~key)]
+                  ~(compile-pattern term target* inner-form* env))))
+           inner-form
+           (reverse (map vector (keys pattern) (vals pattern) envs)))]
+      `(if (map? ~target)
+         ~inner-form*))
+    (let [pattern* (fmap
+                    (fn [[k v]]
+                      (let [k* (cond
+                                 (ground? k)
+                                 `'~k
 
-                               (variable? k)
-                               `(make-variable ~(name k)))
-                          v* (compile-unify* v (gensym "val__") env)]
-                      [k* v*]))
-                  pattern)
-        smap (gensym "smap__")
-        ret-env (derive-env pattern)]
-    `(if (map? ~target)
-       (mapcat
-        (fn [~smap]
-          (let [{:strs ~(mapv symbol ret-env)} ~smap]
-            ~inner-form))
-        (unify* ~pattern* ~target)))))
+                                 (variable? k)
+                                 `(make-variable ~(name k)))
+                            v* (compile-unify* v (gensym "val__") env)]
+                        [k* v*]))
+                    pattern)
+          smap (gensym "smap__")
+          ret-env (derive-env pattern)]
+      `(if (map? ~target)
+         (mapcat
+          (fn [~smap]
+            (let [{:strs ~(mapv symbol ret-env)} ~smap]
+              ~inner-form))
+          (unify* ~pattern* ~target))))))
 
 
 (extend-type clojure.lang.Symbol
