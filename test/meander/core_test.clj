@@ -491,11 +491,12 @@
     (t/testing "seqs"
       (t/is (not (r/multiple-unifiers? (r/parse-form '(~@ys ~x)))))
       (t/is (not (r/multiple-unifiers? (r/parse-form '(~x ~@ys)))))
+      (t/is (r/multiple-unifiers? (r/parse-form '[x ~@xs y])))
       (t/is (r/multiple-unifiers? (r/parse-form '(~@ys ~x ~@zs))))
       (t/is (r/multiple-unifiers? (r/parse-form '(~x ~@ys ~@zs))))
       (t/is (r/multiple-unifiers? (r/parse-form '(~@ys ~x ~@zs))))))
 
-  (t/testing "non-inductive patterns"
+  (t/testing "non-inductive patterns"    
     (t/testing "maps"
       (t/is (not (r/multiple-unifiers? (r/parse-form '{x foo}))))
       (t/is (not (r/multiple-unifiers? (r/parse-form '{}))))
