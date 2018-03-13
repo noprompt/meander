@@ -168,6 +168,7 @@
                       [1 2 3]
                       [1 5 6]]})))))
 
+
 ;; ---------------------------------------------------------------------
 ;; Combinators
 
@@ -478,8 +479,6 @@
                (thread-1 '(-> x h g f)))))))
 
 
-
-
 (t/deftest mutliple-unifiers?-test
   (t/testing "inductive patterns"
     (t/testing "vectors"
@@ -508,3 +507,16 @@
       (t/is (not (r/multiple-unifiers? (r/parse-form '#{x}))))
 
       (t/is (r/multiple-unifiers? (r/parse-form '#{~x ~y}))))))
+
+
+(t/deftest extract-test
+  (t/is (= [[2 93] [4 99]]
+           (r/extract
+            (r/t {:student/id ~id
+                  :test/score ~score}
+              :when (< 90 score)
+              [~id ~score])
+            [{:student/id 1, :test/score 85}
+             {:student/id 2, :test/score 93}
+             {:student/id 3, :test/score 61}
+             {:student/id 4, :test/score 99}]))))
