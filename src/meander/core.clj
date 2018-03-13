@@ -282,9 +282,8 @@
    {:pre [(map? smap)]}
    (if (satisfies? protocols/IUnify* u)
      (protocols/-unify* u v smap)
-     (if-unifies [smap* u v smap]
-       (list smap*)
-       ()))))
+     (if-some [smap* (unify u v smap)]
+       (list smap*)))))
 
 
 (defn bound?
