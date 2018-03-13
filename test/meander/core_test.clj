@@ -131,20 +131,25 @@
            (r/unify (r/pattern [~x [~y [~z ~@zs] ~@ys] ~@xs])
                     [1 [2 [3 3] 3] 1])))
 
-  (t/is (= {"city" "CITY", "last" "LAST", "state" "STATE", "first" "FIRST"}
+  (t/is (= {"city" "CITY"
+            "last" "LAST"
+            "state" "STATE"
+            "first" "FIRST"}
            (r/unify
             (r/pattern
-             {:user {:first ~first
-                     :last ~last
-                     :address {:city ~city
-                               :state ~state}}})
+              {:user {:first ~first
+                      :last ~last
+                      :address {:city ~city
+                                :state ~state}}})
             {:user {:first "FIRST"
                     :last "LAST"
                     :address {:city "CITY"
                               :state "STATE"}}})))
 
 
-  (t/is (= #{{"z" 6, "y" 5} {"x" 4, "y" 5} {"z" 6, "x" 4}}
+  (t/is (= #{{"z" 6, "y" 5}
+             {"x" 4, "y" 5}
+             {"z" 6, "x" 4}}
            (set (r/unify* (r/choice (r/pattern [4 ~y ~z])
                                     (r/pattern [~x 5 ~z])
                                     (r/pattern [~x ~y 6]))
@@ -162,7 +167,6 @@
                   :y [[2 3 4]
                       [1 2 3]
                       [1 5 6]]})))))
-
 
 ;; ---------------------------------------------------------------------
 ;; Combinators
@@ -472,6 +476,8 @@
 
       (t/is (= '(f (g (h x)))
                (thread-1 '(-> x h g f)))))))
+
+
 
 
 (t/deftest mutliple-unifiers?-test
