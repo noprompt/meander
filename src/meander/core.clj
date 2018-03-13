@@ -1027,8 +1027,10 @@
 ;; Certain patterns may have multiple unifiers. These patterns are
 ;;
 ;; * a map pattern with any variable keys,
-;; * a set pattern with more than one variable, and
-;; * a sequential pattern with more than one splicing variable.
+;; * a set pattern with more than one variable,
+;; * a sequential pattern with more than one splicing variable, or
+;; * a sequential pattern with one or more splicing variables between
+;;   two non-splicing variables.
 
 (defn multiple-unifiers?
   "true if pattern has multiple unifiers."
@@ -1041,6 +1043,7 @@
                     (< 1 (count (filter variable? x))))
                (and (map? x)
                     (seq (variables (keys x))))
+               (seq (partition 3 (partition-by splicing-variable? pattern)))
                (< 1 (count (filter splicing-variable? x))))))
     (tree-seq coll? seq pattern))))
 
