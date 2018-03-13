@@ -429,8 +429,7 @@
                 "target" bar})
              (r/unify* dot-form-t1 '(.foo bar baz) {})))
 
-    (t/is (= '()
-             (r/unify* dot-form-t1 '(. bar (foo baz)) {}))))
+    (t/is (nil? (r/unify* dot-form-t1 '(. bar (foo baz)) {}))))
 
   (t/testing "example transforms"
     (t/is (= '(g 1 2)
