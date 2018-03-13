@@ -1358,14 +1358,6 @@
 (defn compile-map-pattern
   {:private true}
   [pattern target inner-form env]
-  (if (ground? (keys pattern))
-    (reduce-kv
-     (fn [inner-form* k v]
-       (let [val-target (gensym "val__")]
-         `(if-some [[~'_ ~val-target] (find ~target ~k)]
-            ~(compile-pattern v val-target inner-form* env))))
-     inner-form
-     pattern))
   (let [pattern* (fmap
                   (fn [[k v]]
                     (let [k* (cond
@@ -2660,7 +2652,7 @@
                                       (reduced nil))
                                     (assoc ~smap var-name# var-val#)))
                                 ~smap
-                                [~@(map (juxt name identity) u-var-syms)])
+                                ~(mapv (juxt name identity) u-var-syms))
                               (reverse (partition 2 clauses*)))
                              #{})))
 
