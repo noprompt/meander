@@ -1174,9 +1174,11 @@
       ;; The sequence has a variable length.
       [true false]
       (cond
+        ;; (~@xs)
         (= (count pattern) 1)
         (protocols/-compile-pattern (first pattern) target inner-form env)
 
+        ;; (~@xs ,,,)
         :else
         (let [pattern* (map
                         (fn [term]
@@ -1261,9 +1263,11 @@
       ;; The sequence has a variable length.
       [true false]
       (cond
+        ;; [~@xs]
         (= (count pattern) 1)
         (protocols/-compile-pattern (first pattern) target inner-form env)
 
+        ;; [~@xs ,,,]
         :else
         (let [;; Build vector pattern.
               pattern* (reduce
