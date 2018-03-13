@@ -2581,49 +2581,49 @@
         u-var-syms (map (comp symbol name) (variables u-pattern))
         s-vars (variables s-pattern)
         s-var-syms (map (comp symbol name) s-vars)
+        meta-smap (into {}
+                        (map (juxt name identity)
+                             (set/intersection
+                              (set s-var-syms)
+                              (set (mapcat
+                                    (fn [clause]
+                                      (when (= (first clause) :let)
+                                        (take-nth 2 (destructure (second clause)))))
+                                    (partition 2 clauses*))))))
+        meta-smap (if as
+                    (assoc meta-smap (name as) as)
+                    meta-smap)
         t (gensym "t__")
         smap (gensym "smap__")
         this (gensym "this__")]
     (if (multiple-unifiers? u-pattern)
-      (let [meta-smap (into {}
-                            (map (juxt name identity)
-                                 (set/intersection
-                                  (set s-var-syms)
-                                  (set (mapcat
-                                        (fn [clause]
-                                          (when (= (first clause) :let)
-                                            (take-nth 2 (destructure (second clause)))))
-                                        (partition 2 clauses*))))))
-            meta-smap (if as
-                        (assoc meta-smap (name as) as)
-                        meta-smap)]
-        `(let [u-pattern# (pattern ~u-form)
-               s-pattern# (pattern ~s-form)]
-           (reify
-             clojure.lang.IFn
-             (clojure.lang.IFn/invoke [~this ~t]
-               (if-some [smap# (protocols/-unify ~this ~t {})]
-                 (protocols/-substitute ~s-pattern (merge smap# (meta smap#))) 
-                 *fail*))
+      `(let [u-pattern# (pattern ~u-form)
+             s-pattern# (pattern ~s-form)]
+         (reify
+           clojure.lang.IFn
+           (clojure.lang.IFn/invoke [~this ~t]
+             (if-some [smap# (protocols/-unify ~this ~t {})]
+               (protocols/-substitute ~s-pattern (merge smap# (meta smap#))) 
+               *fail*))
 
-             (clojure.lang.IFn/applyTo [~this args#]
-               (clojure.lang.AFn/applyToHelper ~this args#))
+           (clojure.lang.IFn/applyTo [~this args#]
+             (clojure.lang.AFn/applyToHelper ~this args#))
 
-             protocols/IUnify
-             (protocols/-unify [~this ~t ~smap]
-               (first (protocols/-unify* ~this ~t ~smap)))
+           protocols/IUnify
+           (protocols/-unify [~this ~t ~smap]
+             (first (protocols/-unify* ~this ~t ~smap)))
 
-             protocols/IUnify*
-             (protocols/-unify* [~this ~t ~smap]
-               (for [~'&smap (unify* u-pattern# ~t ~smap)
-                     :let [{:strs [~@u-var-syms]} ~'&smap
-                           ~@(when as (list as t))]
-                     ~@clauses*]
-                 (with-meta ~'&smap ~meta-smap)))
+           protocols/IUnify*
+           (protocols/-unify* [~this ~t ~smap]
+             (for [~'&smap (unify* u-pattern# ~t ~smap)
+                   :let [{:strs [~@u-var-syms]} ~'&smap
+                         ~@(when as (list as t))]
+                   ~@clauses*]
+               (with-meta ~'&smap ~meta-smap)))
 
-             protocols/ISubstitute
-             (protocols/-substitute [~this ~smap]
-               (protocols/-substitute s-pattern# (merge ~smap (meta ~smap))))))))
+           protocols/ISubstitute
+           (protocols/-substitute [~this ~smap]
+             (protocols/-substitute s-pattern# (merge ~smap (meta ~smap)))))))
     `(reify
        clojure.lang.IFn
        (clojure.lang.IFn/invoke [~this ~t]
@@ -2670,7 +2670,7 @@
                                       ~smap
                                       (reduced nil))
                                     (assoc ~smap var-name# var-val#)))
-                                ~smap
+                                (with-meta ~smap ~meta-smap)
                                 ~(mapv (juxt name identity) u-var-syms))
                               (reverse (partition 2 clauses*)))
                              #{})))
@@ -2682,7 +2682,8 @@
 
        protocols/ISubstitute
        (protocols/-substitute [~this ~smap]
-         (let [~@(mapcat
+         (let [~smap (merge ~smap (meta ~smap))
+               ~@(mapcat
                   (fn [[var var-name]]
                     [(symbol var-name)
                      `(if-some [[_# val#] (find ~smap ~var-name)]
