@@ -2923,7 +2923,7 @@
            clojure.lang.IFn
            (clojure.lang.IFn/invoke [~this ~t]
              (if-some [smap# (protocols/-unify ~this ~t {})]
-               (protocols/-substitute ~s-pattern (merge smap# (meta smap#))) 
+               (protocols/-substitute s-pattern# (merge smap# (meta smap#))) 
                *fail*))
 
            (clojure.lang.IFn/applyTo [~this args#]
@@ -2943,79 +2943,79 @@
 
            protocols/ISubstitute
            (protocols/-substitute [~this ~smap]
-             (protocols/-substitute s-pattern# (merge ~smap (meta ~smap)))))))
-    `(reify
-       clojure.lang.IFn
-       (clojure.lang.IFn/invoke [~this ~t]
-         (or (let ~(if as
-                     [as t]
-                     [])
-               ~(compile-pattern u-pattern
-                                 t
-                                 (reduce
-                                  (fn [inner-form [clause-key form]]
-                                    (case clause-key
-                                      :let
-                                      `(let ~form ~inner-form)
-                                      
-                                      :when
-                                      `(if ~form ~inner-form)))
-                                  (compile-substitute-body s-pattern)
-                                  (reverse (partition 2 clauses*)))
-                                 #{}))
-             *fail*))
+             (protocols/-substitute s-pattern# (merge ~smap (meta ~smap))))))
+      `(reify
+         clojure.lang.IFn
+         (clojure.lang.IFn/invoke [~this ~t]
+           (or (let ~(if as
+                       [as t]
+                       [])
+                 ~(compile-pattern u-pattern
+                                   t
+                                   (reduce
+                                    (fn [inner-form [clause-key form]]
+                                      (case clause-key
+                                        :let
+                                        `(let ~form ~inner-form)
+                                        
+                                        :when
+                                        `(if ~form ~inner-form)))
+                                    (compile-substitute-body s-pattern)
+                                    (reverse (partition 2 clauses*)))
+                                   #{}))
+               *fail*))
 
-       (clojure.lang.IFn/applyTo [~this args#]
-         (clojure.lang.AFn/applyToHelper ~this args#))
+         (clojure.lang.IFn/applyTo [~this args#]
+           (clojure.lang.AFn/applyToHelper ~this args#))
 
-       protocols/IUnify
-       (protocols/-unify [~this ~t ~smap]
-         (let ~(if as
-                 [as t]
-                 [])
-           ~(compile-pattern u-pattern
-                             t
-                             (reduce
-                              (fn [inner-form [clause-key form]]
-                                (case clause-key
-                                  :let
-                                  `(let ~form ~inner-form)
-                                  
-                                  :when
-                                  `(if ~form ~inner-form)))
-                              `(reduce
-                                (fn [~smap [var-name# var-val#]]
-                                  (if-some [[outer-key# outer-val#] (find ~smap var-name#)]
-                                    (if (= outer-val# var-val#)
-                                      ~smap
-                                      (reduced nil))
-                                    (assoc ~smap var-name# var-val#)))
-                                (with-meta ~smap ~meta-smap)
-                                ~(mapv (juxt name identity) u-var-syms))
-                              (reverse (partition 2 clauses*)))
-                             #{})))
+         protocols/IUnify
+         (protocols/-unify [~this ~t ~smap]
+           (let ~(if as
+                   [as t]
+                   [])
+             ~(compile-pattern u-pattern
+                               t
+                               (reduce
+                                (fn [inner-form [clause-key form]]
+                                  (case clause-key
+                                    :let
+                                    `(let ~form ~inner-form)
+                                    
+                                    :when
+                                    `(if ~form ~inner-form)))
+                                `(reduce
+                                  (fn [~smap [var-name# var-val#]]
+                                    (if-some [[outer-key# outer-val#] (find ~smap var-name#)]
+                                      (if (= outer-val# var-val#)
+                                        ~smap
+                                        (reduced nil))
+                                      (assoc ~smap var-name# var-val#)))
+                                  (with-meta ~smap ~meta-smap)
+                                  ~(mapv (juxt name identity) u-var-syms))
+                                (reverse (partition 2 clauses*)))
+                               #{})))
 
-       protocols/IUnify*
-       (protocols/-unify* [~this ~t ~smap]
-         (if-some [~smap (protocols/-unify ~this ~t ~smap)]
-           (list ~smap)))
+         protocols/IUnify*
+         (protocols/-unify* [~this ~t ~smap]
+           (if-some [~smap (protocols/-unify ~this ~t ~smap)]
+             (list ~smap)))
 
-       protocols/ISubstitute
-       (protocols/-substitute [~this ~smap]
-         (let [~smap (merge ~smap (meta ~smap))
-               ~@(mapcat
-                  (fn [[var var-name]]
-                    [(symbol var-name)
-                     `(if-some [[_# val#] (find ~smap ~var-name)]
-                        val#
-                        ~(cond
-                           (splicing-variable? var)
-                           `(make-splicing-variable ~var-name)
+         protocols/ISubstitute
+         (protocols/-substitute [~this ~smap]
+           (let [~smap (merge ~smap (meta ~smap))
+                 ~@(mapcat
+                    (fn [[var var-name]]
+                      [(symbol var-name)
+                       `(if-some [[_# val#] (find ~smap ~var-name)]
+                          val#
+                          ~(cond
+                             (splicing-variable? var)
+                             `(make-splicing-variable ~var-name)
 
-                           (variable? var)
-                           `(make-variable ~var-name)))])
-                  (map (juxt identity name) s-vars))] 
-           ~(compile-substitute-body s-pattern))))))
+                             (variable? var)
+                             `(make-variable ~var-name)))])
+                    (map (juxt identity name) s-vars))] 
+             ~(compile-substitute-body s-pattern)))))))
 
 
 (defmacro t
