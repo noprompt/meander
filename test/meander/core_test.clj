@@ -185,7 +185,23 @@
 
     (t/is (not (r/unify
                 (r/pattern [~x #{^{:as x} [~b]}])
-                [[2] #{[1]}])))))
+                [[2] #{[1]}])))
+
+
+    (t/testing "pattern respects locals"
+      (t/is (let [x 1]
+              (r/unify
+               (r/pattern [~x ~y]
+                 :where {x ^:local ~x
+                         y 2})
+               [1 2])))
+
+      (t/is (not (let [x 1]
+                   (r/unify
+                    (r/pattern [~x ~y]
+                      :where {x ^:local ~x
+                              y 2})
+                    [2 2])))))))
 
 
 

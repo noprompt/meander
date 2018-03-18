@@ -1100,28 +1100,30 @@
 
 (defn derive-parse-env
   {:private true}
-  [form]
-  (reduce
-   (fn [[_ parse-env] x]
-     (cond
-       (or (local-variable-form? x)
-           (variable-form? x)
-           (splicing-variable-form? x))
-       [:okay parse-env]
+  ([form]
+   (derive-parse-env form empty-parse-env))
+  ([form parse-env]
+   (reduce
+    (fn [[_ parse-env] x]
+      (cond
+        (or (local-variable-form? x)
+            (variable-form? x)
+            (splicing-variable-form? x))
+        [:okay parse-env]
 
-       (coll? x)
-       (if-some [as (:as (meta x))]
-         (if-some [[_ def] (find-alias parse-env (variable-form as))]
-           (if (= x def)
-             [:okay parse-env]
-             (reduced [:error/conflict as x def]))
-           [:okay (put-alias parse-env (variable-form as) x)])
-         [:okay parse-env])
+        (coll? x)
+        (if-some [as (:as (meta x))]
+          (if-some [[_ def] (find-alias parse-env (variable-form as))]
+            (if (= x def)
+              [:okay parse-env]
+              (reduced [:error/conflict as x def]))
+            [:okay (put-alias parse-env (variable-form as) x)])
+          [:okay parse-env])
 
-       :else
-       [:okay parse-env]))
-   [:okay empty-parse-env]
-   (tree-seq coll? seq form)))
+        :else
+        [:okay parse-env]))
+    [:okay parse-env]
+    (tree-seq coll? seq form))))
 
 
 (defn edges
@@ -1220,17 +1222,19 @@
 
 (defn parse-form*
   {:private true}
-  [form]
-  (let [[status :as result] (derive-parse-env form)]
-    (case status
-      :okay
-      (let [parse-env (second result)]
-        (if-some [cycles (seq (cycles (edges parse-env)))]
-          [:error/cycles cycles]
-          [:okay (inline-aliases form parse-env)]))
+  ([form]
+   (parse-form* form empty-parse-env))
+  ([form parse-env]
+   (let [[status :as result] (derive-parse-env form parse-env)]
+     (case status
+       :okay
+       (let [parse-env (second result)]
+         (if-some [cycles (seq (cycles (edges parse-env)))]
+           [:error/cycles cycles]
+           [:okay (inline-aliases form parse-env)]))
 
-      ;; else
-      result)))
+       ;; else
+       result))))
 
 
 (defn render-cycles
@@ -1246,48 +1250,48 @@
 
 
 (defn parse-form
-  [form]
-  (let [[status :as result] (parse-form* form)]
-    (case status
-      :okay
-      (postwalk
-       (fn [x]
-         (cond
-           (local-variable-form? x)
-           (make-local-variable (variable-name x) (meta x))
+  ([form]
+   (parse-form form empty-parse-env))
+  ([form parse-env]
+   (let [[status :as result] (parse-form* form parse-env)]
+     (case status
+       :okay
+       (postwalk
+        (fn [x]
+          (cond
+            (local-variable-form? x)
+            (make-local-variable (variable-name x) (meta x))
 
-           (variable-form? x)
-           (make-variable (variable-name x) (meta x))
+            (variable-form? x)
+            (make-variable (variable-name x) (meta x))
 
-           (splicing-variable-form? x)
-           (make-splicing-variable (splicing-variable-name x) (meta x))
+            (splicing-variable-form? x)
+            (make-splicing-variable (splicing-variable-name x) (meta x))
 
-           (coll? x)
-           (or (when-some [y (:as (meta x))]
-                 (when (simple-symbol? y)
-                   (with-meta x (assoc (meta x) :as (make-variable y)))))
-               x)
+            (coll? x)
+            (or (when-some [y (:as (meta x))]
+                  (when (simple-symbol? y)
+                    (with-meta x (assoc (meta x) :as (make-variable y)))))
+                x)
 
-           :else
-           x))
-       ;; The fully parsed and expanded form.
-       (second result))
+            :else
+            x))
+        ;; The fully parsed and expanded form.
+        (second result))
 
-      :error/cycles
-      (let [cycles (second result)
-            message (format "Cyclic pattern: %s" (render-cycles cycles))]
-        (throw (ex-info message {:cycles cycles})))
+       :error/cycles
+       (let [cycles (second result)
+             message (format "Cyclic pattern: %s" (render-cycles cycles))]
+         (throw (ex-info message {:cycles cycles})))
 
 
-      :error/conflict
-      (let [[_ as conflict def] result
-            message (format "Conflicting definitions for %s"
-                            (pr-str (make-variable as))
-                            conflict
-                            def)]
-        (throw (ex-info message {:as as
-                                 :def def
-                                 :conflict conflict}))))))
+       :error/conflict
+       (let [[_ as conflict def] result
+             message (format "Conflicting definitions for symbol %s"
+                             (pr-str (make-variable as)))]
+         (throw (ex-info message {:as as
+                                  :def def
+                                  :conflict conflict})))))))
 
 
 (defn unparse-form
@@ -1687,6 +1691,23 @@
            (unify* ~pattern* ~target)))))))
 
 
+(defn compile-ground
+  {:private true}
+  [form]
+  (postwalk
+   (fn [x]
+     (cond
+       (local-variable? x)
+       (symbol (name x))
+
+       (seq? x)
+       (cons 'clojure.core/list x)
+
+       :else
+       x))
+   form))
+
+
 (extend-type clojure.lang.Symbol
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
@@ -1733,7 +1754,7 @@
       (if (= this ())
         `(if (= ~target ())
            ~inner-form)
-        `(if (= ~target '~this)
+        `(if (= ~target ~(compile-ground this))
            ~inner-form)) 
       (or (when-some [x (:as (meta this))]
             (when (variable? x)
@@ -1750,7 +1771,7 @@
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
     (if (ground? this)
-      `(if (= ~target ~this)
+      `(if (= ~target ~(compile-ground this))
          ~inner-form)
       (or (when-some [x (:as (meta this))]
             (when (variable? x)
@@ -1767,7 +1788,7 @@
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
     (if (ground? this)
-      `(if (= ~target ~this)
+      `(if (= ~target ~(compile-ground this))
          ~inner-form)
       (or (when-some [x (:as (meta this))]
             (when (variable? x)
@@ -1784,7 +1805,7 @@
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
     (if (ground? this)
-      `(if (= ~target ~this)
+      `(if (= ~target ~(compile-ground this))
          ~inner-form)
       (or (when-some [x (:as (meta this))]
             (when (variable? x)
@@ -1858,15 +1879,30 @@
 ;; pattern macro
 
 
-(spec/def ::pattern-args
-  (spec/cat
-   :pattern any?
-   :when-clause (spec/? (spec/cat
-                         :when #{:when}
-                         :expr any?))))
+(spec/def :meander.specs.pattern/when-clause
+  (spec/cat :when #{:when}
+            :expr any?))
+
+
+(spec/def :meander.specs.pattern/as-clause
+  (spec/cat :as #{:as}
+            :binding simple-symbol?))
+
+
+(spec/def :meander.specs.pattern/where-clause
+  (spec/cat :where #{:where}
+            :pattern-env (spec/map-of simple-symbol? any?)))
+
+
+(spec/def :meander.specs.pattern/args
+  (spec/cat :pattern any?
+            :as-clause (spec/? :meander.specs.pattern/as-clause)
+            :where-clause (spec/? :meander.specs.pattern/where-clause)
+            :when-clause (spec/? :meander.specs.pattern/when-clause)))
+
 
 (spec/fdef pattern
-  :args ::pattern-args
+  :args :meander.specs.pattern/args
   :ret any?)
 
 
@@ -1971,14 +2007,44 @@
            (merge ~smap-outer ~smap-inner))))))
 
 
+(defn pattern-env
+  {:private true}
+  [form opts]
+  (let [env (or (:where opts) {})]
+    (if-some [as (:as opts)]
+      (if-some [[_ def] (find env as)]
+        (if (= form def)
+          [:okay env]
+          [:error/conflict as def form])
+        [:okay (assoc env as form)])
+      [:okay env])))
+
+
 (defmacro pattern
-  {:arglists '([form & {:keys [when]}])
+  {:arglists '([form & {:keys [as when where]}])
    :style/indent :defn}
-  [form & {:as constraints}]
-  (let [pattern (parse-form form)]
-    (if (multiple-unifiers? pattern)
-      (compile-e-pattern pattern constraints)
-      (compile-syntactic-pattern pattern constraints))))
+  [form & {:as opts}]
+  (let [[status :as result] (pattern-env form opts)]
+    (case status
+      :okay
+      (let [parse-env (reduce-kv
+                       (fn [parse-env k v]
+                         (assoc parse-env (variable-form k) v))
+                       {}
+                       (second result))
+            pattern (parse-form form parse-env)
+            constraints (select-keys opts [:when])]
+        (if (multiple-unifiers? pattern)
+          (compile-e-pattern pattern constraints)
+          (compile-syntactic-pattern pattern constraints)))
+
+      :error/conflict
+      (let [[_ as conflict def] result
+            message (format "Conflicting definitions for symbol %s"
+                            (pr-str (make-variable as)))]
+        (throw (ex-info message {:as as
+                                 :def def
+                                 :conflict conflict}))))))
 
 
 ;; ---------------------------------------------------------------------
