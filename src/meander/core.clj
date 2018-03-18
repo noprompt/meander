@@ -11,6 +11,7 @@
    [clojure.core.specs.alpha :as core.specs]
    [clojure.set :as set]
    [clojure.spec.alpha :as spec]
+   [clojure.string :as string]
    [clojure.walk :as walk]
    [meander.protocols :as protocols]
    [meander.util :as util]))
