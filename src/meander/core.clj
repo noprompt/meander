@@ -1233,6 +1233,7 @@
 
 
 (defn render-cycles
+  {:private true}
   [cycles]
   (string/join ", "
                (map
