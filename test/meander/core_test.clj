@@ -166,7 +166,47 @@
                  {:x [1]
                   :y [[2 3 4]
                       [1 2 3]
-                      [1 5 6]]})))))
+                      [1 5 6]]}))))
+
+  (t/testing "as patterns"
+    (t/is (= {"map" {:key ["val"]
+                     :other-key "other-val"}
+              "key" ["val"]
+              "val" "val"}
+             (r/unify (r/pattern [^{:as map} {:key ^{:as key} [~val]}])
+                      [{:key ["val"]
+                        :other-key "other-val"}])))
+
+    (t/is (= {"x" [1]
+              "b" 1}
+             (r/unify
+              (r/pattern [~x #{^{:as x} [~b]}])
+              [[1] #{[1]}])))
+
+    (t/is (not (r/unify
+                (r/pattern [~x #{^{:as x} [~b]}])
+                [[2] #{[1]}])))))
+
+
+
+;; ---------------------------------------------------------------------
+;; Parse-form
+
+
+(t/deftest parse-form-test
+  (t/is (= #{(r/make-variable 'a)
+             (r/make-variable 'x)}
+           (r/variables (r/parse-form '^{:as a} [~x]))))
+
+  (t/testing "Cyclic pattern detection"
+    (t/is (thrown? clojure.lang.ExceptionInfo
+                   (r/parse-form '[^{:as a} [~b]
+                                   ^{:as b} [~c]
+                                   ^{:as c} [~b]]))))
+
+  (t/testing "Conflicting as pattern"
+    (t/is (thrown? clojure.lang.ExceptionInfo
+                   (r/parse-form '[^{:as a} [~b] ^{:as a} [~c]])))))
 
 
 ;; ---------------------------------------------------------------------
@@ -511,6 +551,28 @@
 
 
 (t/deftest extract-test
+  #_
+  (t/is (= '((:foo :bar :baz)
+             (:foo (:foo :baz) :baz)
+             (:foo :baz))
+           (r/extract
+            (r/pattern (:foo ~@xs :baz))
+            '((:foo :bar :baz)
+              (:foo :baz :bar)
+              (:foo (:foo :baz) :baz)
+              (:foo)))))
+  
+  #_
+  (t/is (= '[[:foo :bar :baz]
+             [:foo [:foo :baz] :baz]
+             [:foo :baz]]
+           (r/extract
+            (r/pattern [:foo ~@xs :baz])
+            [[:foo :bar :baz]
+             [:foo :baz :bar]
+             [:foo [:foo :baz] :baz]
+             [:foo]])))
+
   (t/is (= [[2 93] [4 99]]
            (r/extract
             (r/t {:student/id ~id
