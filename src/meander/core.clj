@@ -621,7 +621,12 @@
 
   protocols/ITermVariables
   (-term-variables [this]
-    (reduce set/union #{} (map variables this)))
+    (reduce set/union
+            (or (when-some [x (:as (meta this))]
+                  (when (variable? x)
+                    #{x}))
+                #{})
+            (map variables this)))
 
 
   protocols/ISubstitute
@@ -674,7 +679,7 @@
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
-    (outer-f (protocols/-fmap this inner-f))))
+    (outer-f (with-meta (protocols/-fmap this inner-f) (meta this)))))
 
 
 ;; ---------------------------------------------------------------------
@@ -765,12 +770,17 @@
 
   protocols/ITermVariables
   (-term-variables [this]
-    (reduce set/union #{} (map variables this)))
+    (reduce set/union
+            (or (when-some [x (:as (meta this))]
+                  (when (variable? x)
+                    #{x}))
+                #{})
+            (map variables this)))
 
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
-    (outer-f (protocols/-fmap this inner-f)))
+    (outer-f (with-meta (protocols/-fmap this inner-f) (meta this))))
 
 
   protocols/IUnify*
@@ -858,7 +868,12 @@
 
   protocols/ITermVariables
   (-term-variables [this]
-    (reduce set/union #{} (clojure.core/map variables (mapcat identity this))))
+    (reduce set/union
+            (or (when-some [x (:as (meta this))]
+                  (when (variable? x)
+                    #{x}))
+                #{})
+            (clojure.core/map variables (mapcat identity this))))
 
 
   protocols/IUnify
@@ -873,7 +888,7 @@
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
-    (outer-f (into {} (map inner-f this)))))
+    (outer-f (with-meta (into {} (map inner-f this)) (meta this)))))
 
 
 ;; ---------------------------------------------------------------------
@@ -919,8 +934,12 @@
 
   protocols/ITermVariables
   (-term-variables [this]
-    (reduce set/union #{} (map variables this)))
-
+    (reduce set/union
+            (or (when-some [x (:as (meta this))]
+                  (when (variable? x)
+                    #{x}))
+                #{})
+            (map variables this))) 
 
   protocols/IUnify
   (-unify [this that smap]
@@ -934,7 +953,11 @@
 
   protocols/IWalk
   (-walk [this inner-f outer-f]
-    (outer-f (set (map inner-f this)))))
+    (outer-f (with-meta (set (map inner-f this)) (meta this)))))
+
+
+;; ---------------------------------------------------------------------
+;; Local variable
 
 
 (deftype LocalVariable [name meta]
@@ -949,10 +972,6 @@
   clojure.lang.Named
   (getName [this]
     (.-name this)))
-
-
-;; ---------------------------------------------------------------------
-;; Local variable
 
 
 (defn make-local-variable
@@ -978,62 +997,307 @@
 ;; ---------------------------------------------------------------------
 ;; Pattern parsing
 
+(spec/def ::variable-form
+  (spec/and seq?
+            (spec/cat :unquote 'clojure.core/unquote
+                      :sym simple-symbol?)))
 
-(defn parse-form
-  ([x]
-   (parse-form x {}))
-  ([x env]
-   (cond
-     (seq? x)
-     (cond
-       (= (first x) 'quote)
-       x
 
-       (= (first x) `unquote)
-       (if (simple-symbol? (second x))
-         (let [var (if (:local (meta x))
-                     (make-local-variable (second x) (meta x))
-                     (make-variable (second x) (meta x)))]
-           var)
-         (undefined))
+(spec/def ::splicing-variable-form
+  (spec/and seq?
+            (spec/cat :unquote 'clojure.core/unquote-splicing
+                      :sym simple-symbol?)))
 
+
+(spec/def ::parse-env
+  (spec/map-of ::variable-form any?))
+
+
+(defn variable-form
+  [sym]
+  {:pre [(simple-symbol? sym)]}
+  (list `unquote sym))
+
+
+(defn variable-form?
+  [x]
+  (and (seq? x)
+       (= (first x) 'clojure.core/unquote)
+       (simple-symbol? (second x))))
+
+
+(defn variable-name
+  [x]
+  (when (variable-form? x)
+    (second x)))
+
+
+(defn splicing-variable-form
+  [sym]
+  {:pre [(simple-symbol? sym)]}
+  (list 'clojure.core/unquote-splicing sym))
+
+
+(defn splicing-variable-form?
+  [x]
+  (and (seq? x)
        (= (first x) `unquote-splicing)
-       (if (simple-symbol? (second x))
-         (let [var (make-splicing-variable (second x) (meta x))]
-           var)
-         (undefined))
+       (simple-symbol? (second x))))
+
+
+(defn splicing-variable-name
+  [x]
+  (when (splicing-variable-form? x)
+    (second x)))
+
+
+(defn local-variable-form?
+  [x]
+  (and (seq? x)
+       (= (first x) 'clojure.core/unquote)
+       (simple-symbol? (second x))
+       (true? (:local (meta x)))))
+
+
+(defn local-variable-name
+  [x]
+  (when (local-variable-form? x)
+    (second x)))
+
+
+(defn local-variable-form
+  [sym]
+  {:pre [(simple-symbol? sym)]}
+  (with-meta (list 'clojure.core/unquote sym) {:local true}))
+
+
+(def
+  ^{:private true}
+  empty-parse-env
+  {})
+
+
+(defn get-alias
+  {:private true}
+  [parse-env var-form]
+  (get parse-env var-form))
+
+
+(defn put-alias
+  {:private true}
+  [parse-env var-form def]
+  (if (variable-form? var-form)
+    (assoc parse-env var-form def)
+    parse-env))
+
+
+(defn find-alias
+  {:private true}
+  [parse-env var-form]
+  (find parse-env var-form))
+
+
+(defn derive-parse-env
+  {:private true}
+  [form]
+  (reduce
+   (fn [[_ parse-env] x]
+     (cond
+       (or (local-variable-form? x)
+           (variable-form? x)
+           (splicing-variable-form? x))
+       [:okay parse-env]
+
+       (coll? x)
+       (if-some [as (:as (meta x))]
+         (if-some [[_ def] (find-alias parse-env (variable-form as))]
+           (if (= x def)
+             [:okay parse-env]
+             (reduced [:error/conflict as x def]))
+           [:okay (put-alias parse-env (variable-form as) x)])
+         [:okay parse-env])
 
        :else
-       (with-meta
-         (map parse-form x (clj/repeat env))
-         (meta x)))
-
-     (vector? x)
-     (with-meta
-       (mapv parse-form x (clj/repeat env))
-       (meta x))
-
-     (map? x)
-     (with-meta
-       (into {} (map parse-form x (clj/repeat env)))
-       (meta x))
-
-     (set? x)
-     (into #{} (map parse-form x (clj/repeat env)))
-
-     :else
-     x)))
+       [:okay parse-env]))
+   [:okay empty-parse-env]
+   (tree-seq coll? seq form)))
 
 
-(defn unparse-form [form]
+(defn edges
+  "Given a parse environment returns a sequence of directed graph
+  edges (from/to pairs) where each element in the pair is a
+  ::variable-form."
+  {:private true}
+  [parse-env]
+  (mapcat
+   (fn [[var-form def]]
+     (map
+      (juxt (constantly var-form)
+            identity)
+      (filter
+       (every-pred (complement local-variable-form?)
+                   (some-fn variable-form? splicing-variable-form?))
+       (tree-seq coll? seq def))))
+   parse-env))
+
+
+(defn index-edges
+  "Given a sequence of directed graph edges (from/to pairs), return a
+  map from vetice to set of directed edges such that first item in the
+  pair is the from vertice."
+  {:private true}
+  [edges]
+  (reduce
+   (fn [m [from :as edge]]
+     (update m from (fnil conj #{}) edge))
+   {}
+   edges))
+
+
+(defn all-paths
+  {:private true}
+  [edges]
+  (let [index (index-edges edges)]
+    (mapcat
+     (fn search [edge path visited]
+       (if (visited edge)
+         (list [:cycle path])
+         (let [[from to] edge]
+           (if-some [connections (seq (get index to))]
+             (let [path* (conj path edge)
+                   visited* (conj visited edge)]
+               (mapcat
+                (fn [edge]
+                  (search edge path* visited*))
+                connections))
+             (list [:path (conj path edge)])))))
+     edges
+     (clj/repeat [])
+     (clj/repeat #{}))))
+
+
+(defn paths
+  {:private true}
+  [edges]
+  (keep
+   (fn [[path-type path]]
+     (when (not= :cycle path-type)
+       path))
+   (all-paths edges)))
+
+
+(defn cycles
+  {:private true}
+  [edges]
+  (keep
+   (fn [[path-type path]]
+     (when (= :cycle path-type)
+       path))
+   (all-paths edges)))
+
+
+(defn inline-aliases
+  {:private true}
+  [form parse-env]
+  (prewalk
+   (fn [x]
+     (cond
+       (local-variable? x)
+       x
+
+       (variable-form? x)
+       (if-some [[_ def] (find-alias parse-env x)]
+         def
+         x)
+
+       :else
+       (if-some [[_ def] (find-alias parse-env (some-> (meta x) :as variable-form))]
+         def
+         x)))
+   form))
+
+
+(defn parse-form*
+  {:private true}
+  [form]
+  (let [[status :as result] (derive-parse-env form)]
+    (case status
+      :okay
+      (let [parse-env (second result)]
+        (if-some [cycles (seq (cycles (edges parse-env)))]
+          [:error/cycles cycles]
+          [:okay (inline-aliases form parse-env)]))
+
+      ;; else
+      result)))
+
+
+(defn render-cycles
+  [cycles]
+  (string/join ", "
+               (map
+                (fn [cycle]
+                  (string/join " -> "
+                               (map (comp pr-str make-variable variable-name)
+                                    (concat (map first cycle) (list (last (last cycle)))))))
+                cycles)))
+
+
+(defn parse-form
+  [form]
+  (let [[status :as result] (parse-form* form)]
+    (case status
+      :okay
+      (postwalk
+       (fn [x]
+         (cond
+           (local-variable-form? x)
+           (make-local-variable (variable-name x) (meta x))
+
+           (variable-form? x)
+           (make-variable (variable-name x) (meta x))
+
+           (splicing-variable-form? x)
+           (make-splicing-variable (splicing-variable-name x) (meta x))
+
+           (coll? x)
+           (or (when-some [y (:as (meta x))]
+                 (when (simple-symbol? y)
+                   (with-meta x (assoc (meta x) :as (make-variable y)))))
+               x)
+
+           :else
+           x))
+       ;; The fully parsed and expanded form.
+       (second result))
+
+      :error/cycles
+      (let [cycles (second result)
+            message (format "Cyclic pattern: %s" (render-cycles cycles))]
+        (throw (ex-info message {:cycles cycles})))
+
+
+      :error/conflict
+      (let [[_ as conflict def] result
+            message (format "Conflicting definitions for %s"
+                            (pr-str (make-variable as))
+                            conflict
+                            def)]
+        (throw (ex-info message {:as as
+                                 :def def
+                                 :conflict conflict}))))))
+
+
+(defn unparse-form
+  [form]
   (postwalk
    (fn [x]
      (cond
        (splicing-variable? x)
-       (list 'clojure.core/unquote-splicing (symbol (name x)))
+       (splicing-variable-form (symbol (name x)))
 
        (variable? x)
-       (list 'clojure.core/unquote (symbol (name x)))
+       (variable-form (symbol (name x)))
 
        :else
        x))
@@ -1224,11 +1488,12 @@
               pattern* `(concat ~@pattern*)
               smap (gensym "smap__")
               ret-env (derive-env pattern)
-              inner-form* `(mapcat
-                            (fn [~smap]
-                              (let [{:strs ~(mapv symbol ret-env)} ~smap]
-                                ~inner-form))
-                            (unify* ~pattern* ~target ~(compile-smap env)))]
+              inner-form* `(seq
+                            (mapcat
+                             (fn [~smap]
+                               (let [{:strs ~(mapv symbol ret-env)} ~smap]
+                                 ~inner-form))
+                             (unify* ~pattern* ~target ~(compile-smap env))))]
           (if (type-check? pattern)
             `(if (and (seq? ~target)
                       (seq ~target))
@@ -1315,11 +1580,12 @@
                         pattern)
               smap (gensym "smap__")
               ret-env (derive-env pattern)
-              inner-form* `(mapcat
-                            (fn [~smap]
-                              (let [{:strs ~(mapv symbol ret-env)} ~smap]
-                                ~inner-form))
-                            (unify-vector* ~pattern* ~target ~(compile-smap env)))]
+              inner-form* `(seq
+                            (mapcat
+                             (fn [~smap]
+                               (let [{:strs ~(mapv symbol ret-env)} ~smap]
+                                 ~inner-form))
+                             (unify-vector* ~pattern* ~target ~(compile-smap env))))]
           (if (type-check? pattern)
             `(if (and (vector? ~target)
                       (seq ~target))
@@ -1374,11 +1640,12 @@
         smap (gensym "smap__")
         ret-env (derive-env pattern)]
     `(if (set? ~target)
-       (mapcat
-        (fn [~smap]
-          (let [{:strs ~(mapv symbol ret-env)} ~smap]
-            ~inner-form))
-        (unify* ~pattern* ~target)))))
+       (seq
+        (mapcat
+         (fn [~smap]
+           (let [{:strs ~(mapv symbol ret-env)} ~smap]
+             ~inner-form))
+         (unify* ~pattern* ~target))))))
 
 
 (defn compile-map-pattern
@@ -1410,11 +1677,12 @@
           smap (gensym "smap__")
           ret-env (derive-env pattern)]
       `(if (map? ~target)
-         (mapcat
-          (fn [~smap]
-            (let [{:strs ~(mapv symbol ret-env)} ~smap]
-              ~inner-form))
-          (unify* ~pattern* ~target))))))
+         (seq
+          (mapcat
+           (fn [~smap]
+             (let [{:strs ~(mapv symbol ret-env)} ~smap]
+               ~inner-form))
+           (unify* ~pattern* ~target)))))))
 
 
 (extend-type clojure.lang.Symbol
@@ -1422,6 +1690,14 @@
   (-compile-pattern [this target inner-form env]
     `(if (= ~target '~this)
        ~inner-form)))
+
+
+(extend-type meander.core.LocalVariable
+  protocols/ICompilePattern
+  (-compile-pattern [this target inner-form env]
+    (let [sym (symbol (name this))]
+      `(if (= ~target ~sym)
+         ~inner-form))))
 
 
 (extend-type meander.core.Variable
@@ -1432,14 +1708,6 @@
          (if (= target# ~(symbol (name this)))
            ~inner-form))
       `(let [~(symbol (name this)) ~target]
-         ~inner-form))))
-
-
-(extend-type meander.core.LocalVariable
-  protocols/ICompilePattern
-  (-compile-pattern [this target inner-form env]
-    (let [sym (symbol (name this))]
-      `(if (= ~target ~sym)
          ~inner-form))))
 
 
@@ -1458,12 +1726,22 @@
   protocols/ICompilePattern
   (-compile-pattern [this target inner-form env]
     (if (ground? this)
+      ;; This check prevents the dreaded "Unknown Collection type"
+      ;; error.
       (if (= this ())
         `(if (= ~target ())
            ~inner-form)
         `(if (= ~target '~this)
            ~inner-form)) 
-      (compile-seq-pattern this target inner-form env))))
+      (or (when-some [x (:as (meta this))]
+            (when (variable? x)
+              (if (contains? env (name x))
+                `(if (= ~target ~(symbol (name x)))
+                   ~inner-form)
+                (let [inner-form* `(let [~(symbol (name x)) ~target]
+                                     ~inner-form)]
+                  (compile-seq-pattern this target inner-form* env))))) 
+          (compile-seq-pattern this target inner-form env)))))
 
 
 (extend-type clojure.lang.IPersistentVector
@@ -1472,7 +1750,15 @@
     (if (ground? this)
       `(if (= ~target ~this)
          ~inner-form)
-      (compile-vector-pattern this target inner-form env))))
+      (or (when-some [x (:as (meta this))]
+            (when (variable? x)
+              (if (contains? env (name x))
+                `(if (= ~target ~(symbol (name x)))
+                   ~inner-form)
+                (let [inner-form* `(let [~(symbol (name x)) ~target]
+                                     ~inner-form)]
+                  (compile-vector-pattern this target inner-form* env))))) 
+          (compile-vector-pattern this target inner-form env)))))
 
 
 (extend-type clojure.lang.IPersistentSet
@@ -1481,7 +1767,15 @@
     (if (ground? this)
       `(if (= ~target ~this)
          ~inner-form)
-      (compile-set-pattern this target inner-form env))))
+      (or (when-some [x (:as (meta this))]
+            (when (variable? x)
+              (if (contains? env (name x))
+                `(if (= ~target ~(symbol (name x)))
+                   ~inner-form)
+                (let [inner-form* `(let [~(symbol (name x)) ~target]
+                                     ~inner-form)]
+                  (compile-set-pattern this target inner-form* env))))) 
+          (compile-set-pattern this target inner-form env)))))
 
 
 (extend-type clojure.lang.IPersistentMap
@@ -1490,7 +1784,15 @@
     (if (ground? this)
       `(if (= ~target ~this)
          ~inner-form)
-      (compile-map-pattern this target inner-form env))))
+      (or (when-some [x (:as (meta this))]
+            (when (variable? x)
+              (if (contains? env (name x))
+                `(if (= ~target ~(symbol (name x)))
+                   ~inner-form)
+                (let [inner-form* `(let [~(symbol (name x)) ~target]
+                                     ~inner-form)]
+                  (compile-map-pattern this target inner-form* env))))) 
+          (compile-map-pattern this target inner-form env)))))
 
 
 ;; ---------------------------------------------------------------------
@@ -1639,7 +1941,6 @@
                  `(make-splicing-variable ~(name v) ~(meta v))
                  `(make-variable ~(name v) ~(meta v))))
              (variables pattern))))
-
        
        protocols/ISubstitute
        (protocols/-substitute [~this ~smap-outer]
