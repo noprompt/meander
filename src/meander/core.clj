@@ -586,7 +586,6 @@
          (list smap))))))
 
 
-
 (defn unify-vector*
   "Return a sequence of all possible substutitions satisfying `u-vec`
   and `v-vec`."
@@ -597,13 +596,18 @@
        (unify-splicing-vector* u-vec v-vec smap)
        (when (= (count u-vec)
                 (count v-vec))
-         ((lconj*
-           (map
-            (fn [[u v]]
-              (fn [smap]
-                (unify* u v smap)))
-            (partition 2 (interleave u-vec v-vec))))
-          smap))))))
+         (let [as (some-> (:as (meta u-vec)) name)]
+           (cond->> ((lconj*
+                      (map
+                       (fn [[u v]]
+                         (fn [smap]
+                           (unify* u v smap)))
+                       (partition 2 (interleave u-vec v-vec))))
+                     smap)
+
+             ;; Bind as when specified.
+             as
+             (map (fn [smap] (assoc smap as v-vec))))))))))
 
 
 (defn unify-vector
@@ -720,13 +724,17 @@
        (unify-splicing-seq* u-seq v-seq smap)
        (when (= (count u-seq)
                 (count v-seq))
-         ((lconj*
-           (map
-            (fn [[u v]]
-              (fn [smap]
-                (unify* u v smap)))
-            (partition 2 (interleave u-seq v-seq))))
-          smap))))))
+         (let [as (some-> (:as (meta u-seq)) name)]
+           (cond->> ((lconj*
+                      (map
+                       (fn [[u v]]
+                         (fn [smap]
+                           (unify* u v smap)))
+                       (partition 2 (interleave u-seq v-seq))))
+                     smap)
+             ;; Bind as when specified.
+             as
+             (map (fn [smap] (assoc smap as v-seq))))))))))
 
 
 (defn unify-seq
@@ -829,12 +837,15 @@
    (when (map? map-b)
      (when (= (count map-a) (count map-b))
        (if (not= map-a map-b)
-         (mapcat
-          (fn [!map-a]
-            (let [entries (partition 2 (interleave !map-a map-b))]
-              (when-some [smap* (unify-entries* entries smap)]
-                smap*)))
-          (util/permutations map-a))
+         (let [as (some-> (:as (meta map-a)) name)]
+           (cond->> (mapcat
+                     (fn [!map-a]
+                       (when-some [smap* (unify-entries* (partition 2 (interleave !map-a map-b)) smap)]
+                         smap*))
+                     (util/permutations map-a))
+             ;; Bind as when specified.
+             as
+             (map (fn [smap] (assoc smap as map-b)))))
          (list smap))))))
 
 
@@ -905,15 +916,19 @@
    (when (set? set-v)
      (when (= (count set-u) (count set-v))
        (if (not= set-u set-v)
-         (mapcat
-          (fn [!set-u]
-            (let [pairs (partition 2 (interleave !set-u set-v))
-                  goals (map (fn [[a b]]
-                               (fn [smap]
-                                 (unify* a b smap)))
-                             pairs)]
-              ((lconj* goals) smap)))
-          (util/permutations set-u))
+         (let [as (some-> (:as (meta set-u)) name)]
+           (cond->> (mapcat
+                     (fn [!set-u]
+                       (let [pairs (partition 2 (interleave !set-u set-v))
+                             goals (map (fn [[a b]]
+                                          (fn [smap]
+                                            (unify* a b smap)))
+                                        pairs)]
+                         ((lconj* goals) smap)))
+                     (util/permutations set-u))
+             ;; Bind as when specified.
+             as
+             (map (fn [smap] (assoc smap as set-v)))))
          (list smap))))))
 
 
