@@ -117,14 +117,18 @@
     (list [coll])
 
     :else
-    (mapcat
-     (fn [[a b]]
-       (lazy-seq
-        (map conj (vec-partitions (dec n) a) (repeat b))))
-     (map-indexed
-      (fn [i _]
-        (vsplit-at i coll))
-      (range (inc (count coll)))))))
+    (sequence
+     (comp
+      (map-indexed
+       (fn [i _]
+         (vsplit-at i coll)))
+      (mapcat
+       (fn [[a b]]
+         (sequence
+          (map conj)
+          (vec-partitions (dec n) a)
+          (repeat b)))))
+     (range (inc (count coll))))))
 
 
 (defn coll-partitions
@@ -139,16 +143,20 @@
      (list [coll])
 
      :else
-     (mapcat
-      (fn [[a b]]
-        (lazy-seq
-         (map conj (coll-partitions (dec n) a) (repeat b))))
-      (map-indexed
-       (fn [i _]
-         (split-at i coll))
-       ;; Adding one more element to the coll ensures we split at 0
-       ;; *and* at `(count coll)` without count the collection.
-       (cons (first coll) coll))))))
+     (sequence
+      (comp
+       (map-indexed
+        (fn [i _]
+          (split-at i coll)))
+       (mapcat
+        (fn [[a b]]
+          (sequence
+           (map conj)
+           (coll-partitions (dec n) a)
+           (repeat b)))))
+      ;; Adding one more element to the coll ensures we split at 0
+      ;; *and* at (count coll) without counting the collection.
+      (cons (first coll) coll)))))
 
 
 (defn str-partitions [n str]
@@ -191,14 +199,18 @@ Examples:
     (list [str])
 
     :else
-    (mapcat
-     (fn [[a b]]
-       (lazy-seq
-        (map conj (str-partitions (dec n) a) (repeat b))))
-     (map
-      (fn [i]
-        [(subs str 0 i) (subs str i)])
-      (range (inc (.length str)))))))
+    (sequence
+     (comp
+      (map
+       (fn [i]
+         [(subs str 0 i) (subs str i)]))
+      (mapcat
+       (fn [[a b]]
+         (sequence
+          (map conj)
+          (str-partitions (dec n) a)
+          (repeat b)))))
+     (range (inc (.length str))))))
 
 
 (defn partitions [n coll]
@@ -238,14 +250,3 @@ Examples:
 
     :else
     (undefined)))
-
-
-#_
-(defn macroexpand-all [x]
-  (postwalk
-   (fn [x]
-     (let [x* (macroexpand x)]
-       (if (= x x*)
-         x
-         (macroexpand-all x*))))
-   x))
