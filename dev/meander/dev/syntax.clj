@@ -8,15 +8,25 @@
        (= (first x) 'quote)))
 
 
-(s/def :meander.syntax/lit
-  (s/conformer
-   (fn [x]
-     (if (or (not (or (= x '.)
-                      (= x '...)))
-             (quote-form? x))
-       x
-       ::s/invalid))
-   identity))
+(defn partition-symbol?
+  [x]
+  (= x '.))
+
+
+(defn zero-or-more-symbol?
+  [x]
+  (= x '...))
+
+
+(defn k-or-more-symbol?
+  [x]
+  (and (simple-symbol? x)
+       (some? (re-matches #"..\d+" (name x)))))
+
+
+(defn wildcard-symbol?
+  [x]
+  (= x '_))
 
 
 (defn var-name?
@@ -30,33 +40,15 @@
        (var-name? (name x))))
 
 
-(s/def :meander.syntax/var
-  (s/conformer
-   (fn [x]
-     (if (var-symbol? x)
-       x
-       ::s/invalid))
-   identity))
-
-
-(defn mut-name?
+(defn mem-name?
   [s]
   (some? (re-matches #"!\S+" s)))
 
 
-(defn mut-symbol?
+(defn mem-symbol?
   [x]
   (and (simple-symbol? x)
-       (mut-name? (name x))))
-
-
-(s/def :meander.syntax/mut
-  (s/conformer
-   (fn [x]
-     (if (mut-symbol? x)
-       x
-       ::s/invalid))
-   identity))
+       (mem-name? (name x))))
 
 
 (defn ref-name?
@@ -70,6 +62,70 @@
        (ref-name? (name x))))
 
 
+(s/def :meander.syntax/partition-symbol
+  (s/conformer
+   (fn [x]
+     (if (partition-symbol? x)
+       x
+       ::s/invalid))
+   identity))
+
+
+(s/def :meander.syntax/zero-or-more-symbol
+  (s/conformer
+   (fn [x]
+     (if (zero-or-more-symbol? x)
+       x
+       ::s/invalid))
+   identity))
+
+
+(s/def :meander.syntax/k-or-more-symbol
+  (s/conformer
+   (fn [x]
+     (if (k-or-more-symbol? x)
+       x
+       ::s/invalid))
+   identity))
+
+
+(s/def :meander.syntax/lit
+  (s/conformer
+   (fn [x]
+     (if (or (not (partition-symbol? x))
+             (quote-form? x))
+       x
+       ::s/invalid))
+   identity))
+
+
+(s/def :meander.syntax/any
+  (s/conformer
+   (fn [x]
+     (if (wildcard? x)
+       x
+       ::s/invalid))
+   identity))
+
+
+(s/def :meander.syntax/var
+  (s/conformer
+   (fn [x]
+     (if (var-symbol? x)
+       x
+       ::s/invalid))
+   identity))
+
+
+(s/def :meander.syntax/mem
+  (s/conformer
+   (fn [x]
+     (if (mem-symbol? x)
+       x
+       ::s/invalid))
+   identity))
+
+
 (s/def :meander.syntax/ref
   (s/conformer
    (fn [x]
@@ -78,14 +134,16 @@
        ::s/invalid))
    identity))
 
+
 (s/def :meander.syntax/quote
   quote-form?)
 
 
 (s/def :meander.syntax/term
   (s/or :var :meander.syntax/var
-        :mut :meander.syntax/mut
+        :mem :meander.syntax/mem
         :ref :meander.syntax/ref
+        :any :meander.syntax/any
         :vec :meander.syntax/vec
         :def :meander.syntax/def
         :quo :meander.syntax/quote
@@ -104,10 +162,16 @@
   (s/+ :meander.syntax/term))
 
 
-(s/def :meander.syntax/repitition
+(s/def :meander.syntax/zero-or-more
   (s/cat
    :init :meander.syntax/cat
-   :ellipsis '#{...}))
+   :sym :meander.syntax/zero-or-more-symbol))
+
+
+(s/def :meander.syntax/k-or-more
+  (s/cat
+   :init :meander.syntax/cat
+   :sym :meander.syntax/k-or-more-symbol))
 
 
 (s/def :meander.syntax/partition
@@ -123,6 +187,7 @@
   (s/alt
    :part :meander.syntax/partition
    :rep :meander.syntax/repitition
+   :repk :meander.syntax/k-or-more
    :cat :meander.syntax/cat))
 
 
@@ -162,5 +227,9 @@
                                       :right right-right)])))
                  (has-tag? right :cat)
                  [:cat (into (second left) (second right))]))))
+         (if (has-tag? x :repk)
+           (let [{sym :sym :as data} (second x)
+                 k (Long/parseUnsignedLong (subs (name sym) 2))]
+             [:repk (assoc data :k k)]))
          x))
    (parse-term* term)))

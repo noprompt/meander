@@ -179,104 +179,13 @@
 
 
 ;; ---------------------------------------------------------------------
-;; Compiler
-
-
-(defprotocol ICompilePattern
-  (-compile-pattern [p target inner-form env]))
-
-
-(defn compile-pattern
-  [p target inner-form env]
-  (if (satisfies? ICompilePattern p)
-    (-compile-pattern p target inner-form env)
-    `(if (= ~target ~p)
-       (list ~inner-form))))
-
-
-(defn compile-ground
-  {:private true}
-  [t]
-  (clojure.walk/postwalk
-   (fn [x]
-     (cond
-       (symbol? x)
-       (list 'quote x)
-
-       (seq? x)
-       (cons 'clojure.core/list x)
-
-       :else
-       x))
-   t))
-
-
-(defn derive-env
-  ([t]
-   (derive-env t #{}))
-  ([t env]
-   (into env (map (comp symbol name)) (variables t))))
-
-
-(defn derive-envs
-  ([ts]
-   (derive-envs ts #{}))
-  ([ts env]
-   (reductions set/union env (map derive-env ts))))
-
-
-(defn derive-sigs
-  ([ts]
-   (derive-sigs ts #{}))
-  ([ts env]
-   (let [envs (derive-envs ts env)
-         ret-envs (rest (derive-envs ts env))]
-     (sequence
-      (map
-       (fn [env ret-env]
-         (let [diff (into (set/difference ret-env env)
-                          (filter syntax/mut-symbol? ret-env))]
-           [env ret-env diff])))
-      envs
-      ret-envs))))
-
-
-(defn compile-patterns
-  [ts target inner-form env]
-  (let [sigs (derive-sigs ts env)]
-    (reduce
-     (fn [inner-form [t target [env ret-env diff]]]
-       (let [ret-vals (vec diff)]
-         `(sequence
-           (mapcat
-            (fn [~ret-vals]
-              ~inner-form))
-           ~(compile-pattern t target `(list ~ret-vals) env))))
-     inner-form
-     (reverse (sequence (map vector)
-                        ts
-                        (if (sequential? target)
-                          target
-                          (repeat target))
-                        sigs)))))
-
-
-;; ---------------------------------------------------------------------
 ;; Variable
 
 
-(deftype Variable [sym]
+(deftype Variable [^clojure.lang.Symbol sym]
   clojure.lang.Named
   (getName [_var]
-    (.getName ^clojure.lang.Symbol sym))
-
-  ICompilePattern
-  (-compile-pattern [_var target inner-form env]
-    (if (contains? env sym)
-      `(if (= ~target ~sym)
-         ~inner-form)
-      `(let [~sym ~target]
-         ~inner-form)))
+    (.getName sym))
 
   ISubstitutions
   (-substitutions [_var x smap]
@@ -295,7 +204,16 @@
 
   IVariables
   (-variables [var]
-    #{var}))
+    #{var})
+
+  Object
+  (equals [_var that]
+    (and (instance? Variable that)
+         (= (.-sym ^Variable that)
+            sym)))
+
+  (hashCode [this]
+    (.hashCode sym)))
 
 
 (defmethod print-method Variable [v ^java.io.Writer w]
@@ -309,74 +227,59 @@
 
 
 ;; ---------------------------------------------------------------------
-;; Mutable
+;; Memo
 
 
-(deftype Mutable [sym]
+(deftype Memo [sym]
   clojure.lang.Named
-  (getName [_mut]
+  (getName [_mem]
     (.getName ^clojure.lang.Symbol sym))
 
-  ICompilePattern
-  (-compile-pattern [_mut target inner-form env]
-    (if (contains? env sym)
-      `(let [~sym (conj ~sym ~target)]
-         ~inner-form)
-      `(let [~sym [~target]]
-         ~inner-form)))
-
   ISubstitutions
-  (-substitutions [_mut x smap]
+  (-substitutions [_mem x smap]
     (if-some [[_ y] (find smap (name sym))]
       (if (vector? y)
         (list (update smap (name sym) conj x)))
       (list (assoc smap (name sym) [x]))))
 
   ISubstituteStep
-  (-substitute-step [mut smap]
+  (-substitute-step [mem smap]
     (if-some [[_ x] (find smap (name sym))]
       (if (and (coll? x) (seq x))
         [(first x) (assoc smap (name sym) (next x))]
-        [mut smap])
-      [mut smap]))
+        [mem smap])
+      [mem smap]))
 
   IVariable
 
   IVariables
-  (-variables [mut]
-    #{mut}))
+  (-variables [mem]
+    #{mem}))
 
 
-(defmethod print-method Mutable [v ^java.io.Writer w]
-  (if *debug* (.write "#meander/mut "))
+(defmethod print-method Memo [v ^java.io.Writer w]
+  (if *debug* (.write "#meander/mem "))
   (.write w (name v)))
 
 
-(defn mutable? [x]
-  (instance? Mutable x))
+(defn mem? [x]
+  (instance? Memo x))
+
+
+(def
+  ^{:private true}
+  not-found (reify))
 
 
 ;; ---------------------------------------------------------------------
 ;; Nth
 
 
-(def not-found
-  (reify))
-
-
 (deftype Nth [term index]
-  ICompilePattern
-  (-compile-pattern [_nth target inner-form env]
-    (let [nth-target (gensym "nth__")]
-      `(let [~nth-target (nth ~target ~index not-found)]
-         (if (identical? ~nth-target not-found)
-           nil
-           ~(compile-patterns [term] nth-target inner-form env)))))
-
   ISubstitutions
   (-substitutions [_nth t smap]
     (let [u (nth t index not-found)]
-      (if (identical? t not-found)
+      (if (identical? u not-found)
         nil
         (substitutions term u smap))))
 
@@ -408,32 +311,36 @@
 
 
 (deftype Cat [terms]
-  ICompilePattern
-  (-compile-pattern [_cat target inner-form env]
-    (compile-patterns (sequence (map make-nth) terms (range))
-                      target
-                      inner-form
-                      env))
+  IMaxLength
+  (-max-length [_cat]
+    (count terms))
 
   IMinLength
   (-min-length [_cat]
     (count terms))
 
-  IMaxLength
-  (-max-length [_cat]
-    (count terms))
+  IMultipleSubstitutions
+  (-multiple-substitutions? [_cat]
+    (some multiple-substitutions? terms))
 
   ISubstitutions
   (-substitutions [_cat t-coll smap]
-    (sequence
-     (lconj-xform
-      (sequence (map make-nth) terms (range))
-      (repeat t-coll))
-     (list smap)))
+    (if (and (ground? terms)
+             (= t-coll terms))
+      (list smap)
+      (sequence
+       (lconj-xform
+        (sequence (map make-nth) terms (range))
+        (repeat t-coll))
+       (list smap))))
 
   IVariables
   (-variables [_cat]
     (transduce (map variables) set/union #{} terms))
+
+  IVariableLength
+  (-variable-length? [_cat]
+    false)
 
   clojure.lang.Seqable
   (seq [_cat]
@@ -447,8 +354,7 @@
 (defn make-cat
   ^Cat [terms]
   {:pre [(or (sequential? terms)
-             (cat? terms))
-         (not (some variable-length? terms))]}
+             (cat? terms))]}
   (if (cat? terms)
     terms
     (Cat. terms)))
@@ -462,13 +368,6 @@
 
 (def seq-end
   (reify
-    ICompilePattern
-    (-compile-pattern [_seq-end target inner-form env]
-      `(if (sequential? ~target)
-         (if (seq ~target)
-           nil
-           ~inner-form)))
-
     IMinLength
     (-min-length [seq-end]
       0)
@@ -494,45 +393,6 @@
 
 
 (deftype Partition [left right]
-  ICompilePattern
-  (-compile-pattern [part target inner-form env]
-    (let [left-target (gensym "left__")
-          right-target (gensym "right__")
-          n (gensym "n__")
-          min-left (-min-length left)
-          min-right (-min-length right)]
-      (case [(variable-length? left) (variable-length? right)]
-        ([false false] [false true])
-        `(let [~n ~min-left
-               ~left-target (take ~n ~target)
-               ~right-target (drop ~n ~target)]
-           ~(compile-patterns [left right]
-                              [left-target right-target]
-                              inner-form
-                              env))
-
-        [true false]
-        `(let [~n (max 0 (- (count ~target) ~min-right))
-               ~left-target (take ~n ~target)
-               ~right-target (drop ~n ~target)]
-           ~(compile-patterns [left right]
-                              [left-target right-target]
-                              inner-form
-                              env))
-
-        [true true]
-        `(sequence
-          (mapcat
-           (fn [[~left-target ~right-target]]
-             ~(compile-patterns [left right]
-                                [left-target right-target]
-                                inner-form
-                                env)))
-          ;; TODO: This should create partitions such that the left
-          ;; and right sides have *at least* min-length of left and
-          ;; min-length of right terms respectively.
-          (util/partitions 2 ~target)))))
-
   IMinLength
   (-min-length [_part]
     (+ (-min-length left)
@@ -659,41 +519,7 @@
 ;; A Rep represents variable length repeating subsequence.
 
 
-(deftype Rep [items]
-  ICompilePattern
-  (-compile-pattern [sseq target inner-form env]
-    (let [cat (make-cat items)
-          ret-env (derive-env items env)
-          unbound-env (set/difference ret-env env)
-          ret-vals (conj (vec ret-env) target)
-          slice (gensym "slice__")
-          f (gensym "loop__")
-          n (-min-length cat)]
-      `(or (seq
-            (sequence
-             (mapcat
-              (fn ~f [~ret-vals]
-                (let [~target (drop ~n ~target)
-                      ~slice (take ~n ~target)]
-                  (or (seq
-                       (sequence
-                        (mapcat ~f)
-                        ~(compile-pattern cat slice `(list ~ret-vals) ret-env)))
-                      ~inner-form))))
-             ~(compile-pattern cat target `(list ~ret-vals) env)))
-           (let [~@(sequence
-                    (mapcat
-                     (fn [var-sym]
-                       (let [default (cond
-                                       (syntax/var-symbol? var-sym)
-                                       `(Variable. '~var-sym)
-
-                                       (syntax/mut-symbol? var-sym)
-                                       [])]
-                         [var-sym default])))
-                    unbound-env)]
-             ~inner-form))))
-
+(deftype Rep [items min-length]
   IMultipleSubstitutions
   (-multiple-substitutions? [_sseq]
     true)
@@ -702,12 +528,34 @@
   (-substitutions [rep t smap]
     (if (sequential? t)
       (if (seq t)
-        (-substitutions (Partition. (make-cat items) rep) t smap)
-        (list smap))))
+        ;; This is gonna be slow.
+        (if (seq items)
+          (let [n (count items)
+                m (count t)
+                cat (make-cat items)]
+            (if (and (== 0 (mod m n))
+                     (<= min-length m))
+              (sequence
+               (reduce
+                (fn [xform slice]
+                  (comp xform
+                        (mapcat
+                         (fn [smap]
+                           (substitutions cat slice smap)))))
+                identity
+                (partition n t))
+               (list smap)))))
+        #_
+        (-substitutions (Partition. (make-cat items)
+                                    (Rep. items (max 0 (dec min-length))))
+                        t
+                        smap)
+        (if (zero? min-length)
+          (list smap)))))
 
   IMinLength
   (-min-length [_sseq]
-    0)
+    min-length)
   
   IVariableLength
   (-variable-length? [_sseq]
@@ -716,7 +564,6 @@
   IVariables
   (-variables [_rep]
     (transduce (map variables) into #{} items)))
-
 
 #_
 (deftype Rep [init]
@@ -747,12 +594,20 @@
   (instance? Rep x))
 
 
+;; ---------------------------------------------------------------------
+;; Vector
+
+
 (defn coll->partition* [coll]
   (if (seq coll)
     (Partition. (first coll) (coll->partition* (next coll)))
     seq-end))
 
-(def x-concat
+
+;; This needs a better name.
+(def
+  ^{:private true}
+  x-concat
   (comp
    (mapcat
     (fn [x]
@@ -770,6 +625,7 @@
         (list (.-term ^Nth x))
         (list x))))))
 
+
 (defn coll->partition
   [coll]
   (coll->partition*
@@ -785,23 +641,8 @@
     coll)))
 
 
-;; ---------------------------------------------------------------------
-;; Vector
-
-#_
-(deftype VecTerm [term]
-  )
-
 
 (extend-type clojure.lang.IPersistentVector
-  ICompilePattern
-  (-compile-pattern [ivec target inner-form env]
-    (if (ground? ivec)
-      `(if (= ~target ~(compile-ground ivec))
-         ~inner-form)
-      `(if (vector? ~target)
-         ~(compile-patterns ivec target inner-form env))))
-
   IMinLength
   (-min-length [ivec]
     (transduce
@@ -827,7 +668,7 @@
 
   IVariables
   (-variables [ivec]
-    (transduce (map variables) into #{}) ivec)
+    (transduce (map variables) into #{} ivec))
 
   IVariableLength
   (-variable-length? [ivec]
@@ -849,24 +690,53 @@
      v)))
 
 
+(deftype VecTerm [term min-length multiple-substitutions? variables variable-length?]
+  IMinLength
+  (-min-length [_vec-term]
+    min-length)
+
+  ISubstitutions
+  (-substitutions [_vec-term u smap]
+    (when (vector? u)
+      (-substitutions term u smap)))
+
+  IVariables
+  (-variables [_vec_term]
+    variables)
+
+  IVariableLength
+  (-variable-length? [_vec-term]
+    variable-length?))
+
+
+(defmethod print-method VecTerm [^VecTerm vec-term ^java.io.Writer w]
+  (if *debug*
+    (.write w "#meander/vec-term[")
+    (.write w "["))
+  (.write w (.-term vec-term))
+  (.write w "]"))
+
+
+(defn vec-term-no-check
+  {:private true}
+  [t]
+  (let [min-length (-min-length t)
+        multiple-substitutions? (-multiple-substitutions? t)
+        variables (-variables t)
+        variable-length? (-variable-length? t)]
+    (VecTerm. t min-length multiple-substitutions? variables variable-length?)))
+
+
+(defn vec-term [coll]
+  {:pre [(coll? coll)]}
+  (vec-term-no-check (coll->partition coll)))
+
+
 ;; ---------------------------------------------------------------------
 ;; Seq
 
 
 (extend-type clojure.lang.ISeq
-  ICompilePattern
-  (-compile-pattern [iseq target inner-form env]
-    (if (ground? iseq)
-      ;; This check prevents the dreaded "Unknown Collection type"
-      ;; error.
-      (if (= iseq ())
-        `(if (= ~target ())
-           ~inner-form)
-        `(if (= ~target ~(compile-ground iseq))
-           ~inner-form)))
-    `(if (seq? ~target)
-       ~(compile-patterns iseq target inner-form env)))
-
   IMinLength
   (-min-length [iseq]
     (transduce
@@ -918,6 +788,48 @@
       [(seq (persistent! s*)) smap*])))
 
 
+(deftype SeqTerm [term min-length multiple-substitutions? variables variable-length?]
+  IMinLength
+  (-min-length [_seq-term]
+    min-length)
+
+  ISubstitutions
+  (-substitutions [_seq-term u smap]
+    (when (seq? u)
+      (-substitutions term u smap)))
+
+  IVariables
+  (-variables [_seq_term]
+    variables)
+
+  IVariableLength
+  (-variable-length? [_seq-term]
+    variable-length?))
+
+
+(defmethod print-method SeqTerm [^SeqTerm seq-term ^java.io.Writer w]
+  (if *debug*
+    (.write w "#meander/seq-term[")
+    (.write w "["))
+  (.write w (.-term seq-term))
+  (.write w "]"))
+
+
+(defn seq-term-no-check
+  {:private true}
+  [t]
+  (let [min-length (-min-length t)
+        multiple-substitutions? (-multiple-substitutions? t)
+        variables (-variables t)
+        variable-length? (-variable-length? t)]
+    (SeqTerm. t min-length multiple-substitutions? variables variable-length?)))
+
+
+(defn seq-term [coll]
+  {:pre [(coll? coll)]}
+  (seq-term-no-check (coll->partition coll)))
+
+
 ;; ---------------------------------------------------------------------
 ;; Parse
 
@@ -925,6 +837,19 @@
 (defmulti parse-form*
   {:arglists '([x])}
   (fn tag [x] (first x)))
+
+
+(def any
+  (reify
+    ISubstitutions
+    (-substitutions [_ t smap]
+      (if (identical? any t)
+        nil
+        (list smap)))))
+
+
+(defmethod parse-form* :any [_]
+  any)
 
 
 (defmethod parse-form* :term [[_ x]]
@@ -943,22 +868,24 @@
   (Variable. sym))
 
 
-(defmethod parse-form* :mut [[_ sym]]
-  (Mutable. sym))
+(defmethod parse-form* :mem [[_ sym]]
+  (Memo. sym))
 
 
 (defmethod parse-form* :vec [[_ x]]
-  ;; Use VecTerm here.
-  (vector (parse-form* x)))
+  (vec-term-no-check (parse-form* x)))
 
 
 (defmethod parse-form* :seq [[_ x]]
-  ;; Use SeqTerm here.
-  (list (parse-form* x)))
+  (seq-term-no-check (parse-form* x)))
 
 
 (defmethod parse-form* :rep [[_ {init :init}]]
-  (Rep. (map parse-form* init)))
+  (Rep. (map parse-form* init) 0))
+
+
+(defmethod parse-form* :repk [[_ {init :init k :k}]]
+  (Rep. (map parse-form* init) k))
 
 
 (defmethod parse-form* :cat [[_ items]]
@@ -982,67 +909,33 @@
 ;; ---------------------------------------------------------------------
 ;; 
 
-(defn t-collapse-clauses
-  [t-clauses]
-  (reduce
-   (fn [clauses* [clause-key clause-form :as clause]]
-     (let [[clause*-key clause*-form] (peek clauses*)]
-       (if (= clause-key clause*-key)
-         (conj (pop clauses*)
-               (case clause-key
-                 :let
-                 [:let (into clause*-form clause-form)]
-
-                 :when
-                 [:when `(and ~clause*-form
-                              ~clause-form)]))
-         (conj clauses* clause))))
-   [(first t-clauses)]
-   (rest t-clauses)))
-
 
 (defmacro matcher
-  ([form ret-form]
-   (let [this (gensym "matcher__")
-         target (gensym "target__")
-         inner-form `(list ~ret-form)]
-     `(reify
-        clojure.lang.IFn
-        (invoke [~this ~target]
-          ~(compile-pattern (parse-form form) target inner-form #{}))))))
+  {:arglists '([form *when-clauses expr])
+   :style/indent :defn}
+  [& args]
+  (let [form (first args)
+        *when-clauses (partition 2 (butlast (rest args)))
+        expr (last args)
+        vars (variables (parse-form form))]
+    `(let [m# (parse-form '~form)]
+       (fn [t#]
+         (sequence
+          (keep
+           (fn [{:strs [~@(map (comp symbol name) vars)]}]
+             (when (and ~@(map second *when-clauses))
+               ~expr)))
+          (seq (substitutions m# t#)))))))
 
 #_
-(substitutions [(Variable. '?x) (Variable. '?x)] [1 1])
-
-#_
-(let [m (matcher (?x !x ... . !y ... )
-                 {"?x" ?x, "!x" !x, "!y" !y})
-      t (list 1 2 3)]
-  (m t)
-  #_
-  (t/is (= (m t)
-           (list {"?x" 1, "!x" [2 3]}))))
-
-#_
-(let [target 'target
-      inner-form '(list [?x !x])
-      env #{}
-      ]
-  (eval
-   (clean-form
-    `(let [~target (list 1 2 2 3)]
-       ~(compile-pattern (parse-form '(?x . !x ...))
-                         target
-                         inner-form
-                         env)))))
+(let [m (matcher [!x ... . 4]
+          !x)]
+  (m [1 2 3 4]))
 
 
 #_
-(substitutions
- (Partition.
-  (Partition.
-   (Cat. [1 2 3])  
-   (Rep. [(Mutable. '!x) (Mutable. '!y)]))
-  (Rep. [(Mutable. '!a) (Mutable. '!b)]))
- [1 2 3 1 2 1 2])
-
+(time
+  (let [[?x ?y] [1 2]]
+    (when (and (number? ?x)
+               (number? ?y))
+      (+ ?x ?y))))
