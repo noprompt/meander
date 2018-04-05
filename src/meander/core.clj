@@ -17,6 +17,9 @@
    [meander.util :as util]))
 
 
+(set! *warn-on-reflection* true)
+
+
 ;; ---------------------------------------------------------------------
 ;; Internal utilities
 
@@ -91,6 +94,13 @@
   ([goals]
    {:pre [(sequential? goals)]}
    (reduce lconj goals)))
+
+
+(defn iobj?
+  "true if x implements clojure.lang.IObj."
+  {:private true}
+  [x]
+  (instance? clojure.lang.IObj x))
 
 
 ;; ---------------------------------------------------------------------
@@ -404,11 +414,11 @@
     (if (= this that)
       smap
       (if-resolve [x this smap]
-        (let [y (resolve that smap)]
-          (if (= x y)
-            smap
-            nil))
-        (extend smap this that))))
+                  (let [y (resolve that smap)]
+                    (if (= x y)
+                      smap
+                      nil))
+                  (extend smap this that))))
 
   Object
   (equals [this that]
@@ -417,7 +427,8 @@
             (.-name ^Variable that))))
 
   (hashCode [this]
-    (.hashCode (.name this))))
+    (.hashCode (.name this)))
+  )
 
 
 (defmethod print-method meander.core.Variable [v ^java.io.Writer w]
@@ -1113,10 +1124,10 @@
   (find parse-env var-form))
 
 
-(defn derive-parse-env
+(defn derive-parse-env*
   {:private true}
   ([form]
-   (derive-parse-env form empty-parse-env))
+   (derive-parse-env* form empty-parse-env))
   ([form parse-env]
    (reduce
     (fn [[_ parse-env] x]
@@ -1139,6 +1150,42 @@
         [:okay parse-env]))
     [:okay parse-env]
     (tree-seq coll? seq form))))
+
+
+(defn derive-parse-env
+  ([form]
+   (derive-parse-env* form))
+  ([form parse-env]
+   (let [result (derive-parse-env* form parse-env)]
+     (if (= (first result)
+            :okay)
+       [:okay (reduce-kv
+               (fn [m k v]
+                 (if (and (coll? v)
+                          (not (:as (meta v))))
+                   (assoc m k (with-meta v (assoc (meta v) :as k)))
+                   (assoc m k v)))
+               {}
+               (second result))]
+       result))))
+
+
+(defn check-parse-env
+  {:private true}
+  [parse-env]
+  (reduce-kv
+   (fn [state k v]
+     (if-some [x (some
+                  (fn [x]
+                    (when-some [as (:as (meta x))]
+                      (when-some [[_ def] (find parse-env (variable-form as))]
+                        (when-not (= def x)
+                          [:error/conflict as x def]))))
+                  (tree-seq coll? seq v))]
+       (reduced x)
+       state))
+   [:okay parse-env]
+   parse-env))
 
 
 (defn edges
@@ -1240,13 +1287,19 @@
   ([form]
    (parse-form* form empty-parse-env))
   ([form parse-env]
-   (let [[status :as result] (derive-parse-env form parse-env)]
+   (let [[status :as result] (check-parse-env parse-env)]
      (case status
        :okay
-       (let [parse-env (second result)]
-         (if-some [cycles (seq (cycles (edges parse-env)))]
-           [:error/cycles cycles]
-           [:okay (inline-aliases form parse-env)]))
+       (let [[status :as result] (derive-parse-env form parse-env)]
+         (case status
+           :okay
+           (let [parse-env (second result)]
+             (if-some [cycles (seq (cycles (edges parse-env)))]
+               [:error/cycles cycles]
+               [:okay (inline-aliases form parse-env) parse-env]))
+
+           ;; else
+           result))
 
        ;; else
        result))))
@@ -1264,6 +1317,33 @@
                 cycles)))
 
 
+(defn parse-variable
+  [x]
+  (cond
+    (local-variable-form? x)
+    (make-local-variable (variable-name x) (dissoc (meta x) :as))
+
+    (variable-form? x)
+    (make-variable (variable-name x) (dissoc (meta x) :as))
+
+    (splicing-variable-form? x)
+    (make-splicing-variable (splicing-variable-name x) (dissoc (meta x) :as))
+
+    (coll? x)
+    (or (when-some [y (:as (meta x))]
+          (when (simple-symbol? y)
+            (vary-meta x assoc  :as (make-variable y))))
+        x)
+
+    :else
+    x))
+
+
+(defn pattern-env
+  [x]
+  (::pattern-env (meta x)))
+
+
 (defn parse-form
   ([form]
    (parse-form form empty-parse-env))
@@ -1271,28 +1351,13 @@
    (let [[status :as result] (parse-form* form parse-env)]
      (case status
        :okay
-       (postwalk
-        (fn [x]
-          (cond
-            (local-variable-form? x)
-            (make-local-variable (variable-name x) (meta x))
-
-            (variable-form? x)
-            (make-variable (variable-name x) (meta x))
-
-            (splicing-variable-form? x)
-            (make-splicing-variable (splicing-variable-name x) (meta x))
-
-            (coll? x)
-            (or (when-some [y (:as (meta x))]
-                  (when (simple-symbol? y)
-                    (with-meta x (assoc (meta x) :as (make-variable y)))))
-                x)
-
-            :else
-            x))
-        ;; The fully parsed and expanded form.
-        (second result))
+       (let [[_ expanded-form parse-env] result
+             [pattern-form pattern-env] (postwalk parse-variable [expanded-form parse-env])]
+         (cond-> pattern-form
+           (iobj? pattern-form)
+           (vary-meta assoc
+                      ::pattern-env pattern-env
+                      :as (some-> (meta pattern-form) :as parse-variable))))
 
        :error/cycles
        (let [cycles (second result)
@@ -1307,7 +1372,6 @@
          (throw (ex-info message {:as as
                                   :def def
                                   :conflict conflict})))))))
-
 
 (defn unparse-form
   [form]
@@ -1340,16 +1404,17 @@
   "true if pattern has multiple unifiers."
   [pattern]
   (boolean
-   (some
-    (fn [x]
-      (and (coll? x)
-           (or (and (set? x)
-                    (< 1 (count (filter variable? x))))
-               (and (map? x)
-                    (seq (variables (keys x))))
-               (seq (partition 3 (partition-by splicing-variable? pattern)))
-               (< 1 (count (filter splicing-variable? x))))))
-    (tree-seq coll? seq pattern))))
+   (or (some
+        (fn [x]
+          (and (coll? x)
+               (or (and (set? x)
+                        (< 1 (count (filter variable? x))))
+                   (and (map? x)
+                        (seq (variables (keys x))))
+                   (seq (partition 3 (partition-by splicing-variable? pattern)))
+                   (< 1 (count (filter splicing-variable? x))))))
+        (tree-seq coll? seq pattern))
+       (some-> (meta pattern) ::pattern-env multiple-unifiers?))))
 
 
 (defn type-check?
@@ -1379,10 +1444,13 @@
 (defn compile-pattern
   {:private true}
   [pattern target inner-form env]
-  (if (satisfies? protocols/ICompilePattern pattern)
-    (protocols/-compile-pattern pattern target inner-form env)
-    `(if (= ~target ~pattern)
-       ~inner-form)))
+  (let [pattern* (if (iobj? pattern)
+                   (vary-meta pattern dissoc ::pattern-env)
+                   pattern)]
+    (if (satisfies? protocols/ICompilePattern pattern*)
+      (protocols/-compile-pattern pattern* target inner-form env)
+      `(if (= ~target ~pattern*)
+         ~inner-form))))
 
 
 (defn compile-unify*
@@ -1705,7 +1773,6 @@
                ~inner-form))
            (unify* ~pattern* ~target)))))))
 
-
 (defn compile-ground
   {:private true}
   [form]
@@ -1714,6 +1781,9 @@
      (cond
        (local-variable? x)
        (symbol (name x))
+
+       (symbol? x)
+       (list 'quote x)
 
        (seq? x)
        (cons 'clojure.core/list x)
@@ -1906,7 +1976,7 @@
 
 (spec/def :meander.specs.pattern/where-clause
   (spec/cat :where #{:where}
-            :pattern-env (spec/map-of simple-symbol? any?)))
+            :parse-env (spec/map-of variable-form? any?)))
 
 
 (spec/def :meander.specs.pattern/args
@@ -1979,7 +2049,11 @@
   (let [this (gensym "this__")
         smap-outer (gensym "smap__")
         smap-inner (gensym "smap__")
-        target (gensym "target__")]
+        target (gensym "target__")
+        pattern-vars (variables pattern)
+        env-vars (variables (pattern-env pattern))
+        all-vars (set/union env-vars pattern-vars)
+        all-syms (map (comp symbol name) all-vars)]
     `(reify
        clojure.lang.IFn
        (clojure.lang.IFn/invoke [~this ~target]
@@ -1991,9 +2065,9 @@
           ~@(map
              (fn [v]
                (if (splicing-variable? v)
-                 `(make-splicing-variable ~(name v) ~(meta v))
-                 `(make-variable ~(name v) ~(meta v))))
-             (variables pattern))))
+                 `(make-splicing-variable ~(name v) '~(meta v))
+                 `(make-variable ~(name v) '~(meta v))))
+             pattern-vars)))
        
        protocols/ISubstitute
        (protocols/-substitute [~this ~smap-outer]
@@ -2005,24 +2079,25 @@
 
        protocols/IUnify*
        (protocols/-unify* [~this ~target ~smap-outer]
-         (for [~smap-inner ~(compile-pattern
-                             pattern
-                             target
-                             `(list ~(compile-smap (derive-env pattern)))
-                             #{})
-               ~@(when when-clause
-                   [:let `[{:strs ~(mapv (comp symbol name) (variables pattern))} ~smap-inner]
-                    :when when-clause])
-               :when (every?
-                      (fn [[inner-k# inner-v#]]
-                        (if-some [[outer-k# outer-v#] (find ~smap-outer inner-k#)]
-                          (= inner-v# outer-v#)
-                          true))
-                      ~smap-inner)]
-           (merge ~smap-outer ~smap-inner))))))
+         (seq (for [~smap-inner ~(compile-pattern
+                                  pattern
+                                  target
+                                  `(list ~(compile-smap (derive-env pattern)))
+                                  #{})
+                    ~@(when when-clause
+                        [:let `[{:strs ~(vec all-syms)} ~smap-inner]
+                         :when when-clause])
+                    :when (every?
+                           (fn [[inner-k# inner-v#]]
+                             (if-some [[outer-k# outer-v#] (find ~smap-outer inner-k#)]
+                               (= inner-v# outer-v#)
+                               true))
+                           ~smap-inner)]
+                (merge ~smap-outer ~smap-inner)))))))
 
 
-(defn pattern-env
+#_
+(defn parse-env
   {:private true}
   [form opts]
   (let [env (or (:where opts) {})]
@@ -2039,27 +2114,11 @@
   {:arglists '([form & {:keys [as when where]}])
    :style/indent :defn}
   [form & {:as opts}]
-  (let [[status :as result] (pattern-env form opts)]
-    (case status
-      :okay
-      (let [parse-env (reduce-kv
-                       (fn [parse-env k v]
-                         (assoc parse-env (variable-form k) v))
-                       {}
-                       (second result))
-            pattern (parse-form form parse-env)
-            constraints (select-keys opts [:when])]
-        (if (multiple-unifiers? pattern)
-          (compile-e-pattern pattern constraints)
-          (compile-syntactic-pattern pattern constraints)))
-
-      :error/conflict
-      (let [[_ as conflict def] result
-            message (format "Conflicting definitions for symbol %s"
-                            (pr-str (make-variable as)))]
-        (throw (ex-info message {:as as
-                                 :def def
-                                 :conflict conflict}))))))
+  (let [pattern (parse-form form (:where opts {}))
+        constraints (select-keys opts [:when])]
+    (if (multiple-unifiers? pattern)
+      (compile-e-pattern pattern constraints)
+      (compile-syntactic-pattern pattern constraints))))
 
 
 ;; ---------------------------------------------------------------------
@@ -2786,10 +2845,15 @@
     ;; =>
     ([2 93] [4 99])
   "
-  ([u]
+  ([s]
    (fn [t]
-     (extract u t)))
-  ([u t]
+     (extract s t)))
+  ([s t]
+   (for [x (tree-seq seqable? seq t)
+         :let [x* (s x)]
+         :when (not (fail? x*))]
+     x*)
+   #_
    (for [v (tree-seq seqable? seq t)
          :let [smap (unify u v {})]
          :when smap
@@ -2947,52 +3011,48 @@
 ;; ---------------------------------------------------------------------
 ;; transform macro
 
-(spec/def ::t
+(spec/def :meander.specs.t/let-clause
+  (spec/cat :let #{:let}
+            :bindings ::core.specs/bindings))
+
+(spec/def :meander.specs.t/args
   (spec/cat
    :pattern any?
-   :as-clause (spec/?
-               (spec/cat :as #{:as}
-                         :sym symbol?))
+   :as-clause (spec/? :meander.specs.pattern/as-clause)
+   :where-clause (spec/? :meander.specs.pattern/where-clause)
    :clauses (spec/*
              (spec/alt
-              :when-clause (spec/cat
-                            :when #{:when}
-                            :expr any?)
-              :let-clause (spec/cat
-                           :let #{:let}
-                           :bindings ::core.specs/bindings)))
+              :when-clause :meander.specs.pattern/when-clause
+              :let-clause :meander.specs.t/let-clause))
    :ret any?))
 
 
 (spec/fdef meander.core/t
-  :args ::t
+  :args :meander.specs.t/args
   :ret any?)
+
 
 (defn compile-t
   {:private true}
-  [compile-t-args]  
-  (let [[u-form & rest-args] compile-t-args
-        as (if (= (first rest-args) :as)
-             (second rest-args))
-        rest-args (if as
-                    (nnext rest-args)
-                    rest-args)
-        clauses* (butlast rest-args)
-        s-form (last rest-args)
-        u-pattern (parse-form u-form)
+  [{:keys [as clauses where u-form s-form]}]  
+  (let [u-pattern (parse-form u-form {:as as
+                                      :where where})
         s-pattern (parse-form s-form)
-        u-var-syms (map (comp symbol name) (variables u-pattern))
+        u-var-syms (fmap (comp symbol name)
+                         (set/union 
+                          (variables (pattern-env u-pattern))
+                          (variables u-pattern)))
         s-vars (variables s-pattern)
         s-var-syms (map (comp symbol name) s-vars)
         meta-smap (into {}
                         (map (juxt name identity)
-                             (set/intersection
+                             (set/union
                               (set s-var-syms)
                               (set (mapcat
                                     (fn [clause]
                                       (when (= (first clause) :let)
                                         (take-nth 2 (destructure (second clause)))))
-                                    (partition 2 clauses*))))))
+                                    (partition 2 clauses))))))
         meta-smap (if as
                     (assoc meta-smap (name as) as)
                     meta-smap)
@@ -3021,18 +3081,16 @@
              (for [~'&smap (unify* u-pattern# ~t ~smap)
                    :let [{:strs [~@u-var-syms]} ~'&smap
                          ~@(when as (list as t))]
-                   ~@clauses*]
+                   ~@clauses]
                (with-meta ~'&smap ~meta-smap)))
 
            protocols/ISubstitute
            (protocols/-substitute [~this ~smap]
-             (protocols/-substitute s-pattern# (merge ~smap (meta ~smap))))))
+             (protocols/-substitute s-pattern# ~smap))))
       `(reify
          clojure.lang.IFn
          (clojure.lang.IFn/invoke [~this ~t]
-           (or (let ~(if as
-                       [as t]
-                       [])
+           (or (let ~(if as [as t] [])
                  ~(compile-pattern u-pattern
                                    t
                                    (reduce
@@ -3044,7 +3102,7 @@
                                         :when
                                         `(if ~form ~inner-form)))
                                     (compile-substitute-body s-pattern)
-                                    (reverse (partition 2 clauses*)))
+                                    (reverse (partition 2 clauses)))
                                    #{}))
                *fail*))
 
@@ -3053,9 +3111,7 @@
 
          protocols/IUnify
          (protocols/-unify [~this ~t ~smap]
-           (let ~(if as
-                   [as t]
-                   [])
+           (let ~(if as [as t] [])
              ~(compile-pattern u-pattern
                                t
                                (reduce
@@ -3075,7 +3131,7 @@
                                       (assoc ~smap var-name# var-val#)))
                                   (with-meta ~smap ~meta-smap)
                                   ~(mapv (juxt name identity) u-var-syms))
-                                (reverse (partition 2 clauses*)))
+                                (reverse (partition 2 clauses)))
                                #{})))
 
          protocols/IUnify*
@@ -3105,4 +3161,35 @@
   {:arglists '([u-pattern clauses* s-pattern])
    :style/indent :defn}
   [& args]
-  (compile-t args))
+  (let [[u-form & rest-args] args
+        as (if (= (first rest-args) :as)
+             (second rest-args))
+        rest-args (if as
+                    (nnext rest-args)
+                    rest-args)
+        where (if (= (first rest-args) :where)
+                (second rest-args))
+        rest-args (if where
+                    (nnext rest-args)
+                    rest-args)
+        clauses (butlast rest-args)
+        s-form (last rest-args)
+        opts {:as as
+              :clauses clauses
+              :u-form u-form
+              :s-form s-form
+              :where where}]
+    (compile-t opts)
+    #_
+    (case (first result)
+      :okay
+      (compile-t opts)
+
+      :error/conflict
+      (let [[_ as conflict def] result
+            message (format "Conflicting definitions for symbol %s"
+                            (pr-str (make-variable as)))]
+        (throw (ex-info message {:as as
+                                 :def def
+                                 :conflict conflict}))))))
+

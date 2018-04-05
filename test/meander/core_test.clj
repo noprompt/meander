@@ -192,15 +192,15 @@
       (t/is (let [x 1]
               (r/unify
                (r/pattern [~x ~y]
-                 :where {x ^:local ~x
-                         y 2})
+                 :where {~x ^:local ~x
+                         ~y 2})
                [1 2])))
 
       (t/is (not (let [x 1]
                    (r/unify
                     (r/pattern [~x ~y]
-                      :where {x ^:local ~x
-                              y 2})
+                      :where {~x ^:local ~x
+                              ~y 2})
                     [2 2])))))))
 
 
