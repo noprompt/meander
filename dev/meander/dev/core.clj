@@ -178,6 +178,69 @@
   (first (substitute-step x smap)))
 
 
+
+;; ---------------------------------------------------------------------
+;; Any
+
+
+(def any
+  (reify
+    ISubstitutions
+    (-substitutions [_ t smap]
+      (if (identical? any t)
+        nil
+        (list smap)))))
+
+
+(defmethod print-method (class any) [_ ^java.io.Writer w]
+  (if *debug*
+    (.write w "#meander/any"))
+  (.write w "_"))
+
+
+;; ---------------------------------------------------------------------
+;; Cap
+
+(deftype Cap [pat var]
+  ISubstitutions
+  (-substitutions [_cap t smap]
+    (sequence
+     (mapcat
+      (fn [smap]
+        (substitutions var t smap)))
+     (substitutions pat t smap)))
+
+  IMinLength
+  (-min-length [_cap]
+    (-min-length pat))
+
+  IMultipleSubstitutions
+  (-multiple-substitutions? [_cap]
+    (multiple-substitutions? pat))
+
+  IVariables
+  (-variables [_cap]
+    (conj (variables pat) var))
+
+  IVariableLength
+  (-variable-length? [_cap]
+    (variable-length? pat)))
+
+
+(defn cap? [x]
+  (instance? Cap x))
+
+
+(defmethod print-method Cap [^Cap cap ^java.io.Writer w]
+  (if *debug*
+    (.write w "#meander/cap"))
+  (.write w "(")
+  (print-method (.-pat cap) w)
+  (.write w " :as ")
+  (print-method (.-var cap) w)
+  (.write w ")"))
+
+
 ;; ---------------------------------------------------------------------
 ;; Variable
 
@@ -519,7 +582,7 @@
 ;; A Rep represents variable length repeating subsequence.
 
 
-(deftype Rep [items min-length]
+(deftype Rep [term min-length]
   IMultipleSubstitutions
   (-multiple-substitutions? [_sseq]
     true)
@@ -529,27 +592,20 @@
     (if (sequential? t)
       (if (seq t)
         ;; This is gonna be slow.
-        (if (seq items)
-          (let [n (count items)
-                m (count t)
-                cat (make-cat items)]
-            (if (and (== 0 (mod m n))
-                     (<= min-length m))
-              (sequence
-               (reduce
-                (fn [xform slice]
-                  (comp xform
-                        (mapcat
-                         (fn [smap]
-                           (substitutions cat slice smap)))))
-                identity
-                (partition n t))
-               (list smap)))))
-        #_
-        (-substitutions (Partition. (make-cat items)
-                                    (Rep. items (max 0 (dec min-length))))
-                        t
-                        smap)
+        (let [n (-min-length term)
+              m (count t)]
+          (if (and (== 0 (mod m n))
+                   (<= min-length m))
+            (sequence
+             (reduce
+              (fn [xform slice]
+                (comp xform
+                      (mapcat
+                       (fn [smap]
+                         (substitutions term slice smap)))))
+              identity
+              (partition n t))
+             (list smap))))
         (if (zero? min-length)
           (list smap)))))
 
@@ -563,7 +619,7 @@
 
   IVariables
   (-variables [_rep]
-    (transduce (map variables) into #{} items)))
+    (variables term)))
 
 #_
 (deftype Rep [init]
@@ -584,7 +640,7 @@
 (defmethod print-method Rep [^Rep rep ^java.io.Writer w]
   (if *debug*
     (.write w "#meander/rep["))
-  (write-elems! (.-items rep) w)
+  (print-method (.-term rep) w)
   (if *debug*
     (.write w "]")
     (.write w " ...")))
@@ -711,9 +767,9 @@
 
 (defmethod print-method VecTerm [^VecTerm vec-term ^java.io.Writer w]
   (if *debug*
-    (.write w "#meander/vec-term[")
-    (.write w "["))
-  (.write w (.-term vec-term))
+    (.write w "#meander/vec-term"))
+  (.write w "[")
+  (print-method (.-term vec-term) w)
   (.write w "]"))
 
 
@@ -809,10 +865,10 @@
 
 (defmethod print-method SeqTerm [^SeqTerm seq-term ^java.io.Writer w]
   (if *debug*
-    (.write w "#meander/seq-term[")
-    (.write w "["))
-  (.write w (.-term seq-term))
-  (.write w "]"))
+    (.write w "#meander/seq-term"))
+  (.write w "(")
+  (print-method (.-term seq-term) w)
+  (.write w ")"))
 
 
 (defn seq-term-no-check
@@ -839,17 +895,14 @@
   (fn tag [x] (first x)))
 
 
-(def any
-  (reify
-    ISubstitutions
-    (-substitutions [_ t smap]
-      (if (identical? any t)
-        nil
-        (list smap)))))
-
-
 (defmethod parse-form* :any [_]
   any)
+
+
+(defmethod parse-form* :cap [[_ {:keys [pat var]}]]
+  (let [pat (parse-form* pat)
+        var (parse-form* var)]
+    (Cap. pat var)))
 
 
 (defmethod parse-form* :term [[_ x]]
@@ -881,11 +934,11 @@
 
 
 (defmethod parse-form* :rep [[_ {init :init}]]
-  (Rep. (map parse-form* init) 0))
+  (Rep. (parse-form* init) 0))
 
 
 (defmethod parse-form* :repk [[_ {init :init k :k}]]
-  (Rep. (map parse-form* init) k))
+  (Rep. (parse-form* init) k))
 
 
 (defmethod parse-form* :cat [[_ items]]
@@ -927,15 +980,15 @@
                ~expr)))
           (seq (substitutions m# t#)))))))
 
-#_
-(let [m (matcher [!x ... . 4]
-          !x)]
-  (m [1 2 3 4]))
+
 
 
 #_
-(time
-  (let [[?x ?y] [1 2]]
-    (when (and (number? ?x)
-               (number? ?y))
-      (+ ?x ?y))))
+(let [m (matcher (let [(_ _ :as !binding-pairs) ...] . !body ...) 
+          [!binding-pairs
+           !body])]
+  (m '(let [a 1 b 2])))
+
+
+
+
