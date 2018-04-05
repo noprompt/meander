@@ -237,44 +237,44 @@
 
 
 (defmethod expand-pat :cat [[_ pats]]
-  (if (= (count pats)
-         1)
-    (first pats)
-    (let [[xs ys] (split-with
-                   (fn [[tag data]]
-                     (if (= tag :cap)
-                       (let [{[cap-pat-tag cap-pat-data] :pat} data]
-                         (and (not= cap-pat-tag :rep)
-                              (not= cap-pat-tag :repk)
-                              (and (= cap-pat-tag :cat)
-                                   (<= (count cap-pat-data) 1))))
-                       true))
-                   pats)
-          xs (sequence
-              (map
-               (fn [[tag data :as node]]
-                 (if (= tag :cap)
-                   (let [{[cap-pat-tag cap-pat-data] :pat} data]
-                     (if (and (= cap-pat-tag :cat)
-                              (= (count cap-pat-data)
-                                 1))
-                       [:cap (assoc data :pat (first cap-pat-data))]
-                       node))
-                   node)))
-              xs)]
-      (if (seq xs)
-        (if (seq ys)
+  #_
+  (if (= (count pats) 1)
+    (first pats))
+  (let [[xs ys] (split-with
+                 (fn [[tag data]]
+                   (if (= tag :cap)
+                     (let [{[cap-pat-tag cap-pat-data] :pat} data]
+                       (and (not= cap-pat-tag :rep)
+                            (not= cap-pat-tag :repk)
+                            (and (= cap-pat-tag :cat)
+                                 (<= (count cap-pat-data) 1))))
+                     true))
+                 pats)
+        xs (sequence
+            (map
+             (fn [[tag data :as node]]
+               (if (= tag :cap)
+                 (let [{[cap-pat-tag cap-pat-data] :pat} data]
+                   (if (and (= cap-pat-tag :cat)
+                            (= (count cap-pat-data)
+                               1))
+                     [:cap (assoc data :pat (first cap-pat-data))]
+                     node))
+                 node)))
+            xs)]
+    (if (seq xs)
+      (if (seq ys)
+        [:part
+         {:left [:cat xs]
+          :right [:cat ys]}]
+        [:cat xs])
+      (if (seq ys)
+        (if (seq (next ys))
           [:part
-           {:left [:cat xs]
-            :right [:cat ys]}]
-          [:cat xs])
-        (if (seq ys)
-          (if (seq (next ys))
-            [:part
-             {:left (first ys)
-              :right [:cat (next ys)]}]
-            (first ys))
-          [:cat pats])))))
+           {:left (first ys)
+            :right [:cat (next ys)]}]
+          (first ys))
+        [:cat pats]))))
 
 
 (defmethod expand-pat :cap [[_ cap-data :as cap]]
@@ -305,16 +305,16 @@
 
 
 (defn expand-rep-init [rep-init]
-  (walk/prewalk expand-pat
-                (cond
-                  (has-tag? rep-init :cat)
-                  rep-init
+  (walk/prewalk
+   expand-pat
+   (cond (has-tag? rep-init :cat)
+         rep-init
 
-                  (tagged? rep-init)
-                  [:cat [rep-init]]
+         (tagged? rep-init)
+         [:cat [rep-init]]
 
-                  :else
-                  [:cat rep-init])))
+         :else
+         [:cat rep-init])))
 
 
 (defmethod expand-pat :rep [[_ rep-data]]
@@ -329,9 +329,37 @@
             :k (Long/parseUnsignedLong (subs (name sym) 2)))]))
 
 
+(defmethod expand-pat :seq [[_ node :as seq]]
+  (if (has-tag? node :part)
+    (let [[_ part-data] node
+          {left :left, right :right} part-data]
+      (if (has-tag? right :seq-end)
+        seq
+        [:seq
+         [:part
+          {:left node
+           :right [:seq-end]}]]))
+    [:seq
+     [:part
+      {:left node
+       :right [:seq-end]}]]))
+
+
+(defmethod expand-pat :vec [[_ node :as vec]]
+  (if (has-tag? node :part)
+    (let [[_ part-data] node
+          {left :left, right :right} part-data]
+      (if (has-tag? right :seq-end)
+        vec
+        [:vec
+         [:part
+          {:left node
+           :right [:seq-end]}]]))
+    [:vec
+     [:part
+      {:left node
+       :right [:seq-end]}]]))
+
+
 (defn parse-term [term]
   (clojure.walk/prewalk expand-pat (parse-term* term)))
-
-#_
-(parse-term '(let [(!bs !vs :as !binding-pairs) ...]
-               !body ...))

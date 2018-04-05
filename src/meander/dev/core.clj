@@ -1,4 +1,8 @@
 (ns meander.dev.core
+  (:refer-clojure :exclude [bound?
+                            compile
+                            extend
+                            resolve])
   (:require
    [clojure.core :as clj]
    [clojure.set :as set]
@@ -93,18 +97,30 @@
   (not (seq (variables t))))
 
 
-(defprotocol IMultipleSubstitutions
-  (-multiple-substitutions? [t]))
+(defprotocol IMultipleUnifiers
+  (-multiple-unifiers? [t]))
 
 
-(defn multiple-substitutions?
-  "true if x may have more than one substitution under unification."
-  [t]
-  (and (satisfies? IMultipleSubstitutions t)
-       (boolean (-multiple-substitutions? t))))
+(defn multiple-unifiers?
+  "true if x may have more than one unifier (substitution) under
+  unification."
+  [x]
+  (and (satisfies? IMultipleUnifiers x)
+       (boolean (-multiple-unifiers? x))))
+
+
+(defn match?
+  "true if x can have no more than one unifier for a given term t
+  under unification."
+  [x]
+  (not (multiple-unifiers? x)))
 
 
 (defprotocol IMinLength
+  (-min-length [t]))
+
+
+(defn min-length [t]
   (-min-length [t]))
 
 
@@ -123,29 +139,48 @@
        (boolean (-variable-length? t))))
 
 
-(defprotocol ISubstitutions
-  (-substitutions [u v smap]))
+(defprotocol IUnifiers
+  (-unifiers [u v smap]))
 
 
-(defn isubstitutions?
+(defn iunifiers?
   [x]
-  (satisfies? ISubstitutions x))
+  (satisfies? IUnifiers x))
 
 
-(defn substitutions
+(defn unifiers
   ([u v]
-   (substitutions u v {}))
+   (unifiers u v {}))
   ([u v smap]
    (cond
-     (isubstitutions? u)
-     (-substitutions u v smap)
+     (iunifiers? u)
+     (-unifiers u v smap)
 
-     (isubstitutions? v)
+     (iunifiers? v)
      (recur v u smap)
 
      :else
      (if (= u v)
        (list smap)))))
+
+
+(defn bound?
+  [smap ivar]
+  (contains? smap (name ivar)))
+
+
+(defn resolve
+  [smap ivar not-found]
+  (if-some [[_ x] (find smap (name ivar))]
+    (if (ivariable? x)
+      (recur smap x not-found)
+      x)
+    not-found))
+
+
+(defn extend-no-check
+  [smap ivar val]
+  (assoc smap (name ivar) val))
 
 
 (defn lconj-xform
@@ -157,7 +192,7 @@
       (fn [u v]
         (mapcat
          (fn [smap]
-           (substitutions u v smap)))))
+           (unifiers u v smap)))))
      u-coll
      v-coll)))
 
@@ -178,6 +213,71 @@
   (first (substitute-step x smap)))
 
 
+;; ---------------------------------------------------------------------
+;; Compilation
+
+
+(defprotocol ICompile
+  (-compile [x target inner-form env]))
+
+
+(def empty-env
+  {})
+
+
+(defn derive-env
+  ([t]
+   (derive-env t empty-env))
+  ([t env]
+   (into env
+         (map (juxt identity (comp symbol name)))
+         (variables t))))
+
+
+(defn derive-sig
+  ([t]
+   (derive-sig t empty-env))
+  ([t env]
+   (let [ret-env (derive-env t env)
+         diff-env (reduce dissoc ret-env (keys env))]
+     [env ret-env diff-env])))
+
+
+(defn compile
+  [x target inner-form env]
+  (-compile x target inner-form env))
+
+
+;; ---------------------------------------------------------------------
+;; Nothing
+
+
+(def nothing
+  (reify
+    ICompile
+    (-compile [_any _target _inner-form _smap]
+      nil)
+
+    IUnifiers
+    (-unifiers [_any _t _smap]
+      nil)
+
+    IMultipleUnifiers
+    (-multiple-unifiers? [_any]
+      false) 
+
+    IVariables
+    (-variables [_any]
+      #{})
+
+    IVariableLength
+    (-variable-length? [_any]
+      false)
+
+    ISubstituteStep
+    (-substitute-step [nothing smap]
+      [nothing smap])))
+
 
 ;; ---------------------------------------------------------------------
 ;; Any
@@ -185,73 +285,59 @@
 
 (def any
   (reify
-    ISubstitutions
-    (-substitutions [_ t smap]
+    ICompile
+    (-compile [_any target inner-form smap]
+      inner-form)
+
+    IUnifiers
+    (-unifiers [_any t smap]
       (if (identical? any t)
         nil
-        (list smap)))))
+        (list smap)))
+
+    IMultipleUnifiers
+    (-multiple-unifiers? [_any]
+      false) 
+
+    IVariables
+    (-variables [_any]
+      #{})
+
+    IVariableLength
+    (-variable-length? [_any]
+      false)
+
+    ISubstituteStep
+    (-substitute-step [any smap]
+      [any smap])))
 
 
 (defmethod print-method (class any) [_ ^java.io.Writer w]
   (if *debug*
-    (.write w "#meander/any"))
+    (.write w "#meander/any "))
   (.write w "_"))
-
-
-;; ---------------------------------------------------------------------
-;; Cap
-
-(deftype Cap [pat var]
-  ISubstitutions
-  (-substitutions [_cap t smap]
-    (sequence
-     (mapcat
-      (fn [smap]
-        (substitutions var t smap)))
-     (substitutions pat t smap)))
-
-  IMinLength
-  (-min-length [_cap]
-    (-min-length pat))
-
-  IMultipleSubstitutions
-  (-multiple-substitutions? [_cap]
-    (multiple-substitutions? pat))
-
-  IVariables
-  (-variables [_cap]
-    (conj (variables pat) var))
-
-  IVariableLength
-  (-variable-length? [_cap]
-    (variable-length? pat)))
-
-
-(defn cap? [x]
-  (instance? Cap x))
-
-
-(defmethod print-method Cap [^Cap cap ^java.io.Writer w]
-  (if *debug*
-    (.write w "#meander/cap"))
-  (.write w "(")
-  (print-method (.-pat cap) w)
-  (.write w " :as ")
-  (print-method (.-var cap) w)
-  (.write w ")"))
 
 
 ;; ---------------------------------------------------------------------
 ;; Variable
 
 
-(deftype Variable [^clojure.lang.Symbol sym]
+(deftype LVar [^clojure.lang.Symbol sym]
   clojure.lang.Named
   (getName [_var]
     (.getName sym))
 
-  ISubstitutions
-  (-substitutions [_var x smap]
+
+  ICompile
+  (-compile [var target inner-form env]
+    (if (contains? env var)
+      `(if (= ~target ~sym)
+         ~inner-form)
+      `(let [~sym ~target]
+         ~inner-form)))
+
+  IUnifiers
+  (-unifiers [_var x smap]
     (if-some [[_ y] (find smap (name sym))]
       (if (= x y)
         (list smap))
@@ -271,35 +357,45 @@
 
   Object
   (equals [_var that]
-    (and (instance? Variable that)
-         (= (.-sym ^Variable that)
+    (and (instance? LVar that)
+         (= (.-sym ^LVar that)
             sym)))
 
   (hashCode [this]
     (.hashCode sym)))
 
 
-(defmethod print-method Variable [v ^java.io.Writer w]
-  (if *debug* (.write "#meander/var "))
+(defn make-lvar
+  [sym]
+  {:pre [(symbol? sym)]}
+  (LVar. sym))
+
+
+(defn lvar? [x]
+  (instance? LVar x))
+
+
+(defn lvars [t]
+  (into #{} (filter lvar?) (variables t)))
+
+
+(defmethod print-method LVar [v ^java.io.Writer w]
+  (if *debug* (.write w "#meander/lvar "))
   (.write w (name v)))
-
-
-(defn variable? [x]
-  (instance? Variable x))
 
 
 
 ;; ---------------------------------------------------------------------
-;; Memo
+;; MemVar
 
 
-(deftype Memo [sym]
+(deftype MemVar [sym]
   clojure.lang.Named
   (getName [_mem]
     (.getName ^clojure.lang.Symbol sym))
 
-  ISubstitutions
-  (-substitutions [_mem x smap]
+  IUnifiers
+  (-unifiers [_mem x smap]
     (if-some [[_ y] (find smap (name sym))]
       (if (vector? y)
         (list (update smap (name sym) conj x)))
@@ -320,14 +416,21 @@
     #{mem}))
 
 
-(defmethod print-method Memo [v ^java.io.Writer w]
-  (if *debug* (.write "#meander/mem "))
+(defmethod print-method MemVar [v ^java.io.Writer w]
+  (if *debug* (.write w "#meander/mem "))
   (.write w (name v)))
 
 
-(defn mem? [x]
-  (instance? Memo x))
+(defn make-mem-var [sym]
+  (MemVar. sym))
 
+
+(defn mem-var? [x]
+  (instance? MemVar x))
+
+
+(defn mem-vars [t]
+  (into #{} (filter mem-var?) (variables t)))
 
 (def
   ^{:private true}
@@ -335,16 +438,83 @@
 
 
 ;; ---------------------------------------------------------------------
+;; Cap
+
+
+(deftype Cap [pat var]
+  ICompile
+  (-compile [cap target inner-form env]
+    (if (or (match? pat)
+            (and (lvar? var)
+                 (contains? env var)))
+      (-compile var
+                target
+                (-compile pat target inner-form (derive-env cap env))
+                env)
+      (let [[_ ret-env diff-env] (derive-sig cap env)
+            ret-vals (vec (vals diff-env))]
+        `(sequence
+          (mapcat
+           (fn [~ret-vals]
+             ~(-compile pat target inner-form env)))
+          ~(-compile var target `(list ~ret-vals) env)))))
+
+  IUnifiers
+  (-unifiers [_cap t smap]
+    (sequence
+     (mapcat
+      (fn [smap]
+        (unifiers var t smap)))
+     (unifiers pat t smap)))
+
+  IMinLength
+  (-min-length [_cap]
+    (-min-length pat))
+
+  IMultipleUnifiers
+  (-multiple-unifiers? [_cap]
+    (multiple-unifiers? pat))
+
+  IVariables
+  (-variables [_cap]
+    (conj (variables pat) var))
+
+  IVariableLength
+  (-variable-length? [_cap]
+    (variable-length? pat)))
+
+
+(defn make-cap
+  [pat var]
+  {:pre [(satisfies? IVariable var)]}
+  (Cap. pat var))
+
+
+(defn cap? [x]
+  (instance? Cap x))
+
+
+(defmethod print-method Cap [^Cap cap ^java.io.Writer w]
+  (if *debug*
+    (.write w "#meander/cap"))
+  (.write w "(")
+  (print-method (.-pat cap) w)
+  (.write w " :as ")
+  (print-method (.-var cap) w)
+  (.write w ")"))
+
+
+;; ---------------------------------------------------------------------
 ;; Nth
 
 
 (deftype Nth [term index]
-  ISubstitutions
-  (-substitutions [_nth t smap]
+  IUnifiers
+  (-unifiers [_nth t smap]
     (let [u (nth t index not-found)]
       (if (identical? u not-found)
         nil
-        (substitutions term u smap))))
+        (unifiers term u smap))))
 
   IVariables
   (-variables [_nth]
@@ -364,9 +534,9 @@
 
 
 (defmethod print-method Nth [^Nth nth ^java.io.Writer w]
-  (if *debug* (.write "#meander/nth["))
+  (if *debug* (.write w "#meander/nth["))
   (write-elems! [(.-term nth) (.-index nth)] w)
-  (if *debug* (.write "]")))
+  (if *debug* (.write w "]")))
 
 
 ;; ---------------------------------------------------------------------
@@ -382,12 +552,12 @@
   (-min-length [_cat]
     (count terms))
 
-  IMultipleSubstitutions
-  (-multiple-substitutions? [_cat]
-    (some multiple-substitutions? terms))
+  IMultipleUnifiers
+  (-multiple-unifiers? [_cat]
+    (some multiple-unifiers? terms))
 
-  ISubstitutions
-  (-substitutions [_cat t-coll smap]
+  IUnifiers
+  (-unifiers [_cat t-coll smap]
     (if (and (ground? terms)
              (= t-coll terms))
       (list smap)
@@ -415,12 +585,12 @@
 
 
 (defn make-cat
-  ^Cat [terms]
-  {:pre [(or (sequential? terms)
-             (cat? terms))]}
-  (if (cat? terms)
-    terms
-    (Cat. terms)))
+  ^Cat [pats]
+  {:pre [(or (sequential? pats)
+             (cat? pats))]}
+  (if (cat? pats)
+    pats
+    (Cat. pats)))
 
 
 (defmethod print-method Cat [^Cat cat ^java.io.Writer w]
@@ -435,17 +605,17 @@
     (-min-length [seq-end]
       0)
 
-    ISubstitutions
-    (-substitutions [_seq-end t smap]
+    IUnifiers
+    (-unifiers [_seq-end t smap]
       (if (sequential? t)
         (if (seq t)
           nil
           (list smap))))))
 
 
-(defmethod print-method (class seq-end) [end ^java.io.Writer w]
+(defmethod print-method (class seq-end) [_ ^java.io.Writer w]
   (if *debug*
-    (.write w `seq-end)))
+    (.write w (str `seq-end))))
 
 
 ;; ---------------------------------------------------------------------
@@ -461,14 +631,14 @@
     (+ (-min-length left)
        (-min-length right)))
 
-  IMultipleSubstitutions
-  (-multiple-substitutions? [part]
-    (or (multiple-substitutions? left)
-        (multiple-substitutions? right)
+  IMultipleUnifiers
+  (-multiple-unifiers? [part]
+    (or (multiple-unifiers? left)
+        (multiple-unifiers? right)
         (-variable-length? part)))
 
-  ISubstitutions
-  (-substitutions [_part t smap]
+  IUnifiers
+  (-unifiers [_part t smap]
     (if (sequential? t)
       (case [(variable-length? left) (variable-length? right)]
         ([false false] [false true])
@@ -547,22 +717,23 @@
   (if *debug*
     (.write w "#meander/partition["))
   (print-method (.-left partition) w)
-  (.write w " . ")
-  (print-method (.-right partition) w)
+  (when (not (identical? (.-right partition) seq-end))
+    (.write w " . ")
+    (print-method (.-right partition) w))
   (if *debug*
     (.write w "]")))
 
 
 #_
 (t/testing "partition interpretation"
-  (t/is (= (substitutions
-            (Partition. (Cat. [1 2 (Variable. '?x)])
-                        (Cat. [(Variable. '?y) 5 6]))
+  (t/is (= (unifiers
+            (Partition. (Cat. [1 2 (make-lvar '?x)])
+                        (Cat. [(make-lvar '?y) 5 6]))
             [1 2 3 4 5 6])
            (list {"?x" 3, "?y" 4})))
-  (t/is (= (substitutions
-            (Partition. (Cat. [1 2 (Variable. '?x)])
-                        (Cat. [(Variable. '?x) 5 6]))
+  (t/is (= (unifiers
+            (Partition. (Cat. [1 2 (make-lvar '?x)])
+                        (Cat. [(make-lvar '?x) 5 6]))
             [1 2 3 4 5 6])
            (list))))
 
@@ -583,12 +754,12 @@
 
 
 (deftype Rep [term min-length]
-  IMultipleSubstitutions
-  (-multiple-substitutions? [_sseq]
+  IMultipleUnifiers
+  (-multiple-unifiers? [_sseq]
     true)
 
-  ISubstitutions
-  (-substitutions [rep t smap]
+  IUnifiers
+  (-unifiers [rep t smap]
     (if (sequential? t)
       (if (seq t)
         ;; This is gonna be slow.
@@ -602,7 +773,7 @@
                 (comp xform
                       (mapcat
                        (fn [smap]
-                         (substitutions term slice smap)))))
+                         (unifiers term slice smap)))))
               identity
               (partition n t))
              (list smap))))
@@ -713,14 +884,14 @@
      0
      ivec))
   
-  IMultipleSubstitutions
-  (-multiple-substitutions? [ivec]
-    (some multiple-substitutions? ivec))
+  IMultipleUnifiers
+  (-multiple-unifiers? [ivec]
+    (some multiple-unifiers? ivec))
   
-  ISubstitutions
-  (-substitutions [u-vec v-vec smap]
+  IUnifiers
+  (-unifiers [u-vec v-vec smap]
     (when (vector? v-vec)
-      (-substitutions (coll->partition u-vec) v-vec smap)))
+      (-unifiers (coll->partition u-vec) v-vec smap)))
 
   IVariables
   (-variables [ivec]
@@ -746,15 +917,19 @@
      v)))
 
 
-(deftype VecTerm [term min-length multiple-substitutions? variables variable-length?]
+(deftype VecTerm [term min-length multiple-unifiers? variables variable-length?]
   IMinLength
   (-min-length [_vec-term]
     min-length)
 
-  ISubstitutions
-  (-substitutions [_vec-term u smap]
+  IMultipleUnifiers
+  (-multiple-unifiers? [_vec-term]
+    multiple-unifiers?)
+
+  IUnifiers
+  (-unifiers [_vec-term u smap]
     (when (vector? u)
-      (-substitutions term u smap)))
+      (-unifiers term u smap)))
 
   IVariables
   (-variables [_vec_term]
@@ -777,10 +952,14 @@
   {:private true}
   [t]
   (let [min-length (-min-length t)
-        multiple-substitutions? (-multiple-substitutions? t)
+        multiple-unifiers? (-multiple-unifiers? t)
         variables (-variables t)
         variable-length? (-variable-length? t)]
-    (VecTerm. t min-length multiple-substitutions? variables variable-length?)))
+    (VecTerm. t
+              min-length
+              multiple-unifiers?
+              variables
+              variable-length?)))
 
 
 (defn vec-term [coll]
@@ -807,14 +986,14 @@
      0
      iseq))
 
-  IMultipleSubstitutions
-  (-multiple-substitutions? [iseq]
-    (some multiple-substitutions? iseq))
+  IMultipleUnifiers
+  (-multiple-unifiers? [iseq]
+    (some multiple-unifiers? iseq))
 
-  ISubstitutions
-  (-substitutions [u-seq v-seq smap]
+  IUnifiers
+  (-unifiers [u-seq v-seq smap]
     (when (seq? v-seq)
-      (-substitutions (coll->partition u-seq) v-seq smap)))
+      (-unifiers (coll->partition u-seq) v-seq smap)))
 
   IVariableLength
   (-variable-length? [iseq]
@@ -844,15 +1023,19 @@
       [(seq (persistent! s*)) smap*])))
 
 
-(deftype SeqTerm [term min-length multiple-substitutions? variables variable-length?]
+(deftype SeqTerm [term min-length multiple-unifiers? variables variable-length?]
   IMinLength
   (-min-length [_seq-term]
     min-length)
 
-  ISubstitutions
-  (-substitutions [_seq-term u smap]
+  IMultipleUnifiers
+  (-multiple-unifiers? [_seq-term]
+    multiple-unifiers?)
+
+  IUnifiers
+  (-unifiers [_seq-term u smap]
     (when (seq? u)
-      (-substitutions term u smap)))
+      (-unifiers term u smap)))
 
   IVariables
   (-variables [_seq_term]
@@ -875,10 +1058,14 @@
   {:private true}
   [t]
   (let [min-length (-min-length t)
-        multiple-substitutions? (-multiple-substitutions? t)
+        multiple-unifiers? (-multiple-unifiers? t)
         variables (-variables t)
         variable-length? (-variable-length? t)]
-    (SeqTerm. t min-length multiple-substitutions? variables variable-length?)))
+    (SeqTerm. t
+              min-length
+              multiple-unifiers?
+              variables
+              variable-length?)))
 
 
 (defn seq-term [coll]
@@ -918,11 +1105,11 @@
 
 
 (defmethod parse-form* :var [[_ sym]]
-  (Variable. sym))
+  (make-lvar sym))
 
 
 (defmethod parse-form* :mem [[_ sym]]
-  (Memo. sym))
+  (make-mem-var sym))
 
 
 (defmethod parse-form* :vec [[_ x]]
@@ -947,9 +1134,11 @@
 
 (defmethod parse-form* :part [[_ {:keys [left right]}]]
   (Partition. (parse-form* left)
-              (if (some? right)
-                (parse-form* right)
-                seq-end)))
+              (parse-form* right)))
+
+
+(defmethod parse-form* :seq-end [_]
+  seq-end)
 
 
 (defn parse-form [form]
@@ -960,7 +1149,6 @@
 
 
 ;; ---------------------------------------------------------------------
-;; 
 
 
 (defmacro matcher
@@ -976,19 +1164,16 @@
          (sequence
           (keep
            (fn [{:strs [~@(map (comp symbol name) vars)]}]
-             (when (and ~@(map second *when-clauses))
-               ~expr)))
-          (seq (substitutions m# t#)))))))
-
-
+             (when (and ~@(map second *when-clauses)) ~expr))) (seq (unifiers m# t#)))))))
 
 
 #_
-(let [m (matcher (let [(_ _ :as !binding-pairs) ...] . !body ...) 
-          [!binding-pairs
-           !body])]
-  (m '(let [a 1 b 2])))
+((matcher (let [(_ _ :as !bindings) ...]
+            . !body ...)
+   {:bindings !bindings
+    :body !body})
+ '(let [x 1, y 2]
+    (+ x y) (+ x y)))
 
-
-
-
+#_
+(parse-form '(let [(_ _ :as !bindings) ...] . !body ...))
