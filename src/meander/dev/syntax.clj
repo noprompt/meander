@@ -152,6 +152,28 @@
         :lit :meander.syntax/lit))
 
 
+(s/def :meander.syntax/top-level
+  (s/or :var :meander.syntax/var
+        :mem :meander.syntax/mem
+        :ref :meander.syntax/ref
+        :any :meander.syntax/any
+        :vec :meander.syntax/vec
+        :cap (s/cat
+              :pat :meander.syntax/top-level
+              :as #{:as}
+              :var (s/or :mem :meander.syntax/mem
+                         :var :meander.syntax/var))
+        :err/bad-top-level-cap
+        (s/cat
+         :pat :meander.syntax/elem
+         :as #{:as}
+         :var (s/or :mem :meander.syntax/mem
+                    :var :meander.syntax/var))
+        :quo :meander.syntax/quote
+        :seq :meander.syntax/seq
+        :lit :meander.syntax/lit))
+
+
 (s/def :meander.syntax/cap
   (s/cat
    :pat :meander.syntax/elem
@@ -203,7 +225,7 @@
 
 
 (defn parse-term* [term]
-  (s/conform :meander.syntax/term term))
+  (s/conform :meander.syntax/top-level term))
 
 
 (defn tagged? [x]
@@ -278,9 +300,18 @@
 
 
 (defmethod expand-pat :cap [[_ cap-data :as cap]]
-  (if (has-tag? (:pat cap-data) :any)
-    (:var cap-data)
-    cap))
+  (let [pat (:pat cap-data)
+        var (:var cap-data)]
+    (cond
+      (has-tag? pat :any)
+      var
+
+      (and (has-tag? pat :var)
+           (= var pat))
+      var
+
+      :else 
+      cap)))
 
 
 (defmethod expand-pat :part [[_ part-data :as part]]

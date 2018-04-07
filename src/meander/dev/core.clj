@@ -78,6 +78,10 @@
   (satisfies? IVariable t))
 
 
+(defn var-sym [var]
+  (symbol (name var)))
+
+
 (defprotocol IVariables
   "Return a set of all variables in t."
   (-variables [t]))
@@ -225,6 +229,10 @@
   {})
 
 
+(defn add-var [env var]
+  (assoc env var (symbol (name var))))
+
+
 (defn derive-env
   ([t]
    (derive-env t empty-env))
@@ -245,7 +253,62 @@
 
 (defn compile
   [x target inner-form env]
-  (-compile x target inner-form env))
+  (if (satisfies? ICompile x)
+    (-compile x target inner-form env)
+    (cond
+      (= x '())
+      `(if (= ~target ())
+         ~inner-form)
+
+      (seq? x)
+      `(if (= ~target (quote ~x))
+         ~inner-form)
+
+      (symbol? x)
+      `(if (= ~target (quote ~x))
+         ~inner-form)
+
+      :else
+      `(if (= ~target ~x)
+         ~inner-form))))
+
+
+(defn compile-many [pats targets inner-form env]
+  (let [[pat1 pat2 & rest-pats] pats
+        [target1 target2 & rest-targets] targets]
+    (cond
+      (and pat1 pat2)
+      (let [[env1 ret-env1 diff-env1] (derive-sig pat1 env)
+            [env2 ret-env2] (derive-sig pat2 ret-env1)]
+        (if (match? pat2)
+          (compile pat1
+                   target1
+                   (compile pat2
+                            target2
+                            (compile-many rest-pats
+                                          rest-targets
+                                          inner-form
+                                          ret-env2)
+                            env2)
+                   env1)
+          (let [ret-vals (into [] (map (comp symbol name)) diff-env1)]
+            `(sequence
+              (mapcat
+               (fn [~ret-vals]
+                 ~(compile pat2
+                           target2
+                           (compile-many rest-pats
+                                         rest-targets
+                                         inner-form
+                                         ret-env2)
+                           env2)))
+              ~(compile pat1 target1 ret-vals env1))))) 
+
+      pat1
+      (compile pat1 target1 inner-form env)
+
+      :else
+      inner-form)))
 
 
 ;; ---------------------------------------------------------------------
@@ -384,7 +447,6 @@
   (.write w (name v)))
 
 
-
 ;; ---------------------------------------------------------------------
 ;; MemVar
 
@@ -393,6 +455,14 @@
   clojure.lang.Named
   (getName [_mem]
     (.getName ^clojure.lang.Symbol sym))
+
+  ICompile
+  (-compile [mem target inner-form env]
+    (if (contains? env mem)
+      `(let [~sym (conj ~sym ~target)]
+         ~inner-form)
+      `(let [~sym [~target]]
+         ~inner-form)))
 
   IUnifiers
   (-unifiers [_mem x smap]
@@ -413,7 +483,16 @@
 
   IVariables
   (-variables [mem]
-    #{mem}))
+    #{mem})
+
+  Object
+  (equals [_var that]
+    (and (instance? MemVar that)
+         (= (.-sym ^MemVar that)
+            sym)))
+
+  (hashCode [this]
+    (.hashCode sym)))
 
 
 (defmethod print-method MemVar [v ^java.io.Writer w]
@@ -432,10 +511,6 @@
 (defn mem-vars [t]
   (into #{} (filter mem-var?) (variables t)))
 
-(def
-  ^{:private true}
-  not-found (reify))
-
 
 ;; ---------------------------------------------------------------------
 ;; Cap
@@ -444,20 +519,10 @@
 (deftype Cap [pat var]
   ICompile
   (-compile [cap target inner-form env]
-    (if (or (match? pat)
-            (and (lvar? var)
-                 (contains? env var)))
-      (-compile var
-                target
-                (-compile pat target inner-form (derive-env cap env))
-                env)
-      (let [[_ ret-env diff-env] (derive-sig cap env)
-            ret-vals (vec (vals diff-env))]
-        `(sequence
-          (mapcat
-           (fn [~ret-vals]
-             ~(-compile pat target inner-form env)))
-          ~(-compile var target `(list ~ret-vals) env)))))
+    (compile-many [var pat]
+                  [target target]
+                  inner-form
+                  env))
 
   IUnifiers
   (-unifiers [_cap t smap]
@@ -509,10 +574,18 @@
 
 
 (deftype Nth [term index]
+  ICompile
+  (-compile [nth target inner-form env]
+    (let [nth-sym (gensym (str "nth__" index "__"))]
+      `(let [~nth-sym (nth ~target ~index nothing)]
+         (if (identical? ~nth-sym nothing)
+           nil
+           ~(compile term nth-sym inner-form env)))))
+
   IUnifiers
   (-unifiers [_nth t smap]
-    (let [u (nth t index not-found)]
-      (if (identical? u not-found)
+    (let [u (nth t index nothing)]
+      (if (identical? u nothing)
         nil
         (unifiers term u smap))))
 
@@ -544,6 +617,11 @@
 
 
 (deftype Cat [terms]
+  ICompile
+  (-compile [cat target inner-form env]
+    (let [nths (sequence (map make-nth) terms (range))]
+      (compile-many nths (repeat target) inner-form env)))
+  
   IMaxLength
   (-max-length [_cat]
     (count terms))
@@ -601,6 +679,12 @@
 
 (def seq-end
   (reify
+    ICompile
+    (-compile [_seq-end target inner-form env]
+      `(if (seq ~target)
+         nil
+         ~inner-form))
+    
     IMinLength
     (-min-length [seq-end]
       0)
@@ -626,6 +710,46 @@
 
 
 (deftype Partition [left right]
+  ICompile
+  (-compile [part target inner-form env]
+    (let [left-target (gensym "left__")
+          right-target (gensym "right__")
+          n (gensym "n__")
+          min-left (-min-length left)
+          min-right (-min-length right)]
+      (case [(variable-length? left) (variable-length? right)]
+        ([false false] [false true])
+        `(let [~n ~min-left
+               ~left-target (take ~n ~target)
+               ~right-target (drop ~n ~target)]
+           ~(compile-many [left right]
+                          [left-target right-target]
+                          inner-form
+                          env))
+
+        [true false]
+        `(let [~n (max 0 (- (count ~target) ~min-right))
+               ~left-target (take ~n ~target)
+               ~right-target (drop ~n ~target)]
+           ~(compile-many [left right]
+                          [left-target right-target]
+                          inner-form
+                          env))
+
+        [true true]
+        `(sequence
+          (mapcat
+           (fn [[~left-target ~right-target]]
+             ~(compile-many [left right]
+                            [left-target right-target]
+                            inner-form
+                            env)))
+          ;; TODO: This should create partitions such that the left
+          ;; and right sides have *at least* min-length of left and
+          ;; min-length of right terms respectively.
+          (util/partitions 2 ~target))))) 
+
+
   IMinLength
   (-min-length [_part]
     (+ (-min-length left)
@@ -635,7 +759,8 @@
   (-multiple-unifiers? [part]
     (or (multiple-unifiers? left)
         (multiple-unifiers? right)
-        (-variable-length? part)))
+        (and (variable-length? right)
+             (variable-length? left))))
 
   IUnifiers
   (-unifiers [_part t smap]
@@ -713,6 +838,13 @@
   (instance? Partition x))
 
 
+(defn make-partition
+  ([left]
+   (Partition. left seq-end))
+  ([left right]
+   (Partition. left right)))
+
+
 (defmethod print-method Partition [^Partition partition ^java.io.Writer w]
   (if *debug*
     (.write w "#meander/partition["))
@@ -722,7 +854,6 @@
     (print-method (.-right partition) w))
   (if *debug*
     (.write w "]")))
-
 
 #_
 (t/testing "partition interpretation"
@@ -752,11 +883,53 @@
 ;;
 ;; A Rep represents variable length repeating subsequence.
 
-
 (deftype Rep [term min-length]
+  ICompile
+  (-compile [rep target inner-form env]
+    (if (match? term)
+      (let [slice (gensym "slice__")
+            k (gensym "k__")
+            n (-min-length term)
+            loop-env (derive-env term env)
+            mem-vars (into [] (filter mem-var?) (keys loop-env))
+            mem-syms (into [] (map var-sym) mem-vars)]
+        `(let [~target ~target
+               ~slice (take ~n ~target)
+               ~k ~min-length
+               ~@(sequence
+                  (mapcat
+                   (fn [mem-var mem-sym]
+                     (if (contains? env mem-var)
+                       [mem-sym mem-sym]
+                       [mem-sym []])))
+                  mem-vars
+                  mem-syms)]
+           (if (== ~n (count ~slice))
+             ~(compile term
+                       slice
+                       `(loop [~target (drop ~n ~target)
+                               ~k ~(dec min-length)
+                               ~@(sequence
+                                  (mapcat (fn [x] [x x]))
+                                  mem-syms)]
+                          (let [~slice (take ~n ~target)]
+                            (if (== ~n (count ~slice))
+                              ~(compile term
+                                        slice
+                                        `(recur (drop ~n ~target)
+                                                (dec ~k)
+                                                ~@mem-syms)
+                                        loop-env)
+                              (if (<= ~k 0)
+                                ~inner-form))))
+                       env)
+             (if (<= ~k 0)
+               ~inner-form))))
+      (undefined)))
+
   IMultipleUnifiers
   (-multiple-unifiers? [_sseq]
-    true)
+    (-multiple-unifiers? term))
 
   IUnifiers
   (-unifiers [rep t smap]
@@ -918,6 +1091,11 @@
 
 
 (deftype VecTerm [term min-length multiple-unifiers? variables variable-length?]
+  ICompile
+  (-compile [_seq-term target inner-form env]
+    `(if (vector? ~target)
+       ~(compile term target inner-form env)))
+
   IMinLength
   (-min-length [_vec-term]
     min-length)
@@ -1024,6 +1202,11 @@
 
 
 (deftype SeqTerm [term min-length multiple-unifiers? variables variable-length?]
+  ICompile
+  (-compile [_seq-term target inner-form env]
+    `(if (seq? ~target)
+       ~(compile term target inner-form env)))
+
   IMinLength
   (-min-length [_seq-term]
     min-length)
@@ -1137,6 +1320,13 @@
               (parse-form* right)))
 
 
+(defmethod parse-form* :err/bad-top-level-cap [[_ pat-data]]
+  (throw (ex-info "Top level capture pattern may not be a subsequence pattern"
+                  ;; TODO: Would be nice to have the actual form here.
+                  {:pat (parse-form* (:pat pat-data))
+                   :var (parse-form* (:var pat-data))})))
+
+
 (defmethod parse-form* :seq-end [_]
   seq-end)
 
@@ -1151,7 +1341,7 @@
 ;; ---------------------------------------------------------------------
 
 
-(defmacro matcher
+(defmacro unifier
   {:arglists '([form *when-clauses expr])
    :style/indent :defn}
   [& args]
@@ -1167,13 +1357,29 @@
              (when (and ~@(map second *when-clauses)) ~expr))) (seq (unifiers m# t#)))))))
 
 
-#_
-((matcher (let [(_ _ :as !bindings) ...]
-            . !body ...)
-   {:bindings !bindings
-    :body !body})
- '(let [x 1, y 2]
-    (+ x y) (+ x y)))
+(defmacro matcher
+  {:arglists '([pattern expr])
+   :style/indent :defn}
+  [form expr]
+  (let [target (gensym "target__")
+        pat (parse-form form)]
+    `(fn [~target]
+       ~(compile pat target expr empty-env))))
+
+
 
 #_
+(time
+  ((matcher (fn [(_ :as !bindings) ...] . !body ...)
+     [!bindings !body])
+   '(fn [a] b c)))
+
+#_
+(time
+  ((unifier (fn [(_ :as !bindings) ...] . !body ...)
+     [!bindings !body])
+   '(fn [a] b c)))
+#_
 (parse-form '(let [(_ _ :as !bindings) ...] . !body ...))
+
+
