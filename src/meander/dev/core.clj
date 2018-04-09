@@ -928,7 +928,7 @@
       (undefined)))
 
   IMultipleUnifiers
-  (-multiple-unifiers? [_sseq]
+  (-multiple-unifiers? [_rep]
     (-multiple-unifiers? term))
 
   IUnifiers
@@ -954,11 +954,11 @@
           (list smap)))))
 
   IMinLength
-  (-min-length [_sseq]
+  (-min-length [_rep]
     min-length)
   
   IVariableLength
-  (-variable-length? [_sseq]
+  (-variable-length? [_rep]
     true)
 
   IVariables
@@ -981,6 +981,10 @@
           [(concat xs ys) smap**])))))
 
 
+(defn rep? [x]
+  (instance? Rep x))
+
+
 (defmethod print-method Rep [^Rep rep ^java.io.Writer w]
   (if *debug*
     (.write w "#meander/rep["))
@@ -990,9 +994,59 @@
     (.write w " ...")))
 
 
-(defn rep? [x]
-  (instance? Rep x))
+;; ---------------------------------------------------------------------
+;; Rest
 
+(deftype Rest [mem-var]
+  ICompile
+  (-compile [_rest target inner-form env]
+    (prn :compile-rest)
+    (if (contains? env mem-var)
+      `(let [~(var-sym mem-var) (into ~(var-sym mem-var) ~target)]
+         ~inner-form)
+      `(let [~(var-sym mem-var) (vec ~target)]
+         ~inner-form)))
+
+  IMinLength
+  (-min-length [_rest]
+    0)
+
+  IMultipleUnifiers
+  (-multiple-unifiers? [_rep]
+    false)
+
+  ISubstituteStep
+  (-substitute-step [_rest smap]
+    [(get smap (name mem-var) [])
+     (assoc smap (name mem-var) [])])
+
+  IUnifiers
+  (-unifiers [_rest t smap]
+    (if (sequential? t)
+      (if (bound? smap mem-var)
+        (list (update smap (name mem-var) into t))
+        (list (assoc smap (name mem-var) (vec t))))))
+
+  IVariables
+  (-variables [_rest]
+    #{mem-var})
+
+  IVariableLength
+  (-variable-length? [_rest]
+    false))
+
+
+(defn rest? [x]
+  (instance? Rest x))
+
+
+(defmethod print-method Rest [^Rest rest ^java.io.Writer w]
+  (if *debug*
+    (.write w "#meander/rest["))
+  (print-method (.-mem-var rest) w)
+  (if *debug*
+    (.write w "]")
+    (.write w " ...")))
 
 ;; ---------------------------------------------------------------------
 ;; Vector
@@ -1060,7 +1114,7 @@
   IMultipleUnifiers
   (-multiple-unifiers? [ivec]
     (some multiple-unifiers? ivec))
-  
+
   IUnifiers
   (-unifiers [u-vec v-vec smap]
     (when (vector? v-vec)
@@ -1275,32 +1329,28 @@
     (Cap. pat var)))
 
 
-(defmethod parse-form* :term [[_ x]]
-  (parse-form* x))
+(defmethod parse-form* :cat [[_ items]]
+  (make-cat (map parse-form* items)))
 
 
 (defmethod parse-form* :lit [[_ x]]
   x)
 
 
-(defmethod parse-form* :quo [[_ [_ x]]]
-  x)
-
-
-(defmethod parse-form* :var [[_ sym]]
-  (make-lvar sym))
-
-
 (defmethod parse-form* :mem [[_ sym]]
   (make-mem-var sym))
 
 
-(defmethod parse-form* :vec [[_ x]]
-  (vec-term-no-check (parse-form* x)))
+(defmethod parse-form* :part [[_ {:keys [left right]}]]
+  (Partition. (parse-form* left)
+              (parse-form* right)))
 
 
-(defmethod parse-form* :seq [[_ x]]
-  (seq-term-no-check (parse-form* x)))
+(defmethod parse-form* :quo [[_ [_ x]]]
+  x)
+
+(defmethod parse-form* :rest [[_ {var :var}]]
+  (Rest. (parse-form* var)))
 
 
 (defmethod parse-form* :rep [[_ {init :init}]]
@@ -1311,13 +1361,20 @@
   (Rep. (parse-form* init) k))
 
 
-(defmethod parse-form* :cat [[_ items]]
-  (make-cat (map parse-form* items)))
+(defmethod parse-form* :seq [[_ x]]
+  (seq-term-no-check (parse-form* x)))
 
 
-(defmethod parse-form* :part [[_ {:keys [left right]}]]
-  (Partition. (parse-form* left)
-              (parse-form* right)))
+(defmethod parse-form* :term [[_ x]]
+  (parse-form* x))
+
+
+(defmethod parse-form* :var [[_ sym]]
+  (make-lvar sym))
+
+
+(defmethod parse-form* :vec [[_ x]]
+  (vec-term-no-check (parse-form* x)))
 
 
 (defmethod parse-form* :err/bad-top-level-cap [[_ pat-data]]
@@ -1367,19 +1424,17 @@
        ~(compile pat target expr empty-env))))
 
 
-
 #_
-(time
-  ((matcher (fn [(_ :as !bindings) ...] . !body ...)
-     [!bindings !body])
-   '(fn [a] b c)))
-
-#_
-(time
-  ((unifier (fn [(_ :as !bindings) ...] . !body ...)
-     [!bindings !body])
-   '(fn [a] b c)))
-#_
-(parse-form '(let [(_ _ :as !bindings) ...] . !body ...))
+(let [m (matcher (fn [!bindings ...] . !body ...)
+          [!bindings !body])
+      u (unifier (fn [!bindings ...] . !body ...)
+          [!bindings !body])
+      n 1000]
+  (time
+    (dotimes [_ n]
+      (m '(fn [a] b c))))
+  (time
+    (dotimes [_ n]
+      (u '(fn [a] b c)))))
 
 

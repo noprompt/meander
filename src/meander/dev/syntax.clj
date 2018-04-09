@@ -348,8 +348,20 @@
          [:cat rep-init])))
 
 
+(defn collapse-rep [[_ {init :init} :as rep]]
+  (let [[init-tag init-data] init]
+    (if (= init-tag :cat)
+      (let [[[tag data] & rest] init-data]
+        (if (and (not (seq rest))
+                 (= tag :mem))
+          [:rest {:var [tag data]}]
+          rep))
+      rep)))
+
+
+
 (defmethod expand-pat :rep [[_ rep-data]]
-  [:rep (update rep-data :init expand-rep-init)])
+  (collapse-rep [:rep (update rep-data :init expand-rep-init)]))
 
 
 (defmethod expand-pat :repk [[_ repk-data]]
@@ -357,8 +369,7 @@
     [:repk
      (assoc repk-data
             :init (expand-rep-init init)
-            :k (Long/parseUnsignedLong (subs (name sym) 2)))]))
-
+            :k (Long/parseUnsignedLong (subs (name sym) 2)))])) 
 
 (defmethod expand-pat :seq [[_ node :as seq]]
   (if (has-tag? node :part)
@@ -394,3 +405,17 @@
 
 (defn parse-term [term]
   (clojure.walk/prewalk expand-pat (parse-term* term)))
+
+
+
+
+(comment
+  (parse-term '(!xs ...))
+  ;; =>
+  [:part
+   {:left [:rep {:init [:cat ([:mem !xs])], :sym ...}],
+    :right [:seq-end]}]
+  ;; Change to
+  (parse-term '(!xs ...))
+  ;; =>
+  [:rest {:var [:mem !xs]}])
