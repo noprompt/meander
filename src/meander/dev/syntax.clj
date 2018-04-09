@@ -348,20 +348,9 @@
          [:cat rep-init])))
 
 
-(defn collapse-rep [[_ {init :init} :as rep]]
-  (let [[init-tag init-data] init]
-    (if (= init-tag :cat)
-      (let [[[tag data] & rest] init-data]
-        (if (and (not (seq rest))
-                 (= tag :mem))
-          [:rest {:var [tag data]}]
-          rep))
-      rep)))
-
-
 
 (defmethod expand-pat :rep [[_ rep-data]]
-  (collapse-rep [:rep (update rep-data :init expand-rep-init)]))
+  [:rep (update rep-data :init expand-rep-init)])
 
 
 (defmethod expand-pat :repk [[_ repk-data]]
@@ -403,19 +392,37 @@
        :right [:seq-end]}]]))
 
 
+(defmulti collapse-pat
+  (fn [x]
+    (if-some [tag (when (vector? x)
+                    (first x))]
+      tag
+      ::no-tag))
+  :default ::no-tag)
+
+
+(defmethod collapse-pat ::no-tag [x]
+  x)
+
+
+(defmethod collapse-pat :part [[_ {:keys [left right] :as part}]]
+  (if (and (has-tag? left :rep)
+           (has-tag? right :seq-end))
+    (let [[_ {init :init}] left]
+      (let [[init-tag init-data] init]
+        (if (= init-tag :cat)
+          (let [[[tag data] & rest] init-data]
+            (if (and (not (seq rest))
+                     (= tag :mem))
+              [:part
+               {:left [:rest {:var [tag data]}]
+                :right [:seq-end]}]
+              part))
+          part)))
+    part))
+
+
 (defn parse-term [term]
-  (clojure.walk/prewalk expand-pat (parse-term* term)))
-
-
-
-
-(comment
-  (parse-term '(!xs ...))
-  ;; =>
-  [:part
-   {:left [:rep {:init [:cat ([:mem !xs])], :sym ...}],
-    :right [:seq-end]}]
-  ;; Change to
-  (parse-term '(!xs ...))
-  ;; =>
-  [:rest {:var [:mem !xs]}])
+  (->> (parse-term* term)
+       (clojure.walk/prewalk expand-pat)
+       (clojure.walk/postwalk collapse-pat)))

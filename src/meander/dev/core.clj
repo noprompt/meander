@@ -390,7 +390,6 @@
   (getName [_var]
     (.getName sym))
 
-
   ICompile
   (-compile [var target inner-form env]
     (if (contains? env var)
@@ -536,6 +535,10 @@
   (-min-length [_cap]
     (-min-length pat))
 
+  IMaxLength
+  (-max-length [_cap]
+    (-max-length pat))
+
   IMultipleUnifiers
   (-multiple-unifiers? [_cap]
     (multiple-unifiers? pat))
@@ -630,6 +633,10 @@
   (-min-length [_cat]
     (count terms))
 
+  IMaxLength
+  (-max-length [_cat]
+    (count terms))
+
   IMultipleUnifiers
   (-multiple-unifiers? [_cat]
     (some multiple-unifiers? terms))
@@ -686,7 +693,11 @@
          ~inner-form))
     
     IMinLength
-    (-min-length [seq-end]
+    (-min-length [_seq-end]
+      0)
+
+    IMaxLength
+    (-max-length [_seq-end]
       0)
 
     IUnifiers
@@ -708,7 +719,6 @@
 ;; A partition separates a two subsequences, variable length or
 ;; otherwise.
 
-
 (deftype Partition [left right]
   ICompile
   (-compile [part target inner-form env]
@@ -719,7 +729,7 @@
           min-right (-min-length right)]
       (case [(variable-length? left) (variable-length? right)]
         ([false false] [false true])
-        `(let [~n ~min-left
+        `(let [~n ~(-max-length left) 
                ~left-target (take ~n ~target)
                ~right-target (drop ~n ~target)]
            ~(compile-many [left right]
@@ -754,6 +764,11 @@
   (-min-length [_part]
     (+ (-min-length left)
        (-min-length right)))
+
+  IMaxLength
+  (-max-length [_seq-end]
+    (+ (-max-length left)
+       (-max-length right)))
 
   IMultipleUnifiers
   (-multiple-unifiers? [part]
@@ -883,6 +898,7 @@
 ;;
 ;; A Rep represents variable length repeating subsequence.
 
+
 (deftype Rep [term min-length]
   ICompile
   (-compile [rep target inner-form env]
@@ -892,9 +908,16 @@
             n (-min-length term)
             loop-env (derive-env term env)
             mem-vars (into [] (filter mem-var?) (keys loop-env))
-            mem-syms (into [] (map var-sym) mem-vars)]
+            mem-syms (into [] (map var-sym) mem-vars)
+            slice-take `(take ~n ~target)
+            slice-check (if (== n 1)
+                          `(seq ~slice)
+                          `(== ~n (count ~slice)))
+            slice-drop (if (== n 1)
+                         `(next ~target)
+                         `(drop ~n ~target))]
         `(let [~target ~target
-               ~slice (take ~n ~target)
+               ~slice ~slice-take
                ~k ~min-length
                ~@(sequence
                   (mapcat
@@ -904,19 +927,19 @@
                        [mem-sym []])))
                   mem-vars
                   mem-syms)]
-           (if (== ~n (count ~slice))
+           (if ~slice-check
              ~(compile term
                        slice
-                       `(loop [~target (drop ~n ~target)
+                       `(loop [~target ~slice-drop
                                ~k ~(dec min-length)
                                ~@(sequence
                                   (mapcat (fn [x] [x x]))
                                   mem-syms)]
-                          (let [~slice (take ~n ~target)]
-                            (if (== ~n (count ~slice))
+                          (let [~slice ~slice-take]
+                            (if ~slice-check
                               ~(compile term
                                         slice
-                                        `(recur (drop ~n ~target)
+                                        `(recur ~slice-drop
                                                 (dec ~k)
                                                 ~@mem-syms)
                                         loop-env)
@@ -956,6 +979,10 @@
   IMinLength
   (-min-length [_rep]
     min-length)
+
+  IMaxLength
+  (-max-length [_seq-end]
+    Float/POSITIVE_INFINITY)
   
   IVariableLength
   (-variable-length? [_rep]
@@ -1000,7 +1027,6 @@
 (deftype Rest [mem-var]
   ICompile
   (-compile [_rest target inner-form env]
-    (prn :compile-rest)
     (if (contains? env mem-var)
       `(let [~(var-sym mem-var) (into ~(var-sym mem-var) ~target)]
          ~inner-form)
@@ -1010,6 +1036,10 @@
   IMinLength
   (-min-length [_rest]
     0)
+
+  IMaxLength
+  (-max-length [_seq-end]
+    Float/POSITIVE_INFINITY)
 
   IMultipleUnifiers
   (-multiple-unifiers? [_rep]
@@ -1411,7 +1441,9 @@
          (sequence
           (keep
            (fn [{:strs [~@(map (comp symbol name) vars)]}]
-             (when (and ~@(map second *when-clauses)) ~expr))) (seq (unifiers m# t#)))))))
+             (when (and ~@(map second *when-clauses))
+               ~expr)))
+          (seq (unifiers m# t#)))))))
 
 
 (defmacro matcher
