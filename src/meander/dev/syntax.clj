@@ -1,5 +1,6 @@
 (ns meander.dev.syntax
   (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as s.gen]
             [clojure.walk :as walk]))
 
 
@@ -91,40 +92,59 @@
 
 
 (s/def :meander.syntax/lit
-  (s/conformer
-   (fn [x]
-     (if (or (not (partition-symbol? x))
-             (quote-form? x))
-       x
-       ::s/invalid))
-   identity))
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (or (not (partition-symbol? x))
+               (quote-form? x))
+         x
+         ::s/invalid))
+     identity)
+    (s.gen/fmap
+     (fn [x]
+       `(quote ~x))
+     (s.gen/any))))
 
 
 (s/def :meander.syntax/any
-  (s/conformer
-   (fn [x]
-     (if (wildcard-symbol? x)
-       x
-       ::s/invalid))
-   identity))
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (wildcard-symbol? x)
+         x
+         ::s/invalid))
+     identity)
+    (constantly '_)))
 
 
 (s/def :meander.syntax/var
-  (s/conformer
-   (fn [x]
-     (if (var-symbol? x)
-       x
-       ::s/invalid))
-   identity))
+  (s/with-gen 
+    (s/conformer
+     (fn [x]
+       (if (var-symbol? x)
+         x
+         ::s/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [sym]
+         (symbol (str \? sym)))
+       (s.gen/symbol)))))
 
 
 (s/def :meander.syntax/mem
-  (s/conformer
-   (fn [x]
-     (if (mem-symbol? x)
-       x
-       ::s/invalid))
-   identity))
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (mem-symbol? x)
+         x
+         ::s/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [sym]
+         (symbol (str \! sym)))
+       (s.gen/symbol)))))
 
 
 (s/def :meander.syntax/ref
@@ -224,26 +244,42 @@
   (s/and seq? :meander.syntax/elem))
 
 
-(defn parse-term* [term]
+;; ---------------------------------------------------------------------
+;; meander.syntax.parse
+
+
+(defn parse* [term]
   (s/conform :meander.syntax/top-level term))
 
 
-(defn tagged? [x]
+(defn node? [x]
   (and (vector? x)
        (keyword? (first x))))
 
+(defn has-tag?
+  ([node tag]
+   (and (node? node)
+        (= (first node) tag))))
 
-(defn has-tag? [x tag]
-  (and (vector? x)
-       (= (first x) tag)))
+(defn tag
+  [node]
+  {:pre [(node? node)]}
+  (first node))
 
+(defn data
+  [node]
+  {:pre [(node? node)]}
+  (second node))
+
+(defn nth-node
+  [index node]
+  {:pre [(node? node)]}
+  (if (has-tag? node :nth)
+    [:nth (assoc (data node) :index index)]
+    [:nth {:index index, :pat node}]))
 
 (defn cat-cats [[_ xs] [_ ys]]
   [:cat (into (vec xs) ys)])
-
-
-#_
-(ns-unmap *ns* 'expand-pat)
 
 (defmulti expand-pat
   (fn [x]
@@ -259,9 +295,6 @@
 
 
 (defmethod expand-pat :cat [[_ pats]]
-  #_
-  (if (= (count pats) 1)
-    (first pats))
   (let [[xs ys] (split-with
                  (fn [[tag data]]
                    (if (= tag :cap)
@@ -271,7 +304,12 @@
                             (and (= cap-pat-tag :cat)
                                  (<= (count cap-pat-data) 1))))
                      true))
-                 pats)
+                 pats
+                 #_
+                 (map-indexed
+                  (fn [index pat]
+                    [:nth {:index index, :pat pat}])
+                  pats))
         xs (sequence
             (map
              (fn [[tag data :as node]]
@@ -315,23 +353,23 @@
 
 
 (defmethod expand-pat :part [[_ part-data :as part]]
-  (let [{:keys [left right]} part-data]
-    (if (has-tag? left :cat)
-      (cond
-        (nil? right)
-        left
+  (let [{:keys [left right]} part-data
+        [left-tag left-data] left
+        [right-tag right-data] right]
+    (case [left-tag right-tag]
+      [:cat :cat]
+      [:part
+       {:left (cat-cats left right)
+        :right [:seq-end]}]
 
-        (has-tag? right :part)
-        (let [{right-left :left, right-right :right} (second right)]
-          (if (has-tag? right-left :cat)
-            (recur [:part (assoc part-data
-                                 :left (cat-cats left right-left)
-                                 :right right-right)])))
-        (has-tag? right :cat)
-        (cat-cats left right)
+      [:cat :part]
+      (let [{right-left :left, right-right :right} (second right)]
+        (if (has-tag? right-left :cat)
+          (recur [:part (assoc part-data
+                               :left (cat-cats left right-left)
+                               :right right-right)])))
 
-        :else
-        part)
+      ;; else
       part)))
 
 
@@ -341,7 +379,7 @@
    (cond (has-tag? rep-init :cat)
          rep-init
 
-         (tagged? rep-init)
+         (node? rep-init)
          [:cat [rep-init]]
 
          :else
@@ -405,24 +443,77 @@
   x)
 
 
-(defmethod collapse-pat :part [[_ {:keys [left right] :as part}]]
-  (if (and (has-tag? left :rep)
-           (has-tag? right :seq-end))
-    (let [[_ {init :init}] left]
-      (let [[init-tag init-data] init]
+(defmethod collapse-pat :part [[_ {:keys [left right]} :as part]]
+  (let [[left-tag left-data] left
+        [right-tag right-data] right]
+    (case [left-tag right-tag]
+      [:part :seq-end]
+      (collapse-pat left)
+
+      [:cat :rep]
+      (let [{init :init} right-data
+            [init-tag init-data] init]
         (if (= init-tag :cat)
           (let [[[tag data] & rest] init-data]
             (if (and (not (seq rest))
                      (= tag :mem))
               [:part
-               {:left [:rest {:var [tag data]}]
-                :right [:seq-end]}]
+               {:left left
+                :right [:rest {:var [tag data]}]}]
               part))
-          part)))
-    part))
+          part))
+
+      ([:rep :cat]
+       [:rep :seq-end])
+      (let [{init :init} left-data
+            [init-tag init-data] init]
+        (if (= init-tag :cat)
+          (let [[[tag data] & rest] init-data]
+            (if (and (not (seq rest))
+                     (= tag :mem))
+              [:part
+               {:left (if (= right-tag :seq-end)
+                        [:rest {:var [tag data]}]
+                        [:init {:var [tag data]}])
+                :right right}]
+              part))
+          part))
+
+      #_[:cat :seq-end]
+      #_left
+
+      ;; else
+      part)))
+
+(defn seq->cons [node]
+  (or (if (has-tag? node :seq)
+        (let [child (data node)]
+          (if (has-tag? child :part)
+            (let [{:keys [left right]} (data child)]
+              (if (has-tag? left :cat)
+                (let [elems (data left)]
+                  (if (seq (rest elems))
+                    (reduce
+                     (fn [right* elem]
+                       [:cons
+                        {:car elem
+                         :cdr right*}])
+                     [:cons
+                      {:car (first (reverse elems))
+                       :cdr right}]
+                     (rest (reverse elems))))))))))
+      node)) 
+
+(defn cat->nths [node]
+  (if (has-tag? node :cat) 
+    [:cat (map-indexed nth-node (data node))]
+    node))
 
 
-(defn parse-term [term]
-  (->> (parse-term* term)
-       (clojure.walk/prewalk expand-pat)
-       (clojure.walk/postwalk collapse-pat)))
+(defn parse
+  [form]
+  (->> (parse* form)
+       (walk/prewalk expand-pat)
+       (walk/postwalk collapse-pat)
+       #_
+       (walk/postwalk cat->nths)))
