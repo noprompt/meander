@@ -49,10 +49,6 @@
   0)
 
 
-(defn column-scores [rows]
-
-  )
-
 (defn nth-column [row index]
   (nth (:cols row) index nil))
 
@@ -127,7 +123,9 @@
 
       :part
       (let [{:keys [left right]} (syntax/data node)
-            cols* (list* left right (rest (:cols row)))]
+            cols* (if (syntax/has-tag? right :seq-end)
+                    (cons left (rest (:cols row)))
+                    (list* left right (rest (:cols row))))]
         (assoc row :cols cols*))
 
       :seq
@@ -147,7 +145,9 @@
 
 (declare compile)
 
-(defn compile-ctor-clauses-dispatch [tag _ _ _]
+(defn compile-ctor-clauses-dispatch [tag vars rows default]
+  #_
+  (prn {:tag tag :vars vars :rows rows})
   tag)
 
 (defmulti compile-ctor-clauses
@@ -185,7 +185,7 @@
 (defmethod compile-ctor-clauses :lit [_tag vars rows default]
   (map
    (fn [[[_ val] rows]]
-     `[(= ~val ~(first vars))
+     `[(= ~(first vars) '~val)
        ~(compile (rest vars)
                  (map drop-column rows)
                  default)])
@@ -213,14 +213,18 @@
      (case tags
        [:cat :seq-end]
        (let [var (first vars)]
-         `[~(case kind
+         `[;; Bounds check.
+           ~(case kind
               :vec
               `(== (count ~var) ~min)
               
+              ;; Is there a faster way to do this?
               :seq
-              `(not (seq (drop ~min ~var))))
+              `(and (== (count (take ~min ~var))
+                        ~min)
+                    (not (seq (drop ~min ~var)))))
            ~(compile
-             (cons (first vars) vars)
+             vars
              (map columns rows)
              default)])
 
@@ -384,3 +388,19 @@
                       :rhs act}))
                   (partition 2 clauses))
                  `(throw backtrack)))))
+
+
+
+(match '(let [x 1 y 2] (+ x y))
+  ;; Fails
+  (let ?x ?y ?z)
+  ?y
+
+  ;; Succeeds
+  (let [!bindings ...] . !body ...)
+  [!bindings !body]
+
+  _
+  ::fail)
+
+
