@@ -113,35 +113,47 @@
 
 
 
-(defn columns [row]
-  (let [node (first-column row)]
-    ;; Columns
-    (case (syntax/tag node)
-      :cat
-      (let [cols* (concat (syntax/data node) (rest (:cols row)))]
-        (assoc row :cols cols*))
+(defn columns-dispatch [row]
+  (syntax/tag (first-column row)))
 
-      :part
-      (let [{:keys [left right]} (syntax/data node)
-            cols* (if (syntax/has-tag? right :seq-end)
-                    (cons left (rest (:cols row)))
-                    (list* left right (rest (:cols row))))]
-        (assoc row :cols cols*))
+(defmulti columns
+  #'columns-dispatch)
 
-      :seq
-      (let [;; TODO: Move to syntax.
-            part (update (syntax/data node) 1 assoc :kind :seq)
-            cols* (list* part (rest (:cols row)))]
-        (assoc row :cols cols*))
+(defmethod columns :default [row]
+  row)
 
-      :vec
-      (let [;; TODO: Move to syntax.
-            part (update (syntax/data node) 1 assoc :kind :vec)
-            cols* (list* part (rest (:cols row)))]
-        (assoc row :cols cols*))
+(defmethod columns :cat
+  [row]
+  (let [node (first-column row)
+        cols* (concat (syntax/data node) (rest (:cols row)))]
+    (assoc row :cols cols*)))
 
-      ;; else
-      row)))
+(defmethod columns :part
+  [row]
+  (let [node (first-column row)
+        {:keys [left right]} (syntax/data node)
+        cols* (if (syntax/has-tag? right :seq-end)
+                (cons left (rest (:cols row)))
+                (list* left right (rest (:cols row))))]
+    (assoc row :cols cols*)))
+
+
+(defmethod columns :seq
+  [row]
+  (let [node (first-column row)
+        ;; TODO: Move to syntax.
+        part (update (syntax/data node) 1 assoc :kind :seq)
+        cols* (list* part (rest (:cols row)))]
+    (assoc row :cols cols*)))
+
+(defmethod columns :vec
+  [row]
+  (let [node (first-column row)
+        ;; TODO: Move to syntax.
+        part (update (syntax/data node) 1 assoc :kind :vec)
+        cols* (list* part (rest (:cols row)))]
+    (assoc row :cols cols*)))
+
 
 (declare compile)
 
@@ -388,19 +400,3 @@
                       :rhs act}))
                   (partition 2 clauses))
                  `(throw backtrack)))))
-
-
-
-(match '(let [x 1 y 2] (+ x y))
-  ;; Fails
-  (let ?x ?y ?z)
-  ?y
-
-  ;; Succeeds
-  (let [!bindings ...] . !body ...)
-  [!bindings !body]
-
-  _
-  ::fail)
-
-
