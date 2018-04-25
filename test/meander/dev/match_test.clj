@@ -34,4 +34,22 @@
                      (+ x y))
      (let [!bindings ...] . !body ...)
      (and (= !bindings '[x 1, y 1])
-          (= !body '[(+ x y)])))))
+          (= !body '[(+ x y)]))))
+
+  (t/is
+   (let [n (rand)]
+     (r.match/match [n n]
+       [(_ :as ?x) (_ :as ?x)]
+       (= n ?x))))
+
+  (t/is
+   (let [n (rand)]
+     (r.match/match [n n]
+       [(_ :as !x) (_ :as !x)]
+       (= [n n] !x))))
+
+  (t/is
+   (let [n 1]
+     (r.match/match [n n]
+       [(_ _ :as !x)]
+       (= [[n n]] !x)))))

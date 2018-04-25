@@ -84,7 +84,13 @@
    (tree-seq seqable? seq x)))
 
 
-(defmulti min-length #'syntax/tag)
+(defmulti min-length
+  #'syntax/tag)
+
+
+(defmethod min-length :cap [node]
+  (min-length (:pat (syntax/data node))))
+
 
 (defmethod min-length :cat [node]
   (count (syntax/data node)))
@@ -122,19 +128,36 @@
 (defmethod columns :default [row]
   row)
 
+(defmethod columns :cap
+  [row]
+  (let [node (first-column row)
+        {:keys [pat var]} (syntax/data node)
+        ;; The var is placed in the first column before the pattern
+        ;; since the checks around them, i.e. verifying equality in
+        ;; the case of a logic variable, is potentially much cheaper
+        ;; than testing the pattern first.
+        cols* (list* var pat (rest-columns row))]
+    (assoc row :cols cols*)))
+
+
 (defmethod columns :cat
   [row]
   (let [node (first-column row)
         cols* (concat (syntax/data node) (rest (:cols row)))]
     (assoc row :cols cols*)))
 
+
 (defmethod columns :part
   [row]
   (let [node (first-column row)
         {:keys [left right]} (syntax/data node)
+        left-cols (list left) #_(if (syntax/has-tag? left :cap)
+                                  (let [{:keys [pat var]} (syntax/data left)]
+                                    (list var pat))
+                                  (list left))
         cols* (if (syntax/has-tag? right :seq-end)
-                (cons left (rest (:cols row)))
-                (list* left right (rest (:cols row))))]
+                (concat left-cols (rest (:cols row)))
+                (concat left-cols (list right) (rest (:cols row))))]
     (assoc row :cols cols*)))
 
 
@@ -158,8 +181,6 @@
 (declare compile)
 
 (defn compile-ctor-clauses-dispatch [tag vars rows default]
-  #_
-  (prn {:tag tag :vars vars :rows rows})
   tag)
 
 (defmulti compile-ctor-clauses
@@ -171,6 +192,15 @@
    (fn [row]
      [true
       (compile (rest vars) [(drop-column row)] default)])
+   rows))
+
+
+(defmethod compile-ctor-clauses :cap [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      [true
+       (compile (cons (first vars) vars) [(columns row)] default)]))
    rows))
 
 
@@ -223,6 +253,10 @@
   (map
    (fn [[[kind min tags] rows]]
      (case tags
+       [:cap :seq-end]
+       [true
+        (compile (cons vars) (map columns rows) default)]
+       
        [:cat :seq-end]
        (let [var (first vars)]
          `[;; Bounds check.
@@ -387,6 +421,7 @@
      (fn [[tag rows]]
        (compile-ctor-clauses tag vars rows default))
      (group-rows rows)))))
+
 
 
 (defmacro match [x & clauses]
