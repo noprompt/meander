@@ -491,19 +491,19 @@
 
 (defn compile [vars rows default]
   (reduce
-   (fn [inner [test then]]
+   (fn [next-choice [test then]]
      (let [body-form (if (= true test)
                        then
                        `(if ~test
                           ~then
-                          ~inner))]
-       (if (= inner default)
+                          ~default))]
+       (if (= next-choice default)
          body-form
          `(try
             ~body-form
             (catch Exception exception#
               (if (identical? exception# backtrack)
-                ~inner
+                ~next-choice
                 (throw exception#)))))))
    default
    (reverse
