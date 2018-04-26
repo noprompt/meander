@@ -27,7 +27,6 @@
   (s.gen/such-that not-empty (s.gen/vector (gen-row form-gen))))
 
 
-
 (t/deftest match-test
   (t/is 
    (r.match/match '(let [x 1, y 1]
@@ -52,4 +51,16 @@
    (let [n 1]
      (r.match/match [n n]
        [(_ _ :as !x)]
-       (= [[n n]] !x)))))
+       (= [[n n]] !x))))
+
+  (t/is
+   (r.match/match '[x 0 y 1 1 2 3]
+     [(!bindings !values :as !binding-pairs) ... . (1 2 3 :as ?tail)]
+     (and (= !bindings
+             '[x y])
+          (= !values
+             [0 1])
+          (= '[[x 0] [y 1]]
+             !binding-pairs)
+          (= [1 2 3]
+             ?tail)))))

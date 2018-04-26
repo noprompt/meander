@@ -4,6 +4,7 @@
             [clojure.spec.gen.alpha :as s.gen]
             [meander.dev.syntax :as syntax]))
 
+
 (defn fresh-n
   ([n]
    (fresh-n n "v__"))
@@ -13,17 +14,21 @@
       (gensym prefix))
     (range n))))
 
+
 (defn add-sym [row sym]
   (update row :env (fnil conj #{}) sym))
 
+
 (defn get-sym [row sym]
   (get (:env row) sym))
+
 
 (defn swap [v i j]
   (let [v (vec v)]
     (assoc v
            i (nth v j)
            j (nth v i))))
+
 
 (defn swap-column [rows i j]
   (sequence
@@ -32,9 +37,11 @@
       (update row :cols swap i j)))
    rows))
 
+
 (defmulti tag-score
   identity
   :default ::default-score)
+
 
 (defmethod tag-score ::default-score [_]
   1)
@@ -52,11 +59,14 @@
 (defn nth-column [row index]
   (nth (:cols row) index nil))
 
+
 (defn first-column [row]
   (nth-column row 0))
 
+
 (defn rest-columns [row]
   (rest (:cols row)))
+
 
 (defn group-rows [rows]
   (sort
@@ -69,19 +79,24 @@
         (syntax/tag col)))
     rows)))
 
+
 (defn drop-column [row]
   (update row :cols rest))
 
 
 (declare compile)
 
-(defn variables [x]
-  (sequence
-   (filter
-    (fn [x]
-      (or (syntax/has-tag? x :var)
-          (syntax/has-tag? x :mem))))
-   (tree-seq seqable? seq x)))
+
+(defn variables
+  "Return all variable nodes in x."
+  [x]
+  (into #{}
+        (filter
+         (fn [x]
+           (and (or (syntax/has-tag? x :var)
+                    (syntax/has-tag? x :mem))
+                (simple-symbol? (syntax/data x)))))
+        (tree-seq seqable? seq x)))
 
 
 (defmulti min-length
@@ -99,10 +114,14 @@
 (defmethod min-length :init [node]
   0)
 
+
 (defmethod min-length :part [node]
   (let [data (syntax/data node)]
     (+ (min-length (:left data))
        (min-length (:right data)))))
+
+(defmethod min-length :rep [node]
+  0)
 
 (defmethod min-length :rest [node]
   0)
@@ -114,15 +133,20 @@
 (defmethod min-length :seq-end [node]
   0)
 
+
 (defmethod min-length :vec [node]
   (min-length (syntax/data node)))
 
+
+(defn has-min-length? [node]
+  (some? (get-method min-length (syntax/tag node))))
 
 
 (defn columns-dispatch [row]
   (syntax/tag (first-column row)))
 
 (defmulti columns
+  {:arglists '([row])}
   #'columns-dispatch)
 
 (defmethod columns :default [row]
@@ -151,10 +175,7 @@
   [row]
   (let [node (first-column row)
         {:keys [left right]} (syntax/data node)
-        left-cols (list left) #_(if (syntax/has-tag? left :cap)
-                                  (let [{:keys [pat var]} (syntax/data left)]
-                                    (list var pat))
-                                  (list left))
+        left-cols (list left)
         cols* (if (syntax/has-tag? right :seq-end)
                 (concat left-cols (rest (:cols row)))
                 (concat left-cols (list right) (rest (:cols row))))]
@@ -249,13 +270,28 @@
      rows)))
 
 
+(defmethod compile-ctor-clauses :init [_tag vars rows default]
+  (let [[var & vars*] vars]
+    (sequence
+     (map
+      (fn [row]
+        (let [node (first-column row)
+              sym (syntax/data (:var (syntax/data node)))]
+          [true
+           `(let [~sym ~(if (get-sym row sym)
+                          `(into ~sym ~var)
+                          `(vec ~var))]
+              ~(compile vars* [(drop-column row)] default))])))
+     rows)))
+
+
 (defmethod compile-ctor-clauses :part [_tag vars rows default]
   (map
    (fn [[[kind min tags] rows]]
      (case tags
        [:cap :seq-end]
        [true
-        (compile (cons vars) (map columns rows) default)]
+        (compile vars (map columns rows) default)]
        
        [:cat :seq-end]
        (let [var (first vars)]
@@ -287,7 +323,11 @@
                               `(drop ~min ~var))]
              ~(compile vars* (map columns rows) default)))]
 
-       [:init :cat]
+       
+
+       ([:rep :cap]
+        [:rep :cat]
+        [:init :cat])
        [true
         (let [[var & rest-vars] vars
               n (gensym "n__")
@@ -307,8 +347,9 @@
                               :seq
                               `(drop ~n ~var))]
              ~(compile vars* (map columns rows) default)))]
-
-       [:rest :seq-end]
+       
+       ([:rep :seq-end]
+        [:rest :seq-end])
        [true
         (compile vars (map columns rows) default)]))
    (group-by
@@ -319,19 +360,74 @@
     rows)))
 
 
-(defmethod compile-ctor-clauses :init [_tag vars rows default]
-  (let [[var & vars*] vars]
-    (sequence
-     (map
-      (fn [row]
-        (let [node (first-column row)
-              sym (syntax/data (:var (syntax/data node)))]
-          [true
-           `(let [~sym ~(if (get-sym row sym)
-                          `(into ~sym ~var)
-                          `(vec ~var))]
-              ~(compile vars* [(drop-column row)] default))])))
-     rows)))
+(defmethod columns :rep
+  [row]
+  (assoc row
+         :cols (cons (:init (syntax/data (first-column row)))
+                     (rest-columns row))))
+
+(defmethod compile-ctor-clauses :rep [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [pat (:init (syntax/data (first-column row)))
+            pat-vars (variables pat)
+            n (min-length pat)
+            let-bindings (sequence
+                          (mapcat
+                           (fn [[kind sym]]
+                             (case kind
+                               :mem
+                               (if (get-sym row sym)
+                                 [sym sym]
+                                 [sym []])
+
+                               :var
+                               (if (get-sym row sym)
+                                 []
+                                 [sym ::unbound]))))
+                          pat-vars)
+            target (first vars)
+            slice (gensym "slice__")
+            loop-bindings (list* target
+                                 `(drop 2 ~target)
+                                 (sequence (comp
+                                            (filter syntax/mem-symbol?)
+                                            (mapcat (juxt identity identity)))
+                                           (take-nth 2 let-bindings)))
+            loop-env (:env (reduce add-sym row (take-nth 2 let-bindings)))]
+        [true
+         `(let [~slice (take ~n ~target)
+                ~@let-bindings]
+            (if (== (count ~slice) ~n)
+              ~(compile [slice]
+                        [{:cols [pat]
+                          :env (:env row)
+                          :rhs
+                          `(loop [~@loop-bindings]
+                             (let [~slice (take ~n ~target)]
+                               (if (== (count ~slice)  ~n)
+                                 ~(compile [slice]
+                                           [{:cols [pat]
+                                             :env loop-env
+                                             :rhs
+                                             `(let [~target (drop 2 ~target)]
+                                                (recur ~@(take-nth 2 loop-bindings)))}]
+                                           (compile (rest vars)
+                                                    [(assoc (drop-column row)
+                                                            :env loop-env)]
+                                                    default))
+                                 ~(compile (rest vars)
+                                           [(assoc (drop-column row)
+                                                   :env loop-env)]
+                                           default))))}]
+                        (compile (rest vars)
+                                 [(drop-column row)]
+                                 default))
+              ~(compile (rest vars)
+                        [(drop-column row)]
+                        default)))])))
+   rows))
 
 
 (defmethod compile-ctor-clauses :rest [_tag vars rows default]
@@ -359,10 +455,7 @@
 
 (defmethod compile-ctor-clauses :seq-end [_tag vars rows default]
   (let [[var & vars*] vars]
-    `[[;; This check is not needed because :part emits an equivalent
-       ;; check.
-       #_(not (seq ~var))
-       true
+    `[[true
        ~(compile vars*
                  (map drop-column rows)
                  default)]]))
@@ -406,7 +499,7 @@
                        then
                        `(if ~test
                           ~then
-                          (throw backtrack)))]
+                          ~inner))]
        (if (= inner default)
          body-form
          `(try
@@ -421,7 +514,6 @@
      (fn [[tag rows]]
        (compile-ctor-clauses tag vars rows default))
      (group-rows rows)))))
-
 
 
 (defmacro match [x & clauses]
