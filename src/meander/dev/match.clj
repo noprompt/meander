@@ -395,7 +395,14 @@
                                             (filter syntax/mem-symbol?)
                                             (mapcat (juxt identity identity)))
                                            (take-nth 2 let-bindings)))
-            loop-env (:env (reduce add-sym row (take-nth 2 let-bindings)))]
+            loop-env (:env (reduce add-sym row (take-nth 2 let-bindings)))
+            let-else (compile (rest vars)
+                              [(drop-column row)]
+                              default)
+            loop-else (compile (rest vars)
+                               [(assoc (drop-column row)
+                                       :env loop-env)]
+                               default)]
         [true
          `(let [~slice (take ~n ~target)
                 ~@let-bindings]
@@ -413,20 +420,10 @@
                                              :rhs
                                              `(let [~target (drop 2 ~target)]
                                                 (recur ~@(take-nth 2 loop-bindings)))}]
-                                           (compile (rest vars)
-                                                    [(assoc (drop-column row)
-                                                            :env loop-env)]
-                                                    default))
-                                 ~(compile (rest vars)
-                                           [(assoc (drop-column row)
-                                                   :env loop-env)]
-                                           default))))}]
-                        (compile (rest vars)
-                                 [(drop-column row)]
-                                 default))
-              ~(compile (rest vars)
-                        [(drop-column row)]
-                        default)))])))
+                                           loop-else)
+                                 ~loop-else)))}]
+                        let-else)
+              ~let-else))])))
    rows))
 
 
