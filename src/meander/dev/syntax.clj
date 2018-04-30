@@ -166,6 +166,7 @@
         :ref :meander.syntax/ref
         :any :meander.syntax/any
         :vec :meander.syntax/vec
+        :map :meander.syntax/map
         :cap :meander.syntax/cap
         :quo :meander.syntax/quote
         :seq :meander.syntax/seq
@@ -178,6 +179,8 @@
         :ref :meander.syntax/ref
         :any :meander.syntax/any
         :vec :meander.syntax/vec
+        :map :meander.syntax/map
+        ;; Should this be top-cap?
         :cap (s/cat
               :pat :meander.syntax/top-level
               :as #{:as}
@@ -238,6 +241,23 @@
 
 (s/def :meander.syntax/vec
   (s/and vector? :meander.syntax/elem))
+
+
+(s/def :meander.syntax/map
+  (s/conformer
+   (fn [x]
+     (if (map? x)
+       (reduce-kv
+        (fn [v xk xv]
+          (let [kc (s/conform :meander.syntax/top-level xk)
+                vc (s/conform :meander.syntax/top-level xv)]
+            (if (or (identical? ::s/invalid kc)
+                    (identical? ::s/invalid vc))
+              ::s/invalid
+              (assoc v kc vc))))
+        {}
+        x)
+       ::s/invalid))))
 
 
 (s/def :meander.syntax/seq
@@ -340,15 +360,10 @@
 (defmethod expand-pat :cap [[_ cap-data :as cap]]
   (let [pat (:pat cap-data)
         var (:var cap-data)]
-    (cond
-      (has-tag? pat :any)
+    (if (or (has-tag? pat :any)
+            (and (has-tag? pat :var)
+                 (= var pat)))
       var
-
-      (and (has-tag? pat :var)
-           (= var pat))
-      var
-
-      :else 
       cap)))
 
 
@@ -510,10 +525,55 @@
     node))
 
 
+(defn cap-cat? [node]
+  (and (has-tag? node :cap)
+       (has-tag? (:pat (data node))
+                 :cat)))
+
+(defn rewrite-cap-cat*
+  [data]
+  (if (seq data)
+    (let [[init tail] (split-with (complement cap-cat?) data)]
+      (if (seq init)
+        (if (seq tail)
+          [:part
+           {:left [:cat init]
+            :right (rewrite-cap-cat* tail)}])
+        (if (seq tail)
+          [:part
+           {:left (first tail)
+            :right (rewrite-cap-cat* (next tail))}])))
+    [:seq-end]))
+
+;; Part of the :cat node rewrite process involves rewriting nodes
+;; which look like [:cat [?node]] to ?node. This is not okay for :rep
+;; nodes because the :pat attribute is expected to be a :cat. This
+;; function resolves this problem.
+(defn rewrite-cap-cat [node]
+  (if (has-tag? node :rep)
+    (let [init (:init (data node))]
+      (cond
+        (and (has-tag? init :cat)
+             (some cap-cat? (data init)))
+        [:rep
+         (assoc (data node) :init (rewrite-cap-cats* (data init)))]
+
+        (has-tag? init :cap)
+        (let [cap-data (data init)
+              pat (:pat cap-data)]
+          (if (has-tag? pat :cat)
+            node
+            [:rep
+             (assoc (data node) :init [:cap (assoc cap-data :pat [:cat [pat]])])]))
+
+        :else
+        node))
+    node))
+
+
 (defn parse
   [form]
   (->> (parse* form)
        (walk/prewalk expand-pat)
        (walk/postwalk collapse-pat)
-       #_
-       (walk/postwalk cat->nths)))
+       (walk/postwalk rewrite-cap-cat)))

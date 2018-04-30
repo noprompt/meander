@@ -114,6 +114,8 @@
 (defmethod min-length :init [node]
   0)
 
+(defmethod min-length :map [node]
+  1)
 
 (defmethod min-length :part [node]
   (let [data (syntax/data node)]
@@ -145,12 +147,15 @@
 (defn columns-dispatch [row]
   (syntax/tag (first-column row)))
 
+;; TODO: This needs to be renamed. Maybe `expand-row`?
 (defmulti columns
   {:arglists '([row])}
   #'columns-dispatch)
 
+
 (defmethod columns :default [row]
   row)
+
 
 (defmethod columns :cap
   [row]
@@ -169,6 +174,19 @@
   (let [node (first-column row)
         cols* (concat (syntax/data node) (rest (:cols row)))]
     (assoc row :cols cols*)))
+
+
+(defmethod columns :map [row]
+  (let [[_ entries] (first-column row)]
+    (assoc row
+           :cols (concat (sequence
+                          (map
+                           (fn [[key val]]
+                             ;; TODO: This is probably better as an
+                             ;; AST rewrite in syntax.
+                             [:entry (clojure.lang.MapEntry. key val)]))
+                          entries)
+                         (rest-columns row)))))
 
 
 (defmethod columns :part
@@ -245,6 +263,21 @@
     rows)))
 
 
+(defmethod compile-ctor-clauses :init [_tag vars rows default]
+  (let [[var & vars*] vars]
+    (sequence
+     (map
+      (fn [row]
+        (let [node (first-column row)
+              sym (syntax/data (:var (syntax/data node)))]
+          [true
+           `(let [~sym ~(if (get-sym row sym)
+                          `(into ~sym ~var)
+                          `(vec ~var))]
+              ~(compile vars* [(drop-column row)] default))])))
+     rows)))
+
+
 (defmethod compile-ctor-clauses :lit [_tag vars rows default]
   (map
    (fn [[[_ val] rows]]
@@ -253,6 +286,36 @@
                  (map drop-column rows)
                  default)])
    (group-by first-column rows)))
+
+
+(defmethod compile-ctor-clauses :entry [_tag vars rows default]
+  (map
+   (fn [row]
+     (let [[var & vars*] vars
+           [_ entry] (first-column row)
+           ;; NOTE: WEe assume the key is ground, e.g. it is a :lit
+           ;; or :quo node.
+           [_ x] (key entry)
+           v (val entry)
+           val-sym (gensym "val__")]
+       [`(contains? ~var '~x)
+        `(let [~val-sym (get ~var '~x)]
+           ~(compile (cons val-sym vars*)
+                     [(assoc row
+                             :cols (cons v (rest-columns row)))]
+                     default))]))
+   rows))
+
+(defmethod compile-ctor-clauses :map [_tag vars rows default]
+  (map
+   (fn [row]
+     (let [[var & rest-vars] vars
+           [_ entries] (first-column row)]
+       [`(map? ~var)
+        (compile (repeat (count entries) var)
+                 [(columns row)]
+                 default)]))
+   rows))
 
 
 (defmethod compile-ctor-clauses :mem [_tag vars rows default]
@@ -269,22 +332,6 @@
               ~(compile vars* [row*] default))])))
      rows)))
 
-
-(defmethod compile-ctor-clauses :init [_tag vars rows default]
-  (let [[var & vars*] vars]
-    (sequence
-     (map
-      (fn [row]
-        (let [node (first-column row)
-              sym (syntax/data (:var (syntax/data node)))]
-          [true
-           `(let [~sym ~(if (get-sym row sym)
-                          `(into ~sym ~var)
-                          `(vec ~var))]
-              ~(compile vars* [(drop-column row)] default))])))
-     rows)))
-
-
 (defmethod compile-ctor-clauses :part [_tag vars rows default]
   (map
    (fn [[[kind min tags] rows]]
@@ -292,6 +339,9 @@
        [:cap :seq-end]
        [true
         (compile vars (map columns rows) default)]
+
+       [:cat :cat]
+       (throw (ex-info "" {}))
        
        [:cat :seq-end]
        (let [var (first vars)]
@@ -322,8 +372,6 @@
                               :seq
                               `(drop ~min ~var))]
              ~(compile vars* (map columns rows) default)))]
-
-       
 
        ([:rep :cap]
         [:rep :cat]
@@ -390,7 +438,7 @@
             target (first vars)
             slice (gensym "slice__")
             loop-bindings (list* target
-                                 `(drop 2 ~target)
+                                 `(drop ~n ~target)
                                  (sequence (comp
                                             (filter syntax/mem-symbol?)
                                             (mapcat (juxt identity identity)))
@@ -418,7 +466,7 @@
                                            [{:cols [pat]
                                              :env loop-env
                                              :rhs
-                                             `(let [~target (drop 2 ~target)]
+                                             `(let [~target (drop ~n ~target)]
                                                 (recur ~@(take-nth 2 loop-bindings)))}]
                                            loop-else)
                                  ~loop-else)))}]

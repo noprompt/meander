@@ -63,4 +63,14 @@
           (= '[[x 0] [y 1]]
              !binding-pairs)
           (= [1 2 3]
-             ?tail)))))
+             ?tail))))
+
+  (let [is (shuffle (range 5))
+        js (shuffle (range 5))
+        ms (map (fn [i j] {:i i, :j j}) is js)]
+    (t/is
+     (r.match/match ms
+       ({:i !is, :j !js} ...)
+       (and (= !is is)
+            (= !js js))))))
+
