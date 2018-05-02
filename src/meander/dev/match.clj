@@ -188,14 +188,15 @@
                           entries)
                          (rest-columns row)))))
 
-
 (defmethod columns :part
   [row]
   (let [node (first-column row)
         {:keys [left right]} (syntax/data node)
         left-cols (list left)
         cols* (if (syntax/has-tag? right :seq-end)
-                (concat left-cols (rest (:cols row)))
+                (if (syntax/has-tag? left :rep)
+                  (concat left-cols (list right) (rest (:cols row))) 
+                  (concat left-cols (rest (:cols row))))
                 (concat left-cols (list right) (rest (:cols row))))]
     (assoc row :cols cols*)))
 
@@ -428,8 +429,11 @@
                               `(drop ~n ~var))]
              ~(compile vars* (map columns rows) default)))]
        
-       ([:rep :seq-end]
-        [:rest :seq-end])
+       [:rep :seq-end]
+       [true
+        (compile vars (map columns rows) default)]
+
+       [:rest :seq-end]
        [true
         (compile vars (map columns rows) default)]))
    (group-by
@@ -532,11 +536,10 @@
 
 (defmethod compile-ctor-clauses :seq-end [_tag vars rows default]
   (let [[var & vars*] vars]
-    `[[true
+    `[[(not (seq ~var))
        ~(compile vars*
                  (map drop-column rows)
                  default)]]))
-
 
 (defmethod compile-ctor-clauses :var [_tag vars rows default]
   (map
