@@ -243,6 +243,37 @@
    rows))
 
 
+(defn rotate-cat-columns [vars rows]
+  (let [matrix (mapv (comp vec syntax/data first-column) rows)
+        [vars* matrix*]
+        (reduce
+         (fn [[vars* matrix*] i]
+           (let [vals (sequence
+                       (map
+                        (fn [row]
+                          (nth row i)))
+                       matrix*)]
+             (if (= (count (set vals)) 1)
+               [;; vars*
+                (swap vars* 0 i)
+                ;; matrix*
+                (into []
+                      (map
+                       (fn [row]
+                         (swap row 0 i)))
+                      matrix*)]
+               [vars* matrix*])))
+         [(vec vars) matrix]
+         (range (count (first matrix))))
+        rows* (map
+               (fn [row matrix-row]
+                 (let [cols* (cons [:cat matrix-row] (rest (:cols row)))]
+                   (assoc row :cols cols*)))
+               rows
+               matrix*)]
+    [vars* rows*]))
+
+
 (defmethod compile-ctor-clauses :cat [_tag vars rows default]
   (map
    (fn [[min rows]]
@@ -254,7 +285,8 @@
                       (range min))
            nth-vars (map first nth-forms)
            vars* (concat nth-vars rest-vars)
-           rows*  (map columns rows)]
+           [vars* rows*] (rotate-cat-columns vars* rows)
+           rows*  (map columns rows*)]
        [true
         `(let [~@(mapcat identity nth-forms)]
            ~(compile vars* rows* default))]))
