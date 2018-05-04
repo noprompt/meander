@@ -287,7 +287,7 @@
            nth-vars (map first nth-forms)
            vars* (concat nth-vars rest-vars)
            [vars* rows*] (rotate-cat-columns vars* rows)
-           rows*  (map columns rows*)]
+           rows* (map columns rows*)]
        [true
         `(let [~@(mapcat identity nth-forms)]
            ~(compile vars* rows* default))]))
@@ -310,7 +310,6 @@
               ~(compile vars* [(drop-column row)] default))])))
      rows)))
 
-
 (defmethod compile-ctor-clauses :lit [_tag vars rows default]
   (map
    (fn [[[_ val] rows]]
@@ -319,7 +318,6 @@
                  (map drop-column rows)
                  default)])
    (group-by first-column rows)))
-
 
 (defmethod compile-ctor-clauses :entry [_tag vars rows default]
   (map
@@ -525,7 +523,6 @@
               ~(compile vars* [(drop-column row)] default))])))
      rows)))
 
-
 (defmethod compile-ctor-clauses :seq [_tag vars rows default]
   (let [[var & vars*] vars]
     [[`(seq? ~var)
@@ -549,11 +546,13 @@
            row* (drop-column (add-sym row sym))
            body (compile vars* [row*] default)]
        (if (some? (get-sym row sym))
-         [`(= ~var ~sym) body]
+         [`(= ~var ~sym)
+          body]
          [true
           `(let [~sym ~var]
              ~body)])))
    rows))
+
 
 (defmethod compile-ctor-clauses :vec [_tag vars rows default]
   (let [[var & vars*] vars]
