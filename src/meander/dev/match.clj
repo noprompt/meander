@@ -567,6 +567,7 @@
       (:rhs (first rows)))]])
 
 
+;; TODO: It'd be nice to move away from the try/catch style
 (def backtrack
   (Exception. "non exhaustive pattern match"))
 
@@ -574,17 +575,19 @@
 (defn compile [vars rows default]
   (reduce
    (fn [next-choice [test then]]
-     (let [fail (gensym "fail__")]
-       (if (= true test)
-         then
-         (if (= next-choice default)
-           `(if ~test
-              ~then
-              ~next-choice)
-           `(let [~fail (fn [] ~next-choice)]
-              (if ~test
-                ~then
-                (~fail)))))))
+     (let [body-form (if (= true test)
+                       then
+                       `(if ~test
+                          ~then
+                          ~default))]
+       (if (= next-choice default)
+         body-form
+         `(try
+            ~body-form
+            (catch Exception exception#
+              (if (identical? exception# backtrack)
+                ~next-choice
+                (throw exception#)))))))
    default
    (reverse
     (mapcat
@@ -594,10 +597,8 @@
 
 
 (defmacro match [x & clauses]
-  (let [var (gensym "v__")
-        fail (gensym "fail__")]
-    `(let [~var ~x
-           ~fail (fn [] (throw backtrack))]
+  (let [var (gensym "v__")]
+    `(let [~var ~x]
        ~(compile [var]
                  (sequence
                   (map
@@ -605,4 +606,5 @@
                      {:cols [(syntax/parse pat)]
                       :rhs act}))
                   (partition 2 clauses))
-                 `(~fail)))))
+                 `(throw backtrack)))))
+
