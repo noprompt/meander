@@ -463,6 +463,17 @@
     rows)))
 
 
+(defmethod compile-ctor-clauses :quo [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [val (syntax/data (first-column row))]
+        ;; No need to quote the value.
+        [`(= ~val ~(first vars))
+         (compile (rest vars) [(drop-column row)] default)])))
+   rows))
+
+
 (defmethod columns :rep
   [row]
   (assoc row
