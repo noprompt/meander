@@ -177,10 +177,10 @@
         :any :meander.syntax/any
         :vec :meander.syntax/vec
         :map :meander.syntax/map
-        :cap :meander.syntax/cap
-        :and :meander.syntax/and
         :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
+        :cap :meander.syntax/cap
+        :and :meander.syntax/and
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
@@ -192,6 +192,9 @@
         :any :meander.syntax/any
         :vec :meander.syntax/vec
         :map :meander.syntax/map
+        :unq :meander.syntax/unquote
+        :quo :meander.syntax/quote
+        :and :meander.syntax/and
         ;; Should this be top-cap?
         :cap (s/cat
               :pat :meander.syntax/top-level
@@ -204,9 +207,6 @@
          :as #{:as}
          :var (s/or :mem :meander.syntax/mem
                     :var :meander.syntax/var))
-        :and :meander.syntax/and
-        :unq :meander.syntax/unquote
-        :quo :meander.syntax/quote
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
@@ -216,7 +216,6 @@
          (s/cat
           :and '#{and}
           :pats (s/* :meander.syntax/term))))
-
 
 (s/def :meander.syntax/cap
   (s/cat
