@@ -562,8 +562,14 @@
 
 (defmethod compile-ctor-clauses :default [_tag vars rows default]
   [[true
-    (if (seq vars)
+    (cond
+      (seq vars)
       [:error vars rows]
+
+      (some (comp seq :cols) rows)
+      [:error vars rows]
+
+      :else
       (:rhs (first rows)))]])
 
 
