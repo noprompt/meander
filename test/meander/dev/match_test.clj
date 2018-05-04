@@ -72,5 +72,15 @@
      (r.match/match ms
        ({:i !is, :j !js} ...)
        (and (= !is is)
-            (= !js js))))))
+            (= !js js)))))
+
+  (t/is
+   (r.match/match '[1 2 3]
+     (and ?x [_ ...])
+     (= ?x [1 2 3])))
+
+  (t/is
+   (r.match/match '[[1 2 3] [1 2 3] [1 2 3]]
+     [(and ?x ?y) ?x ?y]
+     (= ?x ?y [1 2 3]))))
 

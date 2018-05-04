@@ -227,11 +227,32 @@
   #'compile-ctor-clauses-dispatch)
 
 
+(defmethod columns :and [row]
+  (let [pats (:pats (syntax/data (first-column row)))]
+    (assoc row :cols (concat pats (rest-columns row)))))
+
+(defmethod compile-ctor-clauses :and [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [pats (syntax/data (first-column row))
+            n (count pats)]
+        [true
+         (if (zero? n)
+           (compile (rest vars) [(drop-column row)] default)
+           (compile (concat (repeat n (first vars))
+                            (rest vars))
+                    [(columns row)]
+                    default))])))
+   rows))
+
+
 (defmethod compile-ctor-clauses :any [_tag vars rows default]
-  (map
-   (fn [row]
-     [true
-      (compile (rest vars) [(drop-column row)] default)])
+  (sequence
+   (map
+    (fn [row]
+      [true
+       (compile (rest vars) [(drop-column row)] default)]))
    rows))
 
 
@@ -613,4 +634,3 @@
                       :rhs act}))
                   (partition 2 clauses))
                  `(throw backtrack)))))
-

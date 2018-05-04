@@ -10,6 +10,12 @@
        (= (first x) 'quote)))
 
 
+(defn unquote-form?
+  [x]
+  (and (seq? x)
+       (= (first x) 'clojure.core/unquote)))
+
+
 (defn partition-symbol?
   [x]
   (= x '.))
@@ -160,6 +166,10 @@
   quote-form?)
 
 
+(s/def :meander.syntax/unquote
+  unquote-form?)
+
+
 (s/def :meander.syntax/term
   (s/or :var :meander.syntax/var
         :mem :meander.syntax/mem
@@ -168,6 +178,8 @@
         :vec :meander.syntax/vec
         :map :meander.syntax/map
         :cap :meander.syntax/cap
+        :and :meander.syntax/and
+        :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
@@ -192,9 +204,18 @@
          :as #{:as}
          :var (s/or :mem :meander.syntax/mem
                     :var :meander.syntax/var))
+        :and :meander.syntax/and
+        :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
+
+
+(s/def :meander.syntax/and
+  (s/and seq?
+         (s/cat
+          :and '#{and}
+          :pats (s/* :meander.syntax/term))))
 
 
 (s/def :meander.syntax/cap
@@ -556,15 +577,22 @@
         (and (has-tag? init :cat)
              (some cap-cat? (data init)))
         [:rep
-         (assoc (data node) :init (rewrite-cap-cats* (data init)))]
+         (assoc (data node) :init (rewrite-cap-cat* (data init)))]
 
         (has-tag? init :cap)
         (let [cap-data (data init)
               pat (:pat cap-data)]
           (if (has-tag? pat :cat)
-            node
+            (if (= 1 (count (data pat)))
+              [:rep
+               {:init [:cat
+                       [[:cap
+                         (assoc cap-data :pat (first (data pat)))]]]}]
+              node)
             [:rep
-             (assoc (data node) :init [:cap (assoc cap-data :pat [:cat [pat]])])]))
+             (assoc (data node)
+                    :init [:cap (assoc cap-data
+                                       :pat [:cat [pat]])])]))
 
         :else
         node))
