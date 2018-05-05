@@ -103,43 +103,6 @@
   #'syntax/tag)
 
 
-(defmethod min-length :cap [node]
-  (min-length (:pat (syntax/data node))))
-
-
-(defmethod min-length :cat [node]
-  (count (syntax/data node)))
-
-
-(defmethod min-length :init [node]
-  0)
-
-(defmethod min-length :map [node]
-  1)
-
-(defmethod min-length :part [node]
-  (let [data (syntax/data node)]
-    (+ (min-length (:left data))
-       (min-length (:right data)))))
-
-(defmethod min-length :rep [node]
-  0)
-
-(defmethod min-length :rest [node]
-  0)
-
-(defmethod min-length :seq [node]
-  (min-length (syntax/data node)))
-
-
-(defmethod min-length :seq-end [node]
-  0)
-
-
-(defmethod min-length :vec [node]
-  (min-length (syntax/data node)))
-
-
 (defn has-min-length? [node]
   (some? (get-method min-length (syntax/tag node))))
 
@@ -157,74 +120,15 @@
   row)
 
 
-(defmethod columns :cap
-  [row]
-  (let [node (first-column row)
-        {:keys [pat var]} (syntax/data node)
-        ;; The var is placed in the first column before the pattern
-        ;; since the checks around them, i.e. verifying equality in
-        ;; the case of a logic variable, is potentially much cheaper
-        ;; than testing the pattern first.
-        cols* (list* var pat (rest-columns row))]
-    (assoc row :cols cols*)))
-
-
-(defmethod columns :cat
-  [row]
-  (let [node (first-column row)
-        cols* (concat (syntax/data node) (rest (:cols row)))]
-    (assoc row :cols cols*)))
-
-
-(defmethod columns :map [row]
-  (let [[_ entries] (first-column row)]
-    (assoc row
-           :cols (concat (sequence
-                          (map
-                           (fn [[key val]]
-                             ;; TODO: This is probably better as an
-                             ;; AST rewrite in syntax.
-                             [:entry (clojure.lang.MapEntry. key val)]))
-                          entries)
-                         (rest-columns row)))))
-
-(defmethod columns :part
-  [row]
-  (let [node (first-column row)
-        {:keys [left right]} (syntax/data node)
-        left-cols (list left)
-        cols* (if (syntax/has-tag? right :seq-end)
-                (if (syntax/has-tag? left :rep)
-                  (concat left-cols (list right) (rest (:cols row))) 
-                  (concat left-cols (rest (:cols row))))
-                (concat left-cols (list right) (rest (:cols row))))]
-    (assoc row :cols cols*)))
-
-
-(defmethod columns :seq
-  [row]
-  (let [node (first-column row)
-        ;; TODO: Move to syntax.
-        part (update (syntax/data node) 1 assoc :kind :seq)
-        cols* (list* part (rest (:cols row)))]
-    (assoc row :cols cols*)))
-
-(defmethod columns :vec
-  [row]
-  (let [node (first-column row)
-        ;; TODO: Move to syntax.
-        part (update (syntax/data node) 1 assoc :kind :vec)
-        cols* (list* part (rest (:cols row)))]
-    (assoc row :cols cols*)))
-
-
 (declare compile)
+
 
 (defn compile-ctor-clauses-dispatch [tag vars rows default]
   tag)
 
 (defmulti compile-ctor-clauses
   #'compile-ctor-clauses-dispatch)
+
 
 ;; ---------------------------------------------------------------------
 ;; And
@@ -264,6 +168,23 @@
 ;; --------------------------------------------------------------------
 ;; Cap
 
+
+(defmethod min-length :cap [node]
+  (min-length (:pat (syntax/data node))))
+
+
+(defmethod columns :cap
+  [row]
+  (let [node (first-column row)
+        {:keys [pat var]} (syntax/data node)
+        ;; The var is placed in the first column before the pattern
+        ;; since the checks around them, i.e. verifying equality in
+        ;; the case of a logic variable, is potentially much cheaper
+        ;; than testing the pattern first.
+        cols* (list* var pat (rest-columns row))]
+    (assoc row :cols cols*)))
+
+
 (defmethod compile-ctor-clauses :cap [_tag vars rows default]
   (sequence
    (map
@@ -275,6 +196,18 @@
 
 ;; --------------------------------------------------------------------
 ;; Cat
+
+
+(defmethod min-length :cat [node]
+  (count (syntax/data node)))
+
+
+(defmethod columns :cat
+  [row]
+  (let [node (first-column row)
+        cols* (concat (syntax/data node) (rest (:cols row)))]
+    (assoc row :cols cols*)))
+
 
 (defn rotate-cat-columns [vars rows]
   (let [matrix (mapv (comp vec syntax/data first-column) rows)
@@ -331,6 +264,11 @@
 ;; --------------------------------------------------------------------
 ;; Init
 
+
+(defmethod min-length :init [node]
+  0)
+
+
 (defmethod compile-ctor-clauses :init [_tag vars rows default]
   (let [[var & vars*] vars]
     (sequence
@@ -384,6 +322,24 @@
 ;; --------------------------------------------------------------------
 ;; Map
 
+
+(defmethod min-length :map [node]
+  1)
+
+
+(defmethod columns :map [row]
+  (let [[_ entries] (first-column row)]
+    (assoc row
+           :cols (concat (sequence
+                          (map
+                           (fn [[key val]]
+                             ;; TODO: This is probably better as an
+                             ;; AST rewrite in syntax.
+                             [:entry (clojure.lang.MapEntry. key val)]))
+                          entries)
+                         (rest-columns row)))))
+
+
 (defmethod compile-ctor-clauses :map [_tag vars rows default]
   (map
    (fn [row]
@@ -415,6 +371,26 @@
 
 ;; --------------------------------------------------------------------
 ;; Partition
+
+
+(defmethod min-length :part [node]
+  (let [data (syntax/data node)]
+    (+ (min-length (:left data))
+       (min-length (:right data)))))
+
+
+(defmethod columns :part
+  [row]
+  (let [node (first-column row)
+        {:keys [left right]} (syntax/data node)
+        left-cols (list left)
+        cols* (if (syntax/has-tag? right :seq-end)
+                (if (syntax/has-tag? left :rep)
+                  (concat left-cols (list right) (rest (:cols row))) 
+                  (concat left-cols (rest (:cols row))))
+                (concat left-cols (list right) (rest (:cols row))))]
+    (assoc row :cols cols*)))
+
 
 (defmethod compile-ctor-clauses :part [_tag vars rows default]
   (map
@@ -512,6 +488,12 @@
 ;; --------------------------------------------------------------------
 ;; Rep
 
+
+
+(defmethod min-length :rep [node]
+  0)
+
+
 (defmethod columns :rep
   [row]
   (assoc row
@@ -582,6 +564,11 @@
 ;; --------------------------------------------------------------------
 ;; Rest
 
+
+(defmethod min-length :rest [node]
+  0)
+
+
 (defmethod compile-ctor-clauses :rest [_tag vars rows default]
   (let [[var & vars*] vars]
     (sequence
@@ -600,6 +587,20 @@
 ;; --------------------------------------------------------------------
 ;; Seq
 
+
+(defmethod min-length :seq [node]
+  (min-length (syntax/data node)))
+
+
+(defmethod columns :seq
+  [row]
+  (let [node (first-column row)
+        ;; TODO: Move to syntax.
+        part (update (syntax/data node) 1 assoc :kind :seq)
+        cols* (list* part (rest (:cols row)))]
+    (assoc row :cols cols*)))
+
+
 (defmethod compile-ctor-clauses :seq [_tag vars rows default]
   (let [[var & vars*] vars]
     [[`(seq? ~var)
@@ -610,6 +611,11 @@
 
 ;; --------------------------------------------------------------------
 ;; SeqEnd
+
+
+(defmethod min-length :seq-end [node]
+  0)
+
 
 (defmethod compile-ctor-clauses :seq-end [_tag vars rows default]
   (let [[var & vars*] vars]
@@ -640,6 +646,20 @@
 
 ;; --------------------------------------------------------------------
 ;; Vector
+
+
+(defmethod min-length :vec [node]
+  (min-length (syntax/data node)))
+
+
+(defmethod columns :vec
+  [row]
+  (let [node (first-column row)
+        ;; TODO: Move to syntax.
+        part (update (syntax/data node) 1 assoc :kind :vec)
+        cols* (list* part (rest (:cols row)))]
+    (assoc row :cols cols*)))
+
 
 (defmethod compile-ctor-clauses :vec [_tag vars rows default]
   (let [[var & vars*] vars]
