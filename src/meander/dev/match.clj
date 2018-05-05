@@ -226,6 +226,8 @@
 (defmulti compile-ctor-clauses
   #'compile-ctor-clauses-dispatch)
 
+;; ---------------------------------------------------------------------
+;; And
 
 (defmethod columns :and [row]
   (let [pats (:pats (syntax/data (first-column row)))]
@@ -247,6 +249,9 @@
    rows))
 
 
+;; ---------------------------------------------------------------------
+;; Any
+
 (defmethod compile-ctor-clauses :any [_tag vars rows default]
   (sequence
    (map
@@ -256,6 +261,9 @@
    rows))
 
 
+;; --------------------------------------------------------------------
+;; Cap
+
 (defmethod compile-ctor-clauses :cap [_tag vars rows default]
   (sequence
    (map
@@ -264,6 +272,9 @@
        (compile (cons (first vars) vars) [(columns row)] default)]))
    rows))
 
+
+;; --------------------------------------------------------------------
+;; Cat
 
 (defn rotate-cat-columns [vars rows]
   (let [matrix (mapv (comp vec syntax/data first-column) rows)
@@ -317,6 +328,9 @@
     rows)))
 
 
+;; --------------------------------------------------------------------
+;; Init
+
 (defmethod compile-ctor-clauses :init [_tag vars rows default]
   (let [[var & vars*] vars]
     (sequence
@@ -331,6 +345,10 @@
               ~(compile vars* [(drop-column row)] default))])))
      rows)))
 
+
+;; --------------------------------------------------------------------
+;; Lit
+
 (defmethod compile-ctor-clauses :lit [_tag vars rows default]
   (map
    (fn [[[_ val] rows]]
@@ -339,6 +357,10 @@
                  (map drop-column rows)
                  default)])
    (group-by first-column rows)))
+
+
+;; --------------------------------------------------------------------
+;; Entry
 
 (defmethod compile-ctor-clauses :entry [_tag vars rows default]
   (map
@@ -358,6 +380,10 @@
                      default))]))
    rows))
 
+
+;; --------------------------------------------------------------------
+;; Map
+
 (defmethod compile-ctor-clauses :map [_tag vars rows default]
   (map
    (fn [row]
@@ -369,6 +395,9 @@
                  default)]))
    rows))
 
+
+;; --------------------------------------------------------------------
+;; Memvar
 
 (defmethod compile-ctor-clauses :mem [_tag vars rows default]
   (let [[var & vars*] vars]
@@ -383,6 +412,9 @@
                     [sym `[~var]])
               ~(compile vars* [row*] default))])))
      rows)))
+
+;; --------------------------------------------------------------------
+;; Partition
 
 (defmethod compile-ctor-clauses :part [_tag vars rows default]
   (map
@@ -463,6 +495,9 @@
     rows)))
 
 
+;; --------------------------------------------------------------------
+;; Quote
+
 (defmethod compile-ctor-clauses :quo [_tag vars rows default]
   (sequence
    (map
@@ -473,6 +508,9 @@
          (compile (rest vars) [(drop-column row)] default)])))
    rows))
 
+
+;; --------------------------------------------------------------------
+;; Rep
 
 (defmethod columns :rep
   [row]
@@ -541,6 +579,9 @@
    rows))
 
 
+;; --------------------------------------------------------------------
+;; Rest
+
 (defmethod compile-ctor-clauses :rest [_tag vars rows default]
   (let [[var & vars*] vars]
     (sequence
@@ -555,6 +596,10 @@
               ~(compile vars* [(drop-column row)] default))])))
      rows)))
 
+
+;; --------------------------------------------------------------------
+;; Seq
+
 (defmethod compile-ctor-clauses :seq [_tag vars rows default]
   (let [[var & vars*] vars]
     [[`(seq? ~var)
@@ -563,12 +608,19 @@
                default)]]))
 
 
+;; --------------------------------------------------------------------
+;; SeqEnd
+
 (defmethod compile-ctor-clauses :seq-end [_tag vars rows default]
   (let [[var & vars*] vars]
     `[[(not (seq ~var))
        ~(compile vars*
                  (map drop-column rows)
                  default)]]))
+
+
+;; --------------------------------------------------------------------
+;; Var
 
 (defmethod compile-ctor-clauses :var [_tag vars rows default]
   (map
@@ -586,11 +638,17 @@
    rows))
 
 
+;; --------------------------------------------------------------------
+;; Vector
+
 (defmethod compile-ctor-clauses :vec [_tag vars rows default]
   (let [[var & vars*] vars]
     `[[(vector? ~var)
        ~(compile vars (sequence (map columns) rows) default)]]))
 
+
+;; --------------------------------------------------------------------
+;; Fail
 
 (defmethod compile-ctor-clauses :default [_tag vars rows default]
   [[true
