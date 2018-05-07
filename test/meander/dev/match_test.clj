@@ -82,5 +82,73 @@
   (t/is
    (r.match/match '[[1 2 3] [1 2 3] [1 2 3]]
      [(and ?x ?y) ?x ?y]
-     (= ?x ?y [1 2 3]))))
+     (= ?x ?y [1 2 3])))
+
+  (t/is
+   (r.match/match '(1 2 3 4 5 6)
+     (_ ... . 4 5 6)
+     true
+
+     _
+     false))
+
+  (t/is
+   (r.match/match [1 2 3 4 5 6]
+     [_ ... . 4 5 6]
+     true
+
+     _
+     false))
+
+  (t/is
+   (not
+    (r.match/match '(1 2 3 4 5 6)
+      (_ ... . 4 5)
+      true
+
+      _
+      false)))
+
+  (t/is
+   (not
+    (r.match/match [1 2 3 4 5 6]
+      [_ ... . 4 5 ]
+      true
+
+      _
+      false)))
+  
+  (t/is
+   (r.match/match '(1 2 3 4 5 6)
+     (1 2 3 . _ ...)
+     true
+
+     _
+     false))
+
+  (t/is
+   (r.match/match [1 2 3 4 5 6]
+     [1 2 3 . _ ...]
+     true
+
+     _
+     false))
+
+  (t/is
+   (not
+    (r.match/match '(1 2 3 4 5 6)
+      (1 2 3 4 5 6 7 . _ ...)
+      true
+
+      _
+      false)))
+
+  (t/is
+   (not
+    (r.match/match [1 2 3 4 5 6]
+      [1 2 3 4 5 6 7 . _ ...]
+      true
+
+      _
+      false))))
 
