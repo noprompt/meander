@@ -262,6 +262,28 @@
 
 
 ;; --------------------------------------------------------------------
+;; Drop
+
+
+(defmethod min-length :drop [node]
+  0)
+
+
+(defmethod columns :drop [row]
+  (drop-column row))
+
+(defmethod compile-ctor-clauses :drop [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      [true
+       (compile (rest vars) [(columns row)] default)]
+      ))
+   rows))
+
+
+
+;; --------------------------------------------------------------------
 ;; Init
 
 
@@ -385,8 +407,14 @@
         {:keys [left right]} (syntax/data node)
         left-cols (list left)
         cols* (if (syntax/has-tag? right :seq-end)
-                (if (syntax/has-tag? left :rep)
+                (case (syntax/tag left)
+                  :rep
                   (concat left-cols (list right) (rest (:cols row))) 
+
+                  :drop
+                  (rest (:cols row))
+
+                  ;; else
                   (concat left-cols (rest (:cols row))))
                 (concat left-cols (list right) (rest (:cols row))))]
     (assoc row :cols cols*)))
@@ -396,12 +424,30 @@
   (map
    (fn [[[kind min tags] rows]]
      (case tags
+       [:any :seq-end]
+       [true
+        (compile (rest vars) (map columns rows) default)]
+       
        [:cap :seq-end]
        [true
         (compile vars (map columns rows) default)]
 
-       [:cat :cat]
-       (throw (ex-info "" {}))
+       [:cat :drop]
+       (let [[var & rest-vars] vars
+             init-var (gensym "init__")
+             vars* (list* init-var init-var rest-vars)
+             inner-form (compile vars* (map columns rows) default)]
+         (case kind
+           :vec
+           [`(<= ~min (count ~var))
+            `(let [~init-var (subvec ~var 0 ~min)]
+               ~inner-form)]
+           :seq
+           [true
+            `(let [~init-var (take ~min ~var)]
+               (if (== (count ~init-var) ~min)
+                 ~inner-form
+                 ~default))]))
        
        [:cat :seq-end]
        (let [var (first vars)]
@@ -433,6 +479,25 @@
                               `(drop ~min ~var))]
              ~(compile vars* (map columns rows) default)))]
 
+       [:drop :seq-end]
+       [true
+        (compile (rest vars) (map columns rows) default)]
+
+       [:drop :cat]
+       [true
+        (let [[var & rest-vars] vars
+              n (gensym "n__")
+              tail-var (gensym "tail__")
+              vars* (list* var tail-var rest-vars)]
+          `(let [~n (max 0 (- (count ~var) ~min))
+                 ~tail-var ~(case kind
+                              :vec
+                              `(subvec ~var ~n)
+
+                              :seq
+                              `(drop ~n ~var))]
+             ~(compile vars* (map columns rows) default)))]
+
        ([:rep :cap]
         [:rep :cat]
         [:init :cat])
@@ -452,6 +517,7 @@
                  ~tail-var ~(case kind
                               :vec
                               `(subvec ~var ~n)
+
                               :seq
                               `(drop ~n ~var))]
              ~(compile vars* (map columns rows) default)))]
