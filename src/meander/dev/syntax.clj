@@ -490,11 +490,20 @@
             [init-tag init-data] init]
         (if (= init-tag :cat)
           (let [[[tag data] & rest] init-data]
-            (if (and (not (seq rest))
-                     (= tag :mem))
+            (cond
+              (and (not (seq rest))
+                   (= tag :any))
+              [:part
+               {:left left
+                :right [:drop]}]
+
+              (and (not (seq rest))
+                   (= tag :mem))
               [:part
                {:left left
                 :right [:rest {:var [tag data]}]}]
+
+              :else
               part))
           part))
 
@@ -504,13 +513,24 @@
             [init-tag init-data] init]
         (if (= init-tag :cat)
           (let [[[tag data] & rest] init-data]
-            (if (and (not (seq rest))
-                     (= tag :mem))
+            (cond
+              (and (not (seq rest))
+                   (= tag :any)
+                   (= right-tag :seq-end))
+              [:part
+               ;; I don't really like the name drop.
+               {:left [:drop]
+                :right right}]
+
+              (and (not (seq rest))
+                   (= tag :mem))
               [:part
                {:left (if (= right-tag :seq-end)
                         [:rest {:var [tag data]}]
                         [:init {:var [tag data]}])
                 :right right}]
+
+              :else
               part))
           part))
 
