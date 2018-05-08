@@ -261,6 +261,8 @@
     rows)))
 
 
+
+
 ;; --------------------------------------------------------------------
 ;; Drop
 
@@ -524,7 +526,7 @@
        
        [:rep :seq-end]
        [true
-        (compile vars (map columns rows) default)]
+        (compile (cons (first vars) vars) (map columns rows) default)]
 
        [:rest :seq-end]
        [true
@@ -619,8 +621,7 @@
                               [(drop-column row)]
                               default)
             loop-else (compile (rest vars)
-                               [(assoc (drop-column row)
-                                       :env loop-env)]
+                               [(assoc (drop-column row) :env loop-env)]
                                default)]
         [true
          `(let [~slice (take ~n ~target)
@@ -772,7 +773,6 @@
 (def backtrack
   (Exception. "non exhaustive pattern match"))
 
-
 (defn compile [vars rows default]
   (reduce
    (fn [next-choice [test then]]
@@ -809,3 +809,12 @@
                   (partition 2 clauses))
                  `(throw backtrack)))))
 
+
+
+(defn *macroexpand-1 [form]
+  (clojure.walk/prewalk
+   (fn [x]
+     (if (qualified-symbol? x)
+       (symbol (name x))
+       x))
+   (macroexpand-1 form)))

@@ -65,6 +65,19 @@
           (= [1 2 3]
              ?tail))))
 
+  
+  (t/is
+   (r.match/match '(let [a 1 b 2] (+ a b) (+ b a))
+     (let [(!bindings !values :as !binding-pairs) ...] . !body ...)
+     (and (= '[a b]
+             !bindings)
+          (= '[1 2]
+             !values)
+          (= '[(a 1) (b 2)]
+             !binding-pairs)
+          (= '[(+ a b) (+ b a)]
+             !body))))
+
   (let [is (shuffle (range 5))
         js (shuffle (range 5))
         ms (map (fn [i j] {:i i, :j j}) is js)]
@@ -150,5 +163,16 @@
       true
 
       _
-      false))))
+      false)))
+
+  (t/is
+   (r.match/match [1 2 3]
+     (? vector?)
+     true))
+
+  (t/is
+   (r.match/match "foo"
+     (? (fn [x]
+          (re-matches #"[a-z]+" x)))
+     true)))
 
