@@ -141,7 +141,7 @@
   (sequence
    (map
     (fn [row]
-      (let [pats (syntax/data (first-column row))
+      (let [pats (:pats (syntax/data (first-column row)))
             n (count pats)]
         [true
          (if (zero? n)
@@ -536,6 +536,25 @@
         [kind (min-length node) [(syntax/tag left) (syntax/tag right)]]))
     rows)))
 
+;; --------------------------------------------------------------------
+;; Pred
+
+(defmethod columns :prd [row]
+  (let [node (first-column row)
+        node* [:and {:pats (:pats (syntax/data node))}]]
+    (assoc row :cols (cons node* (rest-columns row)))))
+
+
+(defmethod compile-ctor-clauses :prd [_tag vars rows default]
+  (sequence
+   (map
+    (fn do-pred-and-rows [[pred rows]]
+      [`(~pred ~(first vars))
+       (compile vars (sequence (map columns) rows) default)]))
+   (group-by
+    (comp :pred syntax/data first-column)
+    rows)))
+
 
 ;; --------------------------------------------------------------------
 ;; Quote
@@ -789,3 +808,4 @@
                       :rhs act}))
                   (partition 2 clauses))
                  `(throw backtrack)))))
+

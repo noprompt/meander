@@ -37,6 +37,11 @@
   (= x '_))
 
 
+(defn pred-symbol?
+  [x]
+  (= x '?))
+
+
 (defn var-name?
   [s]
   (some? (re-matches #"\?\S+" s)))
@@ -179,6 +184,7 @@
         :map :meander.syntax/map
         :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
+        :prd :meander.syntax/pred
         :cap :meander.syntax/cap
         :and :meander.syntax/and
         :seq :meander.syntax/seq
@@ -194,6 +200,7 @@
         :map :meander.syntax/map
         :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
+        :prd :meander.syntax/pred
         :and :meander.syntax/and
         ;; Should this be top-cap?
         :cap (s/cat
@@ -216,6 +223,15 @@
          (s/cat
           :and '#{and}
           :pats (s/* :meander.syntax/term))))
+
+
+(s/def :meander.syntax/pred
+  (s/and seq?
+         (s/cat
+          :qmark '#{?}
+          :pred any?
+          :pats (s/* :meander.syntax/term))))
+
 
 (s/def :meander.syntax/cap
   (s/cat
