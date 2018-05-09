@@ -449,7 +449,6 @@
          [:cat rep-init])))
 
 
-
 (defmethod expand-pat :rep [[_ rep-data]]
   [:rep (update rep-data :init expand-rep-init)])
 
@@ -460,6 +459,7 @@
      (assoc repk-data
             :init (expand-rep-init init)
             :k (Long/parseUnsignedLong (subs (name sym) 2)))])) 
+
 
 (defmethod expand-pat :seq [[_ node :as seq]]
   (if (has-tag? node :part)
@@ -540,6 +540,7 @@
   (and (has-tag? node :cap)
        (has-tag? (:pat (data node))
                  :cat)))
+
 
 (defn rewrite-cap-cat*
   [data]
