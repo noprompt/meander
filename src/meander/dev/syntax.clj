@@ -297,17 +297,8 @@
 
 
 (s/def :meander.syntax/vec
-  (s/conformer
-   (fn [x]
-     (if (vector? x)
-       (s/conform :meander.syntax/elem x)
-       ::s/invalid))
-   (fn [x]
-     (or (when (vector? x)
-           (let [x* (s/unform :meander.syntax/elem x)]
-             (when (not (= x x*))
-               (into [] x*))))
-         x))))
+  (s/and vector? :meander.syntax/elem))
+
 
 (s/def :meander.syntax/map
   (s/conformer
@@ -334,7 +325,8 @@
 ;; meander.syntax.parse
 
 
-(defn parse* [term]
+(defn parse*
+  [term]
   (s/conform :meander.syntax/top-level term))
 
 
@@ -357,15 +349,10 @@
   {:pre [(node? node)]}
   (second node))
 
-(defn nth-node
-  [index node]
-  {:pre [(node? node)]}
-  (if (has-tag? node :nth)
-    [:nth (assoc (data node) :index index)]
-    [:nth {:index index, :pat node}]))
 
 (defn cat-cats [[_ xs] [_ ys]]
   [:cat (into (vec xs) ys)])
+
 
 (defmulti expand-pat
   (fn [x]
@@ -390,12 +377,7 @@
                             (and (= cap-pat-tag :cat)
                                  (<= (count cap-pat-data) 1))))
                      true))
-                 pats
-                 #_
-                 (map-indexed
-                  (fn [index pat]
-                    [:nth {:index index, :pat pat}])
-                  pats))
+                 pats)
         xs (sequence
             (map
              (fn [[tag data :as node]]
@@ -531,62 +513,6 @@
       [:part :seq-end]
       (collapse-pat left)
 
-      #_
-      [:cat :rep]
-      #_
-      (let [{init :init} right-data
-            [init-tag init-data] init]
-        (if (= init-tag :cat)
-          (let [[[tag data] & rest] init-data]
-            (cond
-              (and (not (seq rest))
-                   (= tag :any))
-              [:part
-               {:left left
-                :right [:drop]}]
-
-              (and (not (seq rest))
-                   (= tag :mem))
-              [:part
-               {:left left
-                :right [:rest {:var [tag data]}]}]
-
-              :else
-              part))
-          part))
-
-      #_
-      ([:rep :cat]
-       [:rep :seq-end])
-      #_
-      (let [{init :init} left-data
-            [init-tag init-data] init]
-        (if (= init-tag :cat)
-          (let [[[tag data] & rest] init-data]
-            (cond
-              (and (not (seq rest))
-                   (= tag :any)
-                   (= right-tag :seq-end))
-              [:part
-               ;; I don't really like the name drop.
-               {:left [:drop]
-                :right right}]
-
-              (and (not (seq rest))
-                   (= tag :mem))
-              [:part
-               {:left (if (= right-tag :seq-end)
-                        [:rest {:var [tag data]}]
-                        [:init {:var [tag data]}])
-                :right right}]
-
-              :else
-              part))
-          part))
-
-      #_[:cat :seq-end]
-      #_left
-
       ;; else
       part)))
 
@@ -608,11 +534,6 @@
                        :cdr right}]
                      (rest (reverse elems))))))))))
       node)) 
-
-(defn cat->nths [node]
-  (if (has-tag? node :cat) 
-    [:cat (map-indexed nth-node (data node))]
-    node))
 
 
 (defn cap-cat? [node]
