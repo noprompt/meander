@@ -190,32 +190,38 @@
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
+(s/unform
+ :meander.syntax/top-level
+ (parse* '[!ys ... . !xs ...]))
+
+
 
 (s/def :meander.syntax/top-level
-  (s/or :var :meander.syntax/var
-        :mem :meander.syntax/mem
-        :ref :meander.syntax/ref
-        :any :meander.syntax/any
-        :vec :meander.syntax/vec
-        :map :meander.syntax/map
-        :unq :meander.syntax/unquote
-        :quo :meander.syntax/quote
-        :prd :meander.syntax/pred
-        :and :meander.syntax/and
-        ;; Should this be top-cap?
-        :cap (s/cat
-              :pat :meander.syntax/top-level
-              :as #{:as}
-              :var (s/or :mem :meander.syntax/mem
-                         :var :meander.syntax/var))
-        :err/bad-top-level-cap
-        (s/cat
-         :pat :meander.syntax/elem
+  (s/or
+   :var :meander.syntax/var
+   :mem :meander.syntax/mem
+   :ref :meander.syntax/ref
+   :any :meander.syntax/any
+   :vec :meander.syntax/vec
+   :map :meander.syntax/map
+   :unq :meander.syntax/unquote
+   :quo :meander.syntax/quote
+   :prd :meander.syntax/pred
+   :and :meander.syntax/and
+   ;; Should this be top-cap?
+   :cap (s/cat
+         :pat :meander.syntax/top-level
          :as #{:as}
          :var (s/or :mem :meander.syntax/mem
                     :var :meander.syntax/var))
-        :seq :meander.syntax/seq
-        :lit :meander.syntax/lit))
+   :err/bad-top-level-cap
+   (s/cat
+    :pat :meander.syntax/elem
+    :as #{:as}
+    :var (s/or :mem :meander.syntax/mem
+               :var :meander.syntax/var))
+   :seq :meander.syntax/seq
+   :lit :meander.syntax/lit))
 
 
 (s/def :meander.syntax/and
@@ -242,7 +248,19 @@
 
 
 (s/def :meander.syntax/cat
-  (s/+ :meander.syntax/term))
+  (s/* :meander.syntax/term))
+
+
+(s/def :meander.syntax/rest
+  (s/cat
+   :var :meander.syntax/mem
+   :sym :meander.syntax/zero-or-more-symbol))
+
+
+(s/def :meander.syntax/drop
+  (s/cat
+   :init :meander.syntax/any
+   :sym :meander.syntax/zero-or-more-symbol))
 
 
 (s/def :meander.syntax/zero-or-more
@@ -260,15 +278,18 @@
 (s/def :meander.syntax/partition
   (s/cat
    :left (s/alt
+          :init :meander.syntax/rest
+          :drop :meander.syntax/drop
           :rep :meander.syntax/zero-or-more
           :repk :meander.syntax/k-or-more
           :cat :meander.syntax/cat)
    :dot '#{.}
    :right (s/? :meander.syntax/elem)))
 
-
 (s/def :meander.syntax/elem
   (s/alt
+   :rest :meander.syntax/rest
+   :drop :meander.syntax/drop
    :part :meander.syntax/partition
    :rep :meander.syntax/zero-or-more
    :repk :meander.syntax/k-or-more
@@ -276,8 +297,17 @@
 
 
 (s/def :meander.syntax/vec
-  (s/and vector? :meander.syntax/elem))
-
+  (s/conformer
+   (fn [x]
+     (if (vector? x)
+       (s/conform :meander.syntax/elem x)
+       ::s/invalid))
+   (fn [x]
+     (or (when (vector? x)
+           (let [x* (s/unform :meander.syntax/elem x)]
+             (when (not (= x x*))
+               (into [] x*))))
+         x))))
 
 (s/def :meander.syntax/map
   (s/conformer
@@ -501,7 +531,9 @@
       [:part :seq-end]
       (collapse-pat left)
 
+      #_
       [:cat :rep]
+      #_
       (let [{init :init} right-data
             [init-tag init-data] init]
         (if (= init-tag :cat)
@@ -523,8 +555,10 @@
               part))
           part))
 
+      #_
       ([:rep :cat]
        [:rep :seq-end])
+      #_
       (let [{init :init} left-data
             [init-tag init-data] init]
         (if (= init-tag :cat)
@@ -640,3 +674,70 @@
        (walk/prewalk expand-pat)
        (walk/postwalk collapse-pat)
        (walk/postwalk rewrite-cap-cat)))
+
+
+;; ---------------------------------------------------------------------
+;; Unparse
+
+
+(defmulti unparse
+  {:arglists (:arglists (meta #'tag))}
+  #'tag)
+
+
+(defmethod unparse :vec [[_ elem]]
+  (into [] (unparse elem)))
+
+
+(defmethod unparse :part [[_ {:keys [left right]}]]
+  (concat (unparse left)
+          (when-some [xs (seq (unparse right))]
+            (cons '. xs))))
+
+
+(defmethod unparse :cat [[_ pats]]
+  (sequence (map unparse) pats))
+
+
+(defmethod unparse :lit [[_ lit]]
+  lit)
+
+
+(defmethod unparse :seq-end [_]
+  ())
+
+(defmethod unparse :var [[_ sym]]
+  sym)
+
+
+(defmethod unparse :mem [[_ sym]]
+  sym)
+
+
+(defmethod unparse :seq [[_ elem]]
+  (unparse elem))
+
+
+(defmethod unparse :rep [[_ {:keys [init]}]]
+  (concat (unparse init) (list '...)))
+
+
+(defmethod unparse :quo [[_ x]]
+  x)
+
+
+(defmethod unparse :prd [[_ {:keys [pred pats]}]]
+  (list* '? pred (sequence (map unparse) pats)))
+
+
+(defmethod unparse :and [[_ {:keys [pats]}]]
+  (cons 'and (sequence (map unparse) pats)))
+
+
+(defmethod unparse :drop [_]
+  '(_ ...))
+
+
+(defmethod unparse :rest [[_ {:keys [var]}]]
+  (list var '...))
+

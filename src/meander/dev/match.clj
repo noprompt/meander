@@ -94,9 +94,14 @@
         (filter
          (fn [x]
            (and (or (syntax/has-tag? x :var)
-                    (syntax/has-tag? x :mem))
+                    (syntax/has-tag? x :mem)
+                    (syntax/has-tag? x :any)) 
                 (simple-symbol? (syntax/data x)))))
         (tree-seq seqable? seq x)))
+
+
+(defn ground? [x]
+  (empty? (variables x)))
 
 
 (defmulti min-length
@@ -155,6 +160,7 @@
 
 ;; ---------------------------------------------------------------------
 ;; Any
+
 
 (defmethod compile-ctor-clauses :any [_tag vars rows default]
   (sequence
@@ -241,26 +247,36 @@
 
 
 (defmethod compile-ctor-clauses :cat [_tag vars rows default]
-  (map
+  (mapcat
    (fn [[min rows]]
-     (let [[var & rest-vars] vars
-           nth-forms (map
-                      (fn [index]
-                        [(gensym (str "nth_" index "__"))
-                         `(nth ~var ~index)])
-                      (range min))
-           nth-vars (map first nth-forms)
-           vars* (concat nth-vars rest-vars)
-           [vars* rows*] (rotate-cat-columns vars* rows)
-           rows* (map columns rows*)]
-       [true
-        `(let [~@(mapcat identity nth-forms)]
-           ~(compile vars* rows* default))]))
+     (let [{ground true, not-ground false} (group-by ground? rows)]
+       (concat
+        (when (seq ground)
+          (let [[var & vars*] vars]
+            (sequence
+             (map
+              (fn [row]
+                [`(= ~var (list ~@(syntax/unparse (first-column row))))
+                 (compile vars* [(drop-column row)] default)]))
+             ground)))
+        (when (seq not-ground)
+          (let [[var & rest-vars] vars
+                nth-forms (map
+                           (fn [index]
+                             [(gensym (str "nth_" index "__"))
+                              `(nth ~var ~index)])
+                           (range min))
+                nth-vars (map first nth-forms)
+                vars* (concat nth-vars rest-vars)
+                [vars* rows*] (rotate-cat-columns vars* rows)
+                rows* (map columns rows*)]
+            (list
+             [true
+              `(let [~@(mapcat identity nth-forms)]
+                 ~(compile vars* rows* default))]))))))
    (group-by
     (comp count syntax/data first-column)
     rows)))
-
-
 
 
 ;; --------------------------------------------------------------------
@@ -274,13 +290,13 @@
 (defmethod columns :drop [row]
   (drop-column row))
 
+
 (defmethod compile-ctor-clauses :drop [_tag vars rows default]
   (sequence
    (map
     (fn [row]
       [true
-       (compile (rest vars) [(columns row)] default)]
-      ))
+       (compile (rest vars) [(columns row)] default)]))
    rows))
 
 
@@ -299,7 +315,7 @@
      (map
       (fn [row]
         (let [node (first-column row)
-              sym (syntax/data (:var (syntax/data node)))]
+              sym (:var (syntax/data node))]
           [true
            `(let [~sym ~(if (get-sym row sym)
                           `(into ~sym ~var)
@@ -463,10 +479,7 @@
               `(and (== (count (take ~min ~var))
                         ~min)
                     (not (seq (drop ~min ~var)))))
-           ~(compile
-             vars
-             (map columns rows)
-             default)])
+           ~(compile vars (map columns rows) default)])
 
        [:cat :rest]
        [true
@@ -631,20 +644,23 @@
                         [{:cols [pat]
                           :env (:env row)
                           :rhs
-                          `(loop [~@loop-bindings]
-                             (let [~slice (take ~n ~target)]
-                               (if (== (count ~slice)  ~n)
-                                 ~(compile [slice]
-                                           [{:cols [pat]
-                                             :env loop-env
-                                             :rhs
-                                             `(let [~target (drop ~n ~target)]
-                                                (recur ~@(take-nth 2 loop-bindings)))}]
-                                           loop-else)
-                                 ~loop-else)))}]
+                          (let [loop-sym (gensym "loop__")]
+                            `((fn ~loop-sym [~@(take-nth 2 loop-bindings)]
+                                (let [~slice (take ~n ~target)]
+                                  (if (== (count ~slice)  ~n)
+                                    ~(compile [slice]
+                                              [{:cols [pat]
+                                                :env loop-env
+                                                :rhs
+                                                `(let [~target (drop ~n ~target)]
+                                                   (~loop-sym ~@(take-nth 2 loop-bindings)))}]
+                                              loop-else)
+                                    ~loop-else)))
+                              ~@(take-nth 2 (rest loop-bindings))))}]
                         let-else)
               ~let-else))])))
    rows))
+
 
 
 ;; --------------------------------------------------------------------
@@ -661,7 +677,7 @@
      (map
       (fn [row]
         (let [node (first-column row)
-              sym (syntax/data (:var (syntax/data node)))]
+              sym (:var (syntax/data node))]
           [true
            `(let [~sym ~(if (get-sym row sym)
                           `(into ~sym ~var)
@@ -773,28 +789,46 @@
 (def backtrack
   (Exception. "non exhaustive pattern match"))
 
+
+(defn try-form [expr catch]
+  `(try
+    ~expr
+    (catch Exception exception#
+      (if (identical? exception# backtrack)
+        ~catch
+        (throw exception#)))))
+
+
 (defn compile [vars rows default]
-  (reduce
-   (fn [next-choice [test then]]
-     (let [body-form (if (= true test)
-                       then
-                       `(if ~test
-                          ~then
-                          ~default))]
-       (if (= next-choice default)
-         body-form
-         `(try
-            ~body-form
-            (catch Exception exception#
-              (if (identical? exception# backtrack)
-                ~next-choice
-                (throw exception#)))))))
-   default
-   (reverse
-    (mapcat
-     (fn [[tag rows]]
-       (compile-ctor-clauses tag vars rows default))
-     (group-rows rows)))))
+  (let [{preds false, no-preds true}
+        (group-by (comp true? first)
+                  (mapcat
+                   (fn [[tag rows]]
+                     (let [x
+                           (compile-ctor-clauses tag vars rows default)]
+                       x))
+                   (group-rows rows)))
+
+        no-pred-body (reduce
+                      (fn [next-choice [_ body-form]]
+                        (if (= next-choice default)
+                          body-form
+                          (try-form body-form next-choice)))
+                      default
+                      no-preds)
+
+        pred-body (reduce
+                   (fn [else [test then]]
+                     `(if ~test
+                        ~then
+                        ~else))
+                   no-pred-body
+                   (reverse preds))]
+    (if (seq preds)
+      (if (seq no-preds)
+        (try-form pred-body no-pred-body)
+        pred-body)
+      no-pred-body)))
 
 
 (defmacro match [x & clauses]
@@ -818,3 +852,16 @@
        (symbol (name x))
        x))
    (macroexpand-1 form)))
+
+
+
+#_
+(*macroexpand-1
+ '(match '(1 2 3 4 5 6)
+    (_ ... . 4 5)
+    true
+    (_ ... . 5 6)
+    true
+
+    _
+    false))
