@@ -5,16 +5,6 @@
             [meander.dev.syntax :as syntax]))
 
 
-(defn fresh-n
-  ([n]
-   (fresh-n n "v__"))
-  ([n prefix]
-   (map
-    (fn [_]
-      (gensym prefix))
-    (range n))))
-
-
 (defn add-sym [row sym]
   (update row :env (fnil conj #{}) sym))
 
@@ -25,17 +15,56 @@
 
 (defn swap [v i j]
   (let [v (vec v)]
-    (assoc v
-           i (nth v j)
-           j (nth v i))))
+    (assoc v i (nth v j) j (nth v i))))
 
 
-(defn swap-column [rows i j]
+;; ---------------------------------------------------------------------
+;; Pattern matrix
+
+
+(defn row-width
+  [row]
+  (count (:cols row)))
+
+
+(defn swap-column
+  "Swaps column i with column j in the matrix."
+  [matrix i j]
   (sequence
    (map
     (fn [row]
       (update row :cols swap i j)))
-   rows))
+   matrix))
+
+
+(defn score-column
+  [matrix i]
+  (transduce 
+   (map
+    (fn [row]
+      (node-score (nth (:cols row) i))))
+   +
+   0
+   matrix))
+
+
+(defn nth-column
+  ([row index]
+   (nth (:cols row) index))
+  ([row index not-found]
+   (nth (:cols row) index not-found)))
+
+
+(defn first-column [row]
+  (nth-column row 0 nil))
+
+
+(defn rest-columns [row]
+  (rest (:cols row)))
+
+
+(defn drop-column [row]
+  (update row :cols rest))
 
 
 (defmulti tag-score
@@ -46,26 +75,8 @@
 (defmethod tag-score ::default-score [_]
   1)
 
-(defmethod tag-score :any [_]
-  0)
-
-(defmethod tag-score :mem [_]
-  0)
-
-(defmethod tag-score :var [_]
-  0)
-
-
-(defn nth-column [row index]
-  (nth (:cols row) index nil))
-
-
-(defn first-column [row]
-  (nth-column row 0))
-
-
-(defn rest-columns [row]
-  (rest (:cols row)))
+(defn node-score [node]
+  (tag-score (syntax/tag node)))
 
 
 (defn group-rows [rows]
@@ -78,11 +89,6 @@
       (when-some [col (first-column row)]
         (syntax/tag col)))
     rows)))
-
-
-(defn drop-column [row]
-  (update row :cols rest))
-
 
 (declare compile)
 
@@ -108,20 +114,23 @@
   #'syntax/tag)
 
 
-(defn has-min-length? [node]
+(defn has-min-length?
+  [node]
   (some? (get-method min-length (syntax/tag node))))
 
 
-(defn columns-dispatch [row]
+(defn next-columns-dispatch
+  {:private true}
+  [row]
   (syntax/tag (first-column row)))
 
-;; TODO: This needs to be renamed. Maybe `expand-row`?
-(defmulti columns
+
+(defmulti next-columns
   {:arglists '([row])}
-  #'columns-dispatch)
+  #'next-columns-dispatch)
 
 
-(defmethod columns :default [row]
+(defmethod next-columns :default [row]
   row)
 
 
@@ -131,6 +140,7 @@
 (defn compile-ctor-clauses-dispatch [tag vars rows default]
   tag)
 
+
 (defmulti compile-ctor-clauses
   #'compile-ctor-clauses-dispatch)
 
@@ -138,9 +148,10 @@
 ;; ---------------------------------------------------------------------
 ;; And
 
-(defmethod columns :and [row]
+(defmethod next-columns :and [row]
   (let [pats (:pats (syntax/data (first-column row)))]
     (assoc row :cols (concat pats (rest-columns row)))))
+
 
 (defmethod compile-ctor-clauses :and [_tag vars rows default]
   (sequence
@@ -153,13 +164,17 @@
            (compile (rest vars) [(drop-column row)] default)
            (compile (concat (repeat n (first vars))
                             (rest vars))
-                    [(columns row)]
+                    [(next-columns row)]
                     default))])))
    rows))
 
 
 ;; ---------------------------------------------------------------------
 ;; Any
+
+
+(defmethod tag-score :any [_]
+  0)
 
 
 (defmethod compile-ctor-clauses :any [_tag vars rows default]
@@ -179,7 +194,7 @@
   (min-length (:pat (syntax/data node))))
 
 
-(defmethod columns :cap
+(defmethod next-columns :cap
   [row]
   (let [node (first-column row)
         {:keys [pat var]} (syntax/data node)
@@ -196,7 +211,7 @@
    (map
     (fn [row]
       [true
-       (compile (cons (first vars) vars) [(columns row)] default)]))
+       (compile (cons (first vars) vars) [(next-columns row)] default)]))
    rows))
 
 
@@ -208,42 +223,11 @@
   (count (syntax/data node)))
 
 
-(defmethod columns :cat
+(defmethod next-columns :cat
   [row]
   (let [node (first-column row)
         cols* (concat (syntax/data node) (rest (:cols row)))]
     (assoc row :cols cols*)))
-
-
-(defn rotate-cat-columns [vars rows]
-  (let [matrix (mapv (comp vec syntax/data first-column) rows)
-        [vars* matrix*]
-        (reduce
-         (fn [[vars* matrix*] i]
-           (let [vals (sequence
-                       (map
-                        (fn [row]
-                          (nth row i)))
-                       matrix*)]
-             (if (= (count (set vals)) 1)
-               [;; vars*
-                (swap vars* 0 i)
-                ;; matrix*
-                (into []
-                      (map
-                       (fn [row]
-                         (swap row 0 i)))
-                      matrix*)]
-               [vars* matrix*])))
-         [(vec vars) matrix]
-         (range (count (first matrix))))
-        rows* (map
-               (fn [row matrix-row]
-                 (let [cols* (cons [:cat matrix-row] (rest (:cols row)))]
-                   (assoc row :cols cols*)))
-               rows
-               matrix*)]
-    [vars* rows*]))
 
 
 (defmethod compile-ctor-clauses :cat [_tag vars rows default]
@@ -256,7 +240,7 @@
             (sequence
              (map
               (fn [row]
-                [`(= ~var (list ~@(syntax/unparse (first-column row))))
+                [`(= ~var '(~@(syntax/unparse (first-column row))))
                  (compile vars* [(drop-column row)] default)]))
              ground)))
         (when (seq not-ground)
@@ -268,8 +252,7 @@
                            (range min))
                 nth-vars (map first nth-forms)
                 vars* (concat nth-vars rest-vars)
-                [vars* rows*] (rotate-cat-columns vars* rows)
-                rows* (map columns rows*)]
+                [vars* rows*] (rotate-cat-columns vars* rows)]
             (list
              [true
               `(let [~@(mapcat identity nth-forms)]
@@ -287,7 +270,7 @@
   0)
 
 
-(defmethod columns :drop [row]
+(defmethod next-columns :drop [row]
   (drop-column row))
 
 
@@ -296,7 +279,7 @@
    (map
     (fn [row]
       [true
-       (compile (rest vars) [(columns row)] default)]))
+       (compile (rest vars) [(next-columns row)] default)]))
    rows))
 
 
@@ -315,7 +298,7 @@
      (map
       (fn [row]
         (let [node (first-column row)
-              sym (:var (syntax/data node))]
+              sym (:mem (syntax/data node))]
           [true
            `(let [~sym ~(if (get-sym row sym)
                           `(into ~sym ~var)
@@ -367,7 +350,7 @@
   1)
 
 
-(defmethod columns :map [row]
+(defmethod next-columns :map [row]
   (let [[_ entries] (first-column row)]
     (assoc row
            :cols (concat (sequence
@@ -386,14 +369,19 @@
      (let [[var & rest-vars] vars
            [_ entries] (first-column row)]
        [`(map? ~var)
-        (compile (repeat (count entries) var)
-                 [(columns row)]
+        (compile (concat (repeat (count entries) var) rest-vars)
+                 [(next-columns row)]
                  default)]))
    rows))
 
 
 ;; --------------------------------------------------------------------
 ;; Memvar
+
+
+(defmethod tag-score :mem [_]
+  0)
+
 
 (defmethod compile-ctor-clauses :mem [_tag vars rows default]
   (let [[var & vars*] vars]
@@ -419,7 +407,7 @@
        (min-length (:right data)))))
 
 
-(defmethod columns :part
+(defmethod next-columns :part
   [row]
   (let [node (first-column row)
         {:keys [left right]} (syntax/data node)
@@ -444,17 +432,17 @@
      (case tags
        [:any :seq-end]
        [true
-        (compile (rest vars) (map columns rows) default)]
+        (compile (rest vars) (map next-columns rows) default)]
        
        [:cap :seq-end]
        [true
-        (compile vars (map columns rows) default)]
+        (compile vars (map next-columns rows) default)]
 
        [:cat :drop]
        (let [[var & rest-vars] vars
              init-var (gensym "init__")
              vars* (list* init-var init-var rest-vars)
-             inner-form (compile vars* (map columns rows) default)]
+             inner-form (compile vars* (map next-columns rows) default)]
          (case kind
            :vec
            [`(<= ~min (count ~var))
@@ -479,7 +467,7 @@
               `(and (== (count (take ~min ~var))
                         ~min)
                     (not (seq (drop ~min ~var)))))
-           ~(compile vars (map columns rows) default)])
+           ~(compile vars (map next-columns rows) default)])
 
        [:cat :rest]
        [true
@@ -492,11 +480,11 @@
 
                               :seq
                               `(drop ~min ~var))]
-             ~(compile vars* (map columns rows) default)))]
+             ~(compile vars* (map next-columns rows) default)))]
 
        [:drop :seq-end]
        [true
-        (compile (rest vars) (map columns rows) default)]
+        (compile (rest vars) (map next-columns rows) default)]
 
        [:drop :cat]
        [true
@@ -511,7 +499,7 @@
 
                               :seq
                               `(drop ~n ~var))]
-             ~(compile vars* (map columns rows) default)))]
+             ~(compile vars* (map next-columns rows) default)))]
 
        ([:rep :cap]
         [:rep :cat]
@@ -535,15 +523,15 @@
 
                               :seq
                               `(drop ~n ~var))]
-             ~(compile vars* (map columns rows) default)))]
+             ~(compile vars* (map next-columns rows) default)))]
        
        [:rep :seq-end]
        [true
-        (compile (cons (first vars) vars) (map columns rows) default)]
+        (compile (cons (first vars) vars) (map next-columns rows) default)]
 
        [:rest :seq-end]
        [true
-        (compile vars (map columns rows) default)]))
+        (compile vars (map next-columns rows) default)]))
    (group-by
     (fn [row]
       (let [node (first-column row)
@@ -554,7 +542,7 @@
 ;; --------------------------------------------------------------------
 ;; Pred
 
-(defmethod columns :prd [row]
+(defmethod next-columns :prd [row]
   (let [node (first-column row)
         node* [:and {:pats (:pats (syntax/data node))}]]
     (assoc row :cols (cons node* (rest-columns row)))))
@@ -565,7 +553,7 @@
    (map
     (fn do-pred-and-rows [[pred rows]]
       [`(~pred ~(first vars))
-       (compile vars (sequence (map columns) rows) default)]))
+       (compile vars (sequence (map next-columns) rows) default)]))
    (group-by
     (comp :pred syntax/data first-column)
     rows)))
@@ -594,7 +582,7 @@
   0)
 
 
-(defmethod columns :rep
+(defmethod next-columns :rep
   [row]
   (assoc row
          :cols (cons (:init (syntax/data (first-column row)))
@@ -611,6 +599,9 @@
                           (mapcat
                            (fn [[kind sym]]
                              (case kind
+                               :any
+                               []
+                               
                                :mem
                                (if (get-sym row sym)
                                  [sym sym]
@@ -677,7 +668,7 @@
      (map
       (fn [row]
         (let [node (first-column row)
-              sym (:var (syntax/data node))]
+              sym (:mem (syntax/data node))]
           [true
            `(let [~sym ~(if (get-sym row sym)
                           `(into ~sym ~var)
@@ -694,7 +685,7 @@
   (min-length (syntax/data node)))
 
 
-(defmethod columns :seq
+(defmethod next-columns :seq
   [row]
   (let [node (first-column row)
         ;; TODO: Move to syntax.
@@ -707,7 +698,7 @@
   (let [[var & vars*] vars]
     [[`(seq? ~var)
       (compile vars
-               (map columns rows)
+               (map next-columns rows)
                default)]]))
 
 
@@ -729,6 +720,9 @@
 
 ;; --------------------------------------------------------------------
 ;; Var
+
+(defmethod tag-score :var [_]
+  0)
 
 (defmethod compile-ctor-clauses :var [_tag vars rows default]
   (map
@@ -754,7 +748,7 @@
   (min-length (syntax/data node)))
 
 
-(defmethod columns :vec
+(defmethod next-columns :vec
   [row]
   (let [node (first-column row)
         ;; TODO: Move to syntax.
@@ -766,7 +760,7 @@
 (defmethod compile-ctor-clauses :vec [_tag vars rows default]
   (let [[var & vars*] vars]
     `[[(vector? ~var)
-       ~(compile vars (sequence (map columns) rows) default)]]))
+       ~(compile vars (sequence (map next-columns) rows) default)]]))
 
 
 ;; --------------------------------------------------------------------
@@ -785,28 +779,61 @@
       (:rhs (first rows)))]])
 
 
-;; TODO: It'd be nice to move away from the try/catch style
+;; TODO: It'd be nice to move away from the try/catch style.
 (def backtrack
   (Exception. "non exhaustive pattern match"))
 
 
+(def throw-form 
+  `(throw backtrack))
+
+
 (defn try-form [expr catch]
   `(try
-    ~expr
-    (catch Exception exception#
-      (if (identical? exception# backtrack)
-        ~catch
-        (throw exception#)))))
+     ~expr
+     (catch ~'Exception exception#
+       (if (identical? exception# backtrack)
+         ~catch
+         (throw exception#)))))
 
 
-(defn compile [vars rows default]
-  (let [{preds false, no-preds true}
+(defn prioritize-matrix [[vars rows]]
+  (let [idxs (into []
+                   (map first)
+                   (sort
+                    (fn [[_ score-1] [_ score-2]]
+                      (< score-2 score-1))
+                    (sequence
+                     (map
+                      (fn [i]
+                        [i (score-column rows i)]))
+                     (range (count vars)))))
+        vars* (into []
+                    (map
+                     (fn [idx]
+                       (nth vars idx)))
+                    idxs)
+        rows* (into []
+                    (map
+                     (fn [row]
+                       (let [cols (:cols row)]
+                         (assoc row :cols (sequence
+                                           (map
+                                            (fn [idx]
+                                              (nth cols idx)))
+                                           idxs)))))
+                    rows)]
+    [vars* rows*]))
+
+
+(defn compile
+  [vars rows default]
+  (let [[vars rows] (prioritize-matrix [vars rows])
+        {preds false, no-preds true}
         (group-by (comp true? first)
                   (mapcat
                    (fn [[tag rows]]
-                     (let [x
-                           (compile-ctor-clauses tag vars rows default)]
-                       x))
+                     (compile-ctor-clauses tag vars rows default))
                    (group-rows rows)))
 
         no-pred-body (reduce
@@ -819,9 +846,22 @@
 
         pred-body (reduce
                    (fn [else [test then]]
-                     `(if ~test
-                        ~then
-                        ~else))
+                     (if (and (seq? then)
+                              (= (first then)
+                                 'if)
+                              (= no-pred-body (nth then 3)))
+                       (let [then-pred (second then)
+                             then-preds (if (and (seq? then-pred)
+                                                 (= (first then-pred)
+                                                    `and))
+                                          (rest then-pred)
+                                          (list then-pred))]
+                         `(if (and ~test ~@then-preds)
+                            ~(nth then 2)
+                            ~else))
+                       `(if ~test
+                          ~then
+                          ~else)))
                    no-pred-body
                    (reverse preds))]
     (if (seq preds)
@@ -831,37 +871,39 @@
       no-pred-body)))
 
 
-(defmacro match [x & clauses]
-  (let [var (gensym "v__")]
-    `(let [~var ~x]
-       ~(compile [var]
+;; ---------------------------------------------------------------------
+;; Match
+
+
+(s/def ::match-args
+  (s/cat
+   :target any?
+   :clauses (s/* (s/cat
+                  :pat (s/conformer
+                        (fn [pat]
+                          (syntax/parse pat)))
+                  :rhs any?))))
+
+
+(defn parse-match-args
+  {:private [true]}
+  [match-args]
+  (s/conform ::match-args match-args))
+
+
+(defmacro match
+  {:arglists '([target & pattern action ...])}
+  [& match-args]
+  (let [{:keys [target clauses]} (parse-match-args match-args)
+        target-sym (gensym "target__")
+        vars [target-sym]]
+    `(let [~target-sym ~target]
+       ~(compile vars
                  (sequence
                   (map
-                   (fn [[pat act]]
-                     {:cols [(syntax/parse pat)]
-                      :rhs act}))
-                  (partition 2 clauses))
+                   (fn [{:keys [pat rhs]}]
+                     {:cols [pat]
+                      :env #{}
+                      :rhs rhs}))
+                  clauses)
                  `(throw backtrack)))))
-
-
-
-(defn *macroexpand-1 [form]
-  (clojure.walk/prewalk
-   (fn [x]
-     (if (qualified-symbol? x)
-       (symbol (name x))
-       x))
-   (macroexpand-1 form)))
-
-
-
-#_
-(*macroexpand-1
- '(match '(1 2 3 4 5 6)
-    (_ ... . 4 5)
-    true
-    (_ ... . 5 6)
-    true
-
-    _
-    false))

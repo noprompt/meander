@@ -3,6 +3,8 @@
             [clojure.spec.gen.alpha :as s.gen]
             [clojure.walk :as walk]))
 
+;; TODO: ... alone is a syntax error.
+
 
 (defn quote-form?
   [x]
@@ -190,11 +192,6 @@
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
-(s/unform
- :meander.syntax/top-level
- (parse* '[!ys ... . !xs ...]))
-
-
 
 (s/def :meander.syntax/top-level
   (s/or
@@ -253,7 +250,7 @@
 
 (s/def :meander.syntax/rest
   (s/cat
-   :var :meander.syntax/mem
+   :mem :meander.syntax/mem
    :sym :meander.syntax/zero-or-more-symbol))
 
 
@@ -265,13 +262,13 @@
 
 (s/def :meander.syntax/zero-or-more
   (s/cat
-   :init :meander.syntax/cat
+   :init (s/+ :meander.syntax/term)
    :sym :meander.syntax/zero-or-more-symbol))
 
 
 (s/def :meander.syntax/k-or-more
   (s/cat
-   :init :meander.syntax/cat
+   :init (s/+ :meander.syntax/term)
    :sym :meander.syntax/k-or-more-symbol))
 
 
@@ -516,25 +513,6 @@
       ;; else
       part)))
 
-(defn seq->cons [node]
-  (or (if (has-tag? node :seq)
-        (let [child (data node)]
-          (if (has-tag? child :part)
-            (let [{:keys [left right]} (data child)]
-              (if (has-tag? left :cat)
-                (let [elems (data left)]
-                  (if (seq (rest elems))
-                    (reduce
-                     (fn [right* elem]
-                       [:cons
-                        {:car elem
-                         :cdr right*}])
-                     [:cons
-                      {:car (first (reverse elems))
-                       :cdr right}]
-                     (rest (reverse elems))))))))))
-      node)) 
-
 
 (defn cap-cat? [node]
   (and (has-tag? node :cap)
@@ -660,6 +638,6 @@
   '(_ ...))
 
 
-(defmethod unparse :rest [[_ {:keys [var]}]]
-  (list var '...))
+(defmethod unparse :rest [[_ {:keys [sym]}]]
+  (list sym '...))
 
