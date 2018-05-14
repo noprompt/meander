@@ -1,6 +1,7 @@
 (ns meander.dev.match
   (:refer-clojure :exclude [compile])
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.set :as set]
+            [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
             [meander.dev.syntax :as syntax]))
 
@@ -142,6 +143,7 @@
 
 
 (defmulti compile-ctor-clauses
+  {:arglists '([targ vars rows default])}
   #'compile-ctor-clauses-dispatch)
 
 
@@ -310,6 +312,7 @@
 ;; --------------------------------------------------------------------
 ;; Lit
 
+
 (defmethod compile-ctor-clauses :lit [_tag vars rows default]
   (map
    (fn [[[_ val] rows]]
@@ -321,28 +324,6 @@
 
 
 ;; --------------------------------------------------------------------
-;; Entry
-
-(defmethod compile-ctor-clauses :entry [_tag vars rows default]
-  (map
-   (fn [row]
-     (let [[var & vars*] vars
-           [_ entry] (first-column row)
-           ;; NOTE: WEe assume the key is ground, e.g. it is a :lit
-           ;; or :quo node.
-           [_ x] (key entry)
-           v (val entry)
-           val-sym (gensym "val__")]
-       [`(contains? ~var '~x)
-        `(let [~val-sym (get ~var '~x)]
-           ~(compile (cons val-sym vars*)
-                     [(assoc row
-                             :cols (cons v (rest-columns row)))]
-                     default))]))
-   rows))
-
-
-;; --------------------------------------------------------------------
 ;; Map
 
 
@@ -350,29 +331,88 @@
   1)
 
 
-(defmethod next-columns :map [row]
-  (let [[_ entries] (first-column row)]
-    (assoc row
-           :cols (concat (sequence
-                          (map
-                           (fn [[key val]]
-                             ;; TODO: This is probably better as an
-                             ;; AST rewrite in syntax.
-                             [:entry (clojure.lang.MapEntry. key val)]))
-                          entries)
-                         (rest-columns row)))))
+(defmethod min-length :map-no-check [node]
+  1)
+
+
+(defn key-frequencies
+  {:private true}
+  [map-nodes]
+  (frequencies
+   (sequence
+    (comp (map syntax/data)
+          (mapcat keys))
+    map-nodes)))
+
+
+(defn rank-keys
+  {:private true}
+  [map-nodes]
+  (sort-by second (key-frequencies map-nodes)))
+
+
+(defmethod compile-ctor-clauses :entry
+  [_tag vars rows default]
+  (let [[target & rest-vars] vars]
+    (map
+     (fn [[key-pat rows]]
+       (let [rows* (map
+                    (fn [row]
+                      (assoc row
+                             :cols (cons
+                                    (:val-pat (syntax/data (first-column row)))
+                                    (rest-columns row))))
+                    rows)
+             val-sym (gensym "val__")
+             vars* (cons val-sym rest-vars)
+             key-form (syntax/unparse key-pat)]
+         [`(contains? ~target '~key-form)
+          `(let [~val-sym (get ~target '~key-form)]
+             ~(compile vars* rows* default))]))
+     (group-by
+      (comp :key-pat syntax/data first-column)
+      rows))))
+
+
+(defn next-map-rows
+  {:private true}
+  [map-rows]
+  (let [map-nodes (map first-column map-rows)
+        [key-pat] (first (rank-keys map-nodes))]
+    (reduce
+     (fn [rows* map-row]
+       (let [data (syntax/data (first-column map-row))]
+         (conj rows*
+               (assoc map-row
+                      :cols (if-some [[_ val-pat] (find data key-pat)]
+                              (let [data* (dissoc data key-pat)]
+                                (concat
+                                 (list [:entry {:key-pat key-pat
+                                                :val-pat val-pat}]
+                                       (if (= data {})
+                                         [:any '_]
+                                         [:map-no-check data*]))
+                                 (rest-columns map-row)))
+                              (concat
+                               (list [:any '_]
+                                     (if (= data {})
+                                       [:any '_]
+                                       [:map-no-check data])) 
+                               (rest-columns map-row)))))))
+     []
+     map-rows)))
+
+
+(defmethod compile-ctor-clauses :map-no-check [_tag vars rows default]
+  (let [target (first vars)]
+    [[true
+      (compile (cons target vars) (next-map-rows rows) default)]]))
 
 
 (defmethod compile-ctor-clauses :map [_tag vars rows default]
-  (map
-   (fn [row]
-     (let [[var & rest-vars] vars
-           [_ entries] (first-column row)]
-       [`(map? ~var)
-        (compile (concat (repeat (count entries) var) rest-vars)
-                 [(next-columns row)]
-                 default)]))
-   rows))
+  (let [target (first vars)]
+    [[`(map? ~target)
+      (compile (cons target vars) (next-map-rows rows) default)]]))
 
 
 ;; --------------------------------------------------------------------
@@ -692,7 +732,6 @@
         part (update (syntax/data node) 1 assoc :kind :seq)
         cols* (list* part (rest (:cols row)))]
     (assoc row :cols cols*)))
-
 
 (defmethod compile-ctor-clauses :seq [_tag vars rows default]
   (let [[var & vars*] vars]
