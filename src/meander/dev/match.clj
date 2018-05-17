@@ -242,12 +242,10 @@
 
 
 (defmethod compile-ctor-clauses :cap [_tag vars rows default]
-  (sequence
-   (map
-    (fn [row]
-      [true
-       (compile (cons (first vars) vars) [(next-columns row)] default)]))
-   rows))
+  [[true
+    (compile (cons (first vars) vars)
+             (map next-columns rows)
+             default)]])
 
 
 ;; --------------------------------------------------------------------
@@ -285,17 +283,13 @@
 
 
 (defmethod compile-ctor-clauses :drop [_tag vars rows default]
-  (let [vars* (rest vars)]
-    (sequence
-     (map
-      (fn [row]
-        [true
-         (compile vars* [(drop-column row)] default)]))
-     rows)))
+  [[true
+    (compile (rest vars) (map drop-column rows) default)]])
 
 
 ;; ---------------------------------------------------------------------
 ;; Ground
+
 
 (defn compile-ground [x]
   [x]
@@ -391,7 +385,7 @@
 (defmethod compile-ctor-clauses :lit [_tag vars rows default]
   (map
    (fn [[[_ val] rows]]
-     `[(= ~(first vars) '~val)
+     `[(= ~(first vars) ~(compile-ground val))
        ~(compile (rest vars)
                  (map drop-column rows)
                  default)])
@@ -436,9 +430,9 @@
                     rows)
              val-sym (gensym "val__")
              vars* (cons val-sym rest-vars)
-             key-form (syntax/unparse key-pat)]
-         [`(contains? ~target '~key-form)
-          `(let [~val-sym (get ~target '~key-form)]
+             key-form (compile-ground (syntax/unparse key-pat))]
+         [`(contains? ~target ~key-form)
+          `(let [~val-sym (get ~target ~key-form)]
              ~(compile vars* rows* default))]))
      (group-by
       (comp :key-pat syntax/data first-column)
@@ -457,21 +451,23 @@
                (assoc map-row
                       :cols (if-some [[_ val-pat] (find data key-pat)]
                               (let [data* (dissoc data key-pat)]
-                                (concat
-                                 (list [:entry {:key-pat key-pat
-                                                :val-pat val-pat}]
-                                       (if (= data* {})
-                                         [:any '_]
-                                         [::map-no-check data*]))
+                                (list*
+                                 [:entry {:key-pat key-pat
+                                          :val-pat val-pat}]
+                                 (if (= data* {})
+                                   [:any '_]
+                                   [::map-no-check data*])
                                  (rest-columns map-row)))
-                              (concat
-                               (list [:any '_]
-                                     (if (= data {})
-                                       [:any '_]
-                                       [::map-no-check data])) 
+                              (list*
+                               [:any '_]
+                               (if (= data {})
+                                 [:any '_]
+                                 [::map-no-check data]) 
                                (rest-columns map-row)))))))
      []
-     map-rows)))
+     (sort-by
+      (comp count syntax/data first-column)
+      map-rows))))
 
 
 (defmethod compile-ctor-clauses ::map-no-check [_tag vars rows default]
