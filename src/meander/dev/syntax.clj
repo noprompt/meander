@@ -331,20 +331,89 @@
   (and (vector? x)
        (keyword? (first x))))
 
+
 (defn has-tag?
   ([node tag]
    (and (node? node)
         (= (first node) tag))))
+
 
 (defn tag
   [node]
   {:pre [(node? node)]}
   (first node))
 
+
 (defn data
   [node]
   {:pre [(node? node)]}
   (second node))
+
+
+(defn update-data
+  [node f & args]
+  {:pre [node? node]}
+  (apply update node 1 f args))
+
+
+(defmulti min-length
+  #'tag)
+
+
+(defn has-min-length?
+  [node]
+  (some? (get-method min-length (tag node))))
+
+
+(defmethod min-length :cap [node]
+  (min-length (:pat (data node))))
+
+
+(defmethod min-length :cat [node]
+  (count (data node)))
+
+
+(defmethod min-length :drop [node]
+  0)
+
+
+(defmethod min-length :init [node]
+  0)
+
+
+(defmethod min-length :map [node]
+  1)
+
+
+(defmethod min-length :part [node]
+  (let [{:keys [left right]} (data node)]
+    (+ (min-length left)
+       (min-length right))))
+
+
+(defmethod min-length :rep [node]
+  0)
+
+
+(defmethod min-length :rest [node]
+  0)
+
+
+(defmethod min-length :seq [node]
+  (min-length (data node)))
+
+
+(defmethod min-length :seq-end [node]
+  0)
+
+
+(defmethod min-length :vcat [node]
+  (count (data node)))
+
+
+(defmethod min-length :vec [node]
+  (min-length (data node)))
+
 
 
 (defn cat-cats [[_ xs] [_ ys]]
@@ -568,12 +637,77 @@
     node))
 
 
+(defn part-to-vpart
+  [node] 
+  (or (when (has-tag? node :vec)
+        (let [x (data node)]
+          (when (has-tag? x :part)
+            (let [part-data (data x)
+                  left (:left part-data)]
+              [:vec
+               (if (has-tag? left :cat)
+                 [:vpart (assoc part-data :left [:vcat (data left)])]
+                 [:vpart (data x)])])))) 
+      node))
+
+
 (defn parse
   [form]
   (->> (parse* form)
        (walk/prewalk expand-pat)
        (walk/postwalk collapse-pat)
-       (walk/postwalk rewrite-cap-cat)))
+       (walk/postwalk rewrite-cap-cat)
+       (walk/postwalk part-to-vpart)))
+
+(defmethod min-length :vpart
+  [node]
+  (let [part-data (data node)]
+    (+ (min-length (:left part-data))
+       (min-length (:right part-data)))))
+
+(defmethod min-length :vcat
+  [node]
+  (count (data node)))
+
+
+(defmethod min-length :map [_]
+  1)
+
+(defmulti variable-length?
+  #'tag)
+
+(defmethod variable-length? :cat [_]
+  false)
+
+(defmethod variable-length? :vcat [_]
+  false)
+
+(defmethod variable-length? :part [node]
+  (boolean (some variable-length? ((juxt :left :right) (data node)))))
+
+(defmethod variable-length? :seq-end [_]
+  false)
+
+(defmethod variable-length? :drop [_]
+  true)
+
+(defmethod variable-length? :rest [_]
+  true)
+
+(defmethod variable-length? :init [_]
+  true)
+
+(defmethod variable-length? :rep [_]
+  true)
+
+(defmethod variable-length? :repk [_]
+  true)
+
+(defmethod variable-length? :seq [node]
+  (variable-length? (data node)))
+
+(defmethod variable-length? :vec [node]
+  (variable-length? (data node)))
 
 
 ;; ---------------------------------------------------------------------
@@ -596,7 +730,7 @@
 
 
 (defmethod unparse :cat [[_ pats]]
-  (sequence (map unparse) pats))
+  (map unparse pats))
 
 
 (defmethod unparse :lit [[_ lit]]
@@ -641,3 +775,20 @@
 (defmethod unparse :rest [[_ {:keys [sym]}]]
   (list sym '...))
 
+
+(defmethod unparse :vpart [[_ {:keys [left right]}]]
+  (concat (unparse left)
+          (when-some [xs (seq (unparse right))]
+            (cons '. xs))))
+
+
+(defmethod unparse :vcat [[_ pats]]
+  (mapv unparse pats))
+
+
+(defmethod unparse :map [[_ entries]]
+  (reduce
+   (fn [m [k v]]
+     (assoc m (unparse k) (unparse v)))
+   {}
+   entries))

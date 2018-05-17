@@ -85,121 +85,161 @@
    (r.match/match ms
      ({:i !is, :j !js} ...)
      (and (= !is is)
-          (= !js js)))))
+          (= !js js))
 
-(t/is
- (r.match/match '[1 2 3]
-   (and ?x [_ ...])
-   (= ?x [1 2 3])))
+     _
+     false)))
 
-(t/is
- (r.match/match '[[1 2 3] [1 2 3] [1 2 3]]
-   [(and ?x ?y) ?x ?y]
-   (= ?x ?y [1 2 3])))
-
-(t/is
- (r.match/match '(1 2 3 4 5 6)
-   (_ ... . 4 5 6)
-   true
-
-   _
-   false))
-
-(t/is
- (r.match/match [1 2 3 4 5 6]
-   [_ ... . 4 5 6]
-   true
-
-   _
-   false))
-
-(t/is
- (not
-  (r.match/match '(1 2 3 4 5 6)
-    (_ ... . 4 5)
-    true
-
-    _
-    false)))
-
-(t/is
- (not
-  (r.match/match [1 2 3 4 5 6]
-    [_ ... . 4 5 ]
-    true
-
-    _
-    false)))
-
-(t/is
- (r.match/match '(1 2 3 4 5 6)
-   (1 2 3 . _ ...)
-   true
-
-   _
-   false))
-
-(t/is
- (r.match/match [1 2 3 4 5 6]
-   [1 2 3 . _ ...]
-   true
-
-   _
-   false))
-
-(t/is
- (not
-  (r.match/match '(1 2 3 4 5 6)
-    (1 2 3 4 5 6 7 . _ ...)
-    true
-
-    _
-    false)))
-
-(t/is
- (not
-  (r.match/match [1 2 3 4 5 6]
-    [1 2 3 4 5 6 7 . _ ...]
-    true
-
-    _
-    false)))
 
 (t/is
  (r.match/match [1 2 3]
-   (? vector?)
-   true))
+   (and ?x [_ ...])
+   (= ?x [1 2 3])))
 
-(t/is
- (r.match/match "foo"
-   (? (fn [x]
-        (re-matches #"[a-z]+" x)))
-   true))
 
-(let [node {:tag :h1
-            :attrs {:style "font-weight:normal"}
-            :children []}]
+(let [xs [[1 2 3] [1 2 3] [1 2 3]]]
   (t/is
-   (r.match/match node
-     {:tag ?tag, :children ?children}
-     false
+   (r.match/match xs
+     [(and ?x ?y) ?x ?y]
+     (= ?x ?y [1 2 3])
 
-     {:tag ?tag, :attrs ?attrs}
-     false
+     _
+     false))
 
-     {:tag ?tag, :attrs ?attrs, :children ?children}
-     (and (= (get node :tag)
-             ?tag)
-          (= (get node :attrs)
-             ?attrs)
-          (= (get node :children)
-             ?children))
+  (t/is
+   (r.match/match xs
+     [?x (and ?x ?y) ?y]
+     (= ?x ?y [1 2 3])
 
-     {:attrs ?attrs, :children ?children}
-     false
+     _
+     false))
 
-     {:attrs ?attrs}
-     false
+  (t/is
+   (r.match/match xs
+     [?x ?y (and ?x ?y)]
+     (= ?x ?y [1 2 3])
 
-     {:children ?children}
+     _
      false)))
+
+
+(t/deftest init-pattern
+  (t/testing "init patterns"
+    (t/is
+     (r.match/match '(1 2 3 4 5 6)
+       (_ ... . 4 5 6)
+       true
+
+       _
+       false))
+
+    (t/is
+     (not
+      (r.match/match '(1 2 3 4 5 6)
+        (_ ... . 4 5)
+        true
+
+        _
+        false)))
+
+    (t/is
+     (r.match/match [1 2 3 4 5 6]
+       [_ ... . 4 5 6]
+       true
+
+       _
+       false))
+
+    (t/is
+     (not
+      (r.match/match [1 2 3 4 5 6]
+        [_ ... . 4 5]
+        true
+
+        _
+        false)))))
+
+(t/deftest drop-pattern-test
+  (t/testing "drop patterns"
+    (t/is
+     (r.match/match '(1 2 3 4 5 6)
+       (1 2 3 . _ ...)
+       true
+
+       _
+       false))
+
+    (t/is
+     (r.match/match [1 2 3 4 5 6]
+       [1 2 3 . _ ...]
+       true
+
+       _
+       false))
+
+    (t/is
+     (not
+      (r.match/match '(1 2 3 4 5 6)
+        (1 2 3 4 5 6 7 . _ ...)
+        true
+
+        _
+        false)))
+
+    (t/is
+     (not
+      (r.match/match [1 2 3 4 5 6]
+        [1 2 3 4 5 6 7 . _ ...]
+        true
+
+        _
+        false)))))
+
+;; FAILING
+(t/deftest predicate-patterns
+  (t/is
+   (r.match/match [1 2 3]
+     (? vector?)
+     true
+
+     _
+     false))
+
+  (t/is
+   (r.match/match "foo"
+     (? (fn [x]
+          (re-matches #"[a-z]+" x)))
+     true
+
+     _
+     false)))
+
+;; FAILING
+(t/deftest map-patterns
+  (let [node {:tag :h1
+              :attrs {:style "font-weight:normal"}
+              :children []}]
+    (t/is
+     (r.match/match node
+       {:tag ?tag, :children ?children}
+       false
+
+       {:tag ?tag, :attrs ?attrs}
+       false
+
+       {:tag ?tag, :attrs ?attrs, :children ?children}
+       (and (= (get node :tag)
+               ?tag)
+            (= (get node :attrs)
+               ?attrs)
+            (= (get node :children)
+               ?children))
+
+       {:attrs ?attrs, :children ?children}
+       false
+
+       {:attrs ?attrs}
+       false
+
+       {:children ?children}
+       false))))

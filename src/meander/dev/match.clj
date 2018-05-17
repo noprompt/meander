@@ -1,6 +1,7 @@
 (ns meander.dev.match
   (:refer-clojure :exclude [compile])
-  (:require [clojure.set :as set]
+  (:require [clojure.walk :as walk]
+            [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
             [meander.dev.syntax :as syntax]))
@@ -38,17 +39,6 @@
    matrix))
 
 
-(defn score-column
-  [matrix i]
-  (transduce 
-   (map
-    (fn [row]
-      (node-score (nth (:cols row) i))))
-   +
-   0
-   matrix))
-
-
 (defn nth-column
   ([row index]
    (nth (:cols row) index))
@@ -80,18 +70,15 @@
   (tag-score (syntax/tag node)))
 
 
-(defn group-rows [rows]
-  (sort
-   (fn [[tag1 _] [tag2 _]]
-     (compare (tag-score tag2)
-              (tag-score tag1)))
-   (group-by
+(defn score-column
+  [matrix i]
+  (transduce 
+   (map
     (fn [row]
-      (when-some [col (first-column row)]
-        (syntax/tag col)))
-    rows)))
-
-(declare compile)
+      (node-score (nth (:cols row) i))))
+   +
+   0
+   matrix))
 
 
 (defn variables
@@ -102,22 +89,55 @@
          (fn [x]
            (and (or (syntax/has-tag? x :var)
                     (syntax/has-tag? x :mem)
-                    (syntax/has-tag? x :any)) 
+                    ;; Unsure about this. 
+                    (syntax/has-tag? x :any)
+                    (syntax/has-tag? x :drop)
+                    (syntax/has-tag? x :init)
+                    (syntax/has-tag? x :rest)) 
                 (simple-symbol? (syntax/data x)))))
         (tree-seq seqable? seq x)))
-
 
 (defn ground? [x]
   (empty? (variables x)))
 
 
-(defmulti min-length
-  #'syntax/tag)
+(defmethod tag-score ::ground [_]
+  1)
 
 
-(defn has-min-length?
-  [node]
-  (some? (get-method min-length (syntax/tag node))))
+(defn group-rows [rows]
+  (sort
+   (fn [[tag1 _] [tag2 _]]
+     (compare (tag-score tag2)
+              (tag-score tag1)))
+   (group-by
+    (fn [row]
+      (when-some [column (first-column row)]
+        (let [tag (syntax/tag column)]
+          (cond
+            (or (= tag :rep)
+                (= tag :repk))
+            tag
+
+            (ground? column)
+            ::ground
+
+            :else
+            tag))))
+    rows)))
+
+
+(declare compile)
+
+
+(defn min-min-length [rows]
+  (transduce
+   (map
+    (fn [row]
+      (syntax/min-length (first-column row))))
+   min
+   Float/POSITIVE_INFINITY
+   rows))
 
 
 (defn next-columns-dispatch
@@ -176,7 +196,7 @@
 
 
 (defmethod tag-score :any [_]
-  0)
+  -1)
 
 
 (defmethod compile-ctor-clauses :any [_tag vars rows default]
@@ -190,10 +210,6 @@
 
 ;; --------------------------------------------------------------------
 ;; Cap
-
-
-(defmethod min-length :cap [node]
-  (min-length (:pat (syntax/data node))))
 
 
 (defmethod next-columns :cap
@@ -221,44 +237,27 @@
 ;; Cat
 
 
-(defmethod min-length :cat [node]
-  (count (syntax/data node)))
-
-
-(defmethod next-columns :cat
-  [row]
-  (let [node (first-column row)
-        cols* (concat (syntax/data node) (rest (:cols row)))]
-    (assoc row :cols cols*)))
-
-
 (defmethod compile-ctor-clauses :cat [_tag vars rows default]
-  (mapcat
-   (fn [[min rows]]
-     (let [{ground true, not-ground false} (group-by ground? rows)]
-       (concat
-        (when (seq ground)
-          (let [[var & vars*] vars]
-            (sequence
-             (map
-              (fn [row]
-                [`(= ~var '(~@(syntax/unparse (first-column row))))
-                 (compile vars* [(drop-column row)] default)]))
-             ground)))
-        (when (seq not-ground)
-          (let [[var & rest-vars] vars
-                nth-forms (map
-                           (fn [index]
-                             [(gensym (str "nth_" index "__"))
-                              `(nth ~var ~index)])
-                           (range min))
-                nth-vars (map first nth-forms)
-                vars* (concat nth-vars rest-vars)
-                [vars* rows*] (rotate-cat-columns vars* rows)]
-            (list
-             [true
-              `(let [~@(mapcat identity nth-forms)]
-                 ~(compile vars* rows* default))]))))))
+  (map
+   (fn [[n rows]]
+     (let [[var & vars*] vars
+           nth-forms (map
+                      (fn [index]
+                        [(gensym (str "nth_" index "__"))
+                         `(nth ~var ~index)])
+                      (range n))
+           nth-vars (map first nth-forms)
+           vars* (concat nth-vars vars*)
+           rows* (map
+                  (fn [row]
+                    (assoc row
+                           :cols (concat
+                                  (syntax/data (first-column row))
+                                  (rest-columns row))))
+                  rows)]
+       [true
+        `(let [~@(mapcat identity nth-forms)]
+           ~(compile vars* rows* default))]))
    (group-by
     (comp count syntax/data first-column)
     rows)))
@@ -268,21 +267,85 @@
 ;; Drop
 
 
-(defmethod min-length :drop [node]
-  0)
-
-
-(defmethod next-columns :drop [row]
-  (drop-column row))
-
-
 (defmethod compile-ctor-clauses :drop [_tag vars rows default]
-  (sequence
-   (map
-    (fn [row]
-      [true
-       (compile (rest vars) [(next-columns row)] default)]))
-   rows))
+  (let [vars* (rest vars)]
+    (sequence
+     (map
+      (fn [row]
+        [true
+         (compile vars* [(drop-column row)] default)]))
+     rows)))
+
+
+;; ---------------------------------------------------------------------
+;; Ground
+
+(defn compile-ground [x]
+  [x]
+  (cond
+    (symbol? x)
+    `(quote ~x)
+
+    (seq? x)
+    (if (= (first x) 'quote)
+      x
+      (if (= (first x) `list)
+        (cons (first x) (map compile-ground (rest x)))
+        (if (seq x) 
+          (cons `list (map compile-ground x))
+          ())))
+
+    (map? x)
+    (into {}
+          (map
+           (fn [[k v]]
+             [(compile-ground k) (compile-ground v)]))
+          x)
+
+    (coll? x)
+    (into (empty x) (map compile-ground) x)
+
+    :else
+    x))
+
+
+(defmethod compile-ctor-clauses ::ground [_tag vars rows default]
+  (let [[target & vars*] vars]
+    (map
+     (fn [[node rows]]
+       [(case (syntax/tag node)
+          :entry
+          (let [{:keys [key-pat val-pat]} (syntax/data node)]
+            `(if-some [[key# val#] (find ~target ~(compile-ground (syntax/unparse key-pat)))]
+               (= val# ~(compile-ground (syntax/unparse val-pat)))
+               false))
+
+          ::map-no-check
+          (let [entries (syntax/data node)]
+            (case (count entries)
+              0
+              true
+
+              1
+              (let [[key-pat val-pat] (first entries)]
+                `(if-some [[key# val#] (find ~target ~(compile-ground (syntax/unparse key-pat)))]
+                   (= val# ~(compile-ground (syntax/unparse val-pat)))
+                   false))
+
+              ;; else
+              `(and ~@(map
+                       (fn [[key-pat val-pat]]
+                         `(if-some [[key# val#] (find ~target ~(compile-ground (syntax/unparse key-pat)))]
+                            (= val# ~(compile-ground (syntax/unparse val-pat)))
+                            false))
+                       (syntax/data node)))))
+
+          ;; else
+          `(= ~target ~(compile-ground (syntax/unparse node))))
+        (compile vars* (map drop-column rows) default)])
+     (group-by
+      first-column
+      rows))))
 
 
 
@@ -290,22 +353,17 @@
 ;; Init
 
 
-(defmethod min-length :init [node]
-  0)
-
-
 (defmethod compile-ctor-clauses :init [_tag vars rows default]
-  (let [[var & vars*] vars]
-    (sequence
-     (map
-      (fn [row]
-        (let [node (first-column row)
-              sym (:mem (syntax/data node))]
-          [true
-           `(let [~sym ~(if (get-sym row sym)
-                          `(into ~sym ~var)
-                          `(vec ~var))]
-              ~(compile vars* [(drop-column row)] default))])))
+  (let [[target & vars*] vars]
+    (map
+     (fn [row]
+       (let [node (first-column row)
+             sym (:mem (syntax/data node))]
+         [true
+          `(let [~sym ~(if (get-sym row sym)
+                         `(into ~sym ~target)
+                         `(vec ~target))]
+             ~(compile vars* [(add-sym (drop-column row) sym)] default))]))
      rows)))
 
 
@@ -327,11 +385,7 @@
 ;; Map
 
 
-(defmethod min-length :map [node]
-  1)
-
-
-(defmethod min-length :map-no-check [node]
+(defmethod syntax/min-length ::map-no-check [_]
   1)
 
 
@@ -389,21 +443,21 @@
                                 (concat
                                  (list [:entry {:key-pat key-pat
                                                 :val-pat val-pat}]
-                                       (if (= data {})
+                                       (if (= data* {})
                                          [:any '_]
-                                         [:map-no-check data*]))
+                                         [::map-no-check data*]))
                                  (rest-columns map-row)))
                               (concat
                                (list [:any '_]
                                      (if (= data {})
                                        [:any '_]
-                                       [:map-no-check data])) 
+                                       [::map-no-check data])) 
                                (rest-columns map-row)))))))
      []
      map-rows)))
 
 
-(defmethod compile-ctor-clauses :map-no-check [_tag vars rows default]
+(defmethod compile-ctor-clauses ::map-no-check [_tag vars rows default]
   (let [target (first vars)]
     [[true
       (compile (cons target vars) (next-map-rows rows) default)]]))
@@ -437,147 +491,81 @@
               ~(compile vars* [row*] default))])))
      rows)))
 
+
 ;; --------------------------------------------------------------------
 ;; Partition
 
 
-(defmethod min-length :part [node]
-  (let [data (syntax/data node)]
-    (+ (min-length (:left data))
-       (min-length (:right data)))))
-
-
-(defmethod next-columns :part
-  [row]
-  (let [node (first-column row)
-        {:keys [left right]} (syntax/data node)
-        left-cols (list left)
-        cols* (if (syntax/has-tag? right :seq-end)
-                (case (syntax/tag left)
-                  :rep
-                  (concat left-cols (list right) (rest (:cols row))) 
-
-                  :drop
-                  (rest (:cols row))
-
-                  ;; else
-                  (concat left-cols (rest (:cols row))))
-                (concat left-cols (list right) (rest (:cols row))))]
-    (assoc row :cols cols*)))
-
-
 (defmethod compile-ctor-clauses :part [_tag vars rows default]
-  (map
-   (fn [[[kind min tags] rows]]
-     (case tags
-       [:any :seq-end]
-       [true
-        (compile (rest vars) (map next-columns rows) default)]
-       
-       [:cap :seq-end]
-       [true
-        (compile vars (map next-columns rows) default)]
+  (let [target (first vars)]
+    (map
+     (fn [[left-tag rows]] 
+       (let [n (min-min-length rows)]
+         [`(= ~n (count (take ~n ~target)))
+          (case left-tag
+            :cat
+            (let [take-target (gensym "take__")
+                  drop-target (gensym "drop__")
+                  vars* (list* take-target drop-target (rest vars))]
+              ;; This 2x take is the worst.
+              `(let [~take-target (take ~n ~target)
+                     ~drop-target (drop ~n ~target)] 
+                 ~(compile
+                   vars*
+                   (map
+                    (fn [row]
+                      (let [part-data (syntax/data (first-column row))
+                            left (:left part-data) 
+                            items (syntax/data left)]
+                        (if (seq items)
+                          (let [[left-a left-b] (split-at n items)]
+                            (assoc row
+                                   :cols (concat
+                                          (list [:cat left-a]
+                                                (if (seq left-b) 
+                                                  [:part (assoc part-data :left [:cat left-b])]
+                                                  (:right part-data)))
+                                          (rest-columns row))))
+                          (assoc row :cols (list* (:right part-data)
+                                                  (rest-columns row))))))
+                    rows)
+                   default)))
 
-       [:cat :drop]
-       (let [[var & rest-vars] vars
-             init-var (gensym "init__")
-             vars* (list* init-var init-var rest-vars)
-             inner-form (compile vars* (map next-columns rows) default)]
-         (case kind
-           :vec
-           [`(<= ~min (count ~var))
-            `(let [~init-var (subvec ~var 0 ~min)]
-               ~inner-form)]
-           :seq
-           [true
-            `(let [~init-var (take ~min ~var)]
-               (if (== (count ~init-var) ~min)
-                 ~inner-form
-                 ~default))]))
-       
-       [:cat :seq-end]
-       (let [var (first vars)]
-         `[;; Bounds check.
-           ~(case kind
-              :vec
-              `(== (count ~var) ~min)
-              
-              ;; Is there a faster way to do this?
-              :seq
-              `(and (== (count (take ~min ~var))
-                        ~min)
-                    (not (seq (drop ~min ~var)))))
-           ~(compile vars (map next-columns rows) default)])
+            :drop
+            (let [drop-target (gensym "drop__")]
+              `(let [;; SLOW!
+                     ~drop-target (drop (max 0 (- (count ~target) ~n)) ~target)]
+                 ~(compile (list* drop-target (rest vars))
+                           (map
+                            (fn [row]
+                              (let [part-data (syntax/data (first-column row))
+                                    right (:right part-data)]
+                                (assoc row :cols (cons right (rest-columns row)))))
+                            rows)
+                           default)))
 
-       [:cat :rest]
-       [true
-        (let [[var & rest-vars] vars
-              rest-var (gensym "rest__")
-              vars* (list* var rest-var rest-vars)]
-          `(let [~rest-var ~(case kind
-                              :vec
-                              `(subvec ~var ~min)
+            (:init :rep)
+            (let [m (gensym "m__")
+                  take-target (gensym "take__")
+                  drop-target (gensym "drop__")
+                  vars* (list* take-target drop-target (rest vars))]
+              `(let [;; SLOW!
+                     ~m (max 0 (- (count ~target) ~n))
+                     ~take-target (take ~m ~target)
+                     ~drop-target (drop ~m ~target)]
+                 ~(compile vars*
+                           (map
+                            (fn [row]
+                              (let [part-data (syntax/data (first-column row))
+                                    left (:left part-data)
+                                    right (:right part-data)]
+                                (assoc row :cols (list* left right (rest-columns row)))))
+                            rows)
+                           default))))]))
+     (group-by
+      (comp syntax/tag :left syntax/data first-column)
+      rows))))
 
-                              :seq
-                              `(drop ~min ~var))]
-             ~(compile vars* (map next-columns rows) default)))]
-
-       [:drop :seq-end]
-       [true
-        (compile (rest vars) (map next-columns rows) default)]
-
-       [:drop :cat]
-       [true
-        (let [[var & rest-vars] vars
-              n (gensym "n__")
-              tail-var (gensym "tail__")
-              vars* (list* var tail-var rest-vars)]
-          `(let [~n (max 0 (- (count ~var) ~min))
-                 ~tail-var ~(case kind
-                              :vec
-                              `(subvec ~var ~n)
-
-                              :seq
-                              `(drop ~n ~var))]
-             ~(compile vars* (map next-columns rows) default)))]
-
-       ([:rep :cap]
-        [:rep :cat]
-        [:init :cat])
-       [true
-        (let [[var & rest-vars] vars
-              n (gensym "n__")
-              init-var (gensym "init__")
-              tail-var (gensym "tail__")
-              vars* (list* init-var tail-var rest-vars)]
-          `(let [~n (max 0 (- (count ~var) ~min))
-                 ~init-var ~(case kind
-                              :vec
-                              `(subvec ~var 0 ~n)
-
-                              :seq
-                              `(take ~n ~var))
-                 ~tail-var ~(case kind
-                              :vec
-                              `(subvec ~var ~n)
-
-                              :seq
-                              `(drop ~n ~var))]
-             ~(compile vars* (map next-columns rows) default)))]
-       
-       [:rep :seq-end]
-       [true
-        (compile (cons (first vars) vars) (map next-columns rows) default)]
-
-       [:rest :seq-end]
-       [true
-        (compile vars (map next-columns rows) default)]))
-   (group-by
-    (fn [row]
-      (let [node (first-column row)
-            {:keys [kind left right]} (syntax/data node)]
-        [kind (min-length node) [(syntax/tag left) (syntax/tag right)]]))
-    rows)))
 
 ;; --------------------------------------------------------------------
 ;; Pred
@@ -617,11 +605,6 @@
 ;; Rep
 
 
-
-(defmethod min-length :rep [node]
-  0)
-
-
 (defmethod next-columns :rep
   [row]
   (assoc row
@@ -634,7 +617,7 @@
     (fn [row]
       (let [pat (:init (syntax/data (first-column row)))
             pat-vars (variables pat)
-            n (min-length pat)
+            n (syntax/min-length pat)
             let-bindings (sequence
                           (mapcat
                            (fn [[kind sym]]
@@ -667,6 +650,7 @@
             loop-else (compile (rest vars)
                                [(assoc (drop-column row) :env loop-env)]
                                default)]
+        ;; TODO: Optimize for vector.
         [true
          `(let [~slice (take ~n ~target)
                 ~@let-bindings]
@@ -698,31 +682,22 @@
 ;; Rest
 
 
-(defmethod min-length :rest [node]
-  0)
-
-
 (defmethod compile-ctor-clauses :rest [_tag vars rows default]
-  (let [[var & vars*] vars]
-    (sequence
-     (map
-      (fn [row]
-        (let [node (first-column row)
-              sym (:mem (syntax/data node))]
-          [true
-           `(let [~sym ~(if (get-sym row sym)
-                          `(into ~sym ~var)
-                          `(vec ~var))]
-              ~(compile vars* [(drop-column row)] default))])))
+  (let [[target & vars*] vars]
+    (map
+     (fn [row]
+       (let [node (first-column row)
+             sym (:mem (syntax/data node))]
+         [true
+          `(let [~sym ~(if (get-sym row sym)
+                         `(into ~sym ~target)
+                         `(vec ~target))]
+             ~(compile vars* [(add-sym (drop-column row) sym)] default))]))
      rows)))
 
 
 ;; --------------------------------------------------------------------
 ;; Seq
-
-
-(defmethod min-length :seq [node]
-  (min-length (syntax/data node)))
 
 
 (defmethod next-columns :seq
@@ -743,10 +718,6 @@
 
 ;; --------------------------------------------------------------------
 ;; SeqEnd
-
-
-(defmethod min-length :seq-end [node]
-  0)
 
 
 (defmethod compile-ctor-clauses :seq-end [_tag vars rows default]
@@ -783,17 +754,121 @@
 ;; Vector
 
 
-(defmethod min-length :vec [node]
-  (min-length (syntax/data node)))
-
-
 (defmethod next-columns :vec
   [row]
-  (let [node (first-column row)
-        ;; TODO: Move to syntax.
-        part (update (syntax/data node) 1 assoc :kind :vec)
-        cols* (list* part (rest (:cols row)))]
-    (assoc row :cols cols*)))
+  (assoc row
+         :cols (cons (syntax/data (first-column row))
+                     (rest (:cols row)))))
+
+(defmethod compile-ctor-clauses :vpart [_tag vars rows default]
+  (let [target (first vars)]
+    (map
+     (fn [[left-tag rows]]
+       (let [n (min-min-length rows)]
+         [`(<= ~n (count ~target))
+          (case left-tag
+            (:init :rep)
+            (let [m (gensym "m__")
+                  take-vec (gensym "left_vec__")
+                  drop-vec (gensym "drop_vec__")]
+              `(let [~m (max 0 (- (count ~target) ~n))
+                     ~take-vec (subvec ~target 0 ~m)
+                     ~drop-vec (subvec ~target ~m)]
+                 ~(compile (list* take-vec drop-vec (rest vars))
+                           (map
+                            (fn [row]
+                              (let [part-data (syntax/data (first-column row))
+                                    left (:left part-data)
+                                    right (:right part-data)]
+                                (assoc row :cols (list* left right (rest-columns row)))))
+                            rows)
+                           default)))
+            :cap
+            (compile (cons (first vars) vars)
+                     (map
+                      (fn [row]
+                        (let [part-data (syntax/data (first-column row))
+                              {:keys [pat var]} (syntax/data (:left part-data))
+                              right (:right part-data)]
+                          (assoc row :cols (list* var pat right (rest-columns row)))))
+                      rows)
+                     default)
+
+            :drop
+            (let [drop-vec (gensym "drop_vec__")]
+              `(let [~drop-vec (subvec ~target (max 0 (- (count ~target) ~n)))]
+                 ~(compile (cons drop-vec (rest vars))
+                           (map
+                            (fn [row]
+                              (let [part-data (syntax/data (first-column row))
+                                    right (:right part-data)]
+                                (assoc row :cols (cons right (rest-columns row)))))
+                            rows)
+                           default)))
+
+            :rest
+            (compile vars
+                     (map
+                      (fn [row]
+                        (let [part-data (syntax/data (first-column row))
+                              left (:left part-data)]
+                          (assoc row :cols (cons left (rest-columns row)))))
+                      rows)
+                     default)
+
+            :vcat
+            (let [take-vec (gensym "take_vec__")
+                  drop-vec (gensym "drop_vec__")]
+              `(let [~take-vec (subvec ~target 0 ~n)
+                     ~drop-vec (subvec ~target ~n)]
+                 ~(compile (list* take-vec drop-vec (rest vars))
+                           (map
+                            (fn [row]
+                              (let [part-data (syntax/data (first-column row))
+                                    left (:left part-data) 
+                                    items (syntax/data left)]
+                                (if (seq items)
+                                  (let [[left-a left-b] (split-at n items)]
+                                    (assoc row
+                                           :cols (concat
+                                                  (list [:vcat left-a]
+                                                        (if (seq left-b) 
+                                                          [:vpart (assoc part-data :left [:vcat left-b])]
+                                                          (:right part-data)))
+                                                  (rest-columns row))))
+                                  (assoc row :cols (list* (:right part-data)
+                                                          (rest-columns row))))))
+                            rows)
+                           default))))]))
+     (group-by
+      (comp syntax/tag :left syntax/data first-column)
+      rows))))
+
+
+(defmethod compile-ctor-clauses :vcat [_tag vars rows default]
+  (map
+   (fn [[n rows]]
+     (let [[var & vars*] vars
+           nth-forms (map
+                      (fn [index]
+                        [(gensym (str "nth_" index "__"))
+                         `(nth ~var ~index)])
+                      (range n))
+           nth-vars (map first nth-forms)
+           vars* (concat nth-vars vars*)
+           rows* (map
+                  (fn [row]
+                    (assoc row
+                           :cols (concat
+                                  (syntax/data (first-column row))
+                                  (rest-columns row))))
+                  rows)]
+       [true
+        `(let [~@(mapcat identity nth-forms)]
+           ~(compile vars* rows* default))]))
+   (group-by
+    (comp count syntax/data first-column)
+    rows)))
 
 
 (defmethod compile-ctor-clauses :vec [_tag vars rows default]
@@ -836,6 +911,7 @@
          (throw exception#)))))
 
 
+
 (defn prioritize-matrix [[vars rows]]
   (let [idxs (into []
                    (map first)
@@ -856,10 +932,9 @@
                     (map
                      (fn [row]
                        (let [cols (:cols row)]
-                         (assoc row :cols (sequence
-                                           (map
-                                            (fn [idx]
-                                              (nth cols idx)))
+                         (assoc row :cols (mapv
+                                           (fn [idx]
+                                             (nth cols idx))
                                            idxs)))))
                     rows)]
     [vars* rows*]))
@@ -867,6 +942,8 @@
 
 (defn compile
   [vars rows default]
+  #_
+  (prn `(compile ~vars ~rows ~default))
   (let [[vars rows] (prioritize-matrix [vars rows])
         {preds false, no-preds true}
         (group-by (comp true? first)
@@ -913,15 +990,17 @@
 ;; ---------------------------------------------------------------------
 ;; Match
 
+(s/def ::match-clauses
+  (s/* (s/cat
+        :pat (s/conformer
+              (fn [pat]
+                (syntax/parse pat)))
+        :rhs any?)))
 
 (s/def ::match-args
   (s/cat
    :target any?
-   :clauses (s/* (s/cat
-                  :pat (s/conformer
-                        (fn [pat]
-                          (syntax/parse pat)))
-                  :rhs any?))))
+   :clauses ::match-clauses))
 
 
 (defn parse-match-args
@@ -929,20 +1008,38 @@
   [match-args]
   (s/conform ::match-args match-args))
 
+(s/fdef match
+  :args ::match-args
+  :ret any?)
 
 (defmacro match
   {:arglists '([target & pattern action ...])}
   [& match-args]
   (let [{:keys [target clauses]} (parse-match-args match-args)
+        final-clause (some
+                      (fn [{:keys [pat rhs]}]
+                        (when (= pat [:any '_])
+                          rhs))
+                      clauses)
+        clauses* (if final-clause
+                   (remove (comp #{[:any '_]} :pat) clauses)
+                   clauses)
         target-sym (gensym "target__")
-        vars [target-sym]]
-    `(let [~target-sym ~target]
-       ~(compile vars
-                 (sequence
-                  (map
-                   (fn [{:keys [pat rhs]}]
-                     {:cols [pat]
-                      :env #{}
-                      :rhs rhs}))
-                  clauses)
-                 `(throw backtrack)))))
+        vars [target-sym]
+        rows (sequence
+              (map
+               (fn [{:keys [pat rhs]}]
+                 {:cols [pat]
+                  :env #{}
+                  :rhs rhs}))
+              clauses*)
+        form `(let [~target-sym ~target]
+                ~(compile vars rows `(throw backtrack)))]
+    (if final-clause
+      (try-form form final-clause)
+      `(try
+         ~form
+         (catch ~'Exception e#
+           (if (identical? e# backtrack)
+             (throw (Exception. "non exhaustive pattern match"))
+             (throw e#)))))))
