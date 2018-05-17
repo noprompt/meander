@@ -27,43 +27,36 @@
   (s.gen/such-that not-empty (s.gen/vector (gen-row form-gen))))
 
 
-#_(t/deftest match-test)
-(t/is 
- (r.match/match '(let [x 1, y 1]
-                   (+ x y))
-   (let [!bindings ...] . !body ...)
-   (and (= !bindings '[x 1, y 1])
-        (= !body '[(+ x y)]))))
+(t/deftest cap-test
+  (t/is
+   (let [n (rand)]
+     (r.match/match [n n]
+       [(_ :as ?x) (_ :as ?x)]
+       (= n ?x))))
 
-(t/is
- (let [n (rand)]
-   (r.match/match [n n]
-     [(_ :as ?x) (_ :as ?x)]
-     (= n ?x))))
+  (t/is
+   (let [n (rand)]
+     (r.match/match [n n]
+       [(_ :as !x) (_ :as !x)]
+       (= [n n] !x))))
 
-(t/is
- (let [n (rand)]
-   (r.match/match [n n]
-     [(_ :as !x) (_ :as !x)]
-     (= [n n] !x))))
+  (t/is
+   (let [n 1]
+     (r.match/match [n n]
+       [(_ _ :as !x)]
+       (= [[n n]] !x))))
 
-(t/is
- (let [n 1]
-   (r.match/match [n n]
-     [(_ _ :as !x)]
-     (= [[n n]] !x))))
-
-(t/is
- (r.match/match '[x 0 y 1 1 2 3]
-   [(!bindings !values :as !binding-pairs) ... . (1 2 3 :as ?tail)]
-   (and (= !bindings
-           '[x y])
-        (= !values
-           [0 1])
-        (= '[[x 0] [y 1]]
-           !binding-pairs)
-        (= [1 2 3]
-           ?tail))))
+  (t/is
+   (r.match/match '[x 0 y 1 1 2 3]
+     [(!bindings !values :as !binding-pairs) ... . (1 2 3 :as ?tail)]
+     (and (= !bindings
+             '[x y])
+          (= !values
+             [0 1])
+          (= '[[x 0] [y 1]]
+             !binding-pairs)
+          (= [1 2 3]
+             ?tail)))))
 
 
 (t/is
@@ -78,6 +71,7 @@
         (= '[(+ a b) (+ b a)]
            !body))))
 
+
 (let [is (shuffle (range 5))
       js (shuffle (range 5))
       ms (map (fn [i j] {:i i, :j j}) is js)]
@@ -90,37 +84,43 @@
      _
      false)))
 
+(t/is 
+ (r.match/match '(let [x 1, y 1]
+                   (+ x y))
+   (let [!bindings ...] . !body ...)
+   (and (= !bindings '[x 1, y 1])
+        (= !body '[(+ x y)]))))
 
-(t/is
- (r.match/match [1 2 3]
-   (and ?x [_ ...])
-   (= ?x [1 2 3])))
-
-
-(let [xs [[1 2 3] [1 2 3] [1 2 3]]]
+(t/deftest and-test
   (t/is
-   (r.match/match xs
-     [(and ?x ?y) ?x ?y]
-     (= ?x ?y [1 2 3])
+   (r.match/match [1 2 3]
+     (and ?x [_ ...])
+     (= ?x [1 2 3])))
 
-     _
-     false))
+  (let [xs [[1 2 3] [1 2 3] [1 2 3]]]
+    (t/is
+     (r.match/match xs
+       [(and ?x ?y) ?x ?y]
+       (= ?x ?y [1 2 3])
 
-  (t/is
-   (r.match/match xs
-     [?x (and ?x ?y) ?y]
-     (= ?x ?y [1 2 3])
+       _
+       false))
 
-     _
-     false))
+    (t/is
+     (r.match/match xs
+       [?x (and ?x ?y) ?y]
+       (= ?x ?y [1 2 3])
 
-  (t/is
-   (r.match/match xs
-     [?x ?y (and ?x ?y)]
-     (= ?x ?y [1 2 3])
+       _
+       false))
 
-     _
-     false)))
+    (t/is
+     (r.match/match xs
+       [?x ?y (and ?x ?y)]
+       (= ?x ?y [1 2 3])
+
+       _
+       false))))
 
 
 (t/deftest init-pattern
@@ -195,7 +195,6 @@
         _
         false)))))
 
-;; FAILING
 (t/deftest predicate-patterns
   (t/is
    (r.match/match [1 2 3]
@@ -214,11 +213,24 @@
      _
      false)))
 
-;; FAILING
 (t/deftest map-patterns
   (let [node {:tag :h1
               :attrs {:style "font-weight:normal"}
               :children []}]
+    (t/is
+     (r.match/match node
+       {:tag ?tag, :attrs ?attrs, :children ?children}
+       (and (= (get node :tag)
+               ?tag)
+            (= (get node :attrs)
+               ?attrs)
+            (= (get node :children)
+               ?children))
+
+       _
+       false))
+
+    ;; The most specific match should be selected. 
     (t/is
      (r.match/match node
        {:tag ?tag, :children ?children}

@@ -85,20 +85,44 @@
   "Return all variable nodes in x."
   [x]
   (into #{}
-        (filter
+        (keep
          (fn [x]
-           (and (or (syntax/has-tag? x :var)
-                    (syntax/has-tag? x :mem)
-                    ;; Unsure about this. 
-                    (syntax/has-tag? x :any)
-                    (syntax/has-tag? x :drop)
-                    (syntax/has-tag? x :init)
-                    (syntax/has-tag? x :rest)) 
-                (simple-symbol? (syntax/data x)))))
+           (cond
+             (and (or (syntax/has-tag? x :var)
+                      (syntax/has-tag? x :mem))
+                  (simple-symbol? (syntax/data x)))
+             x
+
+             ;; Technically this is not needed. The particular use of
+             ;; tree-seq will cause [:mem !name] to be located
+             ;; (as a map entry), however, relying on this feels
+             ;; dishonest and, so, it's explicitly stated here.
+             (or (syntax/has-tag? x :rest)
+                 (syntax/has-tag? x :init))
+             (if-some [mem-var (find (syntax/data x) :mem)]
+               mem-var))))
         (tree-seq seqable? seq x)))
 
+
+(def not-ground-tags
+  #{:any
+    :drop
+    :init
+    :mem
+    :prd
+    :rest
+    :rep
+    :repk
+    :var})
+
+;; multimethod?
 (defn ground? [x]
-  (empty? (variables x)))
+  (not (some
+        (fn [x]
+          (or (and (syntax/node? x)
+                   (contains? not-ground-tags (syntax/tag x)))
+              true))
+        (tree-seq seqable? seq x))))
 
 
 (defmethod tag-score ::ground [_]
@@ -114,15 +138,8 @@
     (fn [row]
       (when-some [column (first-column row)]
         (let [tag (syntax/tag column)]
-          (cond
-            (or (= tag :rep)
-                (= tag :repk))
-            tag
-
-            (ground? column)
+          (if (ground? column)
             ::ground
-
-            :else
             tag))))
     rows)))
 
@@ -1043,3 +1060,4 @@
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
+
