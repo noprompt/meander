@@ -213,6 +213,7 @@
      _
      false)))
 
+
 (t/deftest map-patterns
   (let [node {:tag :h1
               :attrs {:style "font-weight:normal"}
@@ -233,12 +234,6 @@
     ;; The most specific match should be selected. 
     (t/is
      (r.match/match node
-       {:tag ?tag, :children ?children}
-       false
-
-       {:tag ?tag, :attrs ?attrs}
-       false
-
        {:tag ?tag, :attrs ?attrs, :children ?children}
        (and (= (get node :tag)
                ?tag)
@@ -246,6 +241,12 @@
                ?attrs)
             (= (get node :children)
                ?children))
+
+       {:tag ?tag, :children ?children}
+       false
+
+       {:tag ?tag, :attrs ?attrs}
+       false
 
        {:attrs ?attrs, :children ?children}
        false
