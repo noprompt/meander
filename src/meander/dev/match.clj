@@ -8,34 +8,23 @@
   (:import [java.util.concurrent.atomic AtomicInteger]))
 
 
-(defn add-sym
-  [row sym]
-  (update row :env (fnil conj #{}) sym))
-
-
-(defn get-sym
-  [row sym]
-  (get (:env row) sym))
-
-
-(defn swap
-  [v i j]
-  (let [v (vec v)]
-    (assoc v i (nth v j) j (nth v i))))
-
-
-
 (defonce
-  ^{:tag AtomicInteger}
+  ^{:tag AtomicInteger
+    :private true}
   gensym-id
   (AtomicInteger.))
 
 
-(defn next-gensym-id []
+(defn next-gensym-id
+  {:private true}
+  []
   (.incrementAndGet gensym-id))
 
 
 (defmacro gensym*
+  "Custom version of gensym which prefixes the symbol with the line
+  number. This is useful for debugging macro expansions."
+  {:private true}
   ([]
    `(symbol (format "l%d__G%d"
                     ~(:line (meta &form))
@@ -51,9 +40,28 @@
 ;; Pattern matrix
 
 
+(defn add-sym
+  "Add the symbol sym to the environment in row."
+  [row sym]
+  (update row :env (fnil conj #{}) sym))
+
+
+(defn get-sym
+  "Get the symbol sym from the environment in row."
+  [row sym]
+  (get (:env row) sym))
+
+
 (defn row-width
   [row]
   (count (:cols row)))
+
+
+(defn swap
+  "Swap elements at positions i and j in the vector v."
+  [v i j]
+  (let [v (vec v)]
+    (assoc v i (nth v j) j (nth v i))))
 
 
 (defn swap-column
@@ -67,21 +75,25 @@
 
 
 (defn nth-column
+  "Get the nth column in row."
   ([row index]
    (nth (:cols row) index))
   ([row index not-found]
    (nth (:cols row) index not-found)))
 
 
-(defn first-column [row]
+(defn first-column
+  [row]
   (nth-column row 0 nil))
 
 
-(defn rest-columns [row]
+(defn rest-columns
+  [row]
   (rest (:cols row)))
 
 
-(defn drop-column [row]
+(defn drop-column
+  [row]
   (update row :cols rest))
 
 
@@ -92,6 +104,7 @@
 
 (defmethod tag-score ::default-score [_]
   1)
+
 
 (defn node-score [node]
   (tag-score (syntax/tag node)))
