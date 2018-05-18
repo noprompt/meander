@@ -650,6 +650,18 @@
                  [:vpart (data x)])])))) 
       node))
 
+(defn part-ensure-seq-end
+  [node]
+  (or 
+   (when (has-tag? node :part)
+     (let [part-data (data node)
+           right (:right part-data)]
+       (when (not (has-tag? right :seq-end))
+         [:part
+          (assoc part-data
+                 :right [:part {:left right 
+                                :right [:seq-end]}])])))
+   node))
 
 (defn parse
   [form]
@@ -657,7 +669,8 @@
        (walk/prewalk expand-pat)
        (walk/postwalk collapse-pat)
        (walk/postwalk rewrite-cap-cat)
-       (walk/postwalk part-to-vpart)))
+       (walk/postwalk part-to-vpart)
+       (walk/postwalk part-ensure-seq-end)))
 
 (defmethod min-length :vpart
   [node]

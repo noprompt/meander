@@ -59,37 +59,72 @@
              ?tail)))))
 
 
-(t/is
- (r.match/match '(let [a 1 b 2] (+ a b) (+ b a))
-   (let [(!bindings !values :as !binding-pairs) ...] . !body ...)
-   (and (= '[a b]
-           !bindings)
-        (= '[1 2]
-           !values)
-        (= '[(a 1) (b 2)]
-           !binding-pairs)
-        (= '[(+ a b) (+ b a)]
-           !body))))
-
-
-(let [is (shuffle (range 5))
-      js (shuffle (range 5))
-      ms (map (fn [i j] {:i i, :j j}) is js)]
+(t/deftest match-test
   (t/is
-   (r.match/match ms
-     ({:i !is, :j !js} ...)
-     (and (= !is is)
-          (= !js js))
+   (r.match/match '(let [a 1 b 2]
+                     (+ a b)
+                     (+ b a))
+     (let [(!bindings !values :as !binding-pairs) ...] . !body ...)
+     (and (= '[a b]
+             !bindings)
+          (= '[1 2]
+             !values)
+          (= '[(a 1) (b 2)]
+             !binding-pairs)
+          (= '[(+ a b) (+ b a)]
+             !body))))
+
+  (t/is 
+   (r.match/match '(let [x 1, y 1]
+                     (+ x y))
+     (let [!bindings ...] . !body ...)
+     (and (= !bindings '[x 1, y 1])
+          (= !body '[(+ x y)]))))
+
+  (t/is
+   (r.match/match (range -5 6)
+     (!xs ... . 3 4 5)
+     (= !xs (range -5 3))
 
      _
-     false)))
+     false))
 
-(t/is 
- (r.match/match '(let [x 1, y 1]
-                   (+ x y))
-   (let [!bindings ...] . !body ...)
-   (and (= !bindings '[x 1, y 1])
-        (= !body '[(+ x y)]))))
+  (t/is
+   ;; This technically has 2 additional solutions
+   ;;
+   ;;   ?x = unbound
+   ;;   ?y = unbound
+   ;;   !zs = [1 2 1 2 1 3 1 4]
+   ;;
+   ;; and 
+   ;;
+   ;;   ?x = 1
+   ;;   ?y = 2
+   ;;   !zs = [1 2 1 3 1 4]
+   ;;
+   ;; which should be discovered by the search macro. This seems like
+   ;; a good middle ground, however.
+   (r.match/match (list 1 2 1 2 1 3 1 4)
+     (?x ?y ... . !zs ...)
+     (and (= ?x 1)
+          (= ?y 2)
+          (= !zs [1 3 1 4]))
+
+     _
+     false))
+
+  (let [is (shuffle (range 5))
+        js (shuffle (range 5))
+        ms (map (fn [i j] {:i i, :j j}) is js)]
+    (t/is
+     (r.match/match ms
+       ({:i !is, :j !js} ...)
+       (and (= !is is)
+            (= !js js))
+
+       _
+       false))))
+
 
 (t/deftest and-test
   (t/is
@@ -159,6 +194,7 @@
         _
         false)))))
 
+
 (t/deftest drop-pattern-test
   (t/testing "drop patterns"
     (t/is
@@ -194,6 +230,7 @@
 
         _
         false)))))
+
 
 (t/deftest predicate-patterns
   (t/is
@@ -234,6 +271,12 @@
     ;; The most specific match should be selected. 
     (t/is
      (r.match/match node
+       {:tag ?tag, :children ?children}
+       false
+
+       {:tag ?tag, :attrs ?attrs}
+       false
+
        {:tag ?tag, :attrs ?attrs, :children ?children}
        (and (= (get node :tag)
                ?tag)
@@ -241,12 +284,6 @@
                ?attrs)
             (= (get node :children)
                ?children))
-
-       {:tag ?tag, :children ?children}
-       false
-
-       {:tag ?tag, :attrs ?attrs}
-       false
 
        {:attrs ?attrs, :children ?children}
        false
