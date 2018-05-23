@@ -841,20 +841,40 @@
 (defmethod tag-score :var [_]
   1)
 
+
+
 (defmethod compile-ctor-clauses :var [_tag vars rows default]
-  (map
-   (fn [row]
-     (let [[var & vars*] vars
-           [_ sym] (first-column row)
-           row* (drop-column (add-sym row sym))
-           body (compile vars* [row*] default)]
-       (if (some? (get-sym row sym))
-         [`(= ~var ~sym)
-          body]
-         [true
-          `(let [~sym ~var]
-             ~body)])))
-   rows))
+  (let [target (first vars)]
+    (let [{:keys [bound unbound]}
+          (group-by
+           (fn [row]
+             (let [sym (syntax/data (first-column row))]
+               (if (get-sym row sym)
+                 :bound
+                 :unbound)))
+           rows)]
+      (cond-> []
+        bound
+        (into (map
+               (fn [row]
+                 (let [[_ sym] (first-column row)]
+                   [`(= ~target ~sym)
+                    (compile (rest vars) [(drop-column row)] default)]))
+               bound))
+        
+        unbound
+        (conj [true
+               (let [rows* (map
+                            (fn [row]
+                              (let [[_ sym] (first-column row)]
+                                (drop-column (add-sym row sym))))
+                            unbound)
+                     body (compile (rest vars) rows* default)]
+                 `(let [~@(mapcat
+                           (juxt (comp syntax/data first-column)
+                                 (constantly target))
+                           rows)]
+                    ~body))])))))
 
 
 ;; --------------------------------------------------------------------
@@ -877,6 +897,7 @@
 
 ;; --------------------------------------------------------------------
 ;; VPartition
+
 
 (defmethod compile-ctor-clauses :vpart [_tag vars rows default]
   (let [target (first vars)]
@@ -966,9 +987,11 @@
 
             :vcat
             (let [take-target (gensym* "left_vec__")
-                  drop-target (gensym* "right_vec__")]
-              `(let [~take-target (subvec ~target 0 ~n)
-                     ~drop-target (subvec ~target ~n)]
+                  drop-target (gensym* "right_vec__")
+                  m (gensym* "m__")]
+              `(let [~m (min (count ~target) ~n)
+                     ~take-target (subvec ~target 0 ~m)
+                     ~drop-target (subvec ~target ~m)]
                  ~(compile (list* take-target drop-target (rest vars))
                            (map
                             (fn [row]
@@ -1155,9 +1178,3 @@
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
-
-
-
-
-
-

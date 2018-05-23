@@ -163,7 +163,6 @@
        _
        false)))
 
-
   (t/testing "map patterns"
     (let [node {:tag :h1
                 :attrs {:style "font-weight:normal"}
@@ -181,34 +180,33 @@
          _
          false))
 
-      ;; The most specific match should be selected. 
+      ;; TODO: The most specific match should be selected. 
       (t/is
-       (r.match/match node
-         {:tag ?tag, :children ?children}
-         false
+       (not
+        (r.match/match node
+          {:tag ?tag, :attrs ?attrs, :children ?children}
+          (and (= (get node :tag)
+                  ?tag)
+               (= (get node :attrs)
+                  ?attrs)
+               (= (get node :children)
+                  ?children))
 
-         {:tag ?tag, :attrs ?attrs}
-         false
+          {:tag ?tag, :children ?children}
+          false
 
-         {:tag ?tag, :attrs ?attrs, :children ?children}
-         (and (= (get node :tag)
-                 ?tag)
-              (= (get node :attrs)
-                 ?attrs)
-              (= (get node :children)
-                 ?children))
+          {:tag ?tag, :attrs ?attrs}
+          false
 
-         {:attrs ?attrs, :children ?children}
-         false
+          {:attrs ?attrs, :children ?children}
+          false
 
-         {:attrs ?attrs}
-         false
+          {:attrs ?attrs}
+          false
 
-         {:children ?children}
-         false)))))
+          {:children ?children}
+          false)))))
 
-
-(t/deftest drop-pattern-test
   (t/testing "drop patterns"
     (t/is
      (r.match/match '(1 2 3 4 5 6)
@@ -242,63 +240,67 @@
         true
 
         _
-        false)))))
+        false))))
 
-(let [form '(let (a 1 b 2)
-              (+ a b)
-              (+ b a))]
-  (t/is
-   (r.match/match form
-     (let . !forms ...)
-     (= !forms '[(a 1 b 2) (+ a b) (+ b a)])
 
-     _
-     false))
+  (let [form '(let (a 1 b 2)
+                (+ a b)
+                (+ b a))]
+    (t/is
+     (r.match/match form
+       (let . !forms ...)
+       (= !forms '[(a 1 b 2) (+ a b) (+ b a)])
 
-  (t/is
-   (r.match/match form
-     (let ?bindings . !forms ...)
-     (and (= ?bindings '(a 1 b 2))
-          (= !forms '[(+ a b) (+ b a)]))
+       _
+       false))
 
-     _
-     false))
+    (t/is
+     (r.match/match form
+       (let ?bindings . !forms ...)
+       (and (= ?bindings '(a 1 b 2))
+            (= !forms '[(+ a b) (+ b a)]))
 
-  (t/is
-   (r.match/match form
-     (let (!bindings ...) . !forms ...)
-     (and (= !bindings '(a 1 b 2))
-          (= !forms '[(+ a b) (+ b a)]))
+       _
+       false))
 
-     _
-     false))
+    (t/is
+     (r.match/match form
+       (let (!bindings ...) . !forms ...)
+       (and (= !bindings '(a 1 b 2))
+            (= !forms '[(+ a b) (+ b a)]))
 
-  (t/is
-   (r.match/match form
-     (let (!syms !vals ...) . !forms ...)
-     (and (= !syms '(a b))
-          (= !vals '(1 2))
-          (= !forms '[(+ a b) (+ b a)]))
+       _
+       false))
 
-     _
-     false))
+    (t/is
+     (r.match/match form
+       (let (!syms !vals ...) . !forms ...)
+       (and (= !syms '(a b))
+            (= !vals '(1 2))
+            (= !forms '[(+ a b) (+ b a)]))
 
-  (t/is
-   (r.match/match form
-     (let ((!syms !vals :as !pairs) ...) . !forms ...)
-     (and (= !syms '(a b))
-          (= !vals '(1 2))
-          (= !forms '[(+ a b) (+ b a)]))
+       _
+       false))
 
-     _
-     false))
+    (t/is
+     (r.match/match form
+       (let ((!syms !vals :as !pairs) ...) . !forms ...)
+       (and (= !syms '(a b))
+            (= !vals '(1 2))
+            (= !forms '[(+ a b) (+ b a)]))
+
+       _
+       false)))
 
   (t/is 
    (r.match/match '(let [x 1, y 1]
                      (+ x y))
      (let [!bindings ...] . !body ...)
      (and (= !bindings '[x 1, y 1])
-          (= !body '[(+ x y)]))))
+          (= !body '[(+ x y)]))
+
+     _
+     false))
 
   (t/testing "cap patterns"
     (t/is
@@ -360,4 +362,19 @@
              (= !zs [1 3 1 4]))
 
         _
-        false)))))
+        false)))
+
+    (t/is
+     (r.match/match '(def foo "bar" :baz)
+       (def ?sym ?init)
+       (and (= ?sym 'foo)
+            (= ?init :baz))
+
+       (def ?sym ?doc ?init)
+       (and (= ?sym 'foo)
+            (= ?doc "bar")
+            (= ?init :baz))
+
+
+       _
+       false))))
