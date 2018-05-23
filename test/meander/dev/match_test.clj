@@ -27,92 +27,7 @@
   (s.gen/such-that not-empty (s.gen/vector (gen-row form-gen))))
 
 
-(t/deftest cap-test
-  (t/is
-   (let [n (rand)]
-     (r.match/match [n n]
-       [(_ :as ?x) (_ :as ?x)]
-       (= n ?x))))
-
-  (t/is
-   (let [n (rand)]
-     (r.match/match [n n]
-       [(_ :as !x) (_ :as !x)]
-       (= [n n] !x))))
-
-  (t/is
-   (let [n 1]
-     (r.match/match [n n]
-       [(_ _ :as !x)]
-       (= [[n n]] !x))))
-
-  (t/is
-   (r.match/match '[x 0 y 1 1 2 3]
-     [(!bindings !values :as !binding-pairs) ... . (1 2 3 :as ?tail)]
-     (and (= !bindings
-             '[x y])
-          (= !values
-             [0 1])
-          (= '[[x 0] [y 1]]
-             !binding-pairs)
-          (= [1 2 3]
-             ?tail)))))
-
-
 (t/deftest match-test
-  (t/is
-   (r.match/match '(let [a 1 b 2]
-                     (+ a b)
-                     (+ b a))
-     (let [(!bindings !values :as !binding-pairs) ...] . !body ...)
-     (and (= '[a b]
-             !bindings)
-          (= '[1 2]
-             !values)
-          (= '[(a 1) (b 2)]
-             !binding-pairs)
-          (= '[(+ a b) (+ b a)]
-             !body))))
-
-  (t/is 
-   (r.match/match '(let [x 1, y 1]
-                     (+ x y))
-     (let [!bindings ...] . !body ...)
-     (and (= !bindings '[x 1, y 1])
-          (= !body '[(+ x y)]))))
-
-  (t/is
-   (r.match/match (range -5 6)
-     (!xs ... . 3 4 5)
-     (= !xs (range -5 3))
-
-     _
-     false))
-
-  (t/is
-   ;; This technically has 2 additional solutions
-   ;;
-   ;;   ?x = unbound
-   ;;   ?y = unbound
-   ;;   !zs = [1 2 1 2 1 3 1 4]
-   ;;
-   ;; and 
-   ;;
-   ;;   ?x = 1
-   ;;   ?y = 2
-   ;;   !zs = [1 2 1 3 1 4]
-   ;;
-   ;; which should be discovered by the search macro. This seems like
-   ;; a good middle ground, however.
-   (r.match/match (list 1 2 1 2 1 3 1 4)
-     (?x ?y ... . !zs ...)
-     (and (= ?x 1)
-          (= ?y 2)
-          (= !zs [1 3 1 4]))
-
-     _
-     false))
-
   (let [is (shuffle (range 5))
         js (shuffle (range 5))
         ms (map (fn [i j] {:i i, :j j}) is js)]
@@ -123,42 +38,79 @@
             (= !js js))
 
        _
-       false))))
-
-
-(t/deftest and-test
+       false)))
+  
   (t/is
-   (r.match/match [1 2 3]
-     (and ?x [_ ...])
-     (= ?x [1 2 3])))
+   (r.match/match (range -5 6)
+     (!xs ... . 3 4 5)
+     (= !xs (range -5 3))
 
-  (let [xs [[1 2 3] [1 2 3] [1 2 3]]]
+     _
+     false))
+
+  (t/is
+   (r.match/match '(1 2 1 2 4)
+     (?x ?y ... . 4)
+     true
+     _
+     false))
+
+  (t/is
+   (not
+    (r.match/match '(1 2 1 3 4)
+      (?x ?y ... . 4)
+      true
+
+      _
+      false)))
+
+  (t/is
+   (r.match/match [1 2 1 2 4]
+     [?x ?y ... . 4]
+     true
+     _
+     false))
+  
+  (t/is
+   (not
+    (r.match/match [1 2 1 3 4]
+      [?x ?y ... . 4]
+      true
+
+      _
+      false)))
+
+  (t/testing "and patterns"
     (t/is
-     (r.match/match xs
-       [(and ?x ?y) ?x ?y]
-       (= ?x ?y [1 2 3])
+     (r.match/match [1 2 3]
+       (and ?x [_ ...])
+       (= ?x [1 2 3])))
 
-       _
-       false))
+    (let [xs [[1 2 3] [1 2 3] [1 2 3]]]
+      (t/is
+       (r.match/match xs
+         [?x ?y ?x]
+         (= ?x ?y [1 2 3])
 
-    (t/is
-     (r.match/match xs
-       [?x (and ?x ?y) ?y]
-       (= ?x ?y [1 2 3])
+         _
+         false))
 
-       _
-       false))
+      (t/is
+       (r.match/match xs
+         [?x (and ?x ?y) ?y]
+         (= ?x ?y [1 2 3])
 
-    (t/is
-     (r.match/match xs
-       [?x ?y (and ?x ?y)]
-       (= ?x ?y [1 2 3])
+         _
+         false))
 
-       _
-       false))))
+      (t/is
+       (r.match/match xs
+         [?x ?y (and ?x ?y)]
+         (= ?x ?y [1 2 3])
 
+         _
+         false))))
 
-(t/deftest init-pattern
   (t/testing "init patterns"
     (t/is
      (r.match/match '(1 2 3 4 5 6)
@@ -192,7 +144,68 @@
         true
 
         _
-        false)))))
+        false))))
+
+  (t/testing "predicate patterns"
+    (t/is
+     (r.match/match [1 2 3]
+       (? vector?)
+       true
+
+       _
+       false))
+
+    (t/is
+     (r.match/match "foo"
+       (? (fn [x] (re-matches #"[a-z]+" x)))
+       true
+
+       _
+       false)))
+
+
+  (t/testing "map patterns"
+    (let [node {:tag :h1
+                :attrs {:style "font-weight:normal"}
+                :children []}]
+      (t/is
+       (r.match/match node
+         {:tag ?tag, :attrs ?attrs, :children ?children}
+         (and (= (get node :tag)
+                 ?tag)
+              (= (get node :attrs)
+                 ?attrs)
+              (= (get node :children)
+                 ?children))
+
+         _
+         false))
+
+      ;; The most specific match should be selected. 
+      (t/is
+       (r.match/match node
+         {:tag ?tag, :children ?children}
+         false
+
+         {:tag ?tag, :attrs ?attrs}
+         false
+
+         {:tag ?tag, :attrs ?attrs, :children ?children}
+         (and (= (get node :tag)
+                 ?tag)
+              (= (get node :attrs)
+                 ?attrs)
+              (= (get node :children)
+                 ?children))
+
+         {:attrs ?attrs, :children ?children}
+         false
+
+         {:attrs ?attrs}
+         false
+
+         {:children ?children}
+         false)))))
 
 
 (t/deftest drop-pattern-test
@@ -231,65 +244,120 @@
         _
         false)))))
 
-
-(t/deftest predicate-patterns
+(let [form '(let (a 1 b 2)
+              (+ a b)
+              (+ b a))]
   (t/is
-   (r.match/match [1 2 3]
-     (? vector?)
-     true
+   (r.match/match form
+     (let . !forms ...)
+     (= !forms '[(a 1 b 2) (+ a b) (+ b a)])
 
      _
      false))
 
   (t/is
-   (r.match/match "foo"
-     (? (fn [x]
-          (re-matches #"[a-z]+" x)))
-     true
+   (r.match/match form
+     (let ?bindings . !forms ...)
+     (and (= ?bindings '(a 1 b 2))
+          (= !forms '[(+ a b) (+ b a)]))
 
      _
-     false)))
+     false))
 
+  (t/is
+   (r.match/match form
+     (let (!bindings ...) . !forms ...)
+     (and (= !bindings '(a 1 b 2))
+          (= !forms '[(+ a b) (+ b a)]))
 
-(t/deftest map-patterns
-  (let [node {:tag :h1
-              :attrs {:style "font-weight:normal"}
-              :children []}]
+     _
+     false))
+
+  (t/is
+   (r.match/match form
+     (let (!syms !vals ...) . !forms ...)
+     (and (= !syms '(a b))
+          (= !vals '(1 2))
+          (= !forms '[(+ a b) (+ b a)]))
+
+     _
+     false))
+
+  (t/is
+   (r.match/match form
+     (let ((!syms !vals :as !pairs) ...) . !forms ...)
+     (and (= !syms '(a b))
+          (= !vals '(1 2))
+          (= !forms '[(+ a b) (+ b a)]))
+
+     _
+     false))
+
+  (t/is 
+   (r.match/match '(let [x 1, y 1]
+                     (+ x y))
+     (let [!bindings ...] . !body ...)
+     (and (= !bindings '[x 1, y 1])
+          (= !body '[(+ x y)]))))
+
+  (t/testing "cap patterns"
     (t/is
-     (r.match/match node
-       {:tag ?tag, :attrs ?attrs, :children ?children}
-       (and (= (get node :tag)
-               ?tag)
-            (= (get node :attrs)
-               ?attrs)
-            (= (get node :children)
-               ?children))
+     (let [n (rand)]
+       (r.match/match [n n]
+         [(_ :as ?x) (_ :as ?x)]
+         (= n ?x))))
 
+    (t/is
+     (let [n (rand)]
+       (r.match/match [n n]
+         [(_ :as !x) (_ :as !x)]
+         (= [n n] !x))))
+
+    (t/is
+     (let [n 1]
+       (r.match/match [n n]
+         [(_ _ :as !x)]
+         (= [[n n]] !x))))
+
+    (t/is
+     (r.match/match '[x 0 y 1 1 2 3]
+       [(!bindings !values :as !binding-pairs) ...
+        . (1 2 3 :as ?tail)]
+       (and (= !bindings
+               '[x y])
+            (= !values
+               [0 1])
+            (= '[[x 0] [y 1]]
+               !binding-pairs)
+            (= [1 2 3]
+               ?tail))
        _
        false))
 
-    ;; The most specific match should be selected. 
     (t/is
-     (r.match/match node
-       {:tag ?tag, :children ?children}
-       false
+     (r.match/match '(let [a 1 b 2]
+                       (+ a b)
+                       (+ b a))
+       (let [(!bindings !values :as !binding-pairs) ...] . !body ...)
+       (and (= '[a b]
+               !bindings)
+            (= '[1 2]
+               !values)
+            (= '[(a 1) (b 2)]
+               !binding-pairs)
+            (= '[(+ a b) (+ b a)]
+               !body))))
 
-       {:tag ?tag, :attrs ?attrs}
-       false
+    
+    (t/is
+     (not
+      (r.match/match (list 1 2 1 2 1 3 1 4)
+        ;; This is a "search" because it has variable length on both
+        ;; sides. It should fail to match.
+        (?x ?y ... . !zs ...)
+        (and (= ?x 1)
+             (= ?y 2)
+             (= !zs [1 3 1 4]))
 
-       {:tag ?tag, :attrs ?attrs, :children ?children}
-       (and (= (get node :tag)
-               ?tag)
-            (= (get node :attrs)
-               ?attrs)
-            (= (get node :children)
-               ?children))
-
-       {:attrs ?attrs, :children ?children}
-       false
-
-       {:attrs ?attrs}
-       false
-
-       {:children ?children}
-       false))))
+        _
+        false)))))

@@ -344,6 +344,21 @@
   (first node))
 
 
+(s/def :meander.syntax.ast.part/left
+  node?)
+
+
+(s/def :meander.syntax.ast.part/right
+  node?)
+
+
+(s/def :meander.syntax.ast/part
+  (s/tuple #{:part} (s/keys :req-un [:meander.syntax.ast.part/left
+                                     :meander.syntax.ast.part/right])))
+
+(defn part-node? [x]
+  (s/valid? :meander.syntax.ast/part x))
+
 (defn data
   [node]
   {:pre [(node? node)]}
@@ -354,6 +369,30 @@
   [node f & args]
   {:pre [node? node]}
   (apply update node 1 f args))
+
+
+(defn left-node
+  [part-node]
+  {:pre [(part-node? part-node)]}
+  (:left (data part-node)))
+
+
+(defn left-tag
+  [part-node]
+  {:pre [(part-node? part-node)]}
+  (tag (left-node part-node)))
+
+
+(defn right-node
+  [part-node]
+  {:pre [(part-node? part-node)]}
+  (:right (data part-node)))
+
+
+(defn right-tag
+  [part-node]
+  {:pre [(part-node? part-node)]}
+  (tag (right-node part-node)))
 
 
 (defmulti min-length
@@ -805,3 +844,4 @@
      (assoc m (unparse k) (unparse v)))
    {}
    entries))
+
