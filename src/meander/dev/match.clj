@@ -310,6 +310,22 @@
    rows))
 
 
+;; ---------------------------------------------------------------------
+;; Or
+
+#_
+(defmethod compile-ctor-clauses :or [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [{:keys [pats]} (syntax/data (first-column row))]
+
+        )))
+   rows))
+
+
+
+
 ;; --------------------------------------------------------------------
 ;; Cap
 
@@ -626,7 +642,12 @@
           (case left-tag
             :cat
             (let [take-target (gensym* "take__")
-                  drop-target (gensym* "drop__")]
+                  drop-target (gensym* "drop__")
+                  n (transduce (map
+                                (comp syntax/cat-length syntax/left-node first-column))
+                               min
+                               n
+                               rows)]
               `(let [~take-target (take ~n ~target)
                      ~drop-target (drop ~n ~target)]
                  ~(compile (list* take-target drop-target (rest vars))
@@ -720,6 +741,7 @@
      (group-by
       (comp syntax/left-tag first-column)
       rows))))
+
 
 ;; --------------------------------------------------------------------
 ;; Pred
@@ -1192,18 +1214,20 @@
   [match-args]
   (s/conform ::match-args match-args))
 
+
 (s/fdef match
   :args ::match-args
   :ret any?)
+
 
 (defmacro match
   {:arglists '([target & pattern action ...])}
   [& match-args]
   (let [{:keys [target clauses]} (parse-match-args match-args)
         final-clause (some
-                      (fn [{:keys [pat rhs]}]
-                        (when (= pat [:any '_])
-                          rhs))
+                      (fn [{:keys [pat] :as clause}]
+                        (when (= pat '[:any _])
+                          clause))
                       clauses)
         clauses* (if final-clause
                    (remove (comp #{[:any '_]} :pat) clauses)
@@ -1220,14 +1244,10 @@
         form `(let [~target-sym ~target]
                 ~(compile vars rows `(throw backtrack)))]
     (if final-clause
-      (try-form form final-clause)
+      (try-form form (:rhs final-clause))
       `(try
          ~form
          (catch ~'Exception e#
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
-
-
-
-

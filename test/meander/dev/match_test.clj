@@ -382,14 +382,13 @@
 
 (t/deftest app-patterns-test
   (t/testing "app patterns"
-    (let [n (rand)]
+    (let [n (rand-int 100)]
       (t/is
        (r.match/match n
          (>> (partial repeat 3)
              (?a ?b ?c :as ?ns))
          (and (= ?a ?b ?c n)
               (= ?ns [n n n]))
-
 
          _
          false)))
@@ -403,7 +402,8 @@
        (= 6 (+ ?x ?y ?z))
 
        _
-       :fail))))
+       false))))
+
 
 
 (t/deftest not-patterns-test
@@ -431,4 +431,3 @@
 
        _
        false))))
-

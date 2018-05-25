@@ -192,8 +192,9 @@
         :prd :meander.syntax/pred
         :cap :meander.syntax/cap
         :app :meander.syntax/app
-        :not :meander.syntax/not
         :and :meander.syntax/and
+        :not :meander.syntax/not
+        :or :meander.syntax/or
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
@@ -208,9 +209,10 @@
    :unq :meander.syntax/unquote
    :quo :meander.syntax/quote
    :prd :meander.syntax/pred
-   :not :meander.syntax/not
    :app :meander.syntax/app
+   :not :meander.syntax/not
    :and :meander.syntax/and
+   :or :meander.syntax/or
    ;; Should this be top-cap?
    :cap (s/cat
          :pat :meander.syntax/top-level
@@ -237,6 +239,13 @@
   (s/and seq?
          (s/cat
           :and '#{and}
+          :pats (s/* :meander.syntax/term))))
+
+
+(s/def :meander.syntax/or
+  (s/and seq?
+         (s/cat
+          :and '#{or}
           :pats (s/* :meander.syntax/term))))
 
 
@@ -428,8 +437,13 @@
   (min-length (:pat (data node))))
 
 
+(defn cat-length [cat-node]
+  {:pre [(has-tag? cat-node :cat)]}
+  (count (data cat-node)))
+
+
 (defmethod min-length :cat [node]
-  (count (data node)))
+  (cat-length node))
 
 
 (defmethod min-length :drop [node]
@@ -544,6 +558,7 @@
   (let [{:keys [left right]} part-data
         [left-tag left-data] left
         [right-tag right-data] right]
+
     (case [left-tag right-tag]
       [:cat :cat]
       [:part
@@ -555,7 +570,8 @@
         (if (has-tag? right-left :cat)
           (recur [:part (assoc part-data
                                :left (cat-cats left right-left)
-                               :right right-right)])))
+                               :right right-right)])
+          part))
 
       ;; else
       part)))
@@ -722,6 +738,20 @@
                                 :right [:seq-end]}])])))
    node))
 
+(defn part-expand-left-part [node]
+  (if (part-node? node)
+    (let [{:keys [left right]} (data node)]
+      (if (part-node? left)
+        [:part
+         {:left (left-node left)
+          :right (if (= (right-tag left) :seq-end)
+                   right
+                   [:part {:left (right-node left)
+                           :right right}])}]
+        node))
+    node))
+
+
 (defn parse
   [form]
   (->> (parse* form)
@@ -729,7 +759,8 @@
        (walk/postwalk collapse-pat)
        (walk/postwalk rewrite-cap-cat)
        (walk/postwalk part-to-vpart)
-       (walk/postwalk part-ensure-seq-end)))
+       (walk/postwalk part-ensure-seq-end)
+       (walk/prewalk part-expand-left-part)))
 
 (defmethod min-length :vpart
   [node]
