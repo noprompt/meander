@@ -151,6 +151,7 @@
     :drop
     :init
     :mem
+    :not
     :prd
     :rest
     :rep
@@ -247,7 +248,7 @@
 
 
 ;; ---------------------------------------------------------------------
-;; app
+;; App
 
 
 (defmethod compile-ctor-clauses :app [_tag vars rows default]
@@ -279,6 +280,33 @@
     (fn [row]
       [true
        (compile (rest vars) [(drop-column row)] default)]))
+   rows))
+
+
+;; ---------------------------------------------------------------------
+;; Not
+
+
+(defmethod compile-ctor-clauses :not [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [{:keys [pats]} (syntax/data (first-column row))]
+        (if (= (count pats) 1)
+          [(compile (take 1 vars)
+                    [{:cols pats
+                      :rhs false}]
+                    true)
+           (compile (rest vars) [(drop-column row)] default)]
+          [(compile (take 1 vars)
+                    [{:cols [(first pats)]
+                      :rhs false}]
+                    true)
+           (compile vars
+                    [(assoc row :cols
+                            (cons [:not {:pats (rest pats)}]
+                                  (rest-columns row)))]
+                    default)]))))
    rows))
 
 
@@ -1202,12 +1230,4 @@
 
 
 
-#_
-(match :okay
-  (>> (constantly 1) ?x
-      (>> (constantly 2)) ?y
-      (>> (constantly (+ ?x ?y))) ?z)
-  (+ ?x ?y ?z)
 
-  _
-  :fail)

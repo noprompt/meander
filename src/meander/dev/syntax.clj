@@ -3,8 +3,6 @@
             [clojure.spec.gen.alpha :as s.gen]
             [clojure.walk :as walk]))
 
-;; TODO: ... alone is a syntax error.
-
 
 (defn quote-form?
   [x]
@@ -21,12 +19,6 @@
 (defn app-symbol?
   [x]
   (= x '>>))
-
-
-(defn app-form?
-  [x]
-  (and (seq? x)
-       (= (first x) '>>)))
 
 
 (defn partition-symbol?
@@ -200,6 +192,7 @@
         :prd :meander.syntax/pred
         :cap :meander.syntax/cap
         :app :meander.syntax/app
+        :not :meander.syntax/not
         :and :meander.syntax/and
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
@@ -215,6 +208,7 @@
    :unq :meander.syntax/unquote
    :quo :meander.syntax/quote
    :prd :meander.syntax/pred
+   :not :meander.syntax/not
    :app :meander.syntax/app
    :and :meander.syntax/and
    ;; Should this be top-cap?
@@ -231,6 +225,12 @@
                :var :meander.syntax/var))
    :seq :meander.syntax/seq
    :lit :meander.syntax/lit))
+
+(s/def :meander.syntax/not
+  (s/and seq?
+         (s/cat
+          :not '#{not}
+          :pats (s/+ :meander.syntax/term))))
 
 
 (s/def :meander.syntax/and
@@ -869,3 +869,6 @@
    {}
    entries))
 
+
+(defmethod unparse :not [[_ {:keys [pats]}]]
+  (cons 'not (sequence (map unparse) pats)))

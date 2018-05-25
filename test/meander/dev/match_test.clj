@@ -378,3 +378,57 @@
 
        _
        false))))
+
+
+(t/deftest app-patterns-test
+  (t/testing "app patterns"
+    (let [n (rand)]
+      (t/is
+       (r.match/match n
+         (>> (partial repeat 3)
+             (?a ?b ?c :as ?ns))
+         (and (= ?a ?b ?c n)
+              (= ?ns [n n n]))
+
+
+         _
+         false)))
+
+    ;; You can program with app patterns! XD
+    (t/is
+     (r.match/match :okay
+       (>> (constantly 1) ?x
+           (>> (constantly 2)) ?y
+           (>> (constantly (+ ?x ?y))) ?z)
+       (= 6 (+ ?x ?y ?z))
+
+       _
+       :fail))))
+
+
+(t/deftest not-patterns-test
+  (t/testing "not patterns"
+    (t/is
+     (r.match/match 3
+       (not 2)
+       true
+
+       _
+       false))
+
+    (t/is
+     (r.match/match 3
+       (not 2 (? even?))
+       true
+
+       _
+       false))
+
+    (t/is
+     (r.match/match (filter odd? (range 10))
+       ((not (? even?)) ...)
+       true
+
+       _
+       false))))
+
