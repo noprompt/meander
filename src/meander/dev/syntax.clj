@@ -18,6 +18,17 @@
        (= (first x) 'clojure.core/unquote)))
 
 
+(defn app-symbol?
+  [x]
+  (= x '>>))
+
+
+(defn app-form?
+  [x]
+  (and (seq? x)
+       (= (first x) '>>)))
+
+
 (defn partition-symbol?
   [x]
   (= x '.))
@@ -188,10 +199,10 @@
         :quo :meander.syntax/quote
         :prd :meander.syntax/pred
         :cap :meander.syntax/cap
+        :app :meander.syntax/app
         :and :meander.syntax/and
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
-
 
 (s/def :meander.syntax/top-level
   (s/or
@@ -204,6 +215,7 @@
    :unq :meander.syntax/unquote
    :quo :meander.syntax/quote
    :prd :meander.syntax/pred
+   :app :meander.syntax/app
    :and :meander.syntax/and
    ;; Should this be top-cap?
    :cap (s/cat
@@ -225,6 +237,14 @@
   (s/and seq?
          (s/cat
           :and '#{and}
+          :pats (s/* :meander.syntax/term))))
+
+
+(s/def :meander.syntax/app
+  (s/and seq?
+         (s/cat
+          :app-sym '#{>>}
+          :expr any?
           :pats (s/* :meander.syntax/term))))
 
 
@@ -818,6 +838,10 @@
 
 (defmethod unparse :and [[_ {:keys [pats]}]]
   (cons 'and (sequence (map unparse) pats)))
+
+
+(defmethod unparse :app [[_ {:keys [expr pats]}]]
+  (cons '>> (cons expr (sequence (map unparse) pats))))
 
 
 (defmethod unparse :drop [_]

@@ -147,6 +147,7 @@
 (def not-ground-tags
   #{:and
     :any
+    :app
     :drop
     :init
     :mem
@@ -241,6 +242,26 @@
                             (rest vars))
                     [(next-columns row)]
                     default))])))
+   rows))
+
+
+
+;; ---------------------------------------------------------------------
+;; app
+
+
+(defmethod compile-ctor-clauses :app [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [{:keys [expr pats]} (syntax/data (first-column row))
+            and-pat [:and {:pats pats}]
+            target (first vars)]
+        [true
+         `(let [~target (~expr ~target)]
+            ~(compile vars
+                      [(assoc row :cols (cons and-pat (rest-columns row)))]
+                      default))])))
    rows))
 
 
@@ -1178,3 +1199,15 @@
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
+
+
+
+#_
+(match :okay
+  (>> (constantly 1) ?x
+      (>> (constantly 2)) ?y
+      (>> (constantly (+ ?x ?y))) ?z)
+  (+ ?x ?y ?z)
+
+  _
+  :fail)
