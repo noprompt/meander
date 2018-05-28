@@ -431,3 +431,23 @@
 
        _
        false))))
+
+(t/deftest part-test
+  (r.match/match '(do :foo :bar :baz)
+    (do . !statements ... . ?ret)
+    (and (= !statements [:foo :bar])
+         (= ?ret :baz))
+
+    _
+    false)
+
+
+  (r.match/match '(cond :foo :bar :baz :quux)
+    (cond . ((!xs !ys :as !pairs) ... :as !all-pairs))
+    (and (= !xs [:foo :baz])
+         (= !ys [:bar :quux])
+         (= !pairs [[:foo :bar], [:baz :quux]])
+         ;; BUG: This should be [:foo :bar :baz :quux].
+         (= [[]] !all-pairs)) 
+    _
+    false))

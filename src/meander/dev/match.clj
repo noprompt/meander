@@ -640,6 +640,17 @@
        (let [n (min-min-length rows)]
          [true
           (case left-tag
+            :cap
+            (compile (cons (first vars) vars)
+                     (map
+                      (fn [row]
+                        (let [part-data (syntax/data (first-column row))
+                              {:keys [pat var]} (syntax/data (:left part-data))
+                              right (:right part-data)]
+                          (assoc row :cols (list* var pat right (rest-columns row)))))
+                      rows)
+                     default)
+
             :cat
             (let [take-target (gensym* "take__")
                   drop-target (gensym* "drop__")
@@ -1251,3 +1262,4 @@
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
+
