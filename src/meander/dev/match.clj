@@ -453,7 +453,7 @@
                (= val# ~(compile-ground (syntax/unparse val-pat)))
                false))
 
-          ::map-no-check
+          (:map ::map-no-check)
           (let [entries (syntax/data node)]
             (case (count entries)
               0
@@ -1262,4 +1262,3 @@
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
-

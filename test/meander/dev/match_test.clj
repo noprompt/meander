@@ -441,7 +441,6 @@
     _
     false)
 
-
   (r.match/match '(cond :foo :bar :baz :quux)
     (cond . ((!xs !ys :as !pairs) ... :as !all-pairs))
     (and (= !xs [:foo :baz])
@@ -451,3 +450,23 @@
          (= [[]] !all-pairs)) 
     _
     false))
+
+
+
+(t/deftest map-pattern-test
+  (t/is
+   (r.match/match {:c 'c :e 'e :k [:halt]}
+     {:k [:halt]}
+     true
+
+     _
+     false))
+
+  (t/is
+   (false?
+    (r.match/match {:c 'c :e 'e :k [:halt]}
+      {:k [:okay]}
+      true
+
+      _
+      false))))
