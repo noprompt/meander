@@ -121,29 +121,6 @@
    matrix))
 
 
-(defn variables
-  "Return all variable nodes in x."
-  [x]
-  (into #{}
-        (keep
-         (fn [x]
-           (cond
-             (and (or (syntax/has-tag? x :var)
-                      (syntax/has-tag? x :mem))
-                  (simple-symbol? (syntax/data x)))
-             x
-
-             ;; Technically this is not needed. The particular use of
-             ;; tree-seq will cause [:mem !name] to be located
-             ;; (as a map entry), however, relying on this feels
-             ;; dishonest and, so, it's explicitly stated here.
-             (or (syntax/has-tag? x :rest)
-                 (syntax/has-tag? x :init))
-             (if-some [mem-var (find (syntax/data x) :mem)]
-               mem-var))))
-        (tree-seq seqable? seq x)))
-
-
 (def not-ground-tags
   #{:and
     :any
@@ -324,8 +301,6 @@
    rows))
 
 
-
-
 ;; --------------------------------------------------------------------
 ;; Cap
 
@@ -378,7 +353,7 @@
              ~(compile vars* rows* default))]
 
          :vcat
-         [`(== ~n (count (subvec ~target 0 ~n)))
+         [`(<= ~n (count ~target))
           `(let [~@(mapcat identity nth-forms)]
              ~(compile vars* rows* default))])))
    (group-by
@@ -392,7 +367,6 @@
 
 (defmethod compile-ctor-clauses :vcat [tag vars rows default]
   (compile-cat-clauses tag vars rows default))
-
 
 
 
@@ -814,7 +788,7 @@
              n (if (= (syntax/tag pat) :cat)
                  (count (syntax/data pat))
                  (count (syntax/data (:pat (syntax/data pat)))))
-             pat-vars (variables pat)
+             pat-vars (syntax/variables pat)
              let-bindings (into []
                                 (mapcat
                                  (fn [[kind sym]]

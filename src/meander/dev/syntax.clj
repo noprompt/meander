@@ -34,7 +34,7 @@
 (defn k-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (some? (re-matches #"..\d+" (name x)))))
+       (some? (re-matches #"\.\.\d+" (name x)))))
 
 
 (defn wildcard-symbol?
@@ -903,3 +903,24 @@
 
 (defmethod unparse :not [[_ {:keys [pats]}]]
   (cons 'not (sequence (map unparse) pats)))
+
+
+(defn variables
+  "Return all variable nodes in x."
+  [x]
+  (into #{}
+        (keep
+         (fn [x]
+           (cond
+             (map-entry? x)
+             nil
+             
+             (and (or (has-tag? x :var)
+                      (has-tag? x :mem))
+                  (simple-symbol? (data x)))
+             x
+
+             (or (has-tag? x :rest)
+                 (has-tag? x :init))
+             (find (data x) :mem))))
+        (tree-seq seqable? seq x)))
