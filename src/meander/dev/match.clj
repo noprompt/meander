@@ -133,6 +133,7 @@
     :rest
     :rep
     :repk
+    :unq
     :var})
 
 ;; multimethod?
@@ -771,7 +772,7 @@
   ":rep nodes have the following structures."
   [:rep {:init [:cat [,,,]]
          :sym ...}]
- [:rep {:init [:cap {:pat [:cat [,,,]] ,,,}]
+  [:rep {:init [:cap {:pat [:cat [,,,]] ,,,}]
          :sym ...}]
   "The :init val will either be :cap or :cat.")
 
@@ -889,6 +890,20 @@
        ~(compile vars*
                  (map drop-column rows)
                  default)]]))
+
+
+;; --------------------------------------------------------------------
+;; Unquote
+
+
+(defmethod compile-ctor-clauses :unq [_tag vars rows default]
+  (sequence
+   (map
+    (fn [row]
+      (let [val (second (syntax/data (first-column row)))]
+        [`(= ~val ~(first vars))
+         (compile (rest vars) [(drop-column row)] default)])))
+   rows))
 
 
 ;; --------------------------------------------------------------------

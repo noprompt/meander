@@ -905,6 +905,10 @@
   (cons 'not (sequence (map unparse) pats)))
 
 
+(defmethod unparse :unq [[_ x]]
+  x)
+
+
 (defn variables
   "Return all variable nodes in x."
   [x]
