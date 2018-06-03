@@ -1194,7 +1194,8 @@
 
 
 ;; ---------------------------------------------------------------------
-;; Match
+;; Match macros
+
 
 (s/def ::match-clauses
   (s/* (s/cat
@@ -1221,7 +1222,8 @@
 
 
 (defmacro match
-  {:arglists '([target & pattern action ...])}
+  {:arglists '([target & pattern action ...])
+   :style/indent :defn}
   [& match-args]
   (let [{:keys [target clauses]} (parse-match-args match-args)
         final-clause (some
@@ -1251,3 +1253,54 @@
            (if (identical? e# backtrack)
              (throw (Exception. "non exhaustive pattern match"))
              (throw e#)))))))
+
+(s/fdef match->
+  :args ::match-args
+  :ret any?)
+
+(defmacro match->
+  "Takes an expression and a set of pattern/form pairs. Threads expr
+  (via ->) through each form for which the corresponding pattern
+  matches."
+  {:style/indent :defn}
+  ([form] form)
+  ([form pat expr & more-clauses]
+   `(match->
+      (r.match/match ~form
+        ~pat
+        (-> ~form ~expr)
+
+        ~'_
+        ~form)
+      ~@more-clauses)))
+
+
+(s/fdef match->>
+  :args ::match-args
+  :ret any?)
+
+
+(defmacro match->>
+  "Takes an expression and a set of pattern/form pairs. Threads expr
+  (via ->>) through each form for which the corresponding pattern
+  matches."
+  {:style/indent :defn}
+  ([form] form)
+  ([form pat expr & more-clauses]
+   `(match->>
+      (r.match/match ~form
+        ~pat
+        (->> ~form ~expr)
+
+        ~'_
+        ~form)
+      ~@more-clauses)))
+
+
+(s/fdef when-match
+  :args ::match-args
+  :ret any?)
+
+
+(defmacro when-match [expr & clauses]
+  `(match ~expr ~@clauses ~'_ nil))
