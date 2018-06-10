@@ -487,7 +487,8 @@
 
 (defn read-forms-from-file
   [^java.io.File file]
-  (let [rdr (java.io.FileReader. file)
+  (let [source (.getCanonicalPath file)
+        rdr (java.io.FileReader. file)
         pbr (java.io.PushbackReader. rdr)
         pbr (read.types/source-logging-push-back-reader pbr)
         eof (Object.)
@@ -500,7 +501,10 @@
       (seq [this]
         ((fn step []
            (let [form (binding [read/*alias-map* @env1]
-                        (read/read {:eof eof} pbr))]
+                        (read/read {:eof eof} pbr))
+                 form (if-some [m (meta form)]
+                        (vary-meta form assoc :source source)
+                        form)]
              (when-some [m (alias-map form)]
                (vswap! env1 merge m))
              (if (identical? form eof)
@@ -513,7 +517,10 @@
           (if (reduced? acc)
             acc
             (let [form (binding [read/*alias-map* @env2]
-                         (read/read {:eof eof} pbr))]
+                         (read/read {:eof eof} pbr))
+                  form (if-some [m (meta form)]
+                         (vary-meta form assoc :source source)
+                         form)]
               (when-some [m (alias-map form)]
                 (vswap! env2 merge m))
               (if (identical? form eof)
@@ -591,14 +598,24 @@
     (? set?)
     :set
 
+    (? symbol?)
+    :sym
+
+    (? keyword?)
+    :key
+
     _
     :all))
 
 
 (defn cljq-index-forms
   [forms]
-  (assoc (group-by cljq-index-key forms)
-         :all (vec forms)))
+  (let [all-forms (vec (tree-seq
+                        (every-pred (complement map-entry?) coll?)
+                        seq
+                        (vec forms)))]
+    (assoc (group-by cljq-index-key all-forms)
+           :all all-forms)))
 
 
 (def cljq-app-state
@@ -612,14 +629,14 @@
     (if-some [[_ [last-known-mod-time index]] (find @cljq-app-state file-name)]
       (let [current-mod-time (.lastModified file)]
         (if (not= last-known-mod-time current-mod-time)
-          (let [index* (cljq-index-forms (xread-file file))]
+          (let [index* (cljq-index-forms (read-forms-from-file file))]
             (prn {:cljq/event :cljq.index/update
                   :cljq.index/name file-name})
             (swap! cljq-app-state assoc file-name [current-mod-time index*])
             index*)
           index))
       (let [current-mod-time (.lastModified file)
-            index* (cljq-index-forms (xread-file file))]
+            index* (cljq-index-forms (read-forms-from-file file))]
         (prn {:cljq/event :cljq.index/create
               :cljq.index/name file-name})
         (swap! cljq-app-state assoc file-name [current-mod-time index*])
@@ -630,7 +647,6 @@
   "Execute a cljq query against file."
   [q ^java.io.File file]
   (cljq q (get (cljq-file-index file) (cljq-index-key q))))
-
 
 
 (defn cljq-dir
@@ -645,13 +661,41 @@
     (mapcat
      (fn [f]
        (cljq-file q f))))
-   (tree-seq
-    (memfn ^java.io.File isDirectory)
-    (memfn ^java.io.File listFiles)
-    dir)))
+   (file-seq dir)))
+
+
+(defn cljq-pattern-match?
+  [x]
+  (and (map? x)
+       (if-some [[_ tag] (find x :tag)]
+         (= tag :match/pattern)
+         false)))
+
+
+(defn cljq-var-match?
+  [x]
+  (and (map? x)
+       (if-some [[_ tag] (find x :tag)]
+         (= tag :match/var)
+         false)))
+
+
+(defn symbol-like-fn
+  ([re]
+   (fn [x]
+     (and (symbol? x)
+          (re-find re (str x))))))
 
 
 #_
-(cljq-dir
- '(defmethod ?name ?val . _ ...)
- (jio/file "src/meander/dev"))
+(time
+  (sequence
+   (comp
+    #_
+    (filter cljq-pattern-match?)
+    #_
+    (filter :var))
+   (cljq-dir
+    '(_ (? (symbol-like-fn #"Recomm")) . _ ...)
+    (jio/file "/Users/noprompt/git/healthfinch/hf-crede-rules-clj/src"))))
+
