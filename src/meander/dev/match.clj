@@ -1211,7 +1211,7 @@
 
 
 (defn parse-match-args
-  {:private [true]}
+  {:private true}
   [match-args]
   (s/conform ::match-args match-args))
 
