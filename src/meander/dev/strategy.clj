@@ -685,3 +685,19 @@
       (remove fail?))
      (tree-seq coll? seq t))))
 
+
+(s/fdef rewritet
+  :args ::match/match-clauses
+  :ret any?)
+
+
+(defmacro rewritet [& clauses]
+  (let [t-sym (gensym "t__")]
+    `(fn [~t-sym]
+       (r.match/match ~t-sym
+         ~@(mapcat
+            (fn [[lhs rhs]]
+              [lhs `(r.substitute/substitute ~rhs)])
+            (partition 2 clauses))
+         ~'_
+         ~t-sym))))
