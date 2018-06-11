@@ -1,5 +1,6 @@
 (ns meander.dev.syntax
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.set :as set]
+            [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
             [clojure.walk :as walk]))
 
@@ -14,6 +15,12 @@
   [x]
   (and (seq? x)
        (= (first x) 'clojure.core/unquote)))
+
+
+(defn unquote-splicing-form?
+  [x]
+  (and (seq? x)
+       (= (first x) 'clojure.core/unquote-splicing)))
 
 
 (defn app-symbol?
@@ -180,6 +187,16 @@
   unquote-form?)
 
 
+(s/def :meander.syntax/unquote-splicing
+  (s/with-gen 
+    unquote-splicing-form?
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         `(unquote-splicing ~x))
+       (s.gen/any)))))
+
+
 (s/def :meander.syntax/term
   (s/or :var :meander.syntax/var
         :mem :meander.syntax/mem
@@ -311,6 +328,7 @@
           :cat :meander.syntax/cat)
    :dot '#{.}
    :right (s/? :meander.syntax/elem)))
+
 
 (s/def :meander.syntax/elem
   (s/alt
@@ -928,3 +946,61 @@
                  (has-tag? x :init))
              (find (data x) :mem))))
         (tree-seq seqable? seq x)))
+
+
+(defn mem-vars
+  "Return all mem nodes in x."
+  [x]
+  (set/select (comp (partial = :mem) tag) (variables x)))
+
+
+(defmulti search?
+  {:arglists (:arglists (meta #'tag))
+   :doc "true if the pattern represented by node may have multiple
+  solutions."}
+  #'tag
+  :default ::default)
+
+
+(defmethod search? ::default [_]
+  false)
+
+
+(defmethod search? :map [[_ kvs]]
+  (boolean
+   (or (seq (variables (keys kvs)))
+       (some search? (vals kvs)))))
+
+
+(defmethod search? :and [[_ data]]
+  (boolean (some search? (:pats data))))
+
+
+(defmethod search? :cat [[_ data]]
+  (boolean (some search? data)))
+
+
+(defmethod search? :seq [[_ part]]
+  (search? part))
+
+
+(defmethod search? :part [[_ {:keys [left right]}]]
+  (or (search? left)
+      (search? right)
+      (and (variable-length? left)
+           (variable-length? right))))
+
+
+(defmethod search? :vec [[_ part]]
+  (search? part))
+
+
+(defmethod search? :vpart [[_ {:keys [left right]}]]
+  (or (search? left)
+      (search? right)
+      (and (variable-length? left)
+           (variable-length? right))))
+
+
+(defmethod search? :prd [[_ data]]
+  (boolean (some search? (:pats data))))
