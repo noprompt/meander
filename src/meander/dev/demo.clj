@@ -685,17 +685,3 @@
    (fn [x]
      (and (symbol? x)
           (re-find re (str x))))))
-
-
-#_
-(time
-  (sequence
-   (comp
-    #_
-    (filter cljq-pattern-match?)
-    #_
-    (filter :var))
-   (cljq-dir
-    '(_ (? (symbol-like-fn #"Recomm")) . _ ...)
-    (jio/file "/Users/noprompt/git/healthfinch/hf-crede-rules-clj/src"))))
-
