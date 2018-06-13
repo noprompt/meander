@@ -5,105 +5,229 @@
             [meander.dev.syntax :as r.syntax]
             [meander.util :as r.util]))
 
-
 (declare compile)
+
+;; ---------------------------------------------------------------------
+;; Matrix
+
+(defn search-and-match-matrices
+  "Splits matrix into search and match matrices and stores them in a
+  map under the keys :search and :match respectively.
+
+  A search matrix is a pattern matrix such that every pattern in the
+  first column is a search pattern (node). A match matrix is pattern
+  matrix such that no pattern in the first column is a search
+  pattern."
+  [matrix]
+  (group-by
+   (fn [row]
+     (if (r.syntax/search? (r.match/first-column row))
+       :search
+       :match))
+   matrix))
+
 
 (defn compile-ctor-clauses-strategy [tag _vars _rows _default]
   tag)
+
 
 (defmulti compile-ctor-clauses
   #'compile-ctor-clauses-strategy)
 
 
+(defn concat-form
+  {:private true}
+  [forms]
+  (if (< 1 (count forms))
+    `(concat ~@forms)
+    (first forms)))
+
+
+(defn compile-match-matrix
+  "Compiles each first column of each row in match-matrix as an
+  idependent singleton match matrix with the match compiler. The
+  right hand side of each row is rewritten as the compilation of
+  it's remaining columns wit the search compiler."
+  {:arglists '([vars match-matrix default])
+   :private true}
+  [vars matrix default]
+  (concat-form
+   (mapv r.match/compile
+         (repeat (take 1 vars))
+         (mapv
+          (fn [row]
+            (vector
+             (assoc row
+                    :cols [(r.match/first-column row)]
+                    :rhs
+                    (let [cols* (r.match/rest-columns row)]
+                      (if (seq cols*)
+                        (compile
+                         (drop 1 vars)
+                         [(assoc row :cols (r.match/rest-columns row))]
+                         default)
+                        `(list ~(:rhs row)))))))
+          matrix)
+         (repeat default))))
+
+
 (defmethod compile-ctor-clauses :default [_ vars rows default]
-  (r.match/compile
-   (take 1 vars)
-   (mapv
-    (fn [row]
-      (assoc row
-             :cols [(r.match/first-column row)]
-             :rhs
-             (compile
-              (drop 1 vars)
-              [(assoc row :cols (r.match/rest-columns row))]
-              default)))
-    rows)
-   default))
+  (compile-match-matrix vars rows default))
 
-(defn compile-parts [vars rows default]
-  (let [{:keys [matches searches]}
+
+;; ---------------------------------------------------------------------
+;; Seq, Vector
+
+
+(defn compile-sequential-matrix
+  {:private true}
+  [vars matrix default]
+  (compile vars
+           (map
+            (fn [row]
+              (assoc row
+                     :cols (cons (r.syntax/data (r.match/first-column row))
+                                 (r.match/rest-columns row))))
+            matrix)
+           default))
+
+
+(defmethod compile-ctor-clauses :seq [_ vars search-matrix default]
+  `(if (seq? ~(first vars))
+     ~(compile-sequential-matrix vars search-matrix default)))
+
+
+(defmethod compile-ctor-clauses :vec [_ vars search-matrix default]
+  `(if (vector? ~(first vars))
+     ~(compile-sequential-matrix vars search-matrix default)))
+
+
+;; ---------------------------------------------------------------------
+;; Part, VPart
+
+
+(defn compile-part-matrix
+  {:private true}
+  [vars search-matrix default]
+  (let [left-sym (gensym "left__")
+        right-sym (gensym "right__")
+        vars* (concat [left-sym right-sym] (rest vars))
+        {:keys [variable-length invariable-length]}
         (group-by
-         (comp {false :matches, true :searches}
-               r.syntax/search?
+         (comp {true :variable-length
+                false :invariable-length}
+               r.syntax/variable-length?
+               r.syntax/left-node
                r.match/first-column)
-         rows)
-        left-sym (gensym "left_vec__")
-        right-sym (gensym "right_vec__")
-        vars* (concat [left-sym right-sym] (rest vars))]
-    `(sequence
-      (mapcat
-       (fn [[~left-sym ~right-sym]]
-         ~(compile vars*
-                   (map
-                    (fn [row]
-                      (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
-                        (assoc (r.match/drop-column row)
-                               :cols (concat [left right] (r.match/rest-columns row)))))
-                    searches)
-                   (r.match/compile
-                    vars*
-                    (map
-                     (fn [row]
-                       (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
-                         (assoc (r.match/drop-column row)
-                                :cols (concat [left right] (r.match/rest-columns row))
-                                :rhs `(list ~(:rhs row)))))
-                     matches)
-                    default))))
-      (r.util/partitions 2 ~(first vars)))))
-
-
-(defmethod compile-ctor-clauses :vpart [_ vars rows default]
-  (compile-parts vars rows default))
+         search-matrix)
+        forms (mapv
+               (fn [[n rows]]
+                 `(let [~left-sym (take ~n ~(first vars))
+                        ~right-sym (drop ~n ~(first vars))]
+                    ~(compile vars*
+                              (map
+                               (fn [row]
+                                 (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
+                                   (assoc (r.match/drop-column row)
+                                          :cols (concat [left right] (r.match/rest-columns row)))))
+                               invariable-length)
+                              default)))
+               (group-by
+                (comp r.syntax/length
+                      r.syntax/left-node
+                      r.match/first-column)
+                invariable-length))
+        forms (if (seq variable-length)
+                (conj forms
+                      `(sequence
+                        (mapcat
+                         (fn [[~left-sym ~right-sym]]
+                           ~(compile vars*
+                                     (map
+                                      (fn [row]
+                                        (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
+                                          (assoc (r.match/drop-column row)
+                                                 :cols (concat [left right] (r.match/rest-columns row)))))
+                                      variable-length)
+                                     default)))
+                        (r.util/partitions 2 ~(first vars))))
+                forms)]
+    (concat-form forms)))
 
 
 (defmethod compile-ctor-clauses :part [_ vars rows default]
-  (compile-parts vars rows default))
+  (compile-part-matrix vars rows default))
 
 
-(defmethod compile-ctor-clauses :vec [_ vars rows default]
-  `(if (vector? ~(first vars))
-     ~(compile vars
-               (map
-                (fn [row]
-                  (assoc row
-                         :cols (cons (r.syntax/data (r.match/first-column row))
-                                     (r.match/rest-columns row))))
-                rows)
-               default)))
+(defmethod compile-ctor-clauses :vpart [_ vars rows default]
+  (compile-part-matrix vars rows default))
 
 
-(defmethod compile-ctor-clauses :seq [_ vars rows default]
-  `(if (seq? ~(first vars))
-     ~(compile vars
-               (map
-                (fn [row]
-                  (assoc row
-                         :cols (cons (r.syntax/data (r.match/first-column row))
-                                     (r.match/rest-columns row))))
-                rows)
-               default)))
+;; ---------------------------------------------------------------------
+;; Cat, VCat
 
 
-(defn compile [vars rows default]
-  (if (some? (r.match/first-column (first rows)))
-    `(concat
-      ~@(map
-         (fn [[tag rows]]
-           (compile-ctor-clauses tag vars rows default))
-         (group-by
-          (comp r.syntax/tag r.match/first-column)
-          rows)))
+(defn compile-cat-clauses [tag vars rows default]
+  (let [forms (mapv
+               (fn [[n rows]]
+                 (let [target (first vars)
+                       nth-forms (map
+                                  (fn [index]
+                                    [(gensym (str "nth_" index "__"))
+                                     `(nth ~target ~index)])
+                                  (range n))
+                       nth-vars (map first nth-forms)
+                       vars* (concat nth-vars (rest vars))
+                       rows* (map
+                              (fn [row]
+                                (assoc row
+                                       :cols (concat
+                                              (r.syntax/data (r.match/first-column row))
+                                              (r.match/rest-columns row))))
+                              rows)]
+                   (case tag
+                     :cat
+                     `(if (== ~n (count (take ~n ~target)))
+                        (let [~@(mapcat identity nth-forms)]
+                          ~(compile vars* rows* default)))
+
+                     :vcat
+                     `(if (== ~n (count ~target))
+                        (let [~@(mapcat identity nth-forms)]
+                          ~(compile vars* rows* default))))))
+               (group-by
+                (comp r.syntax/cat-length r.match/first-column)
+                rows))]
+    (concat-form forms)))
+
+
+(defmethod compile-ctor-clauses :cat [tag vars rows default]
+  (compile-cat-clauses tag vars rows default))
+
+
+(defmethod compile-ctor-clauses :vcat [tag vars rows default]
+  (compile-cat-clauses tag vars rows default))
+
+
+(defn compile
+  {:private true}
+  [vars matrix default]
+  (if (some? (r.match/first-column (first matrix)))
+    (let [matrices (search-and-match-matrices matrix)
+          search-matrix (:search matrices)
+          match-matrix (:match matrices)]
+      (concat-form
+       (cond-> []
+         search-matrix
+         (into (mapv
+                (fn [[tag rows]]
+                  (compile-ctor-clauses tag vars rows default))
+                (group-by
+                 (comp r.syntax/tag r.match/first-column)
+                 search-matrix)))
+
+         match-matrix
+         (conj (compile-match-matrix vars match-matrix default)))))
     default))
 
 
@@ -142,26 +266,36 @@
               clauses*)]
     `(let [~target-sym ~target]
        ~(compile vars rows (if final-clause
-                             `(list ~(:rhs final-clause))
-                             nil)))))
-
-
-#_
-(time
-  (search [1 2 3 4 5]
-    [!xs ... . !ys ... . !zs ...]
-    {:!xs !xs
-     :!ys !ys 
-     :!zs !zs}
-
-    [1 2 . !xs-2 ... . !ys-2 ...]
-    {:!xs-2 !xs-2
-     :!ys-2 !ys-2}))
+                             `(list ~(:rhs final-clause)))))))
 
 
 
-#_ ;; Not working
-(search [1 2 [1 2 3 4 5] 3 4 5]
-  [!xs ... . [!ws ... . !zs ...] . !ys ...]
-  [!xs !ws !zs !ys])
 
+
+(comment
+  (defn example [x]
+    (search x 
+      [!ws ... . [!xs ... . !ys ...] . !zs ...]
+      {:!ws !ws
+       :!xs !xs
+       :!ys !ys
+       :!zs !zs}
+
+      [!xs ... . [?a ... . ?b ...] . !ys ...]
+      {:?a ?a
+       :?b ?b}
+
+      [:A :B . !xs ... . :C :D]
+      {:!xs !xs}))
+  (time
+    (example [:A :B [1 1 1 2 2] :C :D]))
+  ;; =>
+  "Elapsed time: 0.226812 msecs"
+  ({:!ws [:A :B], :!xs [], :!ys [1 1 1 2 2], :!zs [:C :D]}
+   {:!ws [:A :B], :!xs [1], :!ys [1 1 2 2], :!zs [:C :D]}
+   {:!ws [:A :B], :!xs [1 1], :!ys [1 2 2], :!zs [:C :D]}
+   {:!ws [:A :B], :!xs [1 1 1], :!ys [2 2], :!zs [:C :D]}
+   {:!ws [:A :B], :!xs [1 1 1 2], :!ys [2], :!zs [:C :D]}
+   {:!ws [:A :B], :!xs [1 1 1 2 2], :!ys [], :!zs [:C :D]}
+   {:?a 1, :?b 2}
+   {:!xs [[1 1 1 2 2]]}))
