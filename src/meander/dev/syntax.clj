@@ -457,8 +457,10 @@
   (min-length (:pat (data node))))
 
 
+;; TODO: Remove and use length directly instead.
 (defn cat-length [cat-node]
-  {:pre [(has-tag? cat-node :cat)]}
+  {:pre [(or (has-tag? cat-node :cat)
+             (has-tag? cat-node :vcat))]}
   (count (data cat-node)))
 
 
