@@ -1057,7 +1057,15 @@
                      default)
 
             :vcat
-            (let [take-target (gensym* "left_vec__")
+            (let [;; n needs to be different here because the initial
+                  ;; part of the pattern may have a length shorter
+                  ;; than the total minimum length (which is what
+                  ;; min-length for :vpart returns).
+                  n (min-min-length
+                     (mapv (fn [row]
+                             {:cols [(syntax/left-node (first-column row))]})
+                           rows))
+                  take-target (gensym* "left_vec__")
                   drop-target (gensym* "right_vec__")
                   m (gensym* "m__")]
               `(let [~m (min (count ~target) ~n)
@@ -1171,7 +1179,7 @@
                      (if (and (seq? then)
                               (= (first then)
                                  'if)
-                              (= no-pred-body (nth then 3)))
+                              (= no-pred-body (nth then 3 nil)))
                        (let [then-pred (second then)
                              then-preds (if (and (seq? then-pred)
                                                  (= (first then-pred)
