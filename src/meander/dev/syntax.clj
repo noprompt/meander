@@ -1015,3 +1015,32 @@
 
 (defmethod search? :prd [[_ data]]
   (boolean (some search? (:pats data))))
+
+
+(defmulti length
+  {:arglists (:arglists (meta #'tag))
+   :doc "The length of tag."}
+  #'tag
+  :default ::default)
+
+
+(defmethod length :cat [[_ items]]
+  (count items))
+
+
+(defmethod length :vcat [[_ items]]
+  (count items))
+
+
+(defmethod length :cap [[_ {pat :pat}]]
+  (length pat))
+
+
+(defmethod length :part [[_ {:keys [left right]}]]
+  (+ (length left)
+     (length right)))
+
+
+(defmethod length :vpart [[_ {:keys [left right]}]]
+  (+ (length left)
+     (length right)))
