@@ -468,6 +468,10 @@
   (cat-length node))
 
 
+(defmethod min-length :vcat [node]
+  (cat-length node))
+
+
 (defmethod min-length :drop [node]
   0)
 
@@ -981,6 +985,9 @@
 
 
 (defmethod search? :cat [[_ data]]
+  (boolean (some search? data)))
+
+(defmethod search? :vcat [[_ data]]
   (boolean (some search? data)))
 
 
