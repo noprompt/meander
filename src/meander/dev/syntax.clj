@@ -400,8 +400,10 @@
 
 
 (s/def :meander.syntax.ast/part
-  (s/tuple #{:part} (s/keys :req-un [:meander.syntax.ast.part/left
-                                     :meander.syntax.ast.part/right])))
+  (s/tuple #{:part :vpart}
+           (s/keys :req-un [:meander.syntax.ast.part/left
+                            :meander.syntax.ast.part/right])))
+
 
 (defn part-node? [x]
   (s/valid? :meander.syntax.ast/part x))
