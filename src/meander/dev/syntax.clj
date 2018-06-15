@@ -204,6 +204,7 @@
         :any :meander.syntax/any
         :vec :meander.syntax/vec
         :map :meander.syntax/map
+        :set :meander.syntax/set
         :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
         :prd :meander.syntax/pred
@@ -223,6 +224,7 @@
    :any :meander.syntax/any
    :vec :meander.syntax/vec
    :map :meander.syntax/map
+   :set :meander.syntax/set
    :unq :meander.syntax/unquote
    :quo :meander.syntax/quote
    :prd :meander.syntax/pred
@@ -361,6 +363,10 @@
        ::s/invalid))))
 
 
+(s/def :meander.syntax/set
+  (s/coll-of :meander.syntax/top-level :kind set?))
+
+
 (s/def :meander.syntax/seq
   (s/and seq? :meander.syntax/elem))
 
@@ -407,6 +413,43 @@
 
 (defn part-node? [x]
   (s/valid? :meander.syntax.ast/part x))
+
+
+(s/def :meander.syntax.ast.rep/init
+  node?)
+
+
+(s/def :meander.syntax.ast/rep
+  (s/tuple #{:rep}
+           (s/keys :req-un [:meander.syntax.ast.rep/init])))
+
+
+(s/def :meander.syntax.ast/var
+  (s/tuple #{:var} var-symbol?))
+
+
+(defn cat-node-of?
+  {:private true}
+  [spec x]
+  (s/conform
+   (s/tuple #{:cat} (s/coll-of spec))
+   x))
+
+
+(defn rep-node? [x]
+  (s/valid? :meander.syntax.ast/rep x))
+
+
+(defn var-node? [x]
+  (s/valid? :meander.syntax.ast/var x))
+
+
+(defn rep-init
+  [rep-node]
+  {:pre [(rep-node? rep-node)]}
+  (let [[_ {init :init}] rep-node]
+    init))
+
 
 (defn data
   [node]
@@ -838,6 +881,8 @@
 (defmethod variable-length? :vec [node]
   (variable-length? (data node)))
 
+(defmethod variable-length? :cap [[_ {pat :pat}]]
+  (variable-length? pat))
 
 ;; ---------------------------------------------------------------------
 ;; Unparse

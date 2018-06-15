@@ -1229,6 +1229,35 @@
   :ret any?)
 
 
+(defn clauses->matrix
+  {:private true}
+  [clauses]
+  (into []
+        (comp
+         (map
+          (fn [{:keys [pat rhs] :as row}]
+            (let [check-if-bound-vars
+                  (into #{}
+                        (comp
+                         (filter syntax/rep-node?)
+                         (mapcat syntax/variables)
+                         (filter syntax/var-node?)
+                         (map syntax/data))
+                        (tree-seq coll? seq (:pat row)))
+                  rhs (if (seq check-if-bound-vars)
+                        `(if (contains? (has-set ~@check-if-bound-vars) ::unbound)
+                           (throw backtrack)
+                           ~rhs)
+                        rhs)]
+              (assoc row :rhs rhs))))
+         (map
+          (fn [{:keys [pat rhs]}]
+            {:cols [pat]
+             :env #{}
+             :rhs rhs})))
+        clauses))
+
+
 (defmacro match
   {:arglists '([target & pattern action ...])
    :style/indent :defn}
@@ -1244,13 +1273,7 @@
                    clauses)
         target-sym (gensym* "target__")
         vars [target-sym]
-        rows (sequence
-              (map
-               (fn [{:keys [pat rhs]}]
-                 {:cols [pat]
-                  :env #{}
-                  :rhs rhs}))
-              clauses*)
+        rows (clauses->matrix clauses*)
         form `(let [~target-sym ~target]
                 ~(compile vars rows `(throw backtrack)))]
     (if final-clause

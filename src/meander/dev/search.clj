@@ -62,11 +62,10 @@
                     :rhs
                     (let [cols* (r.match/rest-columns row)]
                       (if (seq cols*)
-                        (compile
-                         (drop 1 vars)
-                         [(assoc row :cols (r.match/rest-columns row))]
-                         default)
-                        `(list ~(:rhs row)))))))
+                        (compile (drop 1 vars)
+                                 [(assoc row :cols cols*)]
+                                 default)
+                        (:rhs row))))))
           matrix)
          (repeat default))))
 
@@ -242,60 +241,46 @@
   (s/conform ::r.match/match-args match-args))
 
 
+(defn clauses->matrix
+  {:private true}
+  [clauses]
+  (into []
+        (map
+         (fn [{:keys [pat rhs] :as clause}]
+           (let [check-if-bound-vars
+                 (into #{}
+                       (comp
+                        (filter r.syntax/rep-node?)
+                        (mapcat r.syntax/variables)
+                        (filter r.syntax/var-node?)
+                        (map r.syntax/data))
+                       (tree-seq coll? seq (:pat clause)))
+                 rhs (if (seq check-if-bound-vars)
+                       `(if (contains? (hash-set ~@check-if-bound-vars) ::r.match/unbound)
+                          nil
+                          (list ~rhs))
+                       `(list ~rhs))]
+             {:cols [pat]
+              :env #{}
+              :rhs rhs})))
+        clauses))
+
+
 (defmacro search
+  "Like meander.dev.match/match macro extended to permit \"search
+  patterns\" and returns a lazy sequence of all resulting actions.
+
+  Search patterns are like match patterns but differ in that they
+  express patterns which may have multiple matches when applied. A map
+  pattern with variable keys, a set pattern with non-ground elements,
+  and a sequence containing neighboring variable subsequence patterns,
+  are all examples of such patterns."
   {:arglists '([target & pattern action ...])
    :style/indent :defn}
   [& search-args]
   (let [{:keys [target clauses]} (parse-search-args search-args)
-        final-clause (some
-                      (fn [{:keys [pat] :as clause}]
-                        (when (= pat '[:any _])
-                          clause))
-                      clauses)
-        clauses* (if final-clause
-                   (remove (comp #{[:any '_]} :pat) clauses)
-                   clauses)
         target-sym (gensym "target__")
         vars [target-sym]
-        rows (sequence
-              (map
-               (fn [{:keys [pat rhs]}]
-                 {:cols [pat]
-                  :env #{}
-                  :rhs rhs}))
-              clauses*)]
+        rows (clauses->matrix clauses)]
     `(let [~target-sym ~target]
-       ~(compile vars rows (if final-clause
-                             `(list ~(:rhs final-clause)))))))
-
-
-
-
-
-(comment
-  (defn example [x]
-    (search x 
-      [!ws ... . [!xs ... . !ys ...] . !zs ...]
-      {:!ws !ws
-       :!xs !xs
-       :!ys !ys
-       :!zs !zs}
-
-      [!xs ... . [?a ... . ?b ...] . !ys ...]
-      {:?a ?a
-       :?b ?b}
-
-      [:A :B . !xs ... . :C :D]
-      {:!xs !xs}))
-  (time
-    (example [:A :B [1 1 1 2 2] :C :D]))
-  ;; =>
-  "Elapsed time: 0.226812 msecs"
-  ({:!ws [:A :B], :!xs [], :!ys [1 1 1 2 2], :!zs [:C :D]}
-   {:!ws [:A :B], :!xs [1], :!ys [1 1 2 2], :!zs [:C :D]}
-   {:!ws [:A :B], :!xs [1 1], :!ys [1 2 2], :!zs [:C :D]}
-   {:!ws [:A :B], :!xs [1 1 1], :!ys [2 2], :!zs [:C :D]}
-   {:!ws [:A :B], :!xs [1 1 1 2], :!ys [2], :!zs [:C :D]}
-   {:!ws [:A :B], :!xs [1 1 1 2 2], :!ys [], :!zs [:C :D]}
-   {:?a 1, :?b 2}
-   {:!xs [[1 1 1 2 2]]}))
+       ~(compile vars rows nil))))
