@@ -27,12 +27,12 @@
    matrix))
 
 
-(defn compile-ctor-clauses-strategy [tag _vars _rows _default]
+(defn compile-tag-matrix-strategy [tag _vars _rows _default]
   tag)
 
 
-(defmulti compile-ctor-clauses
-  #'compile-ctor-clauses-strategy)
+(defmulti compile-tag-matrix
+  #'compile-tag-matrix-strategy)
 
 
 (defn concat-form
@@ -70,7 +70,7 @@
          (repeat default))))
 
 
-(defmethod compile-ctor-clauses :default [_ vars rows default]
+(defmethod compile-tag-matrix :default [_ vars rows default]
   (compile-match-matrix vars rows default))
 
 
@@ -91,12 +91,12 @@
            default))
 
 
-(defmethod compile-ctor-clauses :seq [_ vars search-matrix default]
+(defmethod compile-tag-matrix :seq [_ vars search-matrix default]
   `(if (seq? ~(first vars))
      ~(compile-sequential-matrix vars search-matrix default)))
 
 
-(defmethod compile-ctor-clauses :vec [_ vars search-matrix default]
+(defmethod compile-tag-matrix :vec [_ vars search-matrix default]
   `(if (vector? ~(first vars))
      ~(compile-sequential-matrix vars search-matrix default)))
 
@@ -154,11 +154,11 @@
     (concat-form forms)))
 
 
-(defmethod compile-ctor-clauses :part [_ vars rows default]
+(defmethod compile-tag-matrix :part [_ vars rows default]
   (compile-part-matrix vars rows default))
 
 
-(defmethod compile-ctor-clauses :vpart [_ vars rows default]
+(defmethod compile-tag-matrix :vpart [_ vars rows default]
   (compile-part-matrix vars rows default))
 
 
@@ -200,11 +200,11 @@
     (concat-form forms)))
 
 
-(defmethod compile-ctor-clauses :cat [tag vars rows default]
+(defmethod compile-tag-matrix :cat [tag vars rows default]
   (compile-cat-clauses tag vars rows default))
 
 
-(defmethod compile-ctor-clauses :vcat [tag vars rows default]
+(defmethod compile-tag-matrix :vcat [tag vars rows default]
   (compile-cat-clauses tag vars rows default))
 
 
@@ -220,7 +220,7 @@
          search-matrix
          (into (mapv
                 (fn [[tag rows]]
-                  (compile-ctor-clauses tag vars rows default))
+                  (compile-tag-matrix tag vars rows default))
                 (group-by
                  (comp r.syntax/tag r.match/first-column)
                  search-matrix)))
