@@ -27,12 +27,21 @@
    matrix))
 
 
-(defn compile-tag-matrix-strategy [tag _vars _rows _default]
+(defn compile-specialized-matrix-strategy
+  "Dispatch function used by compile-specialized-matrix."
+  {:private true}
+  [tag _vars _s-matrix _default]
   tag)
 
 
-(defmulti compile-tag-matrix
-  #'compile-tag-matrix-strategy)
+(defmulti compile-specialized-matrix
+  "Compiles the first column in the specialized matrix s-matrix.
+
+  A specialized matrix is a pattern matrix such that every pattern in
+  the first column is a pattern with the same tag."
+  {:arglists '([tag vars s-matrix default])
+   :private true}
+  #'compile-specialized-matrix-strategy)
 
 
 (defn concat-form
@@ -70,8 +79,8 @@
          (repeat default))))
 
 
-(defmethod compile-tag-matrix :default [_ vars rows default]
-  (compile-match-matrix vars rows default))
+(defmethod compile-specialized-matrix :default [_ vars s-matrix default]
+  (compile-match-matrix vars s-matrix default))
 
 
 ;; ---------------------------------------------------------------------
@@ -91,12 +100,12 @@
            default))
 
 
-(defmethod compile-tag-matrix :seq [_ vars search-matrix default]
+(defmethod compile-specialized-matrix :seq [_ vars search-matrix default]
   `(if (seq? ~(first vars))
      ~(compile-sequential-matrix vars search-matrix default)))
 
 
-(defmethod compile-tag-matrix :vec [_ vars search-matrix default]
+(defmethod compile-specialized-matrix :vec [_ vars search-matrix default]
   `(if (vector? ~(first vars))
      ~(compile-sequential-matrix vars search-matrix default)))
 
@@ -120,7 +129,7 @@
                r.match/first-column)
          search-matrix)
         forms (mapv
-               (fn [[n rows]]
+               (fn [[n matrix]]
                  `(let [~left-sym (take ~n ~(first vars))
                         ~right-sym (drop ~n ~(first vars))]
                     ~(compile vars*
@@ -129,7 +138,7 @@
                                  (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
                                    (assoc (r.match/drop-column row)
                                           :cols (concat [left right] (r.match/rest-columns row)))))
-                               invariable-length)
+                               matrix)
                               default)))
                (group-by
                 (comp r.syntax/length
@@ -154,21 +163,21 @@
     (concat-form forms)))
 
 
-(defmethod compile-tag-matrix :part [_ vars rows default]
-  (compile-part-matrix vars rows default))
+(defmethod compile-specialized-matrix :part [_ vars s-matrix default]
+  (compile-part-matrix vars s-matrix default))
 
 
-(defmethod compile-tag-matrix :vpart [_ vars rows default]
-  (compile-part-matrix vars rows default))
+(defmethod compile-specialized-matrix :vpart [_ vars s-matrix default]
+  (compile-part-matrix vars s-matrix default))
 
 
 ;; ---------------------------------------------------------------------
 ;; Cat, VCat
 
 
-(defn compile-cat-clauses [tag vars rows default]
+(defn compile-cat-clauses [tag vars s-matrix default]
   (let [forms (mapv
-               (fn [[n rows]]
+               (fn [[n s-matrix*]]
                  (let [target (first vars)
                        nth-forms (map
                                   (fn [index]
@@ -183,7 +192,7 @@
                                        :cols (concat
                                               (r.syntax/data (r.match/first-column row))
                                               (r.match/rest-columns row))))
-                              rows)]
+                              s-matrix*)]
                    (case tag
                      :cat
                      `(if (== ~n (count (take ~n ~target)))
@@ -196,16 +205,16 @@
                           ~(compile vars* rows* default))))))
                (group-by
                 (comp r.syntax/cat-length r.match/first-column)
-                rows))]
+                s-matrix))]
     (concat-form forms)))
 
 
-(defmethod compile-tag-matrix :cat [tag vars rows default]
-  (compile-cat-clauses tag vars rows default))
+(defmethod compile-specialized-matrix :cat [tag vars s-matrix default]
+  (compile-cat-clauses tag vars s-matrix default))
 
 
-(defmethod compile-tag-matrix :vcat [tag vars rows default]
-  (compile-cat-clauses tag vars rows default))
+(defmethod compile-specialized-matrix :vcat [tag vars s-matrix default]
+  (compile-cat-clauses tag vars s-matrix default))
 
 
 (defn compile
@@ -219,8 +228,8 @@
        (cond-> []
          search-matrix
          (into (mapv
-                (fn [[tag rows]]
-                  (compile-tag-matrix tag vars rows default))
+                (fn [[tag s-matrix]]
+                  (compile-specialized-matrix tag vars s-matrix default))
                 (group-by
                  (comp r.syntax/tag r.match/first-column)
                  search-matrix)))
@@ -281,6 +290,6 @@
   (let [{:keys [target clauses]} (parse-search-args search-args)
         target-sym (gensym "target__")
         vars [target-sym]
-        rows (clauses->matrix clauses)]
+        matrix (clauses->matrix clauses)]
     `(let [~target-sym ~target]
-       ~(compile vars rows nil))))
+       ~(compile vars matrix nil))))
