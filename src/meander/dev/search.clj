@@ -5,10 +5,13 @@
             [meander.dev.syntax :as r.syntax]
             [meander.util :as r.util]))
 
+
 (declare compile)
 
+
 ;; ---------------------------------------------------------------------
-;; Matrix
+;; Matrix utilities
+
 
 (defn search-and-match-matrices
   "Splits matrix into search and match matrices and stores them in a
@@ -25,6 +28,18 @@
        :search
        :match))
    matrix))
+
+
+(defn specialize-by
+  "Split matrix into submatrices by the return result of applying f to
+  the first column of each row in matrix."
+  {:private true}
+  [f matrix]
+  (group-by (comp f r.match/first-column) matrix))
+
+
+;; ---------------------------------------------------------------------
+;; Matrix compilation
 
 
 (defn compile-specialized-matrix-strategy
@@ -65,16 +80,20 @@
          (repeat (take 1 vars))
          (mapv
           (fn [row]
-            (vector
-             (assoc row
-                    :cols [(r.match/first-column row)]
-                    :rhs
-                    (let [cols* (r.match/rest-columns row)]
-                      (if (seq cols*)
-                        (compile (drop 1 vars)
-                                 [(assoc row :cols cols*)]
-                                 default)
-                        (:rhs row))))))
+            (let [node (r.match/first-column row)]
+              (vector
+               (assoc row
+                      :cols [node]
+                      :rhs
+                      (let [cols* (r.match/rest-columns row)]
+                        (if (seq cols*)
+                          (let [lvars (r.syntax/variables node)
+                                row* (if (seq vars)
+                                       (reduce r.match/add-sym row (map r.syntax/data lvars))
+                                       row)
+                                row* (assoc row* :cols cols*)]
+                            (compile (drop 1 vars) [row*] default))
+                          (:rhs row)))))))
           matrix)
          (repeat default))))
 
@@ -216,7 +235,101 @@
 (defmethod compile-specialized-matrix :vcat [tag vars s-matrix default]
   (compile-cat-clauses tag vars s-matrix default))
 
+;; ---------------------------------------------------------------------
+;; Map
 
+
+(defmethod r.syntax/search? :entry [[_ {:keys [key-pat val-pat]}]]
+  (or (boolean (seq (r.syntax/variables key-pat)))
+      (r.syntax/search? val-pat)))
+
+
+(defmethod compile-specialized-matrix :entry
+  [_tag vars s-matrix default]
+  (compile vars
+           (map
+            (fn [row]
+              (let [[_ {:keys [key-pat val-pat]}] (r.match/first-column row)
+                    vec-node [:vec
+                              [:vpart
+                               {:left [:vcat [key-pat val-pat]]
+                                :right [:seq-end]}]]]
+                (assoc row :cols (cons vec-node (r.match/rest-columns row)))))
+            s-matrix)
+           default))
+
+
+(defmethod compile-specialized-matrix :map [_tag vars s-matrix default]
+  `(if (map? ~(first vars))
+     ~(compile vars
+               (map
+                (fn [row]
+                  (let [[_ map-data] (r.match/first-column row)
+                        entries (into #{}
+                                      (map
+                                       (fn [[k v]]
+                                         [:entry {:key-pat k
+                                                  :val-pat v}]))
+                                      map-data)]
+                    ;; Let :set do the lifting for now.
+                    (assoc row :cols (cons [:set-no-check entries] (r.match/rest-columns row)))))
+                s-matrix)
+               default)
+     nil))
+
+;; ---------------------------------------------------------------------
+;; Set
+
+
+(defn compile-set-matrix
+  {:private true}
+  [vars s-matrix default]
+  (let [target (first vars)
+        perm-sym (gensym "perm__")]
+    (concat-form
+     (map
+      (fn [[n s-matrix*]]
+        (let [elem-syms (mapv gensym (repeat n "elem__"))
+              vars* (concat elem-syms (rest vars))]
+          `(if (<= ~n (count ~target))
+             (sequence
+              (mapcat
+               (fn [~perm-sym]
+                 (let [~elem-syms ~perm-sym]
+                   ~(compile vars*
+                             (map
+                              (fn [row]
+                                (assoc row :cols (concat (r.syntax/data (r.match/first-column row))
+                                                         (r.match/rest-columns row))))
+                              s-matrix*)
+                             default))))
+              (r.util/permutations ~target)))))
+      (specialize-by r.syntax/length s-matrix)))))
+
+
+(defmethod compile-specialized-matrix :set-no-check
+  [_tag vars s-matrix default]
+  (compile-set-matrix vars s-matrix default))
+
+
+(defmethod r.syntax/search? :set-no-check [[_ elems]]
+  (r.syntax/search? [:set elems]))
+
+
+(defmethod r.syntax/length :set-no-check [[_ elems]]
+  (r.syntax/length [:set elems]))
+
+
+(defmethod compile-specialized-matrix :set [_tag vars s-matrix default]
+  `(if (set? ~(first vars))
+     ~(compile-set-matrix vars s-matrix default)
+     nil))
+
+
+;; ---------------------------------------------------------------------
+;; Search macro
+
+;; TODO: Prioritize match columns over search columns.
 (defn compile
   {:private true}
   [vars matrix default]

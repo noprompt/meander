@@ -197,6 +197,26 @@
        (s.gen/any)))))
 
 
+(defn pattern-op-dispatch [x]
+  (if (seq? x)
+    (first x)))
+
+
+(defmulti pattern-op
+  {:arglists '([seq])}
+  #'pattern-op-dispatch)
+
+
+(defmethod pattern-op :default
+  [_]
+  ;; This is wrapped in a do because spec considers the form without
+  ;; it invalid.
+  (s/conformer
+   (fn [_]
+     (do ::s/invalid))
+   identity))
+
+
 (s/def :meander.syntax/term
   (s/or :var :meander.syntax/var
         :mem :meander.syntax/mem
@@ -213,6 +233,7 @@
         :and :meander.syntax/and
         :not :meander.syntax/not
         :or :meander.syntax/or
+        :usr (s/multi-spec pattern-op :usr)
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
@@ -244,6 +265,7 @@
     :as #{:as}
     :var (s/or :mem :meander.syntax/mem
                :var :meander.syntax/var))
+   :usr (s/multi-spec pattern-op :usr)
    :seq :meander.syntax/seq
    :lit :meander.syntax/lit))
 
@@ -372,7 +394,7 @@
 
 
 ;; ---------------------------------------------------------------------
-;; meander.syntax.parse
+;; meander.syntax.ast
 
 
 (defn parse*
@@ -557,7 +579,6 @@
   (min-length (data node)))
 
 
-
 (defn cat-cats [[_ xs] [_ ys]]
   [:cat (into (vec xs) ys)])
 
@@ -573,6 +594,15 @@
 
 (defmethod expand-pat ::no-tag [x]
   x)
+
+
+(defmulti expand-usr-pat
+  :op
+  :default ::no-op)
+
+
+(defmethod expand-pat :usr [[_ data]]
+  (expand-pat (expand-usr-pat data)))
 
 
 (defmethod expand-pat :cat [[_ pats]]
@@ -820,7 +850,6 @@
         node))
     node))
 
-
 (defn parse
   [form]
   (->> (parse* form)
@@ -855,6 +884,9 @@
   false)
 
 (defmethod variable-length? :part [node]
+  (boolean (some variable-length? ((juxt :left :right) (data node)))))
+
+(defmethod variable-length? :vpart [node]
   (boolean (some variable-length? ((juxt :left :right) (data node)))))
 
 (defmethod variable-length? :seq-end [_]
@@ -1062,6 +1094,10 @@
   (boolean (some search? (:pats data))))
 
 
+(defmethod search? :set [[_ data]]
+  (boolean (seq (variables data))))
+
+
 (defmulti length
   {:arglists (:arglists (meta #'tag))
    :doc "The length of tag."}
@@ -1089,3 +1125,58 @@
 (defmethod length :vpart [[_ {:keys [left right]}]]
   (+ (length left)
      (length right)))
+
+
+(defmethod length :set [[_ data]]
+  (count data))
+
+
+;; ---------------------------------------------------------------------
+;; Scan, VScan
+
+
+(defmethod pattern-op 'scan [_]
+  (s/cat :op '#{scan}
+         :pats (s/* :meander.syntax/term)))
+
+
+(defmethod pattern-op 'vscan [_]
+  (s/cat :op '#{vscan}
+         :pats (s/* :meander.syntax/term)))
+
+
+(defmethod expand-usr-pat 'scan
+  [data]
+  [:scan (:pats data)])
+
+
+(defmethod expand-pat :scan [[_ pats]]
+  [:seq
+   [:part
+    {:left [:drop]
+     :right
+     [:part
+      {:left [:cat pats]
+       :right [:drop]}]}]])
+
+
+(defmethod expand-usr-pat 'vscan
+  [data]
+  [:vscan (:pats data)])
+
+
+(defmethod expand-pat :vscan [[_ pats]]
+  [:vec
+   [:vpart
+    {:left [:drop]
+     :right [:vpart
+             {:left [:vcat pats]
+              :right [:drop]}]}]])
+
+
+(defmethod search? :scan [_]
+  true)
+
+
+(defmethod search? :vscan [_]
+  true)
