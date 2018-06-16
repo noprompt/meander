@@ -6,7 +6,8 @@
    [clojure.core :as clj]
    [clojure.spec.alpha :as s]
    [meander.dev.protocols :as protocols]
-   [meander.dev.match :as match]))
+   [meander.dev.match :as match]
+   [meander.dev.substitute :as r.substitute]))
 
 
 ;; ---------------------------------------------------------------------
@@ -694,7 +695,7 @@
 (defmacro rewritet [& clauses]
   (let [t-sym (gensym "t__")]
     `(fn [~t-sym]
-       (r.match/match ~t-sym
+       (match/match ~t-sym
          ~@(mapcat
             (fn [[lhs rhs]]
               [lhs `(r.substitute/substitute ~rhs)])
