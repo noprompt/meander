@@ -536,8 +536,6 @@
       rows))))
 
 
-
-
 (defn next-map-rows
   {:private true}
   [map-rows]
@@ -1245,7 +1243,7 @@
                          (map syntax/data))
                         (tree-seq coll? seq (:pat row)))
                   rhs (if (seq check-if-bound-vars)
-                        `(if (contains? (has-set ~@check-if-bound-vars) ::unbound)
+                        `(if (contains? (hash-set ~@check-if-bound-vars) ::unbound)
                            (throw backtrack)
                            ~rhs)
                         rhs)]
