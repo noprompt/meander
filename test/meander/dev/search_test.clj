@@ -27,9 +27,20 @@
               [:A :B . !xs ... . :C :D]
               {:!xs !xs}))))
 
-
   (t/is (= #{[[:med/ids :meds] [4 "four"]]
              [[:med/ids :meds] [3 "three"]]}
+           (set 
+            (r.search/search {:med/ids [{:med/id 3}
+                                        {:med/id 4}]
+                              :meds [{:med/id 3
+                                      :med/name "three"}
+                                     {:med/id 10
+                                      :med/name "ten"}
+                                     {:med/id 4,
+                                      :med/name "four"}]} 
+              {?k1 [_ ... . {:med/id ?id} . _ ... ]
+               ?k2 [_ ... . {:med/id ?id, :med/name ?name} . _ ...]}
+              [[?k1 ?k2] [?id ?name]]))
            (set 
             (r.search/search {:med/ids [{:med/id 3}
                                         {:med/id 4}]
