@@ -4,7 +4,8 @@
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
-            [meander.dev.syntax :as syntax])
+            [meander.dev.syntax :as syntax]
+            [meander.dev.matrix :as r.matrix])
   (:import [java.util.concurrent.atomic AtomicInteger]))
 
 
@@ -38,63 +39,6 @@
 
 ;; ---------------------------------------------------------------------
 ;; Pattern matrix
-
-
-(defn add-sym
-  "Add the symbol sym to the environment in row."
-  [row sym]
-  (update row :env (fnil conj #{}) sym))
-
-
-(defn get-sym
-  "Get the symbol sym from the environment in row."
-  [row sym]
-  (get (:env row) sym))
-
-
-(defn row-width
-  [row]
-  (count (:cols row)))
-
-
-(defn swap
-  "Swap elements at positions i and j in the vector v."
-  [v i j]
-  (let [v (vec v)]
-    (assoc v i (nth v j) j (nth v i))))
-
-
-(defn swap-column
-  "Swaps column i with column j in the matrix."
-  [matrix i j]
-  (sequence
-   (map
-    (fn [row]
-      (update row :cols swap i j)))
-   matrix))
-
-
-(defn nth-column
-  "Get the nth column in row."
-  ([row index]
-   (nth (:cols row) index))
-  ([row index not-found]
-   (nth (:cols row) index not-found)))
-
-
-(defn first-column
-  [row]
-  (nth-column row 0 nil))
-
-
-(defn rest-columns
-  [row]
-  (rest (:cols row)))
-
-
-(defn drop-column
-  [row]
-  (update row :cols rest))
 
 
 (defmulti tag-score
@@ -152,7 +96,7 @@
               (tag-score tag1)))
    (group-by
     (fn [row]
-      (when-some [column (first-column row)]
+      (when-some [column (r.matrix/first-column row)]
         (let [tag (syntax/tag column)]
           (if (ground? column)
             ::ground
@@ -167,7 +111,7 @@
   (transduce
    (map
     (fn [row]
-      (syntax/min-length (first-column row))))
+      (syntax/min-length (r.matrix/first-column row))))
    min
    Float/POSITIVE_INFINITY
    rows))
@@ -176,7 +120,7 @@
 (defn next-columns-dispatch
   {:private true}
   [row]
-  (syntax/tag (first-column row)))
+  (syntax/tag (r.matrix/first-column row)))
 
 
 (defmulti next-columns
@@ -204,19 +148,19 @@
 ;; And
 
 (defmethod next-columns :and [row]
-  (let [pats (:pats (syntax/data (first-column row)))]
-    (assoc row :cols (concat pats (rest-columns row)))))
+  (let [pats (:pats (syntax/data (r.matrix/first-column row)))]
+    (assoc row :cols (concat pats (r.matrix/rest-columns row)))))
 
 
 (defmethod compile-ctor-clauses :and [_tag vars rows default]
   (sequence
    (map
     (fn [row]
-      (let [pats (:pats (syntax/data (first-column row)))
+      (let [pats (:pats (syntax/data (r.matrix/first-column row)))
             n (count pats)]
         [true
          (if (zero? n)
-           (compile (rest vars) [(drop-column row)] default)
+           (compile (rest vars) [(r.matrix/drop-column row)] default)
            (compile (concat (repeat n (first vars))
                             (rest vars))
                     [(next-columns row)]
@@ -233,13 +177,13 @@
   (sequence
    (map
     (fn [row]
-      (let [{:keys [expr pats]} (syntax/data (first-column row))
+      (let [{:keys [expr pats]} (syntax/data (r.matrix/first-column row))
             and-pat [:and {:pats pats}]
             target (first vars)]
         [true
          `(let [~target (~expr ~target)]
             ~(compile vars
-                      [(assoc row :cols (cons and-pat (rest-columns row)))]
+                      [(assoc row :cols (cons and-pat (r.matrix/rest-columns row)))]
                       default))])))
    rows))
 
@@ -257,7 +201,7 @@
    (map
     (fn [row]
       [true
-       (compile (rest vars) [(drop-column row)] default)]))
+       (compile (rest vars) [(r.matrix/drop-column row)] default)]))
    rows))
 
 
@@ -269,13 +213,13 @@
   (sequence
    (map
     (fn [row]
-      (let [{:keys [pats]} (syntax/data (first-column row))]
+      (let [{:keys [pats]} (syntax/data (r.matrix/first-column row))]
         (if (= (count pats) 1)
           [(compile (take 1 vars)
                     [{:cols pats
                       :rhs false}]
                     true)
-           (compile (rest vars) [(drop-column row)] default)]
+           (compile (rest vars) [(r.matrix/drop-column row)] default)]
           [(compile (take 1 vars)
                     [{:cols [(first pats)]
                       :rhs false}]
@@ -283,7 +227,7 @@
            (compile vars
                     [(assoc row :cols
                             (cons [:not {:pats (rest pats)}]
-                                  (rest-columns row)))]
+                                  (r.matrix/rest-columns row)))]
                     default)]))))
    rows))
 
@@ -296,7 +240,7 @@
   (sequence
    (map
     (fn [row]
-      (let [{:keys [pats]} (syntax/data (first-column row))]
+      (let [{:keys [pats]} (syntax/data (r.matrix/first-column row))]
 
         )))
    rows))
@@ -308,13 +252,13 @@
 
 (defmethod next-columns :cap
   [row]
-  (let [node (first-column row)
+  (let [node (r.matrix/first-column row)
         {:keys [pat var]} (syntax/data node)
         ;; The var is placed in the first column before the pattern
         ;; since the checks around them, i.e. verifying equality in
         ;; the case of a logic variable, is potentially much cheaper
         ;; than testing the pattern first.
-        cols* (list* var pat (rest-columns row))]
+        cols* (list* var pat (r.matrix/rest-columns row))]
     (assoc row :cols cols*)))
 
 
@@ -344,8 +288,8 @@
                   (fn [row]
                     (assoc row
                            :cols (concat
-                                  (syntax/data (first-column row))
-                                  (rest-columns row))))
+                                  (syntax/data (r.matrix/first-column row))
+                                  (r.matrix/rest-columns row))))
                   rows)]
        (case tag
          :cat
@@ -358,7 +302,7 @@
           `(let [~@(mapcat identity nth-forms)]
              ~(compile vars* rows* default))])))
    (group-by
-    (comp count syntax/data first-column)
+    (comp count syntax/data r.matrix/first-column)
     rows)))
 
 
@@ -377,7 +321,7 @@
 
 (defmethod compile-ctor-clauses :drop [_tag vars rows default]
   [[true
-    (compile (rest vars) (map drop-column rows) default)]])
+    (compile (rest vars) (map r.matrix/drop-column rows) default)]])
 
 
 ;; ---------------------------------------------------------------------
@@ -450,9 +394,9 @@
 
           ;; else
           `(= ~target ~(compile-ground (syntax/unparse node))))
-        (compile vars* (map drop-column rows) default)])
+        (compile vars* (map r.matrix/drop-column rows) default)])
      (group-by
-      first-column
+      r.matrix/first-column
       rows))))
 
 
@@ -465,13 +409,13 @@
   (let [[target & vars*] vars]
     (map
      (fn [row]
-       (let [node (first-column row)
+       (let [node (r.matrix/first-column row)
              sym (:mem (syntax/data node))]
          [true
-          `(let [~sym ~(if (get-sym row sym)
+          `(let [~sym ~(if (r.matrix/get-sym row sym)
                          `(into ~sym ~target)
                          `(vec ~target))]
-             ~(compile vars* [(add-sym (drop-column row) sym)] default))]))
+             ~(compile vars* [(r.matrix/add-sym (r.matrix/drop-column row) sym)] default))]))
      rows)))
 
 
@@ -484,9 +428,9 @@
    (fn [[[_ val] rows]]
      `[(= ~(first vars) ~(compile-ground val))
        ~(compile (rest vars)
-                 (map drop-column rows)
+                 (map r.matrix/drop-column rows)
                  default)])
-   (group-by first-column rows)))
+   (group-by r.matrix/first-column rows)))
 
 
 ;; --------------------------------------------------------------------
@@ -522,8 +466,8 @@
                     (fn [row]
                       (assoc row
                              :cols (cons
-                                    (:val-pat (syntax/data (first-column row)))
-                                    (rest-columns row))))
+                                    (:val-pat (syntax/data (r.matrix/first-column row)))
+                                    (r.matrix/rest-columns row))))
                     rows)
              val-sym (gensym* "val__")
              vars* (cons val-sym rest-vars)
@@ -532,18 +476,18 @@
           `(let [~val-sym (get ~target ~key-form)]
              ~(compile vars* rows* default))]))
      (group-by
-      (comp :key-pat syntax/data first-column)
+      (comp :key-pat syntax/data r.matrix/first-column)
       rows))))
 
 
 (defn next-map-rows
   {:private true}
   [map-rows]
-  (let [map-nodes (map first-column map-rows)
+  (let [map-nodes (map r.matrix/first-column map-rows)
         [key-pat] (first (rank-keys map-nodes))]
     (reduce
      (fn [rows* map-row]
-       (let [data (syntax/data (first-column map-row))]
+       (let [data (syntax/data (r.matrix/first-column map-row))]
          (conj rows*
                (assoc map-row
                       :cols (if-some [[_ val-pat] (find data key-pat)]
@@ -554,16 +498,16 @@
                                  (if (= data* {})
                                    [:any '_]
                                    [::map-no-check data*])
-                                 (rest-columns map-row)))
+                                 (r.matrix/rest-columns map-row)))
                               (list*
                                [:any '_]
                                (if (= data {})
                                  [:any '_]
                                  [::map-no-check data]) 
-                               (rest-columns map-row)))))))
+                               (r.matrix/rest-columns map-row)))))))
      []
      (sort-by
-      (comp count syntax/data first-column)
+      (comp count syntax/data r.matrix/first-column)
       map-rows))))
 
 
@@ -592,10 +536,10 @@
     (sequence
      (map
       (fn [row]
-        (let [sym (syntax/data (first-column row))
-              row* (drop-column (add-sym row sym))]
+        (let [sym (syntax/data (r.matrix/first-column row))
+              row* (r.matrix/drop-column (r.matrix/add-sym row sym))]
           [true
-           `(let ~(if (some? (get-sym row sym))
+           `(let ~(if (some? (r.matrix/get-sym row sym))
                     [sym `(conj ~sym ~var)]
                     [sym `[~var]])
               ~(compile vars* [row*] default))])))
@@ -617,10 +561,10 @@
             (compile (cons (first vars) vars)
                      (map
                       (fn [row]
-                        (let [part-data (syntax/data (first-column row))
+                        (let [part-data (syntax/data (r.matrix/first-column row))
                               {:keys [pat var]} (syntax/data (:left part-data))
                               right (:right part-data)]
-                          (assoc row :cols (list* var pat right (rest-columns row)))))
+                          (assoc row :cols (list* var pat right (r.matrix/rest-columns row)))))
                       rows)
                      default)
 
@@ -628,7 +572,7 @@
             (let [take-target (gensym* "take__")
                   drop-target (gensym* "drop__")
                   n (transduce (map
-                                (comp syntax/cat-length syntax/left-node first-column))
+                                (comp syntax/cat-length syntax/left-node r.matrix/first-column))
                                min
                                n
                                rows)]
@@ -637,7 +581,7 @@
                  ~(compile (list* take-target drop-target (rest vars))
                            (map
                             (fn [row]
-                              (let [part-data (syntax/data (first-column row))
+                              (let [part-data (syntax/data (r.matrix/first-column row))
                                     left (:left part-data) 
                                     items (syntax/data left)]
                                 (assoc row :cols (if (seq items)
@@ -646,10 +590,10 @@
                                                             (if (seq left-b) 
                                                               [:part (assoc part-data :left [:cat left-b])]
                                                               (:right part-data))
-                                                            (rest-columns row)))
+                                                            (r.matrix/rest-columns row)))
                                                    (list* [:any '_]
                                                           (:right part-data)
-                                                          (rest-columns row))))))
+                                                          (r.matrix/rest-columns row))))))
                             rows)
                            default)))
 
@@ -661,8 +605,8 @@
                             (fn [row]
                               (assoc row
                                      :cols
-                                     (cons (:right (syntax/data (first-column row)))
-                                           (rest-columns row))))
+                                     (cons (:right (syntax/data (r.matrix/first-column row)))
+                                           (r.matrix/rest-columns row))))
                             rows)
                            default)))
 
@@ -679,8 +623,8 @@
                               (assoc row
                                      :cols
                                      (concat
-                                      ((juxt :left :right) (syntax/data (first-column row)))
-                                      (rest-columns row))))
+                                      ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
+                                      (r.matrix/rest-columns row))))
                             rows)
                            default)))
 
@@ -692,8 +636,8 @@
                           (assoc row
                                  :cols
                                  (concat
-                                  ((juxt :left :right) (syntax/data (first-column row)))
-                                  (rest-columns row))))
+                                  ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
+                                  (r.matrix/rest-columns row))))
                         rows)
                        default)
               (let [m (gensym* "m__")
@@ -708,8 +652,8 @@
                                 (assoc row
                                        :cols
                                        (concat
-                                        ((juxt :left :right) (syntax/data (first-column row)))
-                                        (rest-columns row))))
+                                        ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
+                                        (r.matrix/rest-columns row))))
                               rows)
                              default))))
 
@@ -718,12 +662,12 @@
                      (map
                       (fn [row]
                         (assoc row
-                               :cols (list* (:left (syntax/data (first-column row)))
-                                            (rest-columns row))))
+                               :cols (list* (:left (syntax/data (r.matrix/first-column row)))
+                                            (r.matrix/rest-columns row))))
                       rows)
                      default))]))
      (group-by
-      (comp syntax/left-tag first-column)
+      (comp syntax/left-tag r.matrix/first-column)
       rows))))
 
 
@@ -732,9 +676,9 @@
 
 
 (defmethod next-columns :prd [row]
-  (let [node (first-column row)
+  (let [node (r.matrix/first-column row)
         node* [:and {:pats (:pats (syntax/data node))}]]
-    (assoc row :cols (cons node* (rest-columns row)))))
+    (assoc row :cols (cons node* (r.matrix/rest-columns row)))))
 
 
 (defmethod compile-ctor-clauses :prd [_tag vars rows default]
@@ -744,7 +688,7 @@
       [`(~pred ~(first vars))
        (compile vars (sequence (map next-columns) rows) default)]))
    (group-by
-    (comp :pred syntax/data first-column)
+    (comp :pred syntax/data r.matrix/first-column)
     rows)))
 
 
@@ -756,10 +700,10 @@
   (sequence
    (map
     (fn [row]
-      (let [val (syntax/data (first-column row))]
+      (let [val (syntax/data (r.matrix/first-column row))]
         ;; No need to quote the value.
         [`(= ~val ~(first vars))
-         (compile (rest vars) [(drop-column row)] default)])))
+         (compile (rest vars) [(r.matrix/drop-column row)] default)])))
    rows))
 
 
@@ -783,7 +727,7 @@
   (let [target (first vars)]
     (map
      (fn [row]
-       (let [pat (:init (syntax/data (first-column row)))
+       (let [pat (:init (syntax/data (r.matrix/first-column row)))
              n (if (= (syntax/tag pat) :cat)
                  (count (syntax/data pat))
                  (count (syntax/data (:pat (syntax/data pat)))))
@@ -793,17 +737,17 @@
                                  (fn [[kind sym]]
                                    (case kind
                                      :mem
-                                     (if (get-sym row sym)
+                                     (if (r.matrix/get-sym row sym)
                                        [sym sym]
                                        [sym []])
 
                                      :var
-                                     (if (get-sym row sym)
+                                     (if (r.matrix/get-sym row sym)
                                        []
                                        [sym ::unbound]))))
                                 pat-vars)
-             let-env (:env (reduce add-sym row (filter syntax/mem-symbol? let-bindings)))
-             let-else (compile (rest vars) [(drop-column row)] default)
+             let-env (:env (reduce r.matrix/add-sym row (filter syntax/mem-symbol? let-bindings)))
+             let-else (compile (rest vars) [(r.matrix/drop-column row)] default)
              let-syms (take-nth 2 let-bindings)
              loop-name (gensym* "loop__")
              loop-bindings (into []
@@ -812,11 +756,11 @@
                                   (mapcat (juxt identity identity)))
                                  let-syms)
              loop-syms (vec (cons target (take-nth 2 loop-bindings)))
-             loop-env (:env (reduce add-sym row let-syms))
+             loop-env (:env (reduce r.matrix/add-sym row let-syms))
              slice (gensym* "slice__")
              loop-else `(if (not (seq ~target))
                           ~(compile (rest vars)
-                                    [(assoc (drop-column row) :env loop-env)]
+                                    [(assoc (r.matrix/drop-column row) :env loop-env)]
                                     default)
                           ~default)]
          [true
@@ -848,13 +792,13 @@
   (let [[target & vars*] vars]
     (map
      (fn [row]
-       (let [node (first-column row)
+       (let [node (r.matrix/first-column row)
              sym (:mem (syntax/data node))]
          [true
-          `(let [~sym ~(if (get-sym row sym)
+          `(let [~sym ~(if (r.matrix/get-sym row sym)
                          `(into ~sym ~target)
                          `(vec ~target))]
-             ~(compile vars* [(add-sym (drop-column row) sym)] default))]))
+             ~(compile vars* [(r.matrix/add-sym (r.matrix/drop-column row) sym)] default))]))
      rows)))
 
 
@@ -864,7 +808,7 @@
 
 (defmethod next-columns :seq
   [row]
-  (let [node (first-column row)
+  (let [node (r.matrix/first-column row)
         ;; TODO: Move to syntax.
         part (update (syntax/data node) 1 assoc :kind :seq)
         cols* (list* part (rest (:cols row)))]
@@ -886,7 +830,7 @@
   (let [[var & vars*] vars]
     `[[(not (seq ~var))
        ~(compile vars*
-                 (map drop-column rows)
+                 (map r.matrix/drop-column rows)
                  default)]]))
 
 
@@ -898,9 +842,9 @@
   (sequence
    (map
     (fn [row]
-      (let [val (second (syntax/data (first-column row)))]
+      (let [val (second (syntax/data (r.matrix/first-column row)))]
         [`(= ~val ~(first vars))
-         (compile (rest vars) [(drop-column row)] default)])))
+         (compile (rest vars) [(r.matrix/drop-column row)] default)])))
    rows))
 
 
@@ -917,8 +861,8 @@
     (let [{:keys [bound unbound]}
           (group-by
            (fn [row]
-             (let [sym (syntax/data (first-column row))]
-               (if (get-sym row sym)
+             (let [sym (syntax/data (r.matrix/first-column row))]
+               (if (r.matrix/get-sym row sym)
                  :bound
                  :unbound)))
            rows)]
@@ -926,21 +870,21 @@
         bound
         (into (map
                (fn [row]
-                 (let [[_ sym] (first-column row)]
+                 (let [[_ sym] (r.matrix/first-column row)]
                    [`(= ~target ~sym)
-                    (compile (rest vars) [(drop-column row)] default)]))
+                    (compile (rest vars) [(r.matrix/drop-column row)] default)]))
                bound))
         
         unbound
         (conj [true
                (let [rows* (map
                             (fn [row]
-                              (let [[_ sym] (first-column row)]
-                                (drop-column (add-sym row sym))))
+                              (let [[_ sym] (r.matrix/first-column row)]
+                                (r.matrix/drop-column (r.matrix/add-sym row sym))))
                             unbound)
                      body (compile (rest vars) rows* default)]
                  `(let [~@(mapcat
-                           (juxt (comp syntax/data first-column)
+                           (juxt (comp syntax/data r.matrix/first-column)
                                  (constantly target))
                            rows)]
                     ~body))])))))
@@ -953,7 +897,7 @@
 (defmethod next-columns :vec
   [row]
   (assoc row
-         :cols (cons (syntax/data (first-column row))
+         :cols (cons (syntax/data (r.matrix/first-column row))
                      (rest (:cols row)))))
 
 
@@ -979,10 +923,10 @@
             (compile (cons (first vars) vars)
                      (map
                       (fn [row]
-                        (let [part-data (syntax/data (first-column row))
+                        (let [part-data (syntax/data (r.matrix/first-column row))
                               {:keys [pat var]} (syntax/data (:left part-data))
                               right (:right part-data)]
-                          (assoc row :cols (list* var pat right (rest-columns row)))))
+                          (assoc row :cols (list* var pat right (r.matrix/rest-columns row)))))
                       rows)
                      default)
 
@@ -992,9 +936,9 @@
                  ~(compile (cons drop-vec (rest vars))
                            (map
                             (fn [row]
-                              (let [part-data (syntax/data (first-column row))
+                              (let [part-data (syntax/data (r.matrix/first-column row))
                                     right (:right part-data)]
-                                (assoc row :cols (cons right (rest-columns row)))))
+                                (assoc row :cols (cons right (r.matrix/rest-columns row)))))
                             rows)
                            default)))
 
@@ -1008,10 +952,10 @@
                  ~(compile (list* left-vec right-vec (rest vars))
                            (map
                             (fn [row]
-                              (let [part-data (syntax/data (first-column row))
+                              (let [part-data (syntax/data (r.matrix/first-column row))
                                     left (:left part-data)
                                     right (:right part-data)]
-                                (assoc row :cols (list* left right (rest-columns row)))))
+                                (assoc row :cols (list* left right (r.matrix/rest-columns row)))))
                             rows)
                            default)))
 
@@ -1023,8 +967,8 @@
                           (assoc row
                                  :cols
                                  (concat
-                                  ((juxt :left :right) (syntax/data (first-column row)))
-                                  (rest-columns row))))
+                                  ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
+                                  (r.matrix/rest-columns row))))
                         rows)
                        default)
               (let [m (gensym* "m__")
@@ -1039,8 +983,8 @@
                                 (assoc row
                                        :cols
                                        (concat
-                                        ((juxt :left :right) (syntax/data (first-column row)))
-                                        (rest-columns row))))
+                                        ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
+                                        (r.matrix/rest-columns row))))
                               rows)
                              default))))
 
@@ -1048,9 +992,9 @@
             (compile vars
                      (map
                       (fn [row]
-                        (let [part-data (syntax/data (first-column row))
+                        (let [part-data (syntax/data (r.matrix/first-column row))
                               left (:left part-data)]
-                          (assoc row :cols (cons left (rest-columns row)))))
+                          (assoc row :cols (cons left (r.matrix/rest-columns row)))))
                       rows)
                      default)
 
@@ -1061,7 +1005,7 @@
                   ;; min-length for :vpart returns).
                   n (min-min-length
                      (mapv (fn [row]
-                             {:cols [(syntax/left-node (first-column row))]})
+                             {:cols [(syntax/left-node (r.matrix/first-column row))]})
                            rows))
                   take-target (gensym* "left_vec__")
                   drop-target (gensym* "right_vec__")
@@ -1072,7 +1016,7 @@
                  ~(compile (list* take-target drop-target (rest vars))
                            (map
                             (fn [row]
-                              (let [part-data (syntax/data (first-column row))
+                              (let [part-data (syntax/data (r.matrix/first-column row))
                                     left (:left part-data) 
                                     items (syntax/data left)]
                                 (assoc row :cols (if (seq items)
@@ -1081,14 +1025,14 @@
                                                             (if (seq left-b) 
                                                               [:vpart (assoc part-data :left [:vcat left-b])]
                                                               (:right part-data))
-                                                            (rest-columns row)))
+                                                            (r.matrix/rest-columns row)))
                                                    (list* [:any '_]
                                                           (:right part-data)
-                                                          (rest-columns row))))))
+                                                          (r.matrix/rest-columns row))))))
                             rows)
                            default))))]))
      (group-by
-      (comp syntax/tag :left syntax/data first-column)
+      (comp syntax/tag :left syntax/data r.matrix/first-column)
       rows))))
 
 

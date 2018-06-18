@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.spec.alpha :as s]
             [meander.dev.match :as r.match]
+            [meander.dev.matrix :as r.matrix]
             [meander.dev.syntax :as r.syntax]
             [meander.util :as r.util]))
 
@@ -24,7 +25,7 @@
   [matrix]
   (group-by
    (fn [row]
-     (if (r.syntax/search? (r.match/first-column row))
+     (if (r.syntax/search? (r.matrix/first-column row))
        :search
        :match))
    matrix))
@@ -35,7 +36,7 @@
   the first column of each row in matrix."
   {:private true}
   [f matrix]
-  (group-by (comp f r.match/first-column) matrix))
+  (group-by (comp f r.matrix/first-column) matrix))
 
 
 ;; ---------------------------------------------------------------------
@@ -80,16 +81,16 @@
          (repeat (take 1 vars))
          (mapv
           (fn [row]
-            (let [node (r.match/first-column row)]
+            (let [node (r.matrix/first-column row)]
               (vector
                (assoc row
                       :cols [node]
                       :rhs
-                      (let [cols* (r.match/rest-columns row)]
+                      (let [cols* (r.matrix/rest-columns row)]
                         (if (seq cols*)
                           (let [lvars (r.syntax/variables node)
                                 row* (if (seq vars)
-                                       (reduce r.match/add-sym row (map r.syntax/data lvars))
+                                       (reduce r.matrix/add-sym row (map r.syntax/data lvars))
                                        row)
                                 row* (assoc row* :cols cols*)]
                             (compile (drop 1 vars) [row*] default))
@@ -113,8 +114,8 @@
            (map
             (fn [row]
               (assoc row
-                     :cols (cons (r.syntax/data (r.match/first-column row))
-                                 (r.match/rest-columns row))))
+                     :cols (cons (r.syntax/data (r.matrix/first-column row))
+                                 (r.matrix/rest-columns row))))
             matrix)
            default))
 
@@ -145,7 +146,7 @@
                 false :invariable-length}
                r.syntax/variable-length?
                r.syntax/left-node
-               r.match/first-column)
+               r.matrix/first-column)
          search-matrix)
         forms (mapv
                (fn [[n matrix]]
@@ -154,15 +155,15 @@
                     ~(compile vars*
                               (map
                                (fn [row]
-                                 (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
-                                   (assoc (r.match/drop-column row)
-                                          :cols (concat [left right] (r.match/rest-columns row)))))
+                                 (let [{:keys [left right]} (r.syntax/data (r.matrix/first-column row))]
+                                   (assoc (r.matrix/drop-column row)
+                                          :cols (concat [left right] (r.matrix/rest-columns row)))))
                                matrix)
                               default)))
                (group-by
                 (comp r.syntax/length
                       r.syntax/left-node
-                      r.match/first-column)
+                      r.matrix/first-column)
                 invariable-length))
         forms (if (seq variable-length)
                 (conj forms
@@ -172,9 +173,9 @@
                            ~(compile vars*
                                      (map
                                       (fn [row]
-                                        (let [{:keys [left right]} (r.syntax/data (r.match/first-column row))]
-                                          (assoc (r.match/drop-column row)
-                                                 :cols (concat [left right] (r.match/rest-columns row)))))
+                                        (let [{:keys [left right]} (r.syntax/data (r.matrix/first-column row))]
+                                          (assoc (r.matrix/drop-column row)
+                                                 :cols (concat [left right] (r.matrix/rest-columns row)))))
                                       variable-length)
                                      default)))
                         (r.util/partitions 2 ~(first vars))))
@@ -209,8 +210,8 @@
                               (fn [row]
                                 (assoc row
                                        :cols (concat
-                                              (r.syntax/data (r.match/first-column row))
-                                              (r.match/rest-columns row))))
+                                              (r.syntax/data (r.matrix/first-column row))
+                                              (r.matrix/rest-columns row))))
                               s-matrix*)]
                    (case tag
                      :cat
@@ -223,7 +224,7 @@
                         (let [~@(mapcat identity nth-forms)]
                           ~(compile vars* rows* default))))))
                (group-by
-                (comp r.syntax/cat-length r.match/first-column)
+                (comp r.syntax/cat-length r.matrix/first-column)
                 s-matrix))]
     (concat-form forms)))
 
@@ -249,12 +250,12 @@
   (compile vars
            (map
             (fn [row]
-              (let [[_ {:keys [key-pat val-pat]}] (r.match/first-column row)
+              (let [[_ {:keys [key-pat val-pat]}] (r.matrix/first-column row)
                     vec-node [:vec
                               [:vpart
                                {:left [:vcat [key-pat val-pat]]
                                 :right [:seq-end]}]]]
-                (assoc row :cols (cons vec-node (r.match/rest-columns row)))))
+                (assoc row :cols (cons vec-node (r.matrix/rest-columns row)))))
             s-matrix)
            default))
 
@@ -264,7 +265,7 @@
      ~(compile vars
                (map
                 (fn [row]
-                  (let [[_ map-data] (r.match/first-column row)
+                  (let [[_ map-data] (r.matrix/first-column row)
                         entries (into #{}
                                       (map
                                        (fn [[k v]]
@@ -272,7 +273,7 @@
                                                   :val-pat v}]))
                                       map-data)]
                     ;; Let :set do the lifting for now.
-                    (assoc row :cols (cons [:set-no-check entries] (r.match/rest-columns row)))))
+                    (assoc row :cols (cons [:set-no-check entries] (r.matrix/rest-columns row)))))
                 s-matrix)
                default)
      nil))
@@ -299,8 +300,8 @@
                    ~(compile vars*
                              (map
                               (fn [row]
-                                (assoc row :cols (concat (r.syntax/data (r.match/first-column row))
-                                                         (r.match/rest-columns row))))
+                                (assoc row :cols (concat (r.syntax/data (r.matrix/first-column row))
+                                                         (r.matrix/rest-columns row))))
                               s-matrix*)
                              default))))
               (r.util/permutations ~target)))))
@@ -333,7 +334,7 @@
 (defn compile
   {:private true}
   [vars matrix default]
-  (if (some? (r.match/first-column (first matrix)))
+  (if (some? (r.matrix/first-column (first matrix)))
     (let [matrices (search-and-match-matrices matrix)
           search-matrix (:search matrices)
           match-matrix (:match matrices)]
@@ -344,7 +345,7 @@
                 (fn [[tag s-matrix]]
                   (compile-specialized-matrix tag vars s-matrix default))
                 (group-by
-                 (comp r.syntax/tag r.match/first-column)
+                 (comp r.syntax/tag r.matrix/first-column)
                  search-matrix)))
 
          match-matrix
