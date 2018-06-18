@@ -6,6 +6,7 @@
    [clojure.java.io :as jio]
    [meander.dev.strategy :as r]
    [meander.dev.match :as r.match]
+   [meander.dev.search :as r.search]
    [meander.dev.syntax :as r.syntax]))
 
 
@@ -519,7 +520,7 @@
             (let [form (binding [read/*alias-map* @env2]
                          (read/read {:eof eof} pbr))
                   form (if-some [m (meta form)]
-                         (vary-meta form assoc :source source)
+                         (vary-meta form assoc :file source)
                          form)]
               (when-some [m (alias-map form)]
                 (vswap! env2 merge m))
