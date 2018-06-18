@@ -197,9 +197,13 @@
        (s.gen/any)))))
 
 
-(defn pattern-op-dispatch [x]
+(defn pattern-op-dispatch
+  "Dispatch function for pattern-op."
+  [x]
   (if (seq? x)
-    (first x)))
+    (let [y (first x)]
+      (if (symbol? y)
+        y))))
 
 
 (defmulti pattern-op
@@ -228,12 +232,12 @@
         :unq :meander.syntax/unquote
         :quo :meander.syntax/quote
         :prd :meander.syntax/pred
-        :cap :meander.syntax/cap
         :app :meander.syntax/app
         :and :meander.syntax/and
         :not :meander.syntax/not
         :or :meander.syntax/or
         :usr (s/multi-spec pattern-op :usr)
+        :cap :meander.syntax/cap
         :seq :meander.syntax/seq
         :lit :meander.syntax/lit))
 
@@ -248,11 +252,11 @@
    :set :meander.syntax/set
    :unq :meander.syntax/unquote
    :quo :meander.syntax/quote
-   :prd :meander.syntax/pred
    :app :meander.syntax/app
    :not :meander.syntax/not
    :and :meander.syntax/and
    :or :meander.syntax/or
+   :usr (s/multi-spec pattern-op :usr)
    ;; Should this be top-cap?
    :cap (s/cat
          :pat :meander.syntax/top-level
@@ -265,7 +269,6 @@
     :as #{:as}
     :var (s/or :mem :meander.syntax/mem
                :var :meander.syntax/var))
-   :usr (s/multi-spec pattern-op :usr)
    :seq :meander.syntax/seq
    :lit :meander.syntax/lit))
 
@@ -448,14 +451,6 @@
 
 (s/def :meander.syntax.ast/var
   (s/tuple #{:var} var-symbol?))
-
-
-(defn cat-node-of?
-  {:private true}
-  [spec x]
-  (s/conform
-   (s/tuple #{:cat} (s/coll-of spec))
-   x))
 
 
 (defn rep-node? [x]
@@ -1132,7 +1127,15 @@
 
 
 ;; ---------------------------------------------------------------------
-;; Scan, VScan
+;; scan, vscan
+;;
+;; The scan and vscan patterns have the following semantic
+;; equivalences (≈).
+;;
+;;  (scan pats ,,,) ≈ (_ ... . pats ,,, . _ ...)
+;; (vscan pats ,,,) ≈ [_ ... . pats ,,, . _ ...]
+;;
+;; The expansion of these
 
 
 (defmethod pattern-op 'scan [_]
@@ -1180,3 +1183,41 @@
 
 (defmethod search? :vscan [_]
   true)
+
+
+;; ---------------------------------------------------------------------
+;; re
+;;
+;; The re pattern has the following semantic equivalences (≈).
+;;
+;;          (re #"abc") ≈ (and (? (re-find? #"abc")))
+;; (re #"abc" :as ?var) ≈ (and (? (re-find? #"abc")) ?var)
+;; (re #"abc" :as !var) ≈ (and (? (re-find? #"abc")) !var)
+;;
+;; where re-find? is
+;;
+;; (fn [re]
+;;   (fn [x]
+;;     (and (string? x)
+;;          (some? (re-find re x)))))
+
+
+(defmethod pattern-op 're [_]
+  (s/cat :op '#{re}
+         :re (fn [x]
+               (instance? java.util.regex.Pattern x))
+         :cap (s/?
+               (s/cat :as '#{:as}
+                      :var (s/or :mem :meander.syntax/mem
+                                 :var :meander.syntax/var)))))
+
+
+(defmethod expand-usr-pat 're
+  [data]
+  (parse
+   `(~'and
+     (~'? (fn [x#]
+            (and (string? x#)
+                 (some? (re-find ~(:re data) x#)))))
+     ~@(when-some [[_ var-sym] (get-in data [:cap :var])]
+         (list var-sym)))))
