@@ -83,7 +83,6 @@
 (defn specialize-by
   "Split matrix into submatrices by the return result of applying f to
   the first column of each row in matrix."
-  {:private true}
   [f matrix]
   (group-by (comp f first-column) matrix))
 
