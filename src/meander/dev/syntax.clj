@@ -252,6 +252,7 @@
    :set :meander.syntax/set
    :unq :meander.syntax/unquote
    :quo :meander.syntax/quote
+   :prd :meander.syntax/pred
    :app :meander.syntax/app
    :not :meander.syntax/not
    :and :meander.syntax/and
