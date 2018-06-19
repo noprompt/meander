@@ -31,14 +31,6 @@
    matrix))
 
 
-(defn specialize-by
-  "Split matrix into submatrices by the return result of applying f to
-  the first column of each row in matrix."
-  {:private true}
-  [f matrix]
-  (group-by (comp f r.matrix/first-column) matrix))
-
-
 ;; ---------------------------------------------------------------------
 ;; Matrix compilation
 
@@ -305,7 +297,7 @@
                               s-matrix*)
                              default))))
               (r.util/permutations ~target)))))
-      (specialize-by r.syntax/length s-matrix)))))
+      (r.matrix/specialize-by r.syntax/length s-matrix)))))
 
 
 (defmethod compile-specialized-matrix :set-no-check
