@@ -4,6 +4,7 @@
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
+            [clojure.string :as string]
             [meander.dev.syntax :as syntax]
             [meander.dev.matrix :as r.matrix])
   (:import [java.util.concurrent.atomic AtomicInteger]))
@@ -235,15 +236,110 @@
 ;; ---------------------------------------------------------------------
 ;; Or
 
-#_
-(defmethod compile-ctor-clauses :or [_tag vars rows default]
-  (sequence
-   (map
-    (fn [row]
-      (let [{:keys [pats]} (syntax/data (r.matrix/first-column row))]
 
-        )))
-   rows))
+(defn analyze-or
+  "Analyze or  a sequence of [:fail pat absent-vars] tuples"
+  {:arglists '([env or-pat])
+   :private true}
+  [env [_ {pats :pats}]]
+  (let [pats-vars (map
+                   (fn [pat]
+                     ;; We don't need to account for bound variables.
+                     (set/difference (syntax/var-syms pat) env))
+                   pats)
+        all-vars (reduce into #{} pats-vars)]
+    (sequence
+     (comp
+      (map vector)
+      (keep
+       (fn [[pat pat-vars]]
+         (let [absent-vars (set/difference all-vars pat-vars)]
+           (when (seq absent-vars)
+             [:fail pat absent-vars])))))
+     pats
+     pats-vars)))
+
+
+(defn check-or
+  "Checks if every var in or-pat occurs in every pattern of or-pat. If
+  not returns an instance of ex-info describing the problems and
+  returns nil otherwise. The returned ex-info contains the complete
+  problematic or pattern, it's environment, and the sequence of
+  offending or-pats."
+  {:private true}
+  [env or-pat]
+  (when-some [fails (seq (analyze-or env or-pat))]
+    (ex-info
+     "Every pattern of an or pattern must have references to the same unbound variables."
+     {:or-pat (syntax/unparse or-pat)
+      :env env
+      :problems (mapv
+                 (fn [[_ pat absent-vars]]
+                   {:pat (syntax/unparse pat)
+                    :absent absent-vars})
+                 fails)})))
+
+
+(defmethod compile-ctor-clauses :or [_tag vars matrix default]
+  (map
+   (fn [row]
+     (let [[_ {pats :pats} :as or-pat] (r.matrix/first-column row)]
+       (when-some [ex (check-or (:env row) or-pat)]
+         (throw ex))
+       (case (count pats)
+         ;; Just as (or) is falsey so is the (or) pattern; it is
+         ;; semantically equivalent to (not _). The rewrite occurs
+         ;; here instead of in syntax to preserve the pattern for
+         ;; unparse.
+         0
+         [true
+          (compile (take 1 vars)
+                   [(assoc row :cols [[:not {:pats [[:any]]}]])]
+                   default)]
+
+         ;; Since (or pat) ≈ pat compile as if pat were given.
+         1
+         [true
+          (compile vars
+                   [(assoc row :cols (cons (first pats) (r.matrix/rest-columns row)))]
+                   default)]
+
+         ;; Otherwise
+         (let [unbound-mem-vars (remove (:env row) (syntax/mem-syms or-pat))]
+           (if (some syntax/any-node? pats)
+             ;; No need to do extra work, (or ,,, _ ,,,) ≈ _.
+             [true (compile
+                    vars
+                    [(assoc row :cols (cons [:any] (r.matrix/rest-columns row)))]
+                    default)]
+             (let [;; To reduce the amount of code generated a
+                   ;; function containing the right hand side is
+                   ;; compiled. The function accepts as
+                   ;; arguments any variables that occur in the
+                   ;; pattern (which are bound upon a successful
+                   ;; pattern match). The original right hand side is
+                   ;; then replaced with an invocation of this
+                   ;; function with the required variables if any.
+                   unbound-vars (remove (:env row) (syntax/var-syms or-pat))
+                   f-sym (gensym* "f__")
+                   rhs* `(~f-sym ~@unbound-vars ~@unbound-mem-vars)
+                   cols* (r.matrix/rest-columns row) 
+                   matrix* (map
+                            (fn [pat]
+                              (assoc row
+                                     :cols (cons pat cols*)
+                                     :rhs rhs*))
+                            pats)
+                   inner-form (compile vars matrix* default)]
+               [true
+                `(let [~f-sym (fn ~f-sym [~@unbound-vars ~@unbound-mem-vars]
+                                ~(:rhs row))
+                       ~@(when (seq unbound-mem-vars)
+                           (mapcat
+                            (juxt identity (constantly []))
+                            unbound-mem-vars))]
+                   ~inner-form)]))))))
+   matrix))
 
 
 ;; --------------------------------------------------------------------

@@ -493,3 +493,32 @@
 
       _
       false))))
+
+
+(tc.t/defspec empty-or-pattern-always-fails
+  (prop/for-all [x gen/any]
+    (not
+     (r.match/match x
+       (or)
+       true
+
+       _
+       false))))
+
+
+(tc.t/defspec or-pattern-containing-any-always-succeeds
+  (prop/for-all [x gen/any]
+    (r.match/match x
+      (or (not ~x) _ (not _))
+      true)))
+
+
+(t/deftest or-pattern-test
+  (t/is
+   (r.match/match 2
+     (and (? number?)
+          (or (? odd?) (? even?)))
+     true
+
+     _
+     false)))

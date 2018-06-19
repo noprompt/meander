@@ -38,6 +38,11 @@
   (= x '...))
 
 
+(defn cut-symbol?
+  [x]
+  (= x '!))
+
+
 (defn k-or-more-symbol?
   [x]
   (and (simple-symbol? x)
@@ -224,7 +229,6 @@
 (s/def :meander.syntax/term
   (s/or :var :meander.syntax/var
         :mem :meander.syntax/mem
-        :ref :meander.syntax/ref
         :any :meander.syntax/any
         :vec :meander.syntax/vec
         :map :meander.syntax/map
@@ -242,36 +246,34 @@
         :lit :meander.syntax/lit))
 
 (s/def :meander.syntax/top-level
-  (s/or
-   :var :meander.syntax/var
-   :mem :meander.syntax/mem
-   :ref :meander.syntax/ref
-   :any :meander.syntax/any
-   :vec :meander.syntax/vec
-   :map :meander.syntax/map
-   :set :meander.syntax/set
-   :unq :meander.syntax/unquote
-   :quo :meander.syntax/quote
-   :prd :meander.syntax/pred
-   :app :meander.syntax/app
-   :not :meander.syntax/not
-   :and :meander.syntax/and
-   :or :meander.syntax/or
-   :usr (s/multi-spec pattern-op :usr)
-   ;; Should this be top-cap?
-   :cap (s/cat
-         :pat :meander.syntax/top-level
+  (s/or :var :meander.syntax/var
+        :mem :meander.syntax/mem
+        :any :meander.syntax/any
+        :vec :meander.syntax/vec
+        :map :meander.syntax/map
+        :set :meander.syntax/set
+        :unq :meander.syntax/unquote
+        :quo :meander.syntax/quote
+        :prd :meander.syntax/pred
+        :app :meander.syntax/app
+        :not :meander.syntax/not
+        :and :meander.syntax/and
+        :or :meander.syntax/or
+        :usr (s/multi-spec pattern-op :usr)
+        ;; Should this be top-cap?
+        :cap (s/cat
+              :pat :meander.syntax/top-level
+              :as #{:as}
+              :var (s/or :mem :meander.syntax/mem
+                         :var :meander.syntax/var))
+        :err/bad-top-level-cap
+        (s/cat
+         :pat :meander.syntax/elem
          :as #{:as}
          :var (s/or :mem :meander.syntax/mem
                     :var :meander.syntax/var))
-   :err/bad-top-level-cap
-   (s/cat
-    :pat :meander.syntax/elem
-    :as #{:as}
-    :var (s/or :mem :meander.syntax/mem
-               :var :meander.syntax/var))
-   :seq :meander.syntax/seq
-   :lit :meander.syntax/lit))
+        :seq :meander.syntax/seq
+        :lit :meander.syntax/lit))
 
 (s/def :meander.syntax/not
   (s/and seq?
@@ -454,12 +456,34 @@
   (s/tuple #{:var} var-symbol?))
 
 
+(s/def :meander.syntax.ast/mem
+  (s/tuple #{:mem} mem-symbol?))
+
+
 (defn rep-node? [x]
   (s/valid? :meander.syntax.ast/rep x))
 
 
 (defn var-node? [x]
   (s/valid? :meander.syntax.ast/var x))
+
+
+(defn mem-node? [x]
+  (s/valid? :meander.syntax.ast/mem x))
+
+
+(defn any-node? [x]
+  (and (vector? x)
+       (= (nth x 0 nil) :any)))
+
+
+(s/def :meander.syntax.ast/any
+  (s/conformer
+   (fn [x]
+     (if (any-node? x) 
+       x
+       ::s/invalid))
+   identity))
 
 
 (defn rep-init
@@ -1008,6 +1032,14 @@
   x)
 
 
+(defmethod unparse :or [[_ {pats :pats}]]
+  (cons 'or (map unparse pats)))
+
+
+(defmethod unparse :any [_]
+  '_)
+
+
 (defn variables
   "Return all variable nodes in x."
   [x]
@@ -1029,10 +1061,28 @@
         (tree-seq seqable? seq x)))
 
 
+(defn vars
+  "Return all var nodes in x."
+  [x]
+  (set/select var-node? (variables x)))
+
+
+(defn var-syms
+  "Return all var symbols in x."
+  [x]
+  (into #{} (map data) (vars x)))
+
+
 (defn mem-vars
   "Return all mem nodes in x."
   [x]
-  (set/select (comp (partial = :mem) tag) (variables x)))
+  (set/select mem-node? (variables x)))
+
+
+(defn mem-syms
+  "Return all mem var symbols in x."
+  [x]
+  (into #{} (map data) (mem-vars x)))
 
 
 (defmulti search?
