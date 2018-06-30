@@ -1,14 +1,44 @@
 (ns meander.dev.search
   (:refer-clojure :exclude [compile])
   (:require [clojure.spec.alpha :as s]
+            [clojure.set :as set]
             [meander.dev.match :as r.match]
             [meander.dev.matrix :as r.matrix]
             [meander.dev.syntax :as r.syntax]
-            [meander.util :as r.util]))
+            [meander.util :as r.util])
+  (:import [java.util.concurrent.atomic AtomicInteger]))
 
 
 (declare compile)
 
+
+(defonce
+  ^{:tag AtomicInteger
+    :private true}
+  gensym-id
+  (AtomicInteger.))
+
+
+(defn next-gensym-id
+  {:private true}
+  []
+  (.incrementAndGet gensym-id))
+
+
+(defmacro gensym*
+  "Custom version of gensym which prefixes the symbol with the line
+  number. This is useful for debugging macro expansions."
+  {:private true}
+  ([]
+   ;; "S" means "search".
+   `(symbol (format "SL%d__G%d"
+                    ~(:line (meta &form))
+                    (next-gensym-id))))
+  ([prefix]
+   `(symbol (format "SL%d__%s%d"
+                    ~(:line (meta &form))
+                    ~prefix
+                    (next-gensym-id)))))
 
 ;; ---------------------------------------------------------------------
 ;; Matrix utilities
@@ -129,16 +159,15 @@
 (defn compile-part-matrix
   {:private true}
   [vars search-matrix default]
-  (let [left-sym (gensym "left__")
-        right-sym (gensym "right__")
+  (let [left-sym (gensym* "left__")
+        right-sym (gensym* "right__")
         vars* (concat [left-sym right-sym] (rest vars))
         {:keys [variable-length invariable-length]}
-        (group-by
+        (r.matrix/specialize-by
          (comp {true :variable-length
                 false :invariable-length}
                r.syntax/variable-length?
-               r.syntax/left-node
-               r.matrix/first-column)
+               r.syntax/left-node)
          search-matrix)
         forms (mapv
                (fn [[n matrix]]
@@ -193,7 +222,7 @@
                  (let [target (first vars)
                        nth-forms (map
                                   (fn [index]
-                                    [(gensym (str "nth_" index "__"))
+                                    [(gensym* (str "nth_" index "__"))
                                      `(nth ~target ~index)])
                                   (range n))
                        nth-vars (map first nth-forms)
@@ -268,7 +297,7 @@
                     (assoc row :cols (cons [:set-no-check entries] (r.matrix/rest-columns row)))))
                 s-matrix)
                default)
-     nil))
+     ~default))
 
 ;; ---------------------------------------------------------------------
 ;; Set
@@ -278,11 +307,14 @@
   {:private true}
   [vars s-matrix default]
   (let [target (first vars)
-        perm-sym (gensym "perm__")]
+        perm-sym (gensym* "perm__")]
     (concat-form
      (map
       (fn [[n s-matrix*]]
-        (let [elem-syms (mapv gensym (repeat n "elem__"))
+        (let [elem-syms (mapv
+                         (fn [_]
+                           (gensym* "elem__"))
+                         (range n))
               vars* (concat elem-syms (rest vars))]
           `(if (<= ~n (count ~target))
              (sequence
@@ -316,7 +348,134 @@
 (defmethod compile-specialized-matrix :set [_tag vars s-matrix default]
   `(if (set? ~(first vars))
      ~(compile-set-matrix vars s-matrix default)
-     nil))
+     ~default))
+
+
+
+;; ---------------------------------------------------------------------
+;; And
+
+
+(defmethod compile-specialized-matrix :and [_tag vars s-matrix default]
+  (concat-form
+   (map
+    (fn [row]
+      (let [pats (:pats (r.syntax/data (r.matrix/first-column row)))
+            n (count pats)]
+        (if (zero? n)
+          (compile (rest vars) [(r.matrix/drop-column row)] default)
+          (compile (concat (repeat n (first vars)) (rest vars))
+                   [(assoc row :cols (concat pats (r.matrix/rest-columns row)))]
+                   default))))
+    s-matrix)))
+
+
+;; ---------------------------------------------------------------------
+;; Or
+
+
+(defn analyze-or
+  "Analyze or  a sequence of [:fail pat absent-vars] tuples"
+  {:arglists '([env or-pat])
+   :private true}
+  [env [_ {pats :pats}]]
+  (let [pats-vars (map
+                   (fn [pat]
+                     ;; We don't need to account for bound variables.
+                     (set/difference (r.syntax/var-syms pat) env))
+                   pats)
+        all-vars (reduce into #{} pats-vars)]
+    (sequence
+     (comp
+      (map vector)
+      (keep
+       (fn [[pat pat-vars]]
+         (let [absent-vars (set/difference all-vars pat-vars)]
+           (when (seq absent-vars)
+             [:fail pat absent-vars])))))
+     pats
+     pats-vars)))
+
+
+(defn check-or
+  "Checks if every var in or-pat occurs in every pattern of or-pat. If
+  not returns an instance of ex-info describing the problems and
+  returns nil otherwise. The returned ex-info contains the complete
+  problematic or pattern, it's environment, and the sequence of
+  offending or-pats."
+  {:private true}
+  [env or-pat]
+  (when-some [fails (seq (analyze-or env or-pat))]
+    (ex-info
+     "Every pattern of an or pattern must have references to the same unbound variables."
+     {:or-pat (r.syntax/unparse or-pat)
+      :env env
+      :problems (mapv
+                 (fn [[_ pat absent-vars]]
+                   {:pat (r.syntax/unparse pat)
+                    :absent absent-vars})
+                 fails)})))
+
+
+(defmethod compile-specialized-matrix :or [_tag vars s-matrix default]
+  (concat-form
+   (map
+    (fn [row]
+      (let [[_ {pats :pats} :as or-pat] (r.matrix/first-column row)]
+        (when-some [ex (check-or (:env row) or-pat)]
+          (throw ex))
+        (case (count pats)
+          0
+          default
+          
+          1
+          (compile vars
+                   [(assoc row :cols (cons (first pats) (r.matrix/rest-columns row)))]
+                   default)
+
+          ;; else
+          (if (some r.syntax/any-node? pats)
+            (compile
+             vars
+             [(assoc row :cols (cons [:any] (r.matrix/rest-columns row)))]
+             default)
+            (let [unbound-mem-vars (remove (:env row) (r.syntax/mem-syms or-pat))
+                  unbound-vars (remove (:env row) (r.syntax/var-syms or-pat))
+                  f-sym (gensym* "f__")
+                  rhs* `(~f-sym ~@unbound-vars ~@unbound-mem-vars)
+                  cols* (r.matrix/rest-columns row) 
+                  matrix* (map
+                           (fn [pat]
+                             (assoc row
+                                    :cols (cons pat cols*)
+                                    :rhs rhs*))
+                           pats)
+                  inner-form (compile vars matrix* default)]
+              `(let [~f-sym (fn ~f-sym [~@unbound-vars ~@unbound-mem-vars]
+                              ~(:rhs row))
+                     ~@(when (seq unbound-mem-vars)
+                         (mapcat
+                          (juxt identity (constantly []))
+                          unbound-mem-vars))]
+                 ~inner-form))))))
+    s-matrix)))
+
+;; ---------------------------------------------------------------------
+;; Not
+
+
+(defmethod compile-specialized-matrix :not [_tag vars s-matrix default]
+  (concat-form
+   (map
+    (fn [row]
+      (let [{:keys [pats]} (r.syntax/data (r.matrix/first-column row))]
+        (compile (take 1 vars)
+                 [{:cols [[:and {:pats pats}]]
+                   :rhs nil}]
+                 (compile (rest vars)
+                          [(r.matrix/drop-column row)]
+                          default))))
+    s-matrix)))
 
 
 ;; ---------------------------------------------------------------------
@@ -336,13 +495,13 @@
          (into (mapv
                 (fn [[tag s-matrix]]
                   (compile-specialized-matrix tag vars s-matrix default))
-                (group-by
-                 (comp r.syntax/tag r.matrix/first-column)
+                (r.matrix/specialize-by
+                 r.syntax/tag
                  search-matrix)))
 
          match-matrix
          (conj (compile-match-matrix vars match-matrix default)))))
-    default))
+    (:rhs (first matrix))))
 
 
 (s/fdef search
@@ -370,6 +529,7 @@
                         (filter r.syntax/var-node?)
                         (map r.syntax/data))
                        (tree-seq coll? seq (:pat clause)))
+                 ;; This is not safe.
                  rhs (if (seq check-if-bound-vars)
                        `(if (contains? (hash-set ~@check-if-bound-vars) ::r.match/unbound)
                           nil
@@ -379,6 +539,50 @@
               :env #{}
               :rhs rhs})))
         clauses))
+
+(defn initial-variable-bindings
+  "Returns a bindings form which initializes all variables in
+  clauses. Logic variables are bound to ::unbound and memory variables
+  are bound to []."
+  {:private true}
+  [clauses]
+  (into []
+        (comp
+         (map :pat)
+         (filter r.syntax/rep-node?)
+         (mapcat r.syntax/variables)
+         (distinct)
+         (mapcat
+          (fn [[tag sym]]
+            (case tag
+              :var
+              [sym ::unbound]
+
+              :mem
+              [sym []]))))
+        (tree-seq clauses)))
+
+
+(defn initial-variable-bindings
+  "Returns a bindings form which initializes all variables in
+  clauses. Logic variables are bound to ::unbound and memory variables
+  are bound to []."
+  {:private true}
+  [clauses]
+  (into []
+        (comp
+         (filter r.syntax/rep-node?)
+         (mapcat r.syntax/variables)
+         (distinct)
+         (mapcat
+          (fn [[tag sym]]
+            (case tag
+              :var
+              [sym ::unbound]
+
+              :mem
+              [sym []]))))
+        (tree-seq coll? seq (map :pat clauses))))
 
 
 (defmacro search
@@ -394,8 +598,11 @@
    :style/indent :defn}
   [& search-args]
   (let [{:keys [target clauses]} (parse-search-args search-args)
-        target-sym (gensym "target__")
+        target-sym (gensym* "target__")
         vars [target-sym]
         matrix (clauses->matrix clauses)]
-    `(let [~target-sym ~target]
+    `(let [~target-sym ~target
+           ~@(initial-variable-bindings clauses)]
        ~(compile vars matrix nil))))
+
+
