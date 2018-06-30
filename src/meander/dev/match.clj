@@ -305,40 +305,40 @@
                    default)]
 
          ;; Otherwise
-         (let [unbound-mem-vars (remove (:env row) (syntax/mem-syms or-pat))]
-           (if (some syntax/any-node? pats)
-             ;; No need to do extra work, (or ,,, _ ,,,) ≈ _.
-             [true (compile
-                    vars
-                    [(assoc row :cols (cons [:any] (r.matrix/rest-columns row)))]
-                    default)]
-             (let [;; To reduce the amount of code generated a
-                   ;; function containing the right hand side is
-                   ;; compiled. The function accepts as
-                   ;; arguments any variables that occur in the
-                   ;; pattern (which are bound upon a successful
-                   ;; pattern match). The original right hand side is
-                   ;; then replaced with an invocation of this
-                   ;; function with the required variables if any.
-                   unbound-vars (remove (:env row) (syntax/var-syms or-pat))
-                   f-sym (gensym* "f__")
-                   rhs* `(~f-sym ~@unbound-vars ~@unbound-mem-vars)
-                   cols* (r.matrix/rest-columns row) 
-                   matrix* (map
-                            (fn [pat]
-                              (assoc row
-                                     :cols (cons pat cols*)
-                                     :rhs rhs*))
-                            pats)
-                   inner-form (compile vars matrix* default)]
-               [true
-                `(let [~f-sym (fn ~f-sym [~@unbound-vars ~@unbound-mem-vars]
-                                ~(:rhs row))
-                       ~@(when (seq unbound-mem-vars)
-                           (mapcat
-                            (juxt identity (constantly []))
-                            unbound-mem-vars))]
-                   ~inner-form)]))))))
+         (if (some syntax/any-node? pats)
+           ;; No need to do extra work, (or ,,, _ ,,,) ≈ _.
+           [true (compile
+                  vars
+                  [(assoc row :cols (cons [:any] (r.matrix/rest-columns row)))]
+                  default)]
+           (let [;; To reduce the amount of code generated a
+                 ;; function containing the right hand side is
+                 ;; compiled. The function accepts as
+                 ;; arguments any variables that occur in the
+                 ;; pattern (which are bound upon a successful
+                 ;; pattern match). The original right hand side is
+                 ;; then replaced with an invocation of this
+                 ;; function with the required variables if any.
+                 unbound-mem-vars (remove (:env row) (syntax/mem-syms or-pat))
+                 unbound-vars (remove (:env row) (syntax/var-syms or-pat))
+                 f-sym (gensym* "f__")
+                 rhs* `(~f-sym ~@unbound-vars ~@unbound-mem-vars)
+                 cols* (r.matrix/rest-columns row) 
+                 matrix* (map
+                          (fn [pat]
+                            (assoc row
+                                   :cols (cons pat cols*)
+                                   :rhs rhs*))
+                          pats)
+                 inner-form (compile vars matrix* default)]
+             [true
+              `(let [~f-sym (fn ~f-sym [~@unbound-vars ~@unbound-mem-vars]
+                              ~(:rhs row))
+                     ~@(when (seq unbound-mem-vars)
+                         (mapcat
+                          (juxt identity (constantly []))
+                          unbound-mem-vars))]
+                 ~inner-form)])))))
    matrix))
 
 
