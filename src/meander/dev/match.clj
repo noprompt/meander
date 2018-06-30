@@ -28,12 +28,12 @@
   number. This is useful for debugging macro expansions."
   {:private true}
   ([]
-   `(symbol (format "L%d__G%d"
+   ;; "M" means "match".
+   `(symbol (format "ML%d__G%d"
                     ~(:line (meta &form))
                     (next-gensym-id))))
   ([prefix]
-   `(symbol (format "L%d__%s%d"
-                    ~(:line (meta &form))
+   `(symbol (format "ML%d__%s%d" ~(:line (meta &form))
                     ~prefix
                     (next-gensym-id)))))
 
