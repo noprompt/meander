@@ -292,7 +292,7 @@
 (s/def :meander.syntax/or
   (s/and seq?
          (s/cat
-          :and '#{or}
+          :or '#{or}
           :pats (s/* :meander.syntax/term))))
 
 
@@ -1142,6 +1142,14 @@
 
 (defmethod search? :set [[_ data]]
   (boolean (seq (variables data))))
+
+
+(defmethod search? :or [[_ data]]
+  (boolean (some search? (:pats data))))
+
+
+(defmethod search? :and [[_ data]]
+  (boolean (some search? (:pats data))))
 
 
 (defmulti length
