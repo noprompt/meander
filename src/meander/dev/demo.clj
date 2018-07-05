@@ -7,6 +7,7 @@
    [meander.dev.strategy :as r]
    [meander.dev.match :as r.match]
    [meander.dev.search :as r.search]
+   [meander.dev.substitute :as r.substitute]
    [meander.dev.syntax :as r.syntax]))
 
 
@@ -149,15 +150,20 @@
 (defn invoke=>ast [env]
   (r/matcht
    ((?f . !args ...) :as ?form)
-   (let [fn (clj=>ast env ?f)
-         args (mapv (clj=>ast env) !args)]
-     {:op :invoke
-      :env env
-      :form ?form
-      :fn fn
-      :args args
-      :meta (meta ?form)
-      :children [:fn :args]})))
+   (r.match/match (macroexpand ?form)
+     ~?form
+     (let [fn (clj=>ast env ?f)
+           args (mapv (clj=>ast env) !args)]
+       {:op :invoke
+        :env env
+        :form ?form
+        :fn fn
+        :args args
+        :meta (meta ?form)
+        :children [:fn :args]})
+
+     ?mform
+     (assoc (clj=>ast env ?mform) :raw-form ?form))))
 
 
 (defn quote=>ast [env]
@@ -277,6 +283,7 @@
     [env []]
     forms)))
 
+
 (defn let=>ast [env]
   (r/matcht
    ((let* [(_ _ :as !bindings) ...] . !exprs ...) :as ?form)
@@ -286,7 +293,7 @@
      (if-some [[[sym init] & !bindings*] (seq !bindings)]
        (let [binding-node (let-binding-node env* sym (clj=>ast env* init))]
          (recur !bindings*
-                (conj binding-nodes )
+                (conj binding-nodes binding-node)
                 (update env* :locals (fnil conj #{}) sym)))
        {:op :let
         :env env
@@ -295,8 +302,16 @@
         :body (clj=>ast* env* !exprs)
         :children [:bindings :body]}))))
 
-#_
-((let=>ast {}) '(let* [a 1 b 2] (+ a b)))
+(defn binding=>ast
+  [env]
+  (fn [t]
+    (if (contains? (:locals env) t)
+      {:op :local
+       :env env
+       :form t
+       :name t
+       :children []}
+      r/*fail*)))
 
 (defn clj=>ast
   ([env]
@@ -308,8 +323,10 @@
     (quote=>ast env)
     (host-call=>ast env)
     (host-field=>ast env)
+    (let=>ast env)
     (invoke=>ast env)
     (maybe-class=>ast env)
+    (binding=>ast env)
     (const=>ast env)))
   ([env clj-form]
    ((clj=>ast env) clj-form)))
@@ -319,20 +336,20 @@
 ;; Clojure AST => Ruby AS
 
 
-(declare ast=>ruby)
+(declare clj-ast=>rb-ast)
 
 
-(def ast=>ruby-ast
+(def clj-def-ast=>rb-ast
   (r/matcht
    {:op :def
     :name ?name
     :init ?init}
    (let [const-name (gensym "C__")]
-     {:op :ruby/do
+     {:op :ruby/begin
       :statements [{:op :ruby/casgn
                     :parent nil
                     :name const-name
-                    :init (ast=>ruby-ast ?init)
+                    :init (clj-ast=>rb-ast ?init)
                     :children [:init]}
                    {:op :ruby/def
                     :name (name ?name)
@@ -341,24 +358,89 @@
                             :parent nil
                             :name const-name}]
                     :children [:params :body]}]
-      :children [:statements]})
+      :children [:statements]})))
 
+(def clj-const-ast=>rb-ast
+  (r/matcht
+   {:op :const
+    :type ?type
+    :val ?val}
+   {:op (case ?type
+          :number
+          (if (integer? ?val)
+            :ruby/int
+            :ruby/float))
+    :val ?val}))
+
+
+(def clj-if-ast=>rb-ast
+  (r/matcht
+   {:op :if
+    :test ?test
+    :then ?then
+    :else ?else}
+   {:op :ruby/if
+    :test (clj-ast=>rb-ast ?test)
+    :then (clj-ast=>rb-ast ?then)
+    :else (clj-ast=>rb-ast ?else)}))
+
+(def clj-let-ast=>rb-ast
+  (r/matcht
+   {:op :let
+    :bindings ?bindings
+    :body ?body}
+   {:op :ruby/begin
+    :statements (mapv clj-ast=>rb-ast (concat ?bindings ?body))}))
+
+
+(def clj-binding-ast=>rb-ast
+  (r/matcht
+   {:op :binding
+    :form ?form
+    :name ?name
+    :init ?init}
+   {:op :ruby/lvasgn
+    :name ?name
+    :init (clj-ast=>rb-ast ?init)}))
+
+(def clj-host-call-ast=>rb-ast
+  (r/matcht
    {:op :host-call
     :method ?method
     :target ?target
     :args ?args}
-   (let [target (ast=>ruby-ast ?target)
-         args (map ast=>ruby-ast ?args)]
-     {:op :ruby/send
-      :method (str ?method)
-      :target target
-      :args args})
+   {:op :ruby/send
+    :method (str ?method)
+    :target (clj-ast=>rb-ast ?target)
+    :args (mapv clj-ast=>rb-ast ?args)}))
 
-   ?x
-   ?x))
+(def clj-local-ast=>rb-ast
+  (r/matcht
+   {:op :local
+    :name ?name}
+   {:op :ruby/lvar
+    :name ?name}))
 
 
-(def ruby-ast=>string
+
+(def
+  ^{:arglists '([clj-ast])}
+  clj-ast=>rb-ast
+  (r/choice
+   clj-def-ast=>rb-ast
+   clj-const-ast=>rb-ast
+   clj-if-ast=>rb-ast
+   clj-let-ast=>rb-ast
+   clj-binding-ast=>rb-ast
+   clj-local-ast=>rb-ast
+   clj-host-call-ast=>rb-ast))
+
+(declare rb-ast=>string)
+
+(defn indent [s]
+  (string/replace s #"(?m:(?=^))" "  "))
+
+(def rb-ast-def=>string
   (r/matcht
    {:op :ruby/def
     :name ?name
@@ -368,47 +450,111 @@
      (printf "def %s(%s)" ?name "_todo_")
      (println)
      (println
-      (string/replace 
-       (ruby-ast=>string
-        {:op :ruby/do
-         :statements ?body})
-       #"(?m:(?=^))"
-       "  "))
-     (println "end"))
+      (indent
+       (rb-ast=>string
+        {:op :ruby/begin
+         :statements ?body})))
+     (println "end"))))
 
-   {:op :ruby/do
+(def rb-ast-begin=>string
+  (r/matcht
+   {:op :ruby/begin
     :statements ?statements}
-   (string/join "\n" (map ruby-ast=>string ?statements))
+   (string/join "\n" (map rb-ast=>string ?statements))))
 
+(def rb-ast-const=>string
+  (r/matcht
    {:op :ruby/const
     :parent ?parent
     :name ?name}
    (if ?parent
-     (str (ruby-ast=>string ?parent) "::" ?name)
-     ?name)
+     (str (rb-ast=>string ?parent) "::" ?name)
+     ?name)))
 
+(def rb-ast-number=>string
+  (r/matcht
+   {:op (or :ruby/int :ruby/float)
+    :val ?val}
+   (str ?val)))
+
+(def rb-ast-lvar=>string
+  (r/matcht
+   {:op :ruby/lvar
+    :name ?name}
+   (name ?name)))
+
+(def rb-ast-lvasgn=>string
+  (r/matcht
+   {:op :ruby/lvasgn
+    :name ?name
+    :init ?init}
+   (format "%s = %s"
+           (name ?name)
+           (rb-ast=>string ?init))))
+
+(def rb-ast-casgn=>string
+  (r/matcht
    {:op :ruby/casgn
     :parent ?parent
     :name ?name
     :init ?init}
    (format "%s = %s"
            (if ?parent
-             (str (ruby-ast=>string ?parent) "::" ?name)
+             (str (rb-ast=>string ?parent) "::" ?name)
              ?name)
-           (ruby-ast=>string ?init))
+           (rb-ast=>string ?init))))
 
+(def rb-ast-maybe-class=>string
+  (r/matcht
    {:op :maybe-class
     :class ?class}
-   (str ?class)
+   (str ?class)))
 
+(def rb-ast-send=>string
+  (r/matcht
    {:op :ruby/send
     :method ?method
     :target ?target
     :args ?args}
    (format "(%s).%s(%s)"
-           (ruby-ast=>string ?target)
+           (rb-ast=>string ?target)
            ?method
-           "_todo_")))
+           (string/join "," (map rb-ast=>string ?args)))))
+
+(def rb-ast-if=>string
+  (r/matcht
+   {:op :ruby/if
+    :test ?test
+    :then ?then
+    :else ?else}
+   (with-out-str
+     (print "if ")
+     (print "(")
+     (print (rb-ast=>string ?test))
+     (println ")")
+     (indent
+      (with-out-str
+        (println (rb-ast=>string ?then))))
+     (println "else")
+     (indent
+      (with-out-str
+        (println (rb-ast=>string ?else))))
+     (println "end"))))
+
+
+(def rb-ast=>string
+  (r/choice
+   rb-ast-def=>string
+   rb-ast-begin=>string
+   rb-ast-const=>string
+   rb-ast-casgn=>string
+   rb-ast-maybe-class=>string
+   rb-ast-number=>string
+   rb-ast-send=>string
+   rb-ast-if=>string
+   rb-ast-lvar=>string
+   rb-ast-lvasgn=>string
+   identity))
 
 
 ;; ---------------------------------------------------------------------
