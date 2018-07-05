@@ -604,5 +604,3 @@
     `(let [~target-sym ~target
            ~@(initial-variable-bindings clauses)]
        ~(compile vars matrix nil))))
-
-
