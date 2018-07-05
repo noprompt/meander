@@ -6,7 +6,8 @@
    [clojure.core :as clj]
    [clojure.spec.alpha :as s]
    [meander.dev.protocols :as protocols]
-   [meander.dev.match :as match]
+   [meander.dev.match :as r.match]
+   [meander.dev.search :as r.search]
    [meander.dev.substitute :as r.substitute]))
 
 
@@ -663,7 +664,7 @@
 
 
 (s/fdef matcht
-  :args ::match/match-clauses
+  :args ::r.match/match-clauses
   :ret any?)
 
 
@@ -671,7 +672,7 @@
   "Strategy version of match which defaults to *fail*."
   [& clauses]
   `(fn [x#]
-     (match/match x#
+     (r.match/match x#
        ~@clauses
 
        ~'_
@@ -688,17 +689,24 @@
 
 
 (s/fdef rewritet
-  :args ::match/match-clauses
+  :args ::r.match/match-clauses
   :ret any?)
 
 
 (defmacro rewritet [& clauses]
   (let [t-sym (gensym "t__")]
     `(fn [~t-sym]
-       (match/match ~t-sym
+       (r.match/match ~t-sym
          ~@(mapcat
             (fn [[lhs rhs]]
               [lhs `(r.substitute/substitute ~rhs)])
             (partition 2 clauses))
          ~'_
          ~t-sym))))
+
+
+(defmacro searcht [& clauses]
+  (let [t-sym (gensym "t__")]
+    `(fn [~t-sym]
+       (r.search/search ~t-sym
+         ~@clauses))))
