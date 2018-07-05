@@ -91,32 +91,32 @@
         (tree-seq seqable? seq x))))
 
 
-(defn group-rows [rows]
+(defn group-rows [matrix]
   (sort
    (fn [[tag1 _] [tag2 _]]
      (compare (tag-score tag2)
               (tag-score tag1)))
-   (group-by
-    (fn [row]
-      (when-some [column (r.matrix/first-column row)]
-        (let [tag (syntax/tag column)]
-          (if (ground? column)
+   (r.matrix/specialize-by
+    (fn [node]
+      (if (some? node)
+        (let [tag (syntax/tag node)]
+          (if (ground? node)
             ::ground
             tag))))
-    rows)))
+    matrix)))
 
 
 (declare compile)
 
 
-(defn min-min-length [rows]
+(defn min-min-length [matrix]
   (transduce
    (map
     (fn [row]
       (syntax/min-length (r.matrix/first-column row))))
    min
    Float/POSITIVE_INFINITY
-   rows))
+   matrix))
 
 
 (defn next-columns-dispatch
@@ -137,12 +137,12 @@
 (declare compile)
 
 
-(defn compile-ctor-clauses-dispatch [tag vars rows default]
+(defn compile-ctor-clauses-dispatch [tag vars matrix default]
   tag)
 
 
 (defmulti compile-ctor-clauses
-  {:arglists '([targ vars rows default])}
+  {:arglists '([targ vars matrix default])}
   #'compile-ctor-clauses-dispatch)
 
 
@@ -154,7 +154,7 @@
     (assoc row :cols (concat pats (r.matrix/rest-columns row)))))
 
 
-(defmethod compile-ctor-clauses :and [_tag vars rows default]
+(defmethod compile-ctor-clauses :and [_tag vars matrix default]
   (sequence
    (map
     (fn [row]
@@ -167,7 +167,7 @@
                             (rest vars))
                     [(next-columns row)]
                     default))])))
-   rows))
+   matrix))
 
 
 
@@ -175,7 +175,7 @@
 ;; App
 
 
-(defmethod compile-ctor-clauses :app [_tag vars rows default]
+(defmethod compile-ctor-clauses :app [_tag vars matrix default]
   (sequence
    (map
     (fn [row]
@@ -187,7 +187,7 @@
             ~(compile vars
                       [(assoc row :cols (cons and-pat (r.matrix/rest-columns row)))]
                       default))])))
-   rows))
+   matrix))
 
 
 ;; ---------------------------------------------------------------------
@@ -198,20 +198,20 @@
   -1)
 
 
-(defmethod compile-ctor-clauses :any [_tag vars rows default]
+(defmethod compile-ctor-clauses :any [_tag vars matrix default]
   (sequence
    (map
     (fn [row]
       [true
        (compile (rest vars) [(r.matrix/drop-column row)] default)]))
-   rows))
+   matrix))
 
 
 ;; ---------------------------------------------------------------------
 ;; Not
 
 
-(defmethod compile-ctor-clauses :not [_tag vars rows default]
+(defmethod compile-ctor-clauses :not [_tag vars matrix default]
   (sequence
    (map
     (fn [row]
@@ -231,7 +231,7 @@
                             (cons [:not {:pats (rest pats)}]
                                   (r.matrix/rest-columns row)))]
                     default)]))))
-   rows))
+   matrix))
 
 
 ;; ---------------------------------------------------------------------
@@ -358,10 +358,10 @@
     (assoc row :cols cols*)))
 
 
-(defmethod compile-ctor-clauses :cap [_tag vars rows default]
+(defmethod compile-ctor-clauses :cap [_tag vars matrix default]
   [[true
     (compile (cons (first vars) vars)
-             (map next-columns rows)
+             (map next-columns matrix)
              default)]])
 
 
@@ -369,9 +369,9 @@
 ;; Cat, VCat
 
 
-(defn compile-cat-clauses [tag vars rows default]
+(defn compile-cat-clauses [tag vars matrix default]
   (map
-   (fn [[n rows]]
+   (fn [[n matrix]]
      (let [target (first vars)
            nth-forms (map
                       (fn [index]
@@ -380,34 +380,34 @@
                       (range n))
            nth-vars (map first nth-forms)
            vars* (concat nth-vars (rest vars))
-           rows* (map
-                  (fn [row]
-                    (assoc row
-                           :cols (concat
-                                  (syntax/data (r.matrix/first-column row))
-                                  (r.matrix/rest-columns row))))
-                  rows)]
+           matrix* (map
+                    (fn [row]
+                      (assoc row
+                             :cols (concat
+                                    (syntax/data (r.matrix/first-column row))
+                                    (r.matrix/rest-columns row))))
+                    matrix)]
        (case tag
          :cat
          [`(== ~n (count (take ~n ~target)))
           `(let [~@(mapcat identity nth-forms)]
-             ~(compile vars* rows* default))]
+             ~(compile vars* matrix* default))]
 
          :vcat
          [`(<= ~n (count ~target))
           `(let [~@(mapcat identity nth-forms)]
-             ~(compile vars* rows* default))])))
-   (group-by
-    (comp count syntax/data r.matrix/first-column)
-    rows)))
+             ~(compile vars* matrix* default))])))
+   (r.matrix/specialize-by
+    (comp count syntax/data)
+    matrix)))
 
 
-(defmethod compile-ctor-clauses :cat [tag vars rows default]
-  (compile-cat-clauses tag vars rows default))
+(defmethod compile-ctor-clauses :cat [tag vars matrix default]
+  (compile-cat-clauses tag vars matrix default))
 
 
-(defmethod compile-ctor-clauses :vcat [tag vars rows default]
-  (compile-cat-clauses tag vars rows default))
+(defmethod compile-ctor-clauses :vcat [tag vars matrix default]
+  (compile-cat-clauses tag vars matrix default))
 
 
 
@@ -415,9 +415,9 @@
 ;; Drop
 
 
-(defmethod compile-ctor-clauses :drop [_tag vars rows default]
+(defmethod compile-ctor-clauses :drop [_tag vars matrix default]
   [[true
-    (compile (rest vars) (map r.matrix/drop-column rows) default)]])
+    (compile (rest vars) (map r.matrix/drop-column matrix) default)]])
 
 
 ;; ---------------------------------------------------------------------
@@ -457,10 +457,10 @@
     x))
 
 
-(defmethod compile-ctor-clauses ::ground [_tag vars rows default]
+(defmethod compile-ctor-clauses ::ground [_tag vars matrix default]
   (let [[target & vars*] vars]
     (map
-     (fn [[node rows]]
+     (fn [[node matrix]]
        [(case (syntax/tag node)
           :entry
           (let [{:keys [key-pat val-pat]} (syntax/data node)]
@@ -490,10 +490,8 @@
 
           ;; else
           `(= ~target ~(compile-ground (syntax/unparse node))))
-        (compile vars* (map r.matrix/drop-column rows) default)])
-     (group-by
-      r.matrix/first-column
-      rows))))
+        (compile vars* (map r.matrix/drop-column matrix) default)])
+     (r.matrix/specialize-by identity matrix))))
 
 
 
@@ -501,7 +499,7 @@
 ;; Init
 
 
-(defmethod compile-ctor-clauses :init [_tag vars rows default]
+(defmethod compile-ctor-clauses :init [_tag vars matrix default]
   (let [[target & vars*] vars]
     (map
      (fn [row]
@@ -512,21 +510,21 @@
                          `(into ~sym ~target)
                          `(vec ~target))]
              ~(compile vars* [(r.matrix/add-sym (r.matrix/drop-column row) sym)] default))]))
-     rows)))
+     matrix)))
 
 
 ;; --------------------------------------------------------------------
 ;; Lit
 
 
-(defmethod compile-ctor-clauses :lit [_tag vars rows default]
+(defmethod compile-ctor-clauses :lit [_tag vars matrix default]
   (map
-   (fn [[[_ val] rows]]
+   (fn [[[_ val] matrix]]
      `[(= ~(first vars) ~(compile-ground val))
        ~(compile (rest vars)
-                 (map r.matrix/drop-column rows)
+                 (map r.matrix/drop-column matrix)
                  default)])
-   (group-by r.matrix/first-column rows)))
+   (r.matrix/specialize-by identity matrix)))
 
 
 ;; --------------------------------------------------------------------
@@ -554,37 +552,37 @@
 
 
 (defmethod compile-ctor-clauses :entry
-  [_tag vars rows default]
+  [_tag vars matrix default]
   (let [[target & rest-vars] vars]
     (map
-     (fn [[key-pat rows]]
-       (let [rows* (map
-                    (fn [row]
-                      (assoc row
-                             :cols (cons
-                                    (:val-pat (syntax/data (r.matrix/first-column row)))
-                                    (r.matrix/rest-columns row))))
-                    rows)
+     (fn [[key-pat matrix]]
+       (let [matrix* (map
+                      (fn [row]
+                        (assoc row
+                               :cols (cons
+                                      (:val-pat (syntax/data (r.matrix/first-column row)))
+                                      (r.matrix/rest-columns row))))
+                      matrix)
              val-sym (gensym* "val__")
              vars* (cons val-sym rest-vars)
              key-form (compile-ground (syntax/unparse key-pat))]
          [`(contains? ~target ~key-form)
           `(let [~val-sym (get ~target ~key-form)]
-             ~(compile vars* rows* default))]))
-     (group-by
-      (comp :key-pat syntax/data r.matrix/first-column)
-      rows))))
+             ~(compile vars* matrix* default))]))
+     (r.matrix/specialize-by
+      (comp :key-pat syntax/data)
+      matrix))))
 
 
-(defn next-map-rows
+(defn next-map-matrix
   {:private true}
-  [map-rows]
-  (let [map-nodes (map r.matrix/first-column map-rows)
+  [map-matrix]
+  (let [map-nodes (map r.matrix/first-column map-matrix)
         [key-pat] (first (rank-keys map-nodes))]
     (reduce
-     (fn [rows* map-row]
+     (fn [matrix* map-row]
        (let [data (syntax/data (r.matrix/first-column map-row))]
-         (conj rows*
+         (conj matrix*
                (assoc map-row
                       :cols (if-some [[_ val-pat] (find data key-pat)]
                               (let [data* (dissoc data key-pat)]
@@ -604,19 +602,19 @@
      []
      (sort-by
       (comp count syntax/data r.matrix/first-column)
-      map-rows))))
+      map-matrix))))
 
 
-(defmethod compile-ctor-clauses ::map-no-check [_tag vars rows default]
+(defmethod compile-ctor-clauses ::map-no-check [_tag vars matrix default]
   (let [target (first vars)]
     [[true
-      (compile (cons target vars) (next-map-rows rows) default)]]))
+      (compile (cons target vars) (next-map-matrix matrix) default)]]))
 
 
-(defmethod compile-ctor-clauses :map [_tag vars rows default]
+(defmethod compile-ctor-clauses :map [_tag vars matrix default]
   (let [target (first vars)]
     [[`(map? ~target)
-      (compile (cons target vars) (next-map-rows rows) default)]]))
+      (compile (cons target vars) (next-map-matrix matrix) default)]]))
 
 
 ;; --------------------------------------------------------------------
@@ -627,7 +625,7 @@
   0)
 
 
-(defmethod compile-ctor-clauses :mem [_tag vars rows default]
+(defmethod compile-ctor-clauses :mem [_tag vars matrix default]
   (let [[var & vars*] vars]
     (sequence
      (map
@@ -639,18 +637,18 @@
                     [sym `(conj ~sym ~var)]
                     [sym `[~var]])
               ~(compile vars* [row*] default))])))
-     rows)))
+     matrix)))
 
 
 ;; --------------------------------------------------------------------
 ;; Partition
 
 
-(defmethod compile-ctor-clauses :part [_tag vars rows default]
+(defmethod compile-ctor-clauses :part [_tag vars matrix default]
   (let [target (first vars)]
     (map
-     (fn [[left-tag rows]] 
-       (let [n (min-min-length rows)]
+     (fn [[left-tag matrix]] 
+       (let [n (min-min-length matrix)]
          [true
           (case left-tag
             :cap
@@ -661,7 +659,7 @@
                               {:keys [pat var]} (syntax/data (:left part-data))
                               right (:right part-data)]
                           (assoc row :cols (list* var pat right (r.matrix/rest-columns row)))))
-                      rows)
+                      matrix)
                      default)
 
             :cat
@@ -671,7 +669,7 @@
                                 (comp syntax/cat-length syntax/left-node r.matrix/first-column))
                                min
                                n
-                               rows)]
+                               matrix)]
               `(let [~take-target (take ~n ~target)
                      ~drop-target (drop ~n ~target)]
                  ~(compile (list* take-target drop-target (rest vars))
@@ -690,7 +688,7 @@
                                                    (list* [:any '_]
                                                           (:right part-data)
                                                           (r.matrix/rest-columns row))))))
-                            rows)
+                            matrix)
                            default)))
 
             :drop
@@ -703,7 +701,7 @@
                                      :cols
                                      (cons (:right (syntax/data (r.matrix/first-column row)))
                                            (r.matrix/rest-columns row))))
-                            rows)
+                            matrix)
                            default)))
 
             :init
@@ -721,7 +719,7 @@
                                      (concat
                                       ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
                                       (r.matrix/rest-columns row))))
-                            rows)
+                            matrix)
                            default)))
 
             :rep
@@ -734,7 +732,7 @@
                                  (concat
                                   ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
                                   (r.matrix/rest-columns row))))
-                        rows)
+                        matrix)
                        default)
               (let [m (gensym* "m__")
                     take-target (gensym* "take__")
@@ -750,7 +748,7 @@
                                        (concat
                                         ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
                                         (r.matrix/rest-columns row))))
-                              rows)
+                              matrix)
                              default))))
 
             :rest
@@ -760,11 +758,9 @@
                         (assoc row
                                :cols (list* (:left (syntax/data (r.matrix/first-column row)))
                                             (r.matrix/rest-columns row))))
-                      rows)
+                      matrix)
                      default))]))
-     (group-by
-      (comp syntax/left-tag r.matrix/first-column)
-      rows))))
+     (r.matrix/specialize-by syntax/left-tag matrix))))
 
 
 ;; --------------------------------------------------------------------
@@ -777,22 +773,22 @@
     (assoc row :cols (cons node* (r.matrix/rest-columns row)))))
 
 
-(defmethod compile-ctor-clauses :prd [_tag vars rows default]
+(defmethod compile-ctor-clauses :prd [_tag vars matrix default]
   (sequence
    (map
-    (fn do-pred-and-rows [[pred rows]]
+    (fn do-pred-and-matrix [[pred matrix]]
       [`(~pred ~(first vars))
-       (compile vars (sequence (map next-columns) rows) default)]))
-   (group-by
-    (comp :pred syntax/data r.matrix/first-column)
-    rows)))
+       (compile vars (sequence (map next-columns) matrix) default)]))
+   (r.matrix/specialize-by
+    (comp :pred syntax/data)
+    matrix)))
 
 
 ;; --------------------------------------------------------------------
 ;; Quote
 
 
-(defmethod compile-ctor-clauses :quo [_tag vars rows default]
+(defmethod compile-ctor-clauses :quo [_tag vars matrix default]
   (sequence
    (map
     (fn [row]
@@ -800,7 +796,7 @@
         ;; No need to quote the value.
         [`(= ~val ~(first vars))
          (compile (rest vars) [(r.matrix/drop-column row)] default)])))
-   rows))
+   matrix))
 
 
 ;; --------------------------------------------------------------------
@@ -819,7 +815,7 @@
   1)
 
 
-(defmethod compile-ctor-clauses :rep [_tag vars rows default]
+(defmethod compile-ctor-clauses :rep [_tag vars matrix default]
   (let [target (first vars)]
     (map
      (fn [row]
@@ -877,14 +873,14 @@
                            (drop ~n ~target)
                            ~@(rest loop-syms))}]
                        let-else))]))
-     rows)))
+     matrix)))
 
 
 ;; --------------------------------------------------------------------
 ;; Rest
 
 
-(defmethod compile-ctor-clauses :rest [_tag vars rows default]
+(defmethod compile-ctor-clauses :rest [_tag vars matrix default]
   (let [[target & vars*] vars]
     (map
      (fn [row]
@@ -895,7 +891,7 @@
                          `(into ~sym ~target)
                          `(vec ~target))]
              ~(compile vars* [(r.matrix/add-sym (r.matrix/drop-column row) sym)] default))]))
-     rows)))
+     matrix)))
 
 
 ;; --------------------------------------------------------------------
@@ -910,11 +906,11 @@
         cols* (list* part (rest (:cols row)))]
     (assoc row :cols cols*)))
 
-(defmethod compile-ctor-clauses :seq [_tag vars rows default]
+(defmethod compile-ctor-clauses :seq [_tag vars matrix default]
   (let [[var & vars*] vars]
     [[`(seq? ~var)
       (compile vars
-               (map next-columns rows)
+               (map next-columns matrix)
                default)]]))
 
 
@@ -922,11 +918,11 @@
 ;; SeqEnd
 
 
-(defmethod compile-ctor-clauses :seq-end [_tag vars rows default]
+(defmethod compile-ctor-clauses :seq-end [_tag vars matrix default]
   (let [[var & vars*] vars]
     `[[(not (seq ~var))
        ~(compile vars*
-                 (map r.matrix/drop-column rows)
+                 (map r.matrix/drop-column matrix)
                  default)]]))
 
 
@@ -934,14 +930,14 @@
 ;; Unquote
 
 
-(defmethod compile-ctor-clauses :unq [_tag vars rows default]
+(defmethod compile-ctor-clauses :unq [_tag vars matrix default]
   (sequence
    (map
     (fn [row]
       (let [val (second (syntax/data (r.matrix/first-column row)))]
         [`(= ~val ~(first vars))
          (compile (rest vars) [(r.matrix/drop-column row)] default)])))
-   rows))
+   matrix))
 
 
 ;; --------------------------------------------------------------------
@@ -952,7 +948,7 @@
 
 
 
-(defmethod compile-ctor-clauses :var [_tag vars rows default]
+(defmethod compile-ctor-clauses :var [_tag vars matrix default]
   (let [target (first vars)]
     (let [{:keys [bound unbound]}
           (group-by
@@ -961,7 +957,7 @@
                (if (r.matrix/get-sym row sym)
                  :bound
                  :unbound)))
-           rows)]
+           matrix)]
       (cond-> []
         bound
         (into (map
@@ -973,16 +969,16 @@
         
         unbound
         (conj [true
-               (let [rows* (map
-                            (fn [row]
-                              (let [[_ sym] (r.matrix/first-column row)]
-                                (r.matrix/drop-column (r.matrix/add-sym row sym))))
-                            unbound)
-                     body (compile (rest vars) rows* default)]
+               (let [matrix* (map
+                              (fn [row]
+                                (let [[_ sym] (r.matrix/first-column row)]
+                                  (r.matrix/drop-column (r.matrix/add-sym row sym))))
+                              unbound)
+                     body (compile (rest vars) matrix* default)]
                  `(let [~@(mapcat
                            (juxt (comp syntax/data r.matrix/first-column)
                                  (constantly target))
-                           rows)]
+                           matrix)]
                     ~body))])))))
 
 
@@ -998,21 +994,21 @@
 
 
 
-(defmethod compile-ctor-clauses :vec [_tag vars rows default]
+(defmethod compile-ctor-clauses :vec [_tag vars matrix default]
   (let [[var & vars*] vars]
     `[[(vector? ~var)
-       ~(compile vars (sequence (map next-columns) rows) default)]]))
+       ~(compile vars (sequence (map next-columns) matrix) default)]]))
 
 
 ;; --------------------------------------------------------------------
 ;; VPartition
 
 
-(defmethod compile-ctor-clauses :vpart [_tag vars rows default]
+(defmethod compile-ctor-clauses :vpart [_tag vars matrix default]
   (let [target (first vars)]
     (map
-     (fn [[left-tag rows]]
-       (let [n (min-min-length rows)]
+     (fn [[left-tag matrix]]
+       (let [n (min-min-length matrix)]
          [true
           (case left-tag
             :cap
@@ -1023,7 +1019,7 @@
                               {:keys [pat var]} (syntax/data (:left part-data))
                               right (:right part-data)]
                           (assoc row :cols (list* var pat right (r.matrix/rest-columns row)))))
-                      rows)
+                      matrix)
                      default)
 
             :drop
@@ -1035,7 +1031,7 @@
                               (let [part-data (syntax/data (r.matrix/first-column row))
                                     right (:right part-data)]
                                 (assoc row :cols (cons right (r.matrix/rest-columns row)))))
-                            rows)
+                            matrix)
                            default)))
 
             :init
@@ -1052,7 +1048,7 @@
                                     left (:left part-data)
                                     right (:right part-data)]
                                 (assoc row :cols (list* left right (r.matrix/rest-columns row)))))
-                            rows)
+                            matrix)
                            default)))
 
             :rep
@@ -1065,7 +1061,7 @@
                                  (concat
                                   ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
                                   (r.matrix/rest-columns row))))
-                        rows)
+                        matrix)
                        default)
               (let [m (gensym* "m__")
                     take-target (gensym* "left_vec__")
@@ -1081,7 +1077,7 @@
                                        (concat
                                         ((juxt :left :right) (syntax/data (r.matrix/first-column row)))
                                         (r.matrix/rest-columns row))))
-                              rows)
+                              matrix)
                              default))))
 
             :rest
@@ -1091,7 +1087,7 @@
                         (let [part-data (syntax/data (r.matrix/first-column row))
                               left (:left part-data)]
                           (assoc row :cols (cons left (r.matrix/rest-columns row)))))
-                      rows)
+                      matrix)
                      default)
 
             :vcat
@@ -1102,7 +1098,7 @@
                   n (min-min-length
                      (mapv (fn [row]
                              {:cols [(syntax/left-node (r.matrix/first-column row))]})
-                           rows))
+                           matrix))
                   take-target (gensym* "left_vec__")
                   drop-target (gensym* "right_vec__")
                   m (gensym* "m__")]
@@ -1125,27 +1121,27 @@
                                                    (list* [:any '_]
                                                           (:right part-data)
                                                           (r.matrix/rest-columns row))))))
-                            rows)
+                            matrix)
                            default))))]))
-     (group-by
-      (comp syntax/tag :left syntax/data r.matrix/first-column)
-      rows))))
+     (r.matrix/specialize-by
+      (comp syntax/tag :left syntax/data)
+      matrix))))
 
 
 ;; --------------------------------------------------------------------
 ;; Fail
 
-(defmethod compile-ctor-clauses :default [_tag vars rows default]
+(defmethod compile-ctor-clauses :default [_tag vars matrix default]
   [[true
     (cond
       (seq vars)
-      [:error vars rows]
+      [:error vars matrix]
 
-      (some (comp seq :cols) rows)
-      [:error vars rows]
+      (some (comp seq :cols) matrix)
+      [:error vars matrix]
 
       :else
-      (:rhs (first rows)))]])
+      (:rhs (first matrix)))]])
 
 
 ;; TODO: It'd be nice to move away from the try/catch style.
@@ -1166,7 +1162,7 @@
          (throw exception#)))))
 
 
-(defn prioritize-matrix [[vars rows]]
+(defn prioritize-matrix [[vars matrix]]
   (let [idxs (into []
                    (map first)
                    (sort
@@ -1175,34 +1171,34 @@
                     (sequence
                      (map
                       (fn [i]
-                        [i (score-column rows i)]))
+                        [i (score-column matrix i)]))
                      (range (count vars)))))
         vars* (into []
                     (map
                      (fn [idx]
                        (nth vars idx)))
                     idxs)
-        rows* (into []
-                    (map
-                     (fn [row]
-                       (let [cols (:cols row)]
-                         (assoc row :cols (mapv
-                                           (fn [idx]
-                                             (nth cols idx))
-                                           idxs)))))
-                    rows)]
-    [vars* rows*]))
+        matrix* (into []
+                      (map
+                       (fn [row]
+                         (let [cols (:cols row)]
+                           (assoc row :cols (mapv
+                                             (fn [idx]
+                                               (nth cols idx))
+                                             idxs)))))
+                      matrix)]
+    [vars* matrix*]))
 
 
 (defn compile
-  [vars rows default]
-  (let [[vars rows] (prioritize-matrix [vars rows])
+  [vars matrix default]
+  (let [[vars matrix] (prioritize-matrix [vars matrix])
         {preds false, no-preds true}
         (group-by (comp true? first)
                   (mapcat
-                   (fn [[tag rows]]
-                     (compile-ctor-clauses tag vars rows default))
-                   (group-rows rows)))
+                   (fn [[tag matrix]]
+                     (compile-ctor-clauses tag vars matrix default))
+                   (group-rows matrix)))
 
         no-pred-body (reduce
                       (fn [next-choice [_ body-form]]
@@ -1311,9 +1307,9 @@
                    clauses)
         target-sym (gensym* "target__")
         vars [target-sym]
-        rows (clauses->matrix clauses*)
+        matrix (clauses->matrix clauses*)
         form `(let [~target-sym ~target]
-                ~(compile vars rows `(throw backtrack)))]
+                ~(compile vars matrix `(throw backtrack)))]
     (if final-clause
       (try-form form (:rhs final-clause))
       `(try
