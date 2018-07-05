@@ -74,6 +74,7 @@
     :init
     :mem
     :not
+    :or
     :prd
     :rest
     :rep
@@ -238,7 +239,7 @@
 
 
 (defn analyze-or
-  "Analyze or  a sequence of [:fail pat absent-vars] tuples"
+  "Analyze or a sequence of [:fail pat absent-vars] tuples."
   {:arglists '([env or-pat])
    :private true}
   [env [_ {pats :pats}]]
@@ -279,7 +280,6 @@
                     :absent absent-vars})
                  fails)})))
 
-
 (defmethod compile-ctor-clauses :or [_tag vars matrix default]
   (map
    (fn [row]
@@ -319,8 +319,8 @@
                  ;; pattern match). The original right hand side is
                  ;; then replaced with an invocation of this
                  ;; function with the required variables if any.
-                 unbound-mem-vars (remove (:env row) (syntax/mem-syms or-pat))
-                 unbound-vars (remove (:env row) (syntax/var-syms or-pat))
+                 unbound-mem-vars (remove (:env row) (syntax/mem-syms (:cols row)))
+                 unbound-vars (remove (:env row) (syntax/var-syms (:cols row)))
                  f-sym (gensym* "f__")
                  rhs* `(~f-sym ~@unbound-vars ~@unbound-mem-vars)
                  cols* (r.matrix/rest-columns row) 
