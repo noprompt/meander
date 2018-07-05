@@ -421,7 +421,8 @@
 
 (defn tag
   [node]
-  {:pre [(node? node)]}
+  (assert (node? node)
+          (format "%s is not node" (pr-str node)))
   (first node))
 
 
