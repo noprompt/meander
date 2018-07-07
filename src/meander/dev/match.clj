@@ -974,10 +974,11 @@
                                   (r.matrix/drop-column (r.matrix/add-sym row sym))))
                               unbound)
                      body (compile (rest targets) matrix* default)]
-                 `(let [~@(mapcat
-                           (juxt (comp syntax/data r.matrix/first-column)
-                                 (constantly target))
-                           unbound)]
+                 `(let [~@(sequence (comp
+                                     (map (comp syntax/data r.matrix/first-column))
+                                     (distinct)
+                                     (mapcat (juxt identity (constantly target))))
+                                    unbound)]
                     ~body))])))))
 
 
