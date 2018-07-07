@@ -522,3 +522,13 @@
 
      _
      false)))
+
+
+(t/deftest vector-patterns
+  (t/is (= [1 2]
+           (r.match/match [1 2]
+             [?x ?x]
+             [?x ?x]
+
+             [?x ?y]
+             [?x ?y]))))
