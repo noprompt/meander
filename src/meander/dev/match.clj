@@ -137,13 +137,13 @@
 (declare compile)
 
 
-(defn compile-ctor-clauses-dispatch [tag targets matrix default]
+(defn compile-specialized-matrix-dispatch [tag targets matrix default]
   tag)
 
 
-(defmulti compile-ctor-clauses
+(defmulti compile-specialized-matrix
   {:arglists '([tag targets matrix default])}
-  #'compile-ctor-clauses-dispatch)
+  #'compile-specialized-matrix-dispatch)
 
 
 ;; ---------------------------------------------------------------------
@@ -154,7 +154,7 @@
     (assoc row :cols (concat pats (r.matrix/rest-columns row)))))
 
 
-(defmethod compile-ctor-clauses :and [_tag targets matrix default]
+(defmethod compile-specialized-matrix :and [_tag targets matrix default]
   (sequence
    (map
     (fn [row]
@@ -175,7 +175,7 @@
 ;; App
 
 
-(defmethod compile-ctor-clauses :app [_tag targets matrix default]
+(defmethod compile-specialized-matrix :app [_tag targets matrix default]
   (sequence
    (map
     (fn [row]
@@ -198,7 +198,7 @@
   -1)
 
 
-(defmethod compile-ctor-clauses :any [_tag targets matrix default]
+(defmethod compile-specialized-matrix :any [_tag targets matrix default]
   (sequence
    (map
     (fn [row]
@@ -211,7 +211,7 @@
 ;; Not
 
 
-(defmethod compile-ctor-clauses :not [_tag targets matrix default]
+(defmethod compile-specialized-matrix :not [_tag targets matrix default]
   (sequence
    (map
     (fn [row]
@@ -280,7 +280,7 @@
                     :absent absent-vars})
                  fails)})))
 
-(defmethod compile-ctor-clauses :or [_tag targets matrix default]
+(defmethod compile-specialized-matrix :or [_tag targets matrix default]
   (map
    (fn [row]
      (let [[_ {pats :pats} :as or-pat] (r.matrix/first-column row)]
@@ -358,7 +358,7 @@
     (assoc row :cols cols*)))
 
 
-(defmethod compile-ctor-clauses :cap [_tag targets matrix default]
+(defmethod compile-specialized-matrix :cap [_tag targets matrix default]
   [[true
     (compile (cons (first targets) targets)
              (map next-columns matrix)
@@ -402,11 +402,11 @@
     matrix)))
 
 
-(defmethod compile-ctor-clauses :cat [tag targets matrix default]
+(defmethod compile-specialized-matrix :cat [tag targets matrix default]
   (compile-cat-clauses tag targets matrix default))
 
 
-(defmethod compile-ctor-clauses :vcat [tag targets matrix default]
+(defmethod compile-specialized-matrix :vcat [tag targets matrix default]
   (compile-cat-clauses tag targets matrix default))
 
 
@@ -415,7 +415,7 @@
 ;; Drop
 
 
-(defmethod compile-ctor-clauses :drop [_tag targets matrix default]
+(defmethod compile-specialized-matrix :drop [_tag targets matrix default]
   [[true
     (compile (rest targets) (map r.matrix/drop-column matrix) default)]])
 
@@ -457,7 +457,7 @@
     x))
 
 
-(defmethod compile-ctor-clauses ::ground [_tag targets matrix default]
+(defmethod compile-specialized-matrix ::ground [_tag targets matrix default]
   (let [[target & targets*] targets]
     (map
      (fn [[node matrix]]
@@ -499,7 +499,7 @@
 ;; Init
 
 
-(defmethod compile-ctor-clauses :init [_tag targets matrix default]
+(defmethod compile-specialized-matrix :init [_tag targets matrix default]
   (let [[target & targets*] targets]
     (map
      (fn [row]
@@ -517,7 +517,7 @@
 ;; Lit
 
 
-(defmethod compile-ctor-clauses :lit [_tag targets matrix default]
+(defmethod compile-specialized-matrix :lit [_tag targets matrix default]
   (map
    (fn [[[_ val] matrix]]
      `[(= ~(first targets) ~(compile-ground val))
@@ -551,7 +551,7 @@
   (sort-by second (key-frequencies map-nodes)))
 
 
-(defmethod compile-ctor-clauses :entry
+(defmethod compile-specialized-matrix :entry
   [_tag targets matrix default]
   (let [[target & rest-targets] targets]
     (map
@@ -605,13 +605,13 @@
       map-matrix))))
 
 
-(defmethod compile-ctor-clauses ::map-no-check [_tag targets matrix default]
+(defmethod compile-specialized-matrix ::map-no-check [_tag targets matrix default]
   (let [target (first targets)]
     [[true
       (compile (cons target targets) (next-map-matrix matrix) default)]]))
 
 
-(defmethod compile-ctor-clauses :map [_tag targets matrix default]
+(defmethod compile-specialized-matrix :map [_tag targets matrix default]
   (let [target (first targets)]
     [[`(map? ~target)
       (compile (cons target targets) (next-map-matrix matrix) default)]]))
@@ -625,7 +625,7 @@
   0)
 
 
-(defmethod compile-ctor-clauses :mem [_tag targets matrix default]
+(defmethod compile-specialized-matrix :mem [_tag targets matrix default]
   (let [[var & targets*] targets]
     (sequence
      (map
@@ -644,7 +644,7 @@
 ;; Partition
 
 
-(defmethod compile-ctor-clauses :part [_tag targets matrix default]
+(defmethod compile-specialized-matrix :part [_tag targets matrix default]
   (let [target (first targets)]
     (map
      (fn [[left-tag matrix]] 
@@ -773,7 +773,7 @@
     (assoc row :cols (cons node* (r.matrix/rest-columns row)))))
 
 
-(defmethod compile-ctor-clauses :prd [_tag targets matrix default]
+(defmethod compile-specialized-matrix :prd [_tag targets matrix default]
   (sequence
    (map
     (fn do-pred-and-matrix [[pred matrix]]
@@ -788,7 +788,7 @@
 ;; Quote
 
 
-(defmethod compile-ctor-clauses :quo [_tag targets matrix default]
+(defmethod compile-specialized-matrix :quo [_tag targets matrix default]
   (sequence
    (map
     (fn [row]
@@ -815,7 +815,7 @@
   1)
 
 
-(defmethod compile-ctor-clauses :rep [_tag targets matrix default]
+(defmethod compile-specialized-matrix :rep [_tag targets matrix default]
   (let [target (first targets)]
     (map
      (fn [row]
@@ -880,7 +880,7 @@
 ;; Rest
 
 
-(defmethod compile-ctor-clauses :rest [_tag targets matrix default]
+(defmethod compile-specialized-matrix :rest [_tag targets matrix default]
   (let [[target & targets*] targets]
     (map
      (fn [row]
@@ -906,7 +906,7 @@
         cols* (list* part (rest (:cols row)))]
     (assoc row :cols cols*)))
 
-(defmethod compile-ctor-clauses :seq [_tag targets matrix default]
+(defmethod compile-specialized-matrix :seq [_tag targets matrix default]
   (let [[target & targets*] targets]
     [[`(seq? ~target)
       (compile targets
@@ -918,7 +918,7 @@
 ;; SeqEnd
 
 
-(defmethod compile-ctor-clauses :seq-end [_tag targets matrix default]
+(defmethod compile-specialized-matrix :seq-end [_tag targets matrix default]
   (let [[target & targets*] targets]
     `[[(not (seq ~target))
        ~(compile targets*
@@ -930,7 +930,7 @@
 ;; Unquote
 
 
-(defmethod compile-ctor-clauses :unq [_tag targets matrix default]
+(defmethod compile-specialized-matrix :unq [_tag targets matrix default]
   (sequence
    (map
     (fn [row]
@@ -947,7 +947,7 @@
   1)
 
 
-(defmethod compile-ctor-clauses :var [_tag targets matrix default]
+(defmethod compile-specialized-matrix :var [_tag targets matrix default]
   (let [target (first targets)]
     (let [{:keys [bound unbound]}
           (group-by
@@ -994,7 +994,7 @@
 
 
 
-(defmethod compile-ctor-clauses :vec [_tag targets matrix default]
+(defmethod compile-specialized-matrix :vec [_tag targets matrix default]
   (let [[target & targets*] targets]
     `[[(vector? ~target)
        ~(compile targets (sequence (map next-columns) matrix) default)]]))
@@ -1004,7 +1004,7 @@
 ;; VPartition
 
 
-(defmethod compile-ctor-clauses :vpart [_tag targets matrix default]
+(defmethod compile-specialized-matrix :vpart [_tag targets matrix default]
   (let [target (first targets)]
     (map
      (fn [[left-tag matrix]]
@@ -1131,7 +1131,7 @@
 ;; --------------------------------------------------------------------
 ;; Fail
 
-(defmethod compile-ctor-clauses :default [_tag targets matrix default]
+(defmethod compile-specialized-matrix :default [_tag targets matrix default]
   [[true
     (cond
       (seq targets)
@@ -1197,7 +1197,7 @@
         (group-by (comp true? first)
                   (mapcat
                    (fn [[tag matrix]]
-                     (compile-ctor-clauses tag targets matrix default))
+                     (compile-specialized-matrix tag targets matrix default))
                    (group-rows matrix)))
 
         no-pred-body (reduce
