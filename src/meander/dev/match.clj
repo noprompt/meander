@@ -947,7 +947,6 @@
   1)
 
 
-
 (defmethod compile-ctor-clauses :var [_tag targets matrix default]
   (let [target (first targets)]
     (let [{:keys [bound unbound]}
@@ -978,7 +977,7 @@
                  `(let [~@(mapcat
                            (juxt (comp syntax/data r.matrix/first-column)
                                  (constantly target))
-                           matrix)]
+                           unbound)]
                     ~body))])))))
 
 
