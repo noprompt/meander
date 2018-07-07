@@ -1041,10 +1041,10 @@
   '_)
 
 
-(defn variables
+(defn variables*
   "Return all variable nodes in x."
   [x]
-  (into #{}
+  (into []
         (keep
          (fn [x]
            (cond
@@ -1060,6 +1060,19 @@
                  (has-tag? x :init))
              (find (data x) :mem))))
         (tree-seq seqable? seq x)))
+
+
+(defn linear?
+  "true if x does not contain multiple occurence of a variable, false
+  otherwise."
+  [x]
+  (every? #{1} (vals (frequencies (variables* x)))))
+
+
+(defn variables
+  "Return all distinct variable nodes in x."
+  [x]
+  (into #{} (variables* x)))
 
 
 (defn vars
