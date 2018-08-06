@@ -5,12 +5,6 @@
             [meander.syntax.alpha]))
 
 
-(defprotocol IPatternMatrix
-  (-nth-column
-    [obj index]
-    [obj index not-found]))
-
-
 (s/def :meander.matrix.alpha/matrix
   (s/coll-of :meander.matrix.alpha/row
              :kind sequential?
