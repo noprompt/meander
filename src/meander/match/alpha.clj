@@ -152,6 +152,15 @@
     s-matrix)))
 
 
+;; :drp
+
+
+(defmethod compile-specialized-matrix :drp
+  [_ [_ & targets*] s-matrix default]
+  [[true
+    (compile targets* (r.matrix/drop-column s-matrix) default)]])
+
+
 ;; :lit
 
 (defmethod compile-specialized-matrix :lit
@@ -274,7 +283,13 @@
                             mr-matrix)
                            default))])))
         (r.matrix/specialize-by
-         (comp (fnil r.syntax/min-length 0) :right r.syntax/data)
+         (comp
+          (fn [r]
+            (if r
+              (r.syntax/min-length r)
+              0))
+          :right
+          r.syntax/data)
          vl-matrix))))))
 
 

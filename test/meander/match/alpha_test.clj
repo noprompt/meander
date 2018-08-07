@@ -154,6 +154,22 @@
            (= x2 ?x2)))))
 
 
+(tc.t/defspec seq-drop-in-head
+  (tc.prop/for-all [n tc.gen/nat
+                    x tc.gen/any]
+    (r.match/match `(~@(map identity (repeat n x)) ~x ~x)
+      (_ ... ~x ~x)
+      true)))
+
+
+(tc.t/defspec seq-drop-in-tail
+  (tc.prop/for-all [n tc.gen/nat
+                    x tc.gen/any]
+    (r.match/match `(~@(map identity (repeat n x)) ~x ~x)
+      (~x ~x . _ ...)
+      true)))
+
+
 ;; Vectors
 
 (tc.t/defspec vec-unquote-patterns-match
@@ -250,3 +266,19 @@
       [?x1 ?x2 ... ~y1 ~y2]
       (and (= x1 ?x1)
            (= x2 ?x2)))))
+
+
+(tc.t/defspec vec-drop-in-head
+  (tc.prop/for-all [n tc.gen/nat
+                    x tc.gen/any]
+    (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
+      [_ ... ~x ~x]
+      true)))
+
+
+(tc.t/defspec vec-drop-in-tail
+  (tc.prop/for-all [n tc.gen/nat
+                    x tc.gen/any]
+    (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
+      [~x ~x . _ ...]
+      true)))

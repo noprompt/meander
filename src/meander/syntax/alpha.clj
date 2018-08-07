@@ -217,8 +217,20 @@
         (s.gen/int))))))
 
 
+(s/def :meander.syntax.alpha/drop
+  (s/with-gen
+    (s/cat :any :meander.syntax.alpha/any
+           :dots zero-or-more-symbol?)
+    (fn []
+      (s.gen/fmap
+       (fn [sym]
+         `(~sym ~'...))
+       (s/gen :meander.syntax.alpha/any)))))
+
+
 (s/def :meander.syntax.alpha.sequential/item
-  (s/alt :prt (s/cat :left (s/alt :rp* :meander.syntax.alpha/zero-or-more
+  (s/alt :prt (s/cat :left (s/alt :drp :meander.syntax.alpha/drop
+                                  :rp* :meander.syntax.alpha/zero-or-more
                                   :rp+ :meander.syntax.alpha/n-or-more)
                      :right (s/? :meander.syntax.alpha.sequential/item))
          :prt (s/cat :left (s/alt :cat (s/* :meander.syntax.alpha.sequential/subterm))
@@ -479,6 +491,21 @@
 (defmethod max-length :cat
   [[_ nodes]]
   (count nodes))
+
+
+;; :drp
+
+
+(defmethod ground? :drp
+  [_] false)
+
+
+(defmethod min-length :drp
+  [_] 0)
+
+
+(defmethod max-length :drp
+  [_] ##Inf)
 
 
 ;; :lit
