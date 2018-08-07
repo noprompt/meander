@@ -297,7 +297,7 @@
 
 
 (s/def :meander.syntax.alpha.node/lvr
-  (s/tuple #{:lvr} :meander.syntax.alpha/memory-variable))
+  (s/tuple #{:lvr} :meander.syntax.alpha/logic-variable))
 
 
 (s/def :meander.syntax.alpha.node/mvr
