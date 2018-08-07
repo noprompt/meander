@@ -247,7 +247,7 @@
                    :any :meander.syntax.alpha/any
                    :lvr :meander.syntax.alpha/logic-variable
                    :mvr :meander.syntax.alpha/memory-variable
-                   :lit :meander.syntax.alpha.seq/literal)
+                   :lit :meander.syntax.alpha.sequential/literal)
              :kind set?
              :into #{}))
 
