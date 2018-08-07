@@ -11,7 +11,9 @@
 ;; Utilities
 
 
-(defmacro undefined []
+(defmacro undefined
+  {:private true}
+  []
   `(throw (ex-info "undefined" '~(meta &form))))
 
 
