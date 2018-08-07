@@ -97,6 +97,18 @@
   tag)
 
 
+(s/fdef compile-specialized-matrix
+  :args (s/cat :tag :meander.syntax.alpha.node/tag
+               :targets (s/coll-of :meander.match.alpha/target
+                                   :kind sequential?
+                                   :into [])
+               :s-matrix :meander.matrix.alpha/matrix
+               :default any?)
+  :ret (s/coll-of (s/tuple any? any?)
+                  :kind sequential?
+                  :into []))
+
+
 (defmulti compile-specialized-matrix
   #'compile-specialized-matrix-dispatch)
 
