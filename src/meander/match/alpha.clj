@@ -110,6 +110,7 @@
 
 
 (defmulti compile-specialized-matrix
+  {:arglists '([tag targets s-matrix default])}
   #'compile-specialized-matrix-dispatch)
 
 
