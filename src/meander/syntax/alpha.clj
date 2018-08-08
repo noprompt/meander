@@ -392,9 +392,7 @@
 
 
 (s/fdef variables
-  :args (s/or :a1 (s/cat :node :meander.syntax.alpha/node)
-              :a2 (s/cat :node :meander.syntax.alpha/node
-                         :filters (s/coll-of #{:lvr :mvr} :kind set? :into #{})))
+  :args (s/cat :node :meander.syntax.alpha/node)
   :ret (s/coll-of
         (s/or :meander.syntax.alpha.node/lvr
               :meander.syntax.alpha.node/mvr)
@@ -404,18 +402,11 @@
 
 (defn variables
   "Return all :lvr and :mvr nodes in node."
-  ([node]
-   (s/assert :meander.syntax.alpha/node node)
-   (into #{}
-         (filter (comp #{:lvr :mvr} tag))
-         (subnodes node)))
-  ([node filters]
-   (s/assert :meander.syntax.alpha/node node)
-   (into #{}
-         (filter
-          (comp (set/intersection #{:lvr :mvr} filters)
-                tag))
-         (subnodes node))))
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (into #{}
+        (filter (comp #{:lvr :mvr} tag))
+        (subnodes node)))
 
 
 (s/fdef ground?
