@@ -351,6 +351,45 @@
   (second node))
 
 
+(s/fdef subnodes
+  :args (s/cat :node :meander.syntax.alpha/node)
+  :ret (s/coll-of :meander.syntax.alpha/node
+                  :kind set?
+                  :into #{})
+  :fn (fn [{:keys [args ret]}]
+        (contains? (:node args) ret)))
+
+
+(defn subnodes-dispatch
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (tag node))
+
+
+(defmulti subnodes
+  "Retun the set of all subnodes of node."
+  {:arglists '([node])}
+  #'subnodes-dispatch)
+
+
+(defmethod subnodes :default
+  [node] #{node})
+
+
+(s/fdef proper-subnodes
+  :args (s/cat :node :meander.syntax.alpha/node)
+  :ret (s/coll-of :meander.syntax.alpha/node
+                  :kind set?
+                  :into #{})
+  :fn (fn [{:keys [args ret]}]
+        (not (contains? (:node args) ret))))
+
+
+(defn proper-subnodes
+  "Return the set all subnodes in node excluding node."
+  [node]
+  (disj (subnodes node) node))
+
 
 (s/fdef variables
   :args (s/or :a1 (s/cat :node :meander.syntax.alpha/node)
@@ -362,22 +401,21 @@
         :kind set?
         :into #{}))
 
+
 (defn variables
-  "Return all :lvr and :mvr nodes."
+  "Return all :lvr and :mvr nodes in node."
   ([node]
    (s/assert :meander.syntax.alpha/node node)
    (into #{}
-         (comp
-          (filter node?)
-          (filter (comp #{:lvr :mvr} tag)))
-         (tree-seq coll? seq node)))
+         (filter (comp #{:lvr :mvr} tag))
+         (subnodes node)))
   ([node filters]
    (s/assert :meander.syntax.alpha/node node)
    (into #{}
-         (comp
-          (filter node?)
-          (filter (comp (set/intersection #{:lvr :mvr} filters) tag)))
-         (tree-seq coll? seq node))))
+         (filter
+          (comp (set/intersection #{:lvr :mvr} filters)
+                tag))
+         (subnodes node))))
 
 
 (s/fdef ground?
@@ -477,6 +515,36 @@
   [_] false)
 
 
+;; :cap
+
+
+(defmethod subnodes :cap
+  [[_ {:keys [term binding]} :as node]]
+  (set/union #{node binding} (subnodes term)))
+
+
+(defn circular-cap?
+  "true if cap-node binding is a logic variable and term contains a
+  circular reference to it's binding."
+  {:arglists '([cap-node])}
+  [[_ {:keys [term binding]}]]
+  (if (lvr-node? binding)
+    (transduce
+     (comp (remove (comp #{:cap} tag))
+           (map proper-subnodes))
+     (fn
+       ([init] init)
+       ([_ nodes]
+        (if (contains? nodes binding)
+          (reduced true)
+          false)))
+     false
+     (subnodes term))
+    ;; :cap nodes which bind memory variables include themselves as
+    ;; subterms.
+    false))
+
+
 ;; :cat
 
 (defmethod ground? :cat
@@ -491,6 +559,11 @@
 (defmethod max-length :cat
   [[_ nodes]]
   (count nodes))
+
+
+(defmethod subnodes :cat
+  [[_ nodes :as node]]
+  (transduce (map subnodes) set/union #{node} nodes))
 
 
 ;; :drp
@@ -556,8 +629,16 @@
        0)))
 
 
-;; :quo
+(defmethod subnodes :prt
+  [[_ {left :left, right :right} :as node]]
+  (set/union #{node}
+             (subnodes left)
+             (if (some? right)
+               (subnodes right)
+               #{}))) 
 
+
+;; :quo
 
 (defmethod ground? :quo
   [_] true)
@@ -581,6 +662,11 @@
   [_] ##Inf)
 
 
+(defmethod subnodes :rp*
+  [[_ {items :items} :as node]]
+  (transduce (map subnodes) set/union #{node} items))
+
+
 ;; :rp+
 
 (defmethod ground? :rp+
@@ -599,10 +685,20 @@
   [_] ##Inf)
 
 
+(defmethod subnodes :rp+
+  [[_ {items :items} :as node]]
+  (transduce (map subnodes) set/union #{node} items))
+
+
 ;; :seq
 
 (defmethod ground? :seq
   [[_ prt]] (ground? prt))
+
+
+(defmethod subnodes :seq
+  [[_ prt :as node]]
+  (set/union #{node} (subnodes prt)))
 
 
 ;; :uns
@@ -629,3 +725,8 @@
 
 (defmethod max-length :vec
   [[_ prt]] (max-length prt))
+
+
+(defmethod subnodes :vec
+  [[_ prt :as node]]
+  (set/union #{node} (subnodes prt)))

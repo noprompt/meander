@@ -112,6 +112,7 @@
 (defmulti compile-specialized-matrix
   #'compile-specialized-matrix-dispatch)
 
+
 ;; :any
 
 
@@ -152,8 +153,55 @@
     s-matrix)))
 
 
-;; :drp
+;; :cap
 
+
+(defmethod compile-specialized-matrix :cap
+  [_ [target & targets*] s-matrix default]
+  (sequence
+   (map
+    (fn [[_ {term :term, binding :binding} :as cap-node] row]
+      (cond
+        ;; This can never match.
+        (r.syntax/circular-cap? cap-node)
+        [false default]
+
+        ;; If the logic variable binding is already bound and term is
+        ;; free of memory variables and unbound logic variables, push
+        ;; only the binding on to the stack.
+        (and (r.syntax/lvr-node? binding)
+             (r.matrix/get-var row binding)
+             (every?
+              (fn [var-node]
+                (and (not (r.syntax/mvr-node? var-node))
+                     (r.matrix/get-var row var-node)))
+              (r.syntax/variables term)))
+        [true
+         (compile
+          (cons target targets*)
+          [(assoc row :cols (cons binding (:cols row)))]
+          default)]
+
+        ;; (?x :as ?x) is ?x
+        (and (r.syntax/lvr-node? binding)
+             (= term binding))
+        [true
+         (compile
+          (list* target targets*)
+          [(assoc row :cols (cons term (:cols row)))]
+          default)]
+
+        :else
+        [true
+         (compile
+          (list* target target targets*)
+          [(assoc row :cols (cons binding (cons term (:cols row))))]
+          default)])))
+   (r.matrix/nth-column s-matrix 0)
+   (r.matrix/drop-column s-matrix)))
+
+
+;; :drp
 
 (defmethod compile-specialized-matrix :drp
   [_ [_ & targets*] s-matrix default]
@@ -556,5 +604,3 @@
         target (gensym "target__")]
     `(let [~target ~(:target data)]
        ~(compile [target] (:matrix data) `(throw backtrack)))))
-
-

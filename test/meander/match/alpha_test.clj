@@ -56,6 +56,65 @@
       (= [x] !xs))))
 
 
+(tc.t/defspec any-x-cap-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (~x :as ?x)
+      (= x ?x))))
+
+
+(tc.t/defspec any-x-cap-mvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (~x :as !xs)
+      (= [x] !xs))))
+
+
+(tc.t/defspec lvr-cap-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (?x :as ?y)
+      (= x ?x ?y))))
+
+
+(tc.t/defspec lvr-cap-mvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (?x :as !xs)
+      (and (= x ?x) (= [x] !xs)))))
+
+
+(tc.t/defspec mvr-cap-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (!xs :as ?x)
+      (and (= x ?x) (= [x] !xs)))))
+
+
+(tc.t/defspec circular-cap-fails
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      ((([?x] :as ?z) :as ?y) :as ?x)
+      false
+
+      _
+      true)))
+
+
+(tc.t/defspec ?x-cap-?x-succeeds
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (?x :as ?x)
+      (= x ?x))))
+
+
+(tc.t/defspec !xs-cap-!xs
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (!xs :as !xs)
+      (= [x x]))))
+
+
 ;; Seqs
 
 (tc.t/defspec seq-unquote-patterns-match
@@ -170,6 +229,58 @@
       true)))
 
 
+(tc.t/defspec seq-any-x-cap-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list x)
+      ((~x :as ?x))
+      (= x ?x))))
+
+
+(tc.t/defspec seq-any-x-cap-mvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list x)
+      ((~x :as !xs))
+      (= [x] !xs))))
+
+
+(tc.t/defspec seq-lvr-cap-lvr-okay
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list x x x)
+      (?y (?x :as ?y) ?x)
+      (= x ?x ?y))))
+
+
+(tc.t/defspec seq-lvr-cap-lvr-fail
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list [x] x x)
+      (?y (?x :as ?y) ?x)
+      false
+
+      _
+      true)))
+
+
+(tc.t/defspec seq-lvr-cap-mvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list x x x)
+      (?x (?x :as !xs) ?x)
+      (and (= x ?x) (= [x] !xs)))))
+
+
+(tc.t/defspec seq-mvr-cap-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list x x x)
+      (?x (!xs :as ?x) ?x)
+      (and (= x ?x) (= [x] !xs)))))
+
+
+(tc.t/defspec seq-?x-cap-?x-with-unbound-?y-binds-?y
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match (list [x] [x])
+      (?x ([?y] :as ?x))
+      (= [x] ?x [?y]))))
+
+
 ;; Vectors
 
 (tc.t/defspec vec-unquote-patterns-match
@@ -282,3 +393,10 @@
     (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
       [~x ~x . _ ...]
       true)))
+
+
+(tc.t/defspec vec-?x-cap-?x-with-unbound-?y-binds-?y
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match [[x] [x]]
+      [?x ([?y] :as ?x)]
+      (= [x] ?x [?y]))))
