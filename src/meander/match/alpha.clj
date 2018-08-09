@@ -217,7 +217,7 @@
   (sequence
    (map
     (fn [[[_ lit-val] matrix]]
-      [`(= ~target ~lit-val)
+      [`(= ~target '~lit-val)
        (compile targets* (r.matrix/drop-column matrix) default)]))
    (r.matrix/specialize-by identity s-matrix)))
 
@@ -261,10 +261,11 @@
   [_ [target & targets*] s-matrix default]
   (sequence
    (map
-    (fn [[[_ pred] matrix]]
+    (fn [[_ {pred :form}] row]
       [`(~pred ~target)
-       (compile targets* (r.matrix/drop-column matrix) default)]))
-   (r.matrix/specialize-by identity s-matrix)))
+       (compile targets* [row] default)]))
+   (r.matrix/nth-column s-matrix 0)
+   (r.matrix/drop-column s-matrix)))
 
 
 ;; :prt
@@ -273,73 +274,92 @@
   [_ [target & targets*] s-matrix default]
   (let [s-matrices (r.matrix/specialize-by
                     (comp r.syntax/variable-length? :left r.syntax/data)
-                    s-matrix)
-        l-target (gensym* "left__")
-        r-target (gensym* "right__")]
+                    s-matrix)]
     (concat
      ;; Left tree has a fixed length.
      (when-some [[_ fl-matrix] (find s-matrices false)]
-       (sequence
-        (map
-         (fn [[min-length ml-matrix]]
-           [true
-            `(let [~l-target (take ~min-length ~target)
-                   ~r-target (drop ~min-length ~target)]
-               ;; l-target is pushed on to the target stack twice:
-               ;; once for it's length be checked (by a :prd node
-               ;; below), and once for pattern matching.
-               ~(compile (list* l-target l-target r-target targets*)
+       (let [l-target (gensym* "left__")
+             r-target (gensym* "right__")]
+         (sequence
+          (map
+           (fn [[min-length ml-matrix]]
+             (if (= min-length 0)
+               [true
+                (compile (list* target targets*)
                          (sequence
                           (map
                            (fn [row]
-                             (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
-                               (assoc row :cols (list* [:prd `(comp #(= ~min-length %) count)]
-                                                       left
-                                                       (or right [:prd `(complement seq)])
-                                                       rest-cols)))))
-                          ml-matrix)
-                         default))]))
-        (r.matrix/specialize-by
-         (comp r.syntax/min-length :left r.syntax/data)
-         fl-matrix)))
+                             (assoc row :cols (cons [:prd {:form `(fn ~(gensym* "check_empty__")
+                                                                    [x#]
+                                                                    (not (seq x#)))}]
+                                                    (:cols row)))))
+                          (r.matrix/drop-column ml-matrix))
+                         default)]
+               [true
+                `(let [~l-target (take ~min-length ~target)
+                       ~r-target (drop ~min-length ~target)]
+                   ;; l-target is pushed on to the target stack twice:
+                   ;; once for it's length be checked (by a :prd node
+                   ;; below), and once for pattern matching.
+                   ~(compile (list* l-target l-target r-target targets*)
+                             (sequence
+                              (map
+                               (fn [row]
+                                 (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
+                                   (assoc row :cols (list* [:prd {:form `(fn ~(gensym* "check_length__")
+                                                                           [x#]
+                                                                           (= (count x#) ~min-length))}]
+                                                           left
+                                                           (or right
+                                                               [:prd {:form `(fn ~(gensym* "check_empty__")
+                                                                               [x#]
+                                                                               (not (seq x#)))}])
+                                                           rest-cols)))))
+                              ml-matrix)
+                             default))])))
+          (r.matrix/specialize-by
+           (comp r.syntax/min-length :left r.syntax/data)
+           fl-matrix))))
      ;; Left tree has a variable length.
      (when-some [[_ vl-matrix] (find s-matrices true)]
-       (sequence
-        (map
-         (fn [[min-length mr-matrix]]
-           (let [n (gensym* "target_length__")
-                 m (gensym* "target_mark__")]
-             [true
-              `(let [~n (count ~target)
-                     ~m (max 0 (- ~n ~min-length))
-                     ~l-target (take ~m ~target)
-                     ~r-target (drop ~m ~target)]
-                 ;; r-target is matched before l-target because it has a
-                 ;; fixed length. It is pushed on to the stack twice:
-                 ;; once for it's length to be checked, and once for
-                 ;; pattering matching.
-                 ~(compile (list* r-target r-target l-target targets*)
-                           (sequence
-                            (map
-                             (fn [row]
-                               (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
-                                 (assoc row :cols (list* [:prd `(fn ~(gensym* "check_rlength__")
-                                                                  [~r-target]
-                                                                  (= ~min-length (count ~r-target)))]
-                                                         (or right [:any '_])
-                                                         left
-                                                         rest-cols)))))
-                            mr-matrix)
-                           default))])))
-        (r.matrix/specialize-by
-         (comp
-          (fn [r]
-            (if r
-              (r.syntax/min-length r)
-              0))
-          :right
-          r.syntax/data)
-         vl-matrix))))))
+       (let [l-target (gensym* "left__")
+             r-target (gensym* "right__")]
+         (sequence
+          (map
+           (fn [[min-length mr-matrix]]
+             (let [n (gensym* "target_length__")
+                   m (gensym* "target_mark__")]
+               [true
+                `(let [~n (count ~target)
+                       ~m (max 0 (- ~n ~min-length))
+                       ~l-target (take ~m ~target)
+                       ~r-target (drop ~m ~target)]
+                   ;; r-target is matched before l-target because it has a
+                   ;; fixed length. It is pushed on to the stack twice:
+                   ;; once for it's length to be checked, and once for
+                   ;; pattering matching.
+                   ~(compile (list* r-target r-target l-target targets*)
+                             (sequence
+                              (map
+                               (fn [row]
+                                 (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
+                                   (assoc row :cols (list* [:prd {:form `(fn ~(gensym* "check_rlength__")
+                                                                           [~r-target]
+                                                                           (= ~min-length (count ~r-target)))}]
+                                                           (or right [:any '_])
+                                                           left
+                                                           rest-cols)))))
+                              mr-matrix)
+                             default))])))
+          (r.matrix/specialize-by
+           (comp
+            (fn [r]
+              (if r
+                (r.syntax/min-length r)
+                0))
+            :right
+            r.syntax/data)
+           vl-matrix)))))))
 
 
 ;; :quo
@@ -355,6 +375,7 @@
 
 
 ;; :rp*
+
 
 (defmethod compile-specialized-matrix :rp*
   [_ [target & targets*] s-matrix default]
@@ -381,7 +402,7 @@
                           (filter r.syntax/mvr-node?)
                           vars)
             let-else (compile targets*
-                              (r.matrix/drop-column [row])
+                              [row]
                               default)
             let-syms (take-nth 2 let-bindings)
             loop-name (gensym* "loop__")
@@ -399,14 +420,14 @@
             ;; condition otherwise.
             loop-else `(if (not (seq ~target))
                          ~(compile targets*
-                                   (r.matrix/drop-column [(assoc row :env loop-env)])
+                                   [(assoc row :env loop-env)]
                                    default)
                          ~default)
             ;; This symbol points to the current first n elements of
             ;; target.
             slice (gensym* "slice__")
             ;; Checked at the top of each loop. 
-            prd [:prd `(fn [~slice] (= ~n (count ~slice)))]]
+            prd [:prd {:form `(fn [~slice] (= ~n (count ~slice)))}]]
         [true
          `(let [~@let-bindings
                 ~slice (take ~n ~target)]
@@ -527,6 +548,9 @@
 
 
 (defn compile [targets matrix default]
+  (assert (= (count targets)
+             (count (:cols (first matrix))))
+          "Number of targets does not match the number of columns")
   (if (seq targets)
     (let [[targets* matrix*] (prioritize-matrix [targets matrix])
           {no-preds true, preds false} (group-by (comp true? first)

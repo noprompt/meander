@@ -1,5 +1,7 @@
 (ns meander.match.alpha-test
-  (:require [clojure.test :as t]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as s.gen]
+            [clojure.test :as t]
             [clojure.test.check :as tc]
             [clojure.test.check.clojure-test :as tc.t]
             [clojure.test.check.generators :as tc.gen]
@@ -53,42 +55,62 @@
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       !xs
-      (= [x] !xs))))
+      (= [x] !xs)
+
+      _
+      false)))
 
 
 (tc.t/defspec any-x-cap-lvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (~x :as ?x)
-      (= x ?x))))
+      (= x ?x)
+
+      _
+      false)))
 
 
 (tc.t/defspec any-x-cap-mvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (~x :as !xs)
-      (= [x] !xs))))
+      (= [x] !xs)
+
+      _
+      false)))
 
 
 (tc.t/defspec lvr-cap-lvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (?x :as ?y)
-      (= x ?x ?y))))
+      (= x ?x ?y)
+
+      _
+      false)))
 
 
 (tc.t/defspec lvr-cap-mvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (?x :as !xs)
-      (and (= x ?x) (= [x] !xs)))))
+      (and (= x ?x)
+           (= [x] !xs))
+
+      _
+      false)))
 
 
 (tc.t/defspec mvr-cap-lvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (!xs :as ?x)
-      (and (= x ?x) (= [x] !xs)))))
+      (and (= x ?x)
+           (= [x] !xs))
+
+      _
+      false)))
 
 
 (tc.t/defspec circular-cap-fails
@@ -105,14 +127,37 @@
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (?x :as ?x)
-      (= x ?x))))
+      (= x ?x)
+
+      _
+      false)))
 
 
 (tc.t/defspec !xs-cap-!xs
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match x
       (!xs :as !xs)
-      (= [x x]))))
+      (= [x x])
+
+      _
+      false)))
+
+
+(tc.t/defspec pred-succeeds
+  (tc.prop/for-all [x tc.gen/nat]
+    (r.match/match x
+      (pred nat-int?)
+      true)))
+
+
+(tc.t/defspec pred-fails
+  (tc.prop/for-all [x tc.gen/nat]
+    (r.match/match x
+      (pred string?)
+      false
+
+      _
+      true)))
 
 
 ;; Seqs
@@ -132,9 +177,6 @@
   (tc.prop/for-all [x tc.gen/any
                     y tc.gen/any]
     (r.match/match (list x (list y x) y)
-      (?x (?x ?x) ?x)
-      (= ?x y x)
-
       (?x (?y ?x) ?y)
       (and (= ?x x)
            (= ?y y))
@@ -163,7 +205,10 @@
                     y2 tc.gen/any]
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
       (~x1 ~x2 ... ~y1 ~y2)
-      true)))
+      true
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-zero-or-more-any-in-tail
@@ -174,7 +219,10 @@
                     y2 tc.gen/any]
     (r.match/match `(~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2])))
       (~x1 ~x2 . ~y1 ~y2 ...)
-      true)))
+      true
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-zero-or-more-mvr-in-head
@@ -186,7 +234,10 @@
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
       (!xs1 !xs2 ... ~y1 ~y2)
       (and (= (repeat n x1) !xs1)
-           (= (repeat n x2) !xs2)))))
+           (= (repeat n x2) !xs2))
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-zero-or-more-mvr-in-tail
@@ -198,7 +249,10 @@
     (r.match/match `(~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2])))
       (~x1 ~x2 . !ys1 !ys2 ...)
       (and (= (repeat n y1) !ys1)
-           (= (repeat n y2) !ys2)))))
+           (= (repeat n y2) !ys2))
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-zero-or-more-lvr-in-head
@@ -210,7 +264,25 @@
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
       (?x1 ?x2 ... ~y1 ~y2)
       (and (= x1 ?x1)
-           (= x2 ?x2)))))
+           (= x2 ?x2))
+
+      _
+      false)))
+
+
+(tc.t/defspec seq-zero-or-more-nested-mvr
+  (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
+                    b (s/gen simple-symbol?)
+                    v tc.gen/any]
+    (r.match/match `(let (~@(mapcat identity (repeat n [b v])))
+                      ~@(repeat n b))
+      (`let (!bs !vs ...) . !body ...)
+      (and (= !bs (repeat n b))
+           (= !vs (repeat n v))
+           (= !body (repeat n b)))
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-drop-in-head
@@ -226,28 +298,40 @@
                     x tc.gen/any]
     (r.match/match `(~@(map identity (repeat n x)) ~x ~x)
       (~x ~x . _ ...)
-      true)))
+      true
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-any-x-cap-lvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match (list x)
       ((~x :as ?x))
-      (= x ?x))))
+      (= x ?x)
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-any-x-cap-mvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match (list x)
       ((~x :as !xs))
-      (= [x] !xs))))
+      (= [x] !xs)
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-lvr-cap-lvr-okay
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match (list x x x)
       (?y (?x :as ?y) ?x)
-      (= x ?x ?y))))
+      (= x ?x ?y)
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-lvr-cap-lvr-fail
@@ -264,21 +348,30 @@
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match (list x x x)
       (?x (?x :as !xs) ?x)
-      (and (= x ?x) (= [x] !xs)))))
+      (and (= x ?x) (= [x] !xs))
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-mvr-cap-lvr
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match (list x x x)
       (?x (!xs :as ?x) ?x)
-      (and (= x ?x) (= [x] !xs)))))
+      (and (= x ?x) (= [x] !xs))
+
+      _
+      false)))
 
 
 (tc.t/defspec seq-?x-cap-?x-with-unbound-?y-binds-?y
   (tc.prop/for-all [x tc.gen/any]
     (r.match/match (list [x] [x])
       (?x ([?y] :as ?x))
-      (= [x] ?x [?y]))))
+      (= [x] ?x [?y])
+
+      _
+      false)))
 
 
 ;; Vectors
@@ -294,13 +387,10 @@
       false)))
 
 
-(tc.t/defspec vec-mvrs-bind-the-values-they-match
+(tc.t/defspec vec-lvrs-bind-the-values-they-match
   (tc.prop/for-all [x tc.gen/any
                     y tc.gen/any]
     (r.match/match [x [y x] y]
-      [?x [?x ?x] ?x]
-      (= ?x y x)
-
       [?x [?y ?x] ?y]
       (and (= ?x x)
            (= ?y y))
@@ -309,7 +399,7 @@
       false)))
 
 
-(tc.t/defspec vec-lvrs-collect-the-values-they-match
+(tc.t/defspec vec-mvrs-collect-the-values-they-match
   (tc.prop/for-all [x tc.gen/any
                     y tc.gen/any]
     (r.match/match [x [y x] y]
@@ -329,7 +419,10 @@
                     y2 tc.gen/any]
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
       [~x1 ~x2 ... ~y1 ~y2]
-      true)))
+      true
+
+      _
+      false)))
 
 
 (tc.t/defspec vec-zero-or-more-any-in-tail
@@ -340,7 +433,10 @@
                     y2 tc.gen/any]
     (r.match/match `[~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2]))]
       [~x1 ~x2 . ~y1 ~y2 ...]
-      true)))
+      true
+
+      _
+      false)))
 
 
 (tc.t/defspec vec-zero-or-more-mvr-in-head
@@ -352,7 +448,10 @@
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
       [!xs1 !xs2 ... ~y1 ~y2]
       (and (= (repeat n x1) !xs1)
-           (= (repeat n x2) !xs2)))))
+           (= (repeat n x2) !xs2))
+
+      _
+      false)))
 
 
 (tc.t/defspec vec-zero-or-more-mvr-in-tail
@@ -364,7 +463,10 @@
     (r.match/match `[~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2]))]
       [~x1 ~x2 . !ys1 !ys2 ...]
       (and (= (repeat n y1) !ys1)
-           (= (repeat n y2) !ys2)))))
+           (= (repeat n y2) !ys2))
+
+      _
+      false)))
 
 
 (tc.t/defspec vec-zero-or-more-lvr-in-head
@@ -376,7 +478,25 @@
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
       [?x1 ?x2 ... ~y1 ~y2]
       (and (= x1 ?x1)
-           (= x2 ?x2)))))
+           (= x2 ?x2))
+
+      _
+      false)))
+
+
+(tc.t/defspec vec-zero-or-more-nested-mvr
+  (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
+                    b (s/gen simple-symbol?)
+                    v tc.gen/any]
+    (r.match/match `(let [~@(mapcat identity (repeat n [b v]))]
+                      ~@(repeat n b))
+      (`let [!bs !vs ...] . !body ...)
+      (and (= !bs (repeat n b))
+           (= !vs (repeat n v))
+           (= !body (repeat n b)))
+
+      _
+      false)))
 
 
 (tc.t/defspec vec-drop-in-head

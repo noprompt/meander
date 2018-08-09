@@ -181,6 +181,7 @@
   (s/or :quo :meander.syntax.alpha/quote
         :unq :meander.syntax.alpha/unquote
         :uns :meander.syntax.alpha/unquote-splicing
+        :prd :meander.syntax.alpha/pred
         :cap :meander.syntax.alpha/capture
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
@@ -251,6 +252,7 @@
   (s/coll-of (s/or :quo :meander.syntax.alpha/quote
                    :unq :meander.syntax.alpha/unquote
                    :uns :meander.syntax.alpha/unquote-splicing
+                   :prd :meander.syntax.alpha/pred
                    :cap :meander.syntax.alpha/capture
                    :seq :meander.syntax.alpha/seq
                    :vec :meander.syntax.alpha/vector
@@ -269,10 +271,23 @@
             :meander.syntax.alpha/term))
 
 
+(s/def :meander.syntax.alpha/pred
+  (s/with-gen
+    (s/and seq?
+           (s/cat :pred #{'pred}
+                  :form any?))
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (list 'pred x))
+       (s.gen/any)))))
+
+
 (s/def :meander.syntax.alpha/term
   (s/or :quo :meander.syntax.alpha/quote
         :unq :meander.syntax.alpha/unquote
         :cap :meander.syntax.alpha/capture
+        :prd :meander.syntax.alpha/pred
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
         :set :meander.syntax.alpha/set
@@ -591,6 +606,12 @@
 ;; :mvr
 
 (defmethod ground? :mvr
+  [_] false)
+
+
+;; :prd
+
+(defmethod ground? :prd
   [_] false)
 
 
