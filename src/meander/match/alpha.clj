@@ -210,6 +210,20 @@
     (compile targets* (r.matrix/drop-column s-matrix) default)]])
 
 
+;; :grd
+
+(defmethod compile-specialized-matrix :grd
+  [_ [_ & targets*] s-matrix default]
+  (sequence
+   (map
+    (fn [[_ {expr :form}] row]
+      [expr
+       (compile targets* [row] default)]))
+   (r.matrix/nth-column s-matrix 0)
+   (r.matrix/drop-column s-matrix)))
+
+
+
 ;; :lit
 
 (defmethod compile-specialized-matrix :lit

@@ -160,6 +160,24 @@
       true)))
 
 
+
+(tc.t/defspec guard-succeeds
+  (tc.prop/for-all [x tc.gen/nat]
+    (r.match/match x
+      (guard (= 1 1))
+      true)))
+
+
+(tc.t/defspec guard-fails
+  (tc.prop/for-all [x tc.gen/nat]
+    (r.match/match x
+      (guard (= 1 2))
+      false
+
+      _
+      true)))
+
+
 ;; Seqs
 
 (tc.t/defspec seq-unquote-patterns-match
@@ -374,6 +392,16 @@
       false)))
 
 
+(tc.t/defspec seq-?x-guard-true-?x-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match (list x y x)
+      (?x (guard (= ?x ?x)) ?x)
+      true
+
+      _
+      false)))
+
 ;; Vectors
 
 (tc.t/defspec vec-unquote-patterns-match
@@ -520,3 +548,14 @@
     (r.match/match [[x] [x]]
       [?x ([?y] :as ?x)]
       (= [x] ?x [?y]))))
+
+
+(tc.t/defspec vec-?x-guard-true-?x-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match [x y x]
+      [?x (guard (= ?x ?x)) ?x]
+      true
+
+      _
+      false)))
