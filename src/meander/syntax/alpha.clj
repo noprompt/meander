@@ -134,8 +134,8 @@
 
 
 (s/def :meander.syntax.alpha.capture/binding
-  (s/or :mvr :meander.syntax.alpha/memory-variable
-        :lvr :meander.syntax.alpha/logic-variable))
+  (s/or :lvr :meander.syntax.alpha/logic-variable
+        :mvr :meander.syntax.alpha/memory-variable))
 
 
 (s/def :meander.syntax.alpha/capture
@@ -440,8 +440,8 @@
 (s/fdef variables
   :args (s/cat :node :meander.syntax.alpha/node)
   :ret (s/coll-of
-        (s/or :meander.syntax.alpha.node/lvr
-              :meander.syntax.alpha.node/mvr)
+        (s/or :lvr :meander.syntax.alpha.node/lvr
+              :mvr :meander.syntax.alpha.node/mvr)
         :kind set?
         :into #{}))
 
