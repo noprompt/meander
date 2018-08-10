@@ -641,5 +641,11 @@
   [& match-args]
   (let [data (parse-match-args match-args)
         target (gensym "target__")]
-    `(let [~target ~(:target data)]
-       ~(compile [target] (:matrix data) `(throw backtrack)))))
+    `(try
+       (let [~target ~(:target data)]
+         ~(compile [target] (:matrix data) `(throw backtrack)))
+       (catch Exception e#
+         (if (identical? e# backtrack)
+           (throw (Exception. "non exhaustive pattern match"))
+           (throw e#))))))
+
