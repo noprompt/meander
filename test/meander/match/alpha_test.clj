@@ -160,7 +160,6 @@
       true)))
 
 
-
 (tc.t/defspec guard-succeeds
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
@@ -172,6 +171,23 @@
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
       (guard (= 1 2))
+      false
+
+      _
+      true)))
+
+
+(tc.t/defspec and-succeeds
+  (tc.prop/for-all [x tc.gen/nat]
+    (r.match/match x
+      (and ~x ?x)
+      (= x ?x))))
+
+
+(tc.t/defspec and-fails
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (and ~x ?x (guard false))
       false
 
       _

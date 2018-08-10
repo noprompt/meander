@@ -181,7 +181,9 @@
   (s/or :quo :meander.syntax.alpha/quote
         :unq :meander.syntax.alpha/unquote
         :uns :meander.syntax.alpha/unquote-splicing
+        :cnj :meander.syntax.alpha/and
         :prd :meander.syntax.alpha/pred
+        :grd :meander.syntax.alpha/guard
         :cap :meander.syntax.alpha/capture
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
@@ -252,7 +254,9 @@
   (s/coll-of (s/or :quo :meander.syntax.alpha/quote
                    :unq :meander.syntax.alpha/unquote
                    :uns :meander.syntax.alpha/unquote-splicing
+                   :cnj :meander.syntax.alpha/and
                    :prd :meander.syntax.alpha/pred
+                   :grd :meander.syntax.alpha/guard
                    :cap :meander.syntax.alpha/capture
                    :seq :meander.syntax.alpha/seq
                    :vec :meander.syntax.alpha/vector
@@ -283,11 +287,38 @@
        (s.gen/any)))))
 
 
+
+(s/def :meander.syntax.alpha/guard
+  (s/with-gen
+    (s/and seq?
+           (s/cat :guard #{'guard}
+                  :form any?))
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (list 'guard x))
+       (s.gen/any)))))
+
+
+(s/def :meander.syntax.alpha/and
+  (s/with-gen
+    (s/and seq?
+           (s/cat :guard #{'and}
+                  :terms (s/* :meander.syntax.alpha/term)))
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (list 'guard x))
+       (s.gen/any)))))
+
+
 (s/def :meander.syntax.alpha/term
   (s/or :quo :meander.syntax.alpha/quote
         :unq :meander.syntax.alpha/unquote
         :cap :meander.syntax.alpha/capture
+        :cnj :meander.syntax.alpha/and
         :prd :meander.syntax.alpha/pred
+        :grd :meander.syntax.alpha/guard
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
         :set :meander.syntax.alpha/set
@@ -572,6 +603,17 @@
   (transduce (map subnodes) set/union #{node} nodes))
 
 
+;; :cnj
+
+(defmethod ground? :cnj
+  [_] false)
+
+
+(defmethod subnodes :cnj
+  [[_ {nodes :terms} :as node]]
+  (transduce (map subnodes) set/union #{node} nodes))
+
+
 ;; :drp
 
 
@@ -585,6 +627,12 @@
 
 (defmethod max-length :drp
   [_] ##Inf)
+
+
+;; :grd
+
+(defmethod ground? :grd
+  [_] false)
 
 
 ;; :lit

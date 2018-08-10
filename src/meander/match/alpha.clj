@@ -202,6 +202,30 @@
    (r.matrix/drop-column s-matrix)))
 
 
+;; :cnj
+
+(defmethod compile-specialized-matrix :cnj
+  [_ [target & targets*] s-matrix default]
+  (let [max-pats (transduce (comp (map r.syntax/data)
+                                  (map :terms)
+                                  (map count))
+                            max
+                            0
+                            (r.matrix/nth-column s-matrix 0))]
+    [[true
+      (compile
+       (concat (repeat max-pats target) targets*)
+       (sequence
+        (map
+         (fn [row]
+           (let [[[_ {terms :terms}] & rest-cols] (:cols row)]
+             (assoc row :cols (concat terms
+                                      (repeat (- max-pats (count terms)) [:any '_])
+                                      rest-cols)))))
+        s-matrix)
+       default)]]))
+
+
 ;; :drp
 
 (defmethod compile-specialized-matrix :drp
@@ -221,7 +245,6 @@
        (compile targets* [row] default)]))
    (r.matrix/nth-column s-matrix 0)
    (r.matrix/drop-column s-matrix)))
-
 
 
 ;; :lit
