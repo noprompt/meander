@@ -371,11 +371,10 @@
   [_ [_ & targets*] s-matrix default]
   (sequence
    (map
-    (fn [[_ {expr :form}] row]
+    (fn [[[_ {expr :form}] s-matrix*]]
       [expr
-       (compile targets* [row] default)]))
-   (r.matrix/nth-column s-matrix 0)
-   (r.matrix/drop-column s-matrix)))
+       (compile targets* (r.matrix/drop-column s-matrix*) default)]))
+   (r.matrix/specialize-by identity s-matrix)))
 
 
 ;; :let
