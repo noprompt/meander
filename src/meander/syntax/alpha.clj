@@ -560,14 +560,14 @@
   TAG_RANK
   [:grd
    :mvr
-   :lvr
    :any
+   :lvr
    :quo
    :lit])
 
 
 (defmethod rank :default [[tag _]]
-  (inc (.indexOf TAG_RANK tag)))
+  (.indexOf TAG_RANK tag))
 
 
 (s/fdef max-length

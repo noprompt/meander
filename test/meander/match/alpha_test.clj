@@ -641,3 +641,19 @@
 
       _
       false)))
+
+
+;; ---------------------------------------------------------------------
+;; Priority tests
+
+
+(t/deftest priority-test
+  (t/is (r.match/match [0 0]
+          [?x ?x]
+          true
+
+          [?x _]
+          false
+
+          [_ ?x]
+          false)))

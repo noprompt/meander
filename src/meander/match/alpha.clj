@@ -148,12 +148,15 @@
                         (fn [row]
                           (let [[[_ nodes] & rest-cols] (:cols row)]
                             (assoc row :cols (concat nodes rest-cols)))))
-                       matrix)
+                       (sort-by
+                        (fn [row]
+                          (let [[_ nodes] (first (:cols row))]
+                            (transduce (map r.syntax/rank) + 0 nodes)))
+                        matrix))
                       default))])))
    (r.matrix/specialize-by
     (comp count r.syntax/data)
     s-matrix)))
-
 
 ;; :cap
 
@@ -724,6 +727,10 @@
 
 
 (defn compile [targets matrix default]
+  #_
+  (clojure.pprint/pprint
+   {:targets (vec targets)
+    :matrix (mapv (fn [row] (update row :cols vec)) matrix)})
   (assert (= (count targets)
              (count (:cols (first matrix))))
           "Number of targets does not match the number of columns")
@@ -814,3 +821,8 @@
          (if (identical? e# backtrack)
            (throw (Exception. "non exhaustive pattern match"))
            (throw e#))))))
+
+
+
+
+
