@@ -783,10 +783,14 @@
         (assoc data :matrix matrix)))))
 
 
+(s/def :meander.match.alpha.match/clauses
+  (s/* (s/cat :pat ::r.syntax/term
+              :expr any?)))
+
+
 (s/fdef match
   :args (s/cat :target any?
-               :clauses (s/* (s/cat :pat ::r.syntax/term
-                                    :expr any?)))
+               :clauses :meander.match.alpha.match/clauses)
   :ret any?)
 
 
