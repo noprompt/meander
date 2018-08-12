@@ -30,13 +30,19 @@
 
 
 (defmethod print-method (class *pass*) [v ^java.io.Writer w]
-  (.write w "#meander/pass[]"))
+  (.write w "#meander.alpha/pass[]"))
 
 
 (defn pass?
   "true if `x` is `*pass*`, false otherwise."
   [x]
   (identical? x *pass*))
+
+
+(defn pass
+  "Strategy which returns t."
+  [t]
+  (*pass* t))
 
 
 (def
@@ -54,13 +60,19 @@
 
 
 (defmethod print-method (class *fail*) [v ^java.io.Writer w]
-  (.write w "#meander/fail[]"))
+  (.write w "#meander.alpha/fail[]"))
 
 
 (defn fail?
   "true if `x` is `*fail*`, false otherwise."
   [x]
   (identical? x *fail*))
+
+
+(defn fail
+  "Strategy which always fails."
+  [t]
+  (*fail* t))
 
 
 (defn build
