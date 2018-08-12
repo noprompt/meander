@@ -148,11 +148,7 @@
                         (fn [row]
                           (let [[[_ nodes] & rest-cols] (:cols row)]
                             (assoc row :cols (concat nodes rest-cols)))))
-                       (sort-by
-                        (fn [row]
-                          (let [[_ nodes] (first (:cols row))]
-                            (transduce (map r.syntax/rank) + 0 nodes)))
-                        matrix))
+                       matrix)
                       default))])))
    (r.matrix/specialize-by
     (comp count r.syntax/data)
@@ -821,8 +817,3 @@
          (if (identical? e# backtrack)
            (throw (Exception. "non exhaustive pattern match"))
            (throw e#))))))
-
-
-
-
-
