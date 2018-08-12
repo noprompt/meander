@@ -183,6 +183,7 @@
         :uns :meander.syntax.alpha/unquote-splicing
         :cnj :meander.syntax.alpha/and
         :dsj :meander.syntax.alpha/or
+        :let :meander.syntax.alpha/let
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
         :cap :meander.syntax.alpha/capture
@@ -257,6 +258,7 @@
                    :uns :meander.syntax.alpha/unquote-splicing
                    :cnj :meander.syntax.alpha/and
                    :dsj :meander.syntax.alpha/or
+                   :let :meander.syntax.alpha/let
                    :prd :meander.syntax.alpha/pred
                    :grd :meander.syntax.alpha/guard
                    :cap :meander.syntax.alpha/capture
@@ -330,8 +332,8 @@
   (s/with-gen
     (s/and seq?
            (s/cat :let #{'let}
-                  :binding :meander.syntax.alpha/logic-variable
-                  :val any?))
+                  :binding (s/or :lvr :meander.syntax.alpha/logic-variable)
+                  :expr any?))
     (fn []
       (s.gen/fmap
        (fn [[lvr x]]
@@ -384,6 +386,7 @@
 (s/def :meander.syntax.alpha.node.dsj/terms
   (s/* :meander.syntax.alpha/node))
 
+
 (s/def :meander.syntax.alpha.node/dsj
   (s/tuple #{:dsj} (s/keys :req-un [:meander.syntax.alpha.node.dsj/terms])))
 
@@ -429,6 +432,7 @@
   :ret any?
   :fn (fn [{:keys [args ret]}]
         (= (parse ret) (:node args))))
+
 
 (defn unparse-dispatch
   {:private true}
@@ -733,6 +737,22 @@
 (defmethod unparse :grd
   [[_ {form :form}]]
   `(~'guard ~form))
+
+
+;; :let
+
+(defmethod ground? :let
+  [_] false)
+
+
+(defmethod subnodes :let
+  [[_ {binding :binding, expr :expr} :as node]]
+  #{node binding})
+
+
+(defmethod unparse :let
+  [[_ {binding :binding, expr :expr}]]
+  `(~'let ~binding ~expr))
 
 
 ;; :lit

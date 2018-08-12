@@ -242,6 +242,24 @@
                    (ex-data ex))))))))
 
 
+(tc.t/defspec let-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match y
+      (and ?y (let ?x x))
+      (and (= y ?y)
+           (= x ?x)))))
+
+
+(tc.t/defspec let-fails
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match x
+      (and ?x (let ?x [x]))
+      false
+
+      _
+      true)))
+
 ;; Seqs
 
 (tc.t/defspec seq-unquote-patterns-match

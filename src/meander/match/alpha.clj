@@ -378,6 +378,23 @@
    (r.matrix/drop-column s-matrix)))
 
 
+;; :let
+
+(defmethod compile-specialized-matrix :let
+  [_ [_ & targets*] s-matrix default]
+  (sequence
+   (map
+    (fn [[_ {binding :binding, expr :expr} :as let-node] row]
+      (let [expr-target (gensym* "expr__")]
+        [true
+         `(let [~expr-target ~expr]
+            ~(compile (cons expr-target targets*)
+                      [(assoc row :cols (cons binding (:cols row)))]
+                      default))])))
+   (r.matrix/nth-column s-matrix 0)
+   (r.matrix/drop-column s-matrix)))
+
+
 ;; :lit
 
 (defmethod compile-specialized-matrix :lit
@@ -457,9 +474,7 @@
                          (sequence
                           (map
                            (fn [row]
-                             (assoc row :cols (cons [:prd {:form `(fn ~(gensym* "check_empty__")
-                                                                    [x#]
-                                                                    (not (seq x#)))}]
+                             (assoc row :cols (cons [:grd {:form `(not (seq ~target))}]
                                                     (:cols row)))))
                           (r.matrix/drop-column ml-matrix))
                          default)]
@@ -467,21 +482,17 @@
                 `(let [~l-target (take ~min-length ~target)
                        ~r-target (drop ~min-length ~target)]
                    ;; l-target is pushed on to the target stack twice:
-                   ;; once for it's length be checked (by a :prd node
+                   ;; once for it's length be checked (by a :grd node
                    ;; below), and once for pattern matching.
                    ~(compile (list* l-target l-target r-target targets*)
                              (sequence
                               (map
                                (fn [row]
                                  (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
-                                   (assoc row :cols (list* [:prd {:form `(fn ~(gensym* "check_length__")
-                                                                           [x#]
-                                                                           (= (count x#) ~min-length))}]
+                                   (assoc row :cols (list* [:grd {:form `(= (count ~l-target) ~min-length)}]
                                                            left
                                                            (or right
-                                                               [:prd {:form `(fn ~(gensym* "check_empty__")
-                                                                               [x#]
-                                                                               (not (seq x#)))}])
+                                                               [:grd {:form `(not (seq ~r-target))}])
                                                            rest-cols)))))
                               ml-matrix)
                              default))])))
@@ -511,9 +522,7 @@
                               (map
                                (fn [row]
                                  (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
-                                   (assoc row :cols (list* [:prd {:form `(fn ~(gensym* "check_rlength__")
-                                                                           [~r-target]
-                                                                           (= ~min-length (count ~r-target)))}]
+                                   (assoc row :cols (list* [:grd {:form `(= ~min-length (count ~r-target))}]
                                                            (or right [:any '_])
                                                            left
                                                            rest-cols)))))
@@ -595,18 +604,18 @@
             ;; target.
             slice (gensym* "slice__")
             ;; Checked at the top of each loop. 
-            prd [:prd {:form `(fn [~slice] (= ~n (count ~slice)))}]]
+            grd [:grd {:form `(= ~n (count ~slice))}]]
         [true
          `(let [~@let-bindings
                 ~slice (take ~n ~target)]
             ~(compile [slice slice]
-                      [{:cols [prd cat]
+                      [{:cols [grd cat]
                         :env let-env
                         :rhs
                         `((fn ~loop-name ~loop-syms
                             (let [~slice (take ~n ~target)]
                               ~(compile [slice slice]
-                                        [{:cols [prd cat]
+                                        [{:cols [grd cat]
                                           :env loop-env
                                           :rhs
                                           `(let [~target (drop ~n ~target)]
@@ -806,4 +815,3 @@
          (if (identical? e# backtrack)
            (throw (Exception. "non exhaustive pattern match"))
            (throw e#))))))
-
