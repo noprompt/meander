@@ -1,6 +1,7 @@
 (ns meander.match.alpha
   (:refer-clojure :exclude [compile])
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.set :as set]
+            [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
             [meander.syntax.alpha :as r.syntax]
             [meander.matrix.alpha :as r.matrix])
@@ -232,6 +233,136 @@
   [_ [_ & targets*] s-matrix default]
   [[true
     (compile targets* (r.matrix/drop-column s-matrix) default)]])
+
+
+;; :dsj
+
+
+(s/fdef analyze-dsj
+  :args (s/cat :env :meander.matrix.alpah.row/env
+               :dsj-node :meander.syntax.alpha.node/dsj)
+  :ret (s/coll-of (s/tuple #{:fail}
+                           :meander.syntax.alpha/node
+                           (s/coll-of
+                            (s/or :lvr :meander.syntax.alpha/logic-variable
+                                  :mvr :meander.syntax.alpha/memory-variable)
+                            :kind set?
+                            :into #{}))))
+
+
+(defn analyze-dsj
+  "Analyze :dsj or and a sequence of [:fail term absent-vars] tuples."
+  {:arglists '([env or-term])
+   :private true}
+  [env [_ {terms :terms}]]
+  (let [term-vars (sequence
+                   (map
+                    (fn [term]
+                      ;; We don't need to account for bound variables.
+                      (set/difference (r.syntax/variables term) env)))
+                   terms)
+        all-vars (reduce set/union #{} term-vars)]
+    (sequence
+     (comp (map vector)
+           (keep
+            (fn [[term term-vars]]
+              (let [absent-vars (set/difference all-vars term-vars)]
+                (when (seq absent-vars)
+                  [:fail term (into #{} (map r.syntax/unparse) absent-vars)])))))
+     terms
+     term-vars)))
+
+
+(s/fdef check-dsj
+  :args (s/cat :env :meander.matrix.alpah.row/env
+               :dsj-node :meander.syntax.alpha.node/dsj)
+  :ret (s/coll-of (s/tuple #{:fail}
+                           :meander.syntax.alpha/node
+                           (s/coll-of
+                            (s/or :lvr :meander.syntax.alpha/logic-variable
+                                  :mvr :meander.syntax.alpha/memory-variable)
+                            :kind set?
+                            :into #{}))))
+
+
+(defn check-dsj
+  "Checks if every variable in a dsj-node occurs in every pattern of
+  dsj-node. If not returns an instance of ex-info describing the
+  problems and returns nil otherwise. The returned ex-info contains
+  the complete problematic or pattern, it's environment, and the
+  sequence of offending dsj-nodes."
+  {:private true}
+  [env dsj-node]
+  (when-some [fails (seq (analyze-dsj env dsj-node))]
+    (ex-info
+     "Every pattern of an or pattern must have references to the same unbound variables."
+     {:pat (r.syntax/unparse dsj-node)
+      :env (into #{} (map r.syntax/unparse) env)
+      :problems (mapv
+                 (fn [[_ pat absent-vars]]
+                   {:pat (r.syntax/unparse pat)
+                    :absent absent-vars})
+                 fails)})))
+
+
+(defmethod compile-specialized-matrix :dsj
+  [_ targets s-matrix default]
+  (sequence
+   (map
+    (fn [dsj-node env row]
+      (when-some [ex (check-dsj env dsj-node)]
+        (throw ex))
+      (let [[_ {terms :terms}] dsj-node]
+        (case (count terms)
+          ;; Just as (clojure.core/or) is falsey so is the (or)
+          ;; pattern.
+          0
+          [false default]
+
+          ;; Since (or pat) ≈ pat compile as if pat were given.
+          1
+          [true (compile targets
+                         [(assoc row :cols (cons (first terms) (:cols row)))]
+                         default)]
+
+          ;; Otherwise
+          (let [;; To reduce the amount of code generated a
+                ;; function containing the right hand side is
+                ;; compiled. The function accepts as
+                ;; arguments any variables that occur in the
+                ;; pattern (which are bound upon a successful
+                ;; pattern match). The original right hand side is
+                ;; then replaced with an invocation of this
+                ;; function with the required variables if any.
+                unbound-vars (set/difference
+                              (transduce
+                               (map r.syntax/variables)
+                               set/union
+                               (cons dsj-node (:cols row)))
+                              env)
+                unbound-syms (sequence (map r.syntax/unparse) unbound-vars)
+                f-sym (gensym* "f__")
+                rhs* `(~f-sym ~@unbound-syms)
+                matrix (sequence
+                        (map
+                         (fn [terms]
+                           (assoc row
+                                  :cols (cons terms (:cols row))
+                                  :rhs rhs*)))
+                        terms)
+                inner-form (compile targets matrix default)]
+            [true
+             `(let [~f-sym (fn ~f-sym [~@unbound-syms]
+                             ~(:rhs row))
+                    ~@(sequence
+                       (comp (filter r.syntax/mvr-node?)
+                             (mapcat
+                              (juxt identity (constantly []))))
+                       unbound-vars)]
+                ~inner-form)])))))
+   (r.matrix/nth-column s-matrix 0)
+   (sequence (map :env) s-matrix)
+   (r.matrix/drop-column s-matrix)))
 
 
 ;; :grd

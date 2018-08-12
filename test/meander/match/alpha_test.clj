@@ -6,7 +6,8 @@
             [clojure.test.check.clojure-test :as tc.t]
             [clojure.test.check.generators :as tc.gen]
             [clojure.test.check.properties :as tc.prop]
-            [meander.match.alpha :as r.match]))
+            [meander.match.alpha :as r.match]
+            [meander.syntax.alpha :as r.syntax]))
 
 
 ;; Top level
@@ -192,6 +193,53 @@
 
       _
       true)))
+
+
+(tc.t/defspec or-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any
+                    z tc.gen/any]
+    (r.match/match x
+      (or ~z ~y ~x)
+      true
+
+      _
+      false)))
+
+
+(tc.t/defspec or-fails
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any
+                    z tc.gen/any]
+    (r.match/match [x y z]
+      (or ~z ~y ~x)
+      false
+
+      _
+      true)))
+
+
+(tc.t/defspec or-compilation-fails
+  (tc.prop/for-all [[?x ?y ?z] (tc.gen/fmap
+                                (fn [?x]
+                                  [(symbol (str ?x 1))
+                                   (symbol (str ?x 2))
+                                   (symbol (str ?x 3))])
+                                (s/gen :meander.syntax.alpha/logic-variable))]
+    (let [or-pat `(~'or ~?x ~?y ~?z)]
+      (t/is (= {:pat or-pat
+                :env #{}
+                :problems
+                [{:pat ?x, :absent #{?y ?z}}
+                 {:pat ?y, :absent #{?x ?z}}
+                 {:pat ?z, :absent #{?x ?y}}]}
+               (try
+                 (macroexpand
+                  `(r.match/match 1
+                     ~or-pat
+                     false))
+                 (catch clojure.lang.ExceptionInfo ex
+                   (ex-data ex))))))))
 
 
 ;; Seqs

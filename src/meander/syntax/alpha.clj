@@ -182,6 +182,7 @@
         :unq :meander.syntax.alpha/unquote
         :uns :meander.syntax.alpha/unquote-splicing
         :cnj :meander.syntax.alpha/and
+        :dsj :meander.syntax.alpha/or
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
         :cap :meander.syntax.alpha/capture
@@ -255,6 +256,7 @@
                    :unq :meander.syntax.alpha/unquote
                    :uns :meander.syntax.alpha/unquote-splicing
                    :cnj :meander.syntax.alpha/and
+                   :dsj :meander.syntax.alpha/or
                    :prd :meander.syntax.alpha/pred
                    :grd :meander.syntax.alpha/guard
                    :cap :meander.syntax.alpha/capture
@@ -303,7 +305,19 @@
 (s/def :meander.syntax.alpha/and
   (s/with-gen
     (s/and seq?
-           (s/cat :guard #{'and}
+           (s/cat :and #{'and}
+                  :terms (s/* :meander.syntax.alpha/term)))
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (list 'guard x))
+       (s.gen/any)))))
+
+
+(s/def :meander.syntax.alpha/or
+  (s/with-gen
+    (s/and seq?
+           (s/cat :or #{'or}
                   :terms (s/* :meander.syntax.alpha/term)))
     (fn []
       (s.gen/fmap
@@ -317,6 +331,7 @@
         :unq :meander.syntax.alpha/unquote
         :cap :meander.syntax.alpha/capture
         :cnj :meander.syntax.alpha/and
+        :dsj :meander.syntax.alpha/or
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
         :seq :meander.syntax.alpha/seq
@@ -348,6 +363,13 @@
 
 (s/def :meander.syntax.alpha.node/mvr
   (s/tuple #{:mvr} :meander.syntax.alpha/memory-variable))
+
+
+(s/def :meander.syntax.alpha.node.dsj/terms
+  (s/* :meander.syntax.alpha/node))
+
+(s/def :meander.syntax.alpha.node/dsj
+  (s/tuple #{:dsj} (s/keys :req-un [:meander.syntax.alpha.node.dsj/terms])))
 
 
 (s/fdef parse
@@ -384,6 +406,25 @@
   [node]
   (s/assert :meander.syntax.alpha/node node)
   (first node))
+
+
+(s/fdef unparse
+  :args (s/cat :node :meander.syntax.alpha/node)
+  :ret any?
+  :fn (fn [{:keys [args ret]}]
+        (= (parse ret) (:node args))))
+
+(defn unparse-dispatch
+  {:private true}
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (tag node))
+
+
+(defmulti unparse
+  "In pre-order fashion rewrite a node into a Clojure form."
+  {:arglists '([node])}
+  #'unparse-dispatch)
 
 
 (s/fdef data
@@ -552,12 +593,23 @@
   [_] false)
 
 
+(defmethod rank :any
+  [_] ##Inf)
+
+(defmethod unparse :any
+  [_] '_)
+
 ;; :cap
 
 
 (defmethod subnodes :cap
   [[_ {:keys [term binding]} :as node]]
   (set/union #{node binding} (subnodes term)))
+
+
+(defmethod unparse :cap
+  [[_ {:keys [term binding]}]]
+  `(~(unparse term) :as ~(unparse binding)))
 
 
 (defn circular-cap?
@@ -581,7 +633,6 @@
     ;; subterms.
     false))
 
-
 ;; :cat
 
 (defmethod ground? :cat
@@ -603,6 +654,10 @@
   (transduce (map subnodes) set/union #{node} nodes))
 
 
+(defmethod unparse :cat
+  [[_ nodes]]
+  (sequence (map unparse) nodes))
+
 ;; :cnj
 
 (defmethod ground? :cnj
@@ -612,6 +667,11 @@
 (defmethod subnodes :cnj
   [[_ {nodes :terms} :as node]]
   (transduce (map subnodes) set/union #{node} nodes))
+
+
+(defmethod unparse :cnj
+  [[_ {nodes :terms}]]
+  `(~'and ~@(sequence (map unparse) nodes)))
 
 
 ;; :drp
@@ -629,10 +689,34 @@
   [_] ##Inf)
 
 
+(defmethod unparse :drp
+  [_] '(_ ...))
+
+
+;; :dsj
+
+(defmethod ground? :dsj
+  [_] false)
+
+
+(defmethod subnodes :dsj
+  [[_ {nodes :terms} :as node]]
+  (transduce (map subnodes) set/union #{node} nodes))
+
+
+(defmethod unparse :dsj
+  [[_ {nodes :terms}]]
+  `(~'or ~@(sequence (map unparse) nodes)))
+
+
 ;; :grd
 
 (defmethod ground? :grd
   [_] false)
+
+(defmethod unparse :grd
+  [[_ {form :form}]]
+  `(~'guard ~form))
 
 
 ;; :lit
@@ -645,10 +729,17 @@
   [_] 1)
 
 
+(defmethod unparse :lit
+  [[_ lit]] lit)
+
 ;; :lvr
 
 (defmethod ground? :lvr
   [_] false)
+
+
+(defmethod unparse :lvr
+  [[_ sym]] sym)
 
 
 ;; :mvr
@@ -657,10 +748,19 @@
   [_] false)
 
 
+(defmethod unparse :mvr
+  [[_ sym]] sym)
+
+
 ;; :prd
 
 (defmethod ground? :prd
   [_] false)
+
+
+(defmethod unparse :prd
+  [[_ {form :form}]]
+  `(~'pred ~form))
 
 
 ;; :prt
@@ -697,6 +797,13 @@
                (subnodes right)
                #{}))) 
 
+(defmethod unparse :prt
+  [[_ {dot :dot, left :left, right :right}]]
+  (concat (unparse left)
+          (when (some? dot)
+            (list dot))
+          (when (some? right)
+            (unparse right))))
 
 ;; :quo
 
@@ -706,6 +813,11 @@
 
 (defmethod rank :quo
   [_] 1)
+
+
+(defmethod unparse :quo
+  [[_ {form :form}]]
+  `(quote ~form))
 
 
 ;; :rp*
@@ -725,6 +837,11 @@
 (defmethod subnodes :rp*
   [[_ {items :items} :as node]]
   (transduce (map subnodes) set/union #{node} items))
+
+
+(defmethod unparse :rp*
+  [[_ {items :items dots :dots}]]
+  `(~@(sequence (map unparse) items) ~dots))
 
 
 ;; :rp+
@@ -750,6 +867,11 @@
   (transduce (map subnodes) set/union #{node} items))
 
 
+(defmethod unparse :rp+
+  [[_ {items :items dots :dots}]]
+  `(~@(sequence (map unparse) items) ~dots))
+
+
 ;; :seq
 
 (defmethod ground? :seq
@@ -761,16 +883,30 @@
   (set/union #{node} (subnodes prt)))
 
 
+(defmethod unparse :seq
+  [[_ prt]]
+  (seq (unparse prt)))
+
+
 ;; :uns
 
 (defmethod ground? :uns
   [_] false)
 
 
+(defmethod unparse :uns
+  [[_ {expr :expr}]]
+  (list 'clojure.core/unquote-splicing expr))
+
 ;; :unq
 
 (defmethod ground? :unq
   [_] false)
+
+
+(defmethod unparse :unq
+  [[_ {expr :expr}]]
+  (list 'clojure.core/unquote expr))
 
 
 ;; :vec
@@ -790,3 +926,8 @@
 (defmethod subnodes :vec
   [[_ prt :as node]]
   (set/union #{node} (subnodes prt)))
+
+
+(defmethod unparse :vec
+  [[_ prt]]
+  (vec (unparse prt)))
