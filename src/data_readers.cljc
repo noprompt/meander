@@ -1,2 +1,2 @@
-{meander/fail meander.core/*fail*
- meander/pass meadner.core/*pass*}
+{meander.alpha/fail meander.strategy.alpha/*fail*
+ meander.alpha/pass meadner.strategy.alpha/*pass*}
