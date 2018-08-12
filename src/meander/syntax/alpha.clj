@@ -554,8 +554,20 @@
   #'rank-dispatch)
 
 
-(defmethod rank :default [_]
-  0)
+(def
+  ^{:private true
+    :tag clojure.lang.PersistentVector}
+  TAG_RANK
+  [:grd
+   :mvr
+   :lvr
+   :any
+   :quo
+   :lit])
+
+
+(defmethod rank :default [[tag _]]
+  (inc (.indexOf TAG_RANK tag)))
 
 
 (s/fdef max-length
@@ -612,9 +624,6 @@
 (defmethod ground? :any
   [_] false)
 
-
-(defmethod rank :any
-  [_] ##Inf)
 
 (defmethod unparse :any
   [_] '_)
@@ -734,10 +743,10 @@
 (defmethod ground? :grd
   [_] false)
 
+
 (defmethod unparse :grd
   [[_ {form :form}]]
   `(~'guard ~form))
-
 
 ;; :let
 
@@ -759,10 +768,6 @@
 
 (defmethod ground? :lit
   [_] true)
-
-
-(defmethod rank :lit
-  [_] 1)
 
 
 (defmethod unparse :lit
@@ -845,10 +850,6 @@
 
 (defmethod ground? :quo
   [_] true)
-
-
-(defmethod rank :quo
-  [_] 1)
 
 
 (defmethod unparse :quo
