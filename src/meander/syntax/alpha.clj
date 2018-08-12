@@ -310,7 +310,7 @@
     (fn []
       (s.gen/fmap
        (fn [x]
-         (list 'guard x))
+         (list 'and x))
        (s.gen/any)))))
 
 
@@ -322,8 +322,23 @@
     (fn []
       (s.gen/fmap
        (fn [x]
-         (list 'guard x))
+         (list 'or x))
        (s.gen/any)))))
+
+
+(s/def :meander.syntax.alpha/let
+  (s/with-gen
+    (s/and seq?
+           (s/cat :let #{'let}
+                  :binding :meander.syntax.alpha/logic-variable
+                  :val any?))
+    (fn []
+      (s.gen/fmap
+       (fn [[lvr x]]
+         (list 'let lvr x))
+       (s.gen/tuple
+        (s/gen :meander.syntax.alpha/logic-variable)
+        (s.gen/any))))))
 
 
 (s/def :meander.syntax.alpha/term
@@ -332,6 +347,7 @@
         :cap :meander.syntax.alpha/capture
         :cnj :meander.syntax.alpha/and
         :dsj :meander.syntax.alpha/or
+        :let :meander.syntax.alpha/let
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
         :seq :meander.syntax.alpha/seq
