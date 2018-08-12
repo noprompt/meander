@@ -132,8 +132,8 @@
    (map
     (fn [[length matrix]]
       (let [nth-targets (mapv
-                         (fn [_]
-                           (gensym* "nth__"))
+                         (fn [i]
+                           (gensym* (str "nth_" i "__")))
                          (range length))]
         [true
          `(let [~@(sequence
