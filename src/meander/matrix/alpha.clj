@@ -1,8 +1,9 @@
 (ns meander.matrix.alpha
   "Operators for pattern matrices."
+  (:refer-clojure :exclude [empty?])
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
-            [meander.syntax.alpha]))
+            [meander.syntax.alpha :as r.syntax]))
 
 
 (s/def :meander.matrix.alpha/matrix
@@ -50,6 +51,16 @@
   (s/or :matrix :meander.matrix.alpha/matrix
         :row :meander.matrix.alpha/row
         :unknown any?))
+
+
+;; ---------------------------------------------------------------------
+;; Matrix
+
+
+(defn empty?
+  "true if matrix has no columns."
+  [matrix]
+  (every? (comp not seq :cols) matrix))
 
 
 ;; ---------------------------------------------------------------------
@@ -213,3 +224,67 @@
   "Get var from the environment in row."
   [row var]
   (get (:env row) var))
+
+
+
+;; ---------------------------------------------------------------------
+;; Usefulness
+
+
+(s/fdef useful?
+  :args (s/cat :matrix :meander.matrix.alpha/matrix
+               :clause (s/coll-of :meander.syntax.alpha/node))
+  :ret boolean?)
+
+;; Maranget, L. (2007). Warnings for pattern matching.
+;; http://moscova.inria.fr/~maranget/papers/warn/warn.pdf
+(defn useful?
+  "true if clause is useful with respect to matrix."
+  [matrix clause]
+  (cond
+    ;; Base case 1
+    (and (empty? matrix)
+         (not (seq clause)))
+    false
+
+    ;; Base case 2
+    (not (seq clause))
+    true
+
+    ;; Induction
+    :else
+    (let [[node & clause*] clause]
+      (if-some [node-children (seq (r.syntax/children node))]
+        (let [matrices (specialize-by r.syntax/tag matrix)]
+          (if-some [s-matrix (get matrices (r.syntax/tag node))]
+            (let [total-node-children (count node-children)
+                  d-matrix (sequence
+                            (keep
+                             (fn [row]
+                               (let [[col & cols*] (:cols row)
+                                     col-children (r.syntax/children col)]
+                                 (when (= (count col-children)
+                                          total-node-children)
+                                   (assoc row :cols (concat col-children cols*))))))
+                            s-matrix)]
+              (useful? d-matrix (concat node-children clause*)))
+            ;; No tags match.
+            (not-any?
+             (fn [m-node]
+               (case (r.syntax/tag m-node)
+                 ;; No variables.
+                 (:any :lvr :mvr)
+                 true))
+             (nth-column matrix 0))))
+        ;; Node has no children.
+        (or (not-any?
+             (fn [m-node]
+               (case (r.syntax/tag m-node)
+                 ;; No variables.
+                 (:any :lvr :mvr)
+                 true
+
+                 ;; No equivalent values.
+                 (= m-node node)))
+             (nth-column matrix 0))
+            (useful? (drop-column matrix) clause*))))))
