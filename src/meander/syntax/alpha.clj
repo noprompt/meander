@@ -479,27 +479,18 @@
   [node] [])
 
 
-(s/fdef subnodes
-  :args (s/cat :node :meander.syntax.alpha/node)
-  :ret (s/coll-of :meander.syntax.alpha/node
-                  :kind sequential?
-                  :into []))
-
-
-(defn subnodes-dispatch
-  [node]
-  (s/assert :meander.syntax.alpha/node node)
-  (tag node))
-
-
-(defmulti subnodes
+(defn subnodes
   "Return a sequence of all subnodes of node."
-  {:arglists '([node])}
-  #'subnodes-dispatch)
-
-
-(defmethod subnodes :default
-  [node] [node])
+  [node]
+  (lazy-seq
+   (cons node
+         ((fn rec [node]
+            (sequence
+             (mapcat
+              (fn [node]
+                (lazy-seq (cons node (rec node)))))
+             (children node)))
+          node))))
 
 
 (s/fdef proper-subnodes
@@ -514,11 +505,7 @@
 (defn proper-subnodes
   "Return the all subnodes in node excluding node."
   [node]
-  (sequence
-   (remove
-    (fn [x]
-      (identical? x node)))
-   (subnodes node)))
+  (rest (subnodes node)))
 
 
 (s/fdef variables
@@ -658,11 +645,6 @@
   [term binding])
 
 
-(defmethod subnodes :cap
-  [[_ {:keys [term binding]} :as node]]
-  (list* node binding (subnodes term)))
-
-
 (defmethod unparse :cap
   [[_ {:keys [term binding]}]]
   `(~(unparse term) :as ~(unparse binding)))
@@ -710,11 +692,6 @@
   (count nodes))
 
 
-(defmethod subnodes :cat
-  [[_ nodes :as node]]
-  (cons node (sequence (mapcat subnodes) nodes)))
-
-
 (defmethod unparse :cat
   [[_ nodes]]
   (sequence (map unparse) nodes))
@@ -728,11 +705,6 @@
 
 (defmethod ground? :cnj
   [_] false)
-
-
-(defmethod subnodes :cnj
-  [[_ {nodes :terms} :as node]]
-  (cons node (sequence (map subnodes) nodes)))
 
 
 (defmethod unparse :cnj
@@ -768,11 +740,6 @@
   [_] false)
 
 
-(defmethod subnodes :dsj
-  [[_ {nodes :terms} :as node]]
-  (cons node (sequence (map subnodes) nodes)))
-
-
 (defmethod unparse :dsj
   [[_ {nodes :terms}]]
   `(~'or ~@(sequence (map unparse) nodes)))
@@ -797,11 +764,6 @@
 
 (defmethod ground? :let
   [_] false)
-
-
-(defmethod subnodes :let
-  [[_ {binding :binding, expr :expr} :as node]]
-  [node binding])
 
 
 (defmethod unparse :let
@@ -883,13 +845,6 @@
        0)))
 
 
-(defmethod subnodes :prt
-  [[_ {left :left, right :right} :as node]]
-  (cons node
-        (concat (subnodes left)
-                (when (some? right)
-                  (subnodes right))))) 
-
 (defmethod unparse :prt
   [[_ {dot :dot, left :left, right :right}]]
   (concat (unparse left)
@@ -911,11 +866,6 @@
 
 ;; :rp*
 
-(defmethod subnodes :rp*
-  [[_ {items :items}]]
-  items)
-
-
 (defmethod ground? :rp*
   [_] false)
 
@@ -928,11 +878,6 @@
   [_] ##Inf)
 
 
-(defmethod subnodes :rp*
-  [[_ {items :items} :as node]]
-  (cons node (sequence (map subnodes) items)))
-
-
 (defmethod unparse :rp*
   [[_ {items :items dots :dots}]]
   `(~@(sequence (map unparse) items) ~dots))
@@ -941,7 +886,7 @@
 ;; :rp+
 
 
-(defmethod subnodes :rp*
+(defmethod children :rp*
   [[_ {items :items}]]
   items)
 
@@ -962,11 +907,6 @@
   [_] ##Inf)
 
 
-(defmethod subnodes :rp+
-  [[_ {items :items} :as node]]
-  (cons node (sequence (map subnodes)) items))
-
-
 (defmethod unparse :rp+
   [[_ {items :items dots :dots}]]
   `(~@(sequence (map unparse) items) ~dots))
@@ -975,15 +915,10 @@
 ;; :seq
 
 (defmethod children :seq
-  [[_ prt]] prt)
+  [[_ prt]] [prt])
 
 (defmethod ground? :seq
   [[_ prt]] (ground? prt))
-
-
-(defmethod subnodes :seq
-  [[_ prt :as node]]
-  (cons node (subnodes prt)))
 
 
 (defmethod unparse :seq
@@ -1016,7 +951,7 @@
 
 
 (defmethod children :vec
-  [[_ prt]] prt)
+  [[_ prt]] [prt])
 
 
 (defmethod ground? :vec
@@ -1029,11 +964,6 @@
 
 (defmethod max-length :vec
   [[_ prt]] (max-length prt))
-
-
-(defmethod subnodes :vec
-  [[_ prt :as node]]
-  (cons node (subnodes prt)))
 
 
 (defmethod unparse :vec
