@@ -457,6 +457,27 @@
   (s/assert :meander.syntax.alpha/node node)
   (second node))
 
+(s/fdef children
+  :args (s/cat :node :meander.syntax.alpha/node)
+  :ret (s/coll-of :meander.syntax.alpha/node
+                  :kind sequential?
+                  :into []))
+
+(defn children-dispatch
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (tag node))
+
+
+(defmulti children
+  "Return a sequence of all subnodes of node."
+  {:arglists '([node])}
+  #'children-dispatch)
+
+
+(defmethod children :default
+  [node] [])
+
 
 (s/fdef subnodes
   :args (s/cat :node :meander.syntax.alpha/node)
@@ -632,6 +653,10 @@
 
 ;; :cap
 
+(defmethod children :cap
+  [[_ {:keys [term binding]}]]
+  [term binding])
+
 
 (defmethod subnodes :cap
   [[_ {:keys [term binding]} :as node]]
@@ -666,6 +691,11 @@
 
 ;; :cat
 
+
+(defmethod children :cat
+  [[_ nodes]] nodes)
+
+
 (defmethod ground? :cat
   [[_ nodes]] (every? ground? nodes))
 
@@ -691,6 +721,11 @@
 
 ;; :cnj
 
+
+(defmethod children :cnj
+  [[_ {nodes :terms}]] nodes)
+
+
 (defmethod ground? :cnj
   [_] false)
 
@@ -706,7 +741,6 @@
 
 
 ;; :drp
-
 
 (defmethod ground? :drp
   [_] false)
@@ -725,6 +759,10 @@
 
 
 ;; :dsj
+
+(defmethod children :dsj
+  [[_ {nodes :terms}]] nodes)
+
 
 (defmethod ground? :dsj
   [_] false)
@@ -751,6 +789,11 @@
   `(~'guard ~form))
 
 ;; :let
+
+(defmethod children :let
+  [[_ {binding :binding}]]
+  [binding])
+
 
 (defmethod ground? :let
   [_] false)
@@ -808,6 +851,14 @@
 
 ;; :prt
 
+
+(defmethod children :prt
+  [[_ {left :left, right :right}]]
+  (if (some? right)
+    [left right]
+    [left]))
+
+
 (defmethod ground? :prt
   [[_ {left :left, right :right}]]
   (and (ground? left)
@@ -860,6 +911,11 @@
 
 ;; :rp*
 
+(defmethod subnodes :rp*
+  [[_ {items :items}]]
+  items)
+
+
 (defmethod ground? :rp*
   [_] false)
 
@@ -883,6 +939,12 @@
 
 
 ;; :rp+
+
+
+(defmethod subnodes :rp*
+  [[_ {items :items}]]
+  items)
+
 
 (defmethod ground? :rp+
   [_] false)
@@ -911,6 +973,9 @@
 
 
 ;; :seq
+
+(defmethod children :seq
+  [[_ prt]] prt)
 
 (defmethod ground? :seq
   [[_ prt]] (ground? prt))
@@ -948,6 +1013,11 @@
 
 
 ;; :vec
+
+
+(defmethod children :vec
+  [[_ prt]] prt)
+
 
 (defmethod ground? :vec
   [[_ prt]] (ground? prt))
