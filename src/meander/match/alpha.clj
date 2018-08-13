@@ -71,12 +71,17 @@
 ;;    
 ;; 2. Split matrix into specialized matrices, matrices such that the
 ;;    first column of each matrix shares some common property (usually
-;;    a tag).
+;;    a tag). Here specialization has a slighly different meaning than
+;;    what is commonly described in the literature where it means to
+;;    extract a new matrix with respect to a type constructor.
+;;
 ;;
 ;; 3. Compile each submatrix.
 ;;
+;;
 ;; 4. When there are no more columns emit the code for the right hand
 ;;    side (also known as the action).
+
 
 (declare compile)
 
