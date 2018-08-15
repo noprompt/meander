@@ -273,10 +273,52 @@
              :kind set?
              :into #{}))
 
+(s/def :meander.syntax.alpha.node/map
+  (s/tuple #{:map}
+           (s/map-of :meander.syntax.alpha.node/key
+                     :meander.syntax.alpha.node/val)))
+
+(s/def :meander.syntax.alpha.node/key
+  (s/tuple #{:key} :meander.syntax.alpha/term))
+
+
+(s/def :meander.syntax.alpha.node/val
+  (s/tuple #{:val} :meander.syntax.alpha/term))
+
 
 (s/def :meander.syntax.alpha/map
-  (s/map-of :meander.syntax.alpha/term
-            :meander.syntax.alpha/term))
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (and (map? x)
+                (not (record? x)))
+         (transduce
+          (map
+           (fn [[k v]]
+             [(s/conform :meander.syntax.alpha/term k)
+              (s/conform :meander.syntax.alpha/term v)]))
+          (fn
+            ([] {})
+            ([m] m)
+            ([m [ck cv]]
+             (if (or (= ck ::s/invalid)
+                     (= cv ::s/invalid))
+               (reduced ::s/invalid)
+               (assoc m [:key ck] [:val cv]))))
+          x)
+         ::s/invalid))
+     (fn [m]
+       (transduce
+        (map
+         (fn [[ck cv]]
+           [(second (s/unform :meander.syntax.alpha.node/key ck))
+            (second (s/unform :meander.syntax.alpha.node/val cv))]))
+        conj
+        {}
+        m)))
+    (fn []
+      (s.gen/map (s/gen :meander.syntax.alpha/term)
+                 (s/gen :meander.syntax.alpha/term)))))
 
 
 (s/def :meander.syntax.alpha/pred
