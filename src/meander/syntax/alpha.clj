@@ -233,8 +233,20 @@
        (s/gen :meander.syntax.alpha/any)))))
 
 
+(s/def :meander.syntax.alpha/rest
+  (s/with-gen
+    (s/cat :mvr (s/or :mvr :meander.syntax.alpha/memory-variable)
+           :dots zero-or-more-symbol?)
+    (fn []
+      (s.gen/fmap
+       (fn [sym]
+         `(~sym ~'...))
+       (s/gen :meander.syntax.alpha/memory-variable)))))
+
+
 (s/def :meander.syntax.alpha.sequential/item
   (s/alt :prt (s/cat :left (s/alt :drp :meander.syntax.alpha/drop
+                                  :rst :meander.syntax.alpha/rest
                                   :rp* :meander.syntax.alpha/zero-or-more
                                   :rp+ :meander.syntax.alpha/n-or-more)
                      :right (s/? :meander.syntax.alpha.sequential/item))
@@ -669,6 +681,10 @@
 
 ;; :cap
 
+(defmethod ground? :cap
+  [_] false)
+
+
 (defmethod children :cap
   [[_ {:keys [term binding]}]]
   [term binding])
@@ -805,9 +821,38 @@
 (defmethod ground? :lit
   [_] true)
 
+(defn unparse-lit
+  {:private true}
+  [x]
+  (cond
+    (symbol? x)
+    `(quote ~x)
+
+    (seq? x)
+    (if (= (first x) 'quote)
+      x
+      (if (= (first x) `list)
+        (cons (first x) (map unparse-lit (rest x)))
+        (if (seq x) 
+          (cons `list (map unparse-lit x))
+          ())))
+
+    (map? x)
+    (into {}
+          (map
+           (fn [[k v]]
+             [(unparse-lit k) (unparse-lit v)]))
+          x)
+
+    (coll? x)
+    (into (empty x) (map unparse-lit) x)
+
+    :else
+    x))
 
 (defmethod unparse :lit
-  [[_ lit]] lit)
+  [[_ lit]]
+  (unparse-lit lit))
 
 ;; :lvr
 
@@ -827,6 +872,15 @@
    (fn [[k v]]
      (and (ground? k)
           (ground? v)))
+   map-data))
+
+
+(defmethod unparse :map
+  [[_ map-data]]
+  (reduce-kv
+   (fn [m k v]
+     (assoc m (unparse k) (unparse v)))
+   {}
    map-data))
 
 ;; :mvr
@@ -950,6 +1004,24 @@
   [[_ {items :items dots :dots}]]
   `(~@(sequence (map unparse) items) ~dots))
 
+
+;; :rst
+
+(defmethod ground? :rst
+  [_] false)
+
+
+(defmethod min-length :rst
+  [_] 0)
+
+
+(defmethod max-length :rst
+  [_] ##Inf)
+
+
+(defmethod unparse :rst
+  [[_ {:keys [dots mvr]}]]
+  (list mvr dots))
 
 ;; :seq
 

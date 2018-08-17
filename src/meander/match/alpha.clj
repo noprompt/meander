@@ -421,8 +421,8 @@
   [_ [target & targets*] s-matrix default]
   (sequence
    (map
-    (fn [[[_ lit-val] matrix]]
-      [`(= ~target '~lit-val)
+    (fn [[lit-node matrix]]
+      [`(= ~target ~(r.syntax/unparse lit-node))
        (compile targets* (r.matrix/drop-column matrix) default)]))
    (r.matrix/specialize-by identity s-matrix)))
 
@@ -552,12 +552,12 @@
         ranked-keys))))))
 
 (defmethod r.syntax/ground? :mnc
+  [_] false)
+
+
+(defmethod r.syntax/unparse :mnc
   [[_ map-data]]
-  (every?
-   (fn [[k v]]
-     (and (r.syntax/ground? k)
-          (r.syntax/ground? v)))
-   map-data))
+  (r.syntax/unparse [:map map-data]))
 
 
 (defmethod compile-specialized-matrix :mnc
@@ -775,6 +775,24 @@
                           (drop ~n ~target)
                           ~@(rest loop-syms))}]
                       let-else))])))
+   (r.matrix/nth-column s-matrix 0)
+   (r.matrix/drop-column s-matrix)))
+
+
+;; :rst
+
+(defmethod compile-specialized-matrix :rst
+  [_ [target & targets*] s-matrix default]
+  (map
+   (fn [[_ {mvr :mvr}] row]
+     (let [mvr-sym (second mvr)
+           body (compile targets* [(r.matrix/add-var row mvr)] default)]
+       [true
+        (if (r.matrix/get-var row mvr)
+          `(let [~mvr-sym (into ~mvr-sym ~target)]
+             ~body)
+          `(let [~mvr-sym (vec ~target)]
+             ~body))]))
    (r.matrix/nth-column s-matrix 0)
    (r.matrix/drop-column s-matrix)))
 
