@@ -360,8 +360,7 @@
                              ~(:rhs row))
                     ~@(sequence
                        (comp (filter r.syntax/mvr-node?)
-                             (mapcat
-                              (juxt identity (constantly []))))
+                             (mapcat (juxt second (constantly []))))
                        unbound-vars)]
                 ~inner-form)])))))
    (r.matrix/nth-column s-matrix 0)
