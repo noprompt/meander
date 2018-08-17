@@ -821,6 +821,7 @@
 (defmethod ground? :lit
   [_] true)
 
+
 (defn unparse-lit
   {:private true}
   [x]
@@ -850,6 +851,7 @@
     :else
     x))
 
+
 (defmethod unparse :lit
   [[_ lit]]
   (unparse-lit lit))
@@ -865,6 +867,11 @@
 
 
 ;; :map
+
+(defmethod children :map
+  [[_ map-data]]
+  (mapcat identity map-data))
+
 
 (defmethod ground? :map
   [[_ map-data]]
