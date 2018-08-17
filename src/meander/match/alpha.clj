@@ -311,61 +311,66 @@
 
 (defmethod compile-specialized-matrix :dsj
   [_ targets s-matrix default]
-  (sequence
-   (map
-    (fn [dsj-node env row]
-      (when-some [ex (check-dsj env dsj-node)]
-        (throw ex))
-      (let [[_ {terms :terms}] dsj-node]
-        (case (count terms)
-          ;; Just as (clojure.core/or) is falsey so is the (or)
-          ;; pattern.
-          0
-          [false default]
+  (let [matrices (r.matrix/specialize-by
+                  (comp count :terms r.syntax/data)
+                  s-matrix)]
+    (clojure.pprint/pprint matrices)
+    (mapcat
+     (fn [[n s-matrix]]
+       (map
+        (fn [dsj-node env row]
+          (when-some [ex (check-dsj env dsj-node)]
+            (throw ex))
+          (let [[_ {terms :terms}] dsj-node]
+            (case n
+              ;; Just as (clojure.core/or) is falsey so is the (or)
+              ;; pattern.
+              0
+              [false default]
 
-          ;; Since (or pat) ≈ pat compile as if pat were given.
-          1
-          [true (compile targets
-                         [(assoc row :cols (cons (first terms) (:cols row)))]
-                         default)]
+              ;; Since (or pat) ≈ pat compile as if pat were given.
+              1
+              [true (compile targets
+                             [(assoc row :cols (cons (first terms) (:cols row)))]
+                             default)]
 
-          ;; Otherwise
-          (let [;; To reduce the amount of code generated a
-                ;; function containing the right hand side is
-                ;; compiled. The function accepts as
-                ;; arguments any variables that occur in the
-                ;; pattern (which are bound upon a successful
-                ;; pattern match). The original right hand side is
-                ;; then replaced with an invocation of this
-                ;; function with the required variables if any.
-                unbound-vars (set/difference
-                              (transduce
-                               (map r.syntax/variables)
-                               set/union
-                               (cons dsj-node (:cols row)))
-                              env)
-                unbound-syms (sequence (map r.syntax/unparse) unbound-vars)
-                f-sym (gensym* "f__")
-                rhs* `(~f-sym ~@unbound-syms)
-                matrix (sequence
-                        (map
-                         (fn [terms]
-                           (assoc row
-                                  :cols (cons terms (:cols row))
-                                  :rhs rhs*)))
-                        terms)
-                inner-form (compile targets matrix default)]
-            [true
-             `(let [~f-sym (fn ~f-sym [~@unbound-syms]
-                             ~(:rhs row))
-                    ~@(sequence
-                       (comp (filter r.syntax/mvr-node?)
-                             (mapcat (juxt second (constantly []))))
-                       unbound-vars)]
-                ~inner-form)])))))
-   (r.matrix/nth-column s-matrix 0)
-   (sequence (map :env) s-matrix)
-   (r.matrix/drop-column s-matrix)))
+              ;; Otherwise
+              ;; To reduce the amount of code generated a function
+              ;; containing the right hand side is compiled. The
+              ;; function accepts as arguments any variables that
+              ;; occur in the pattern (which are bound upon a
+              ;; successful pattern match). The original right hand
+              ;; side is then replaced with an invocation of this
+              ;; function with the required variables if any.
+              (let [unbound-vars (set/difference
+                                  (transduce
+                                   (map r.syntax/variables)
+                                   set/union
+                                   (cons dsj-node (:cols row)))
+                                  env)
+                    unbound-syms (sequence (map r.syntax/unparse) unbound-vars)
+                    f-sym (gensym* "f__")
+                    rhs* `(~f-sym ~@unbound-syms)
+                    matrix (sequence
+                            (map
+                             (fn [terms]
+                               (assoc row
+                                      :cols (cons terms (:cols row))
+                                      :rhs rhs*)))
+                            terms)
+                    inner-form (compile targets matrix default)]
+                [true
+                 `(let [~f-sym (fn ~f-sym [~@unbound-syms]
+                                 ~(:rhs row))
+                        ~@(sequence
+                           (comp (filter r.syntax/mvr-node?)
+                                 (mapcat (juxt second (constantly []))))
+                           unbound-vars)]
+                    ~inner-form)]))))
+        (r.matrix/nth-column s-matrix 0)
+        (sequence (map :env) s-matrix)
+        (r.matrix/drop-column s-matrix)))
+     matrices)))
 
 
 ;; :grd
