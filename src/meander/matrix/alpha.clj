@@ -170,6 +170,26 @@
    matrix))
 
 
+
+(s/fdef prepend-column
+  :args (s/cat :matrix :meander.matrix.alpha/matrix
+               :column (s/coll-of :meander.syntax.alpha/node
+                                  :kind sequential?
+                                  :into []))
+  :ret :meander.matrix.alpha/matrix)
+
+
+(defn prepend-column
+  "Drop the first column in row."
+  [matrix column]
+  (sequence
+   (map
+    (fn [row col]
+      (assoc row :cols (cons col (:cols row)))))
+   matrix
+   column))
+
+
 (s/fdef specialize-by
   :args (s/cat :f (s/fspec
                    :args (s/cat :node :meander.syntax.alpha/node)

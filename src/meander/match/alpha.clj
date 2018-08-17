@@ -314,7 +314,6 @@
   (let [matrices (r.matrix/specialize-by
                   (comp count :terms r.syntax/data)
                   s-matrix)]
-    (clojure.pprint/pprint matrices)
     (mapcat
      (fn [[n s-matrix]]
        (map
@@ -372,6 +371,20 @@
         (r.matrix/drop-column s-matrix)))
      matrices)))
 
+;; :gnd
+
+
+(defmethod compile-specialized-matrix :gnd
+  [_ targets s-matrix default]
+  [[true
+    (compile targets
+             (r.matrix/prepend-column
+              (r.matrix/drop-column s-matrix)
+              (mapv
+               (fn [node]
+                 [:lit (r.syntax/unparse node)])
+               (r.matrix/nth-column s-matrix 0)))
+             default)]])
 
 ;; :grd
 
@@ -868,12 +881,20 @@
           "Number of targets does not match the number of columns")
   (if (seq targets)
     (let [[targets* matrix*] (prioritize-matrix [targets matrix])
-          {no-preds true, preds false} (group-by (comp true? first)
-                                                 (sequence
-                                                  (mapcat
-                                                   (fn [[tag s-matrix]]
-                                                     (compile-specialized-matrix tag targets* s-matrix default)))
-                                                  (r.matrix/specialize-by r.syntax/tag matrix*)))
+          {no-preds true, preds false} (group-by
+                                        (comp true? first)
+                                        (sequence
+                                         (mapcat
+                                          (fn [[tag s-matrix]]
+                                            (compile-specialized-matrix tag targets* s-matrix default)))
+                                         (r.matrix/specialize-by
+                                          (fn [node]
+                                            (let [tag (r.syntax/tag node)]
+                                              (if (and (r.syntax/ground? node)
+                                                       (not (= tag :lit)))
+                                                :gnd
+                                                tag)))
+                                          matrix*)))
           no-pred-body (reduce
                         (fn [next-choice [_ body-form]]
                           (if (= next-choice default)
