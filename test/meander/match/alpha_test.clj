@@ -641,3 +641,73 @@
 
       _
       false)))
+
+;; Maps
+
+
+(tc.t/defspec map-unq-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match {:x x, :y y}
+      {:x ~x, :y ~y}
+      true
+
+      _
+      false)))
+
+
+(tc.t/defspec map-lvr-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match {:x x, :y y}
+      {:x ?x, :y ?y}
+      (= [x y] [?x ?y])
+
+      _
+      false)))
+
+
+(tc.t/defspec map-vec-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (let [y [x]
+          z [[x]]]
+      (r.match/match {:x [x y], :y [y x], :z [z]}
+        {:x [?x ?y] :y [?y ?x] :z [?z]}
+        (= [x y z] [?x ?y ?z])
+
+        _
+        false))))
+
+
+(tc.t/defspec map-seq-lvr
+  (tc.prop/for-all [x tc.gen/any]
+    (let [y [x]
+          z [[x]]]
+      (r.match/match {:x (list x y), :y (list y x), :z (list z)}
+        {:x (?x ?y) :y (?y ?x) :z (?z)}
+        (= (list x y z) (list ?x ?y ?z))
+
+        _
+        false))))
+
+
+(tc.t/defspec map-mvr
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match {:x x, :y y}
+      {:x !xs, :y !xs}
+      (or (= [x y] !xs)
+          (= [y x] !xs))
+
+      _
+      false)))
+
+
+(tc.t/defspec map-map
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match {:x {:y x}, :z x}
+      {:x {:y ~x}, :z ~x}
+      true
+
+      _
+      false)))

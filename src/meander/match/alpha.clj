@@ -427,6 +427,137 @@
    (r.matrix/drop-column s-matrix)))
 
 
+;; :map
+
+;; :map nodes are compiled indirectly via the :mnc (map no check)
+;; node. Compilation of a :map matrix consists of compiling a map?
+;; check against the primary target and compiling the rewrite of each
+;; :map node in the first column to an :mnc node against the targets.
+
+;; Assumes keys are ground.
+(defmethod compile-specialized-matrix :map
+  [_ [target :as targets] s-matrix default]
+  ;; Test if target is a map *once*.
+  [[`(map? ~target)
+    (compile targets
+             (map
+              (fn [row]
+                (let [[[_ map-data] & rest-cols] (:cols row)]
+                  ;; Rewrite :map nodes in the first column as :mnc
+                  ;; nodes.
+                  (assoc row :cols (cons [:mnc map-data] rest-cols))))
+              s-matrix)
+             default)]])
+
+
+(defn compile-mnc-matrix
+  {:private true}
+  [[map-target & targets*] s-matrix default]
+  (let [s-matrix (vec s-matrix)
+        column (r.matrix/nth-column s-matrix 0)
+        map-data (map r.syntax/data column)
+        ;; Index rows by their first column.
+        row-by-map (into {} (map vector map-data s-matrix))
+        ;; Index maps by common keys.
+        maps-by-key (into {}
+                          (map
+                           (fn [k]
+                             [k (into #{}
+                                      (filter
+                                       (fn [m]
+                                         (contains? m k)))
+                                      map-data)]))
+                          (into #{} (mapcat keys) map-data))
+        ;; Rank the keys by the total number of maps they belong to.
+        ranked-keys (keys (sort-by (comp - count val) maps-by-key))]
+    ;; Compile each key, one at a time.
+    (map
+     (fn [[k ms]]
+       [true
+        (let [entry-target (gensym* "entry__")
+              val-target (gensym* "val__")]
+          ;; find and destructing are useful together here because find
+          ;; returns either nil or an entry which destructuring can
+          ;; safely pull apart. If the entry exists then entry-target
+          ;; will be non-nil making pattern matching on val-target
+          ;; possible.
+          `(let [~entry-target (find ~map-target ~(r.syntax/unparse k))]
+             ~(compile
+               [map-target map-target]
+               (mapv
+                (fn [m]
+                  (let [row (get row-by-map m)
+                        env (r.matrix/get-env row)]
+                    {;; Check if entry was found, then continue
+                     ;; checking keys.
+                     :cols [[:grd {:form `(some? ~entry-target)}]
+                            [:mnc (dissoc m k)]]
+                     :env env
+                     ;; Bind val from entry-target as late as
+                     ;; possible. 
+                     :rhs `(let [~val-target (val ~entry-target)]
+                             ~(compile
+                               (cons val-target targets*)
+                               [(assoc row
+                                       :cols (cons (get m k) (rest (:cols row)))
+                                       :env (into env
+                                                  (mapcat r.syntax/variables)
+                                                  (vals (dissoc m k))))]
+                               default))}))
+                ms)
+               default)))])
+     (sort-by 
+      (fn [[k ms]]
+        (apply min
+          (map
+           (fn [m]
+             (.indexOf s-matrix (row-by-map m)))
+           ms)))
+      (sequence
+       (keep
+        (fn [[k ms]]
+          (when (seq ms)
+            [k (sort-by
+                (fn [m]
+                  (.indexOf s-matrix (row-by-map m)))
+                ms)])))
+       (reduce
+        (fn [acc k]
+          (let [vs1 (get acc k)]
+            (into acc
+                  (map
+                   (fn [[k vs2]]
+                     [k (set/difference vs2 vs1)]))
+                  (dissoc acc k))))
+        maps-by-key
+        ranked-keys))))))
+
+;; :mnc
+
+(defmethod r.syntax/ground? :mnc
+  [[_ map-data]]
+  (every?
+   (fn [[k v]]
+     (and (r.syntax/ground? k)
+          (r.syntax/ground? v)))
+   map-data))
+
+
+(defmethod compile-specialized-matrix :mnc
+  [_ targets s-matrix default]
+  (let [{empty true, not-empty false}
+        (r.matrix/specialize-by
+         (comp empty? r.syntax/data)
+         s-matrix)]
+    (concat
+     (map
+      (fn [row]
+        [true
+         (compile (rest targets) [row] default)])
+      (r.matrix/drop-column empty))
+     (compile-mnc-matrix targets s-matrix default))))
+
+
 ;; :mvr
 
 (defmethod compile-specialized-matrix :mvr
@@ -728,10 +859,6 @@
 
 
 (defn compile [targets matrix default]
-  #_
-  (clojure.pprint/pprint
-   {:targets (vec targets)
-    :matrix (mapv (fn [row] (update row :cols vec)) matrix)})
   (assert (= (count targets)
              (count (:cols (first matrix))))
           "Number of targets does not match the number of columns")

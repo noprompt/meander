@@ -273,19 +273,6 @@
              :kind set?
              :into #{}))
 
-(s/def :meander.syntax.alpha.node/map
-  (s/tuple #{:map}
-           (s/map-of :meander.syntax.alpha.node/key
-                     :meander.syntax.alpha.node/val)))
-
-(s/def :meander.syntax.alpha.node/key
-  (s/tuple #{:key} :meander.syntax.alpha/term))
-
-
-(s/def :meander.syntax.alpha.node/val
-  (s/tuple #{:val} :meander.syntax.alpha/term))
-
-
 (s/def :meander.syntax.alpha/map
   (s/with-gen
     (s/conformer
@@ -304,15 +291,15 @@
              (if (or (= ck ::s/invalid)
                      (= cv ::s/invalid))
                (reduced ::s/invalid)
-               (assoc m [:key ck] [:val cv]))))
+               (assoc m ck cv))))
           x)
          ::s/invalid))
      (fn [m]
        (transduce
         (map
          (fn [[ck cv]]
-           [(second (s/unform :meander.syntax.alpha.node/key ck))
-            (second (s/unform :meander.syntax.alpha.node/val cv))]))
+           [(s/unform :meander.syntax.alpha/term)
+            (s/unform :meander.syntax.alpha/term)]))
         conj
         {}
         m)))
@@ -831,6 +818,16 @@
 (defmethod unparse :lvr
   [[_ sym]] sym)
 
+
+;; :map
+
+(defmethod ground? :map
+  [[_ map-data]]
+  (every?
+   (fn [[k v]]
+     (and (ground? k)
+          (ground? v)))
+   map-data))
 
 ;; :mvr
 
