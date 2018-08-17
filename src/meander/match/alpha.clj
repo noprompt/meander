@@ -467,6 +467,8 @@
              default)]])
 
 
+;; :mnc
+
 (defn compile-mnc-matrix
   {:private true}
   [[map-target & targets*] s-matrix default]
@@ -548,8 +550,6 @@
                   (dissoc acc k))))
         maps-by-key
         ranked-keys))))))
-
-;; :mnc
 
 (defmethod r.syntax/ground? :mnc
   [[_ map-data]]
