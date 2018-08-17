@@ -659,26 +659,36 @@
            (fn [[min-length mr-matrix]]
              (let [n (gensym* "target_length__")
                    m (gensym* "target_mark__")]
-               [true
-                `(let [~n (count ~target)
-                       ~m (max 0 (- ~n ~min-length))
-                       ~l-target (take ~m ~target)
-                       ~r-target (drop ~m ~target)]
-                   ;; r-target is matched before l-target because it has a
-                   ;; fixed length. It is pushed on to the stack twice:
-                   ;; once for it's length to be checked, and once for
-                   ;; pattering matching.
-                   ~(compile (list* r-target r-target l-target targets*)
-                             (sequence
-                              (map
-                               (fn [row]
-                                 (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
-                                   (assoc row :cols (list* [:grd {:form `(= ~min-length (count ~r-target))}]
-                                                           (or right [:any '_])
-                                                           left
-                                                           rest-cols)))))
-                              mr-matrix)
-                             default))])))
+               (if (= min-length 0)
+                 [true
+                  (compile (list* target targets*)
+                           (sequence
+                            (map
+                             (fn [row]
+                               (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
+                                 (assoc row :cols (cons left rest-cols)))))
+                            vl-matrix)
+                           default)] 
+                 [true
+                  `(let [~n (count ~target)
+                         ~m (max 0 (- ~n ~min-length))
+                         ~l-target (take ~m ~target)
+                         ~r-target (drop ~m ~target)]
+                     ;; r-target is matched before l-target because it has a
+                     ;; fixed length. It is pushed on to the stack twice:
+                     ;; once for it's length to be checked, and once for
+                     ;; pattering matching.
+                     ~(compile (list* r-target r-target l-target targets*)
+                               (sequence
+                                (map
+                                 (fn [row]
+                                   (let [[[_ {:keys [left right]}] & rest-cols] (:cols row)]
+                                     (assoc row :cols (list* [:grd {:form `(= ~min-length (count ~r-target))}]
+                                                             (or right [:any '_])
+                                                             left
+                                                             rest-cols)))))
+                                mr-matrix)
+                               default))]))))
           (r.matrix/specialize-by
            (comp
             (fn [r]
