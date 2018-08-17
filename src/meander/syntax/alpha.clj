@@ -1014,6 +1014,11 @@
 
 ;; :rst
 
+(defmethod children :rst
+  [[_ {mvr :mvr}]]
+  [mvr])
+
+
 (defmethod ground? :rst
   [_] false)
 
