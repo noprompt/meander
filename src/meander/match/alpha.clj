@@ -949,20 +949,36 @@
 ;; Match macro
 
 
+(s/def :meander.match.alpha/expr
+  any?)
+
+
 (s/def :meander.match.alpha/clause
-  (s/cat
-   :pat ::r.syntax/term
-   :rhs any?))
+  (s/cat :pat ::r.syntax/term
+         :rhs :meander.match.alpha/expr))
+
+
+(s/def :meander.match.alpha.match/clauses
+  (s/* (s/cat :pat ::r.syntax/term
+              :rhs :meander.match.alpha/expr)))
 
 
 (s/def :meander.match.alpha.match/args
-  (s/cat :target any?
+  (s/cat :expr :meander.match.alpha/expr
          :clauses (s/* :meander.match.alpha/clause)))
+
+(s/def :meander.match.alpha.match/data
+  (s/keys :req-un [:meander.match.alpha/expr
+                   :meander.matrix.alpha/matrix
+                   :meander.matrix.alpha.data/final-clause]))
+
+(s/def :meander.match.alpha.match.data/final-clause
+  (s/nilable :meander.matrix.alpha/row))
 
 
 (s/fdef parse-match-args
   :args (s/cat :match-args :meander.match.alpha.match/args)
-  :ret any?)
+  :ret :meander.match.alpha.match/data)
 
 
 (defn parse-match-args
@@ -975,17 +991,36 @@
                       {:cols [pat]
                        :env #{}
                        :rhs rhs})
-                    (:clauses data))]
-        (assoc data :matrix matrix)))))
+                    (:clauses data))
+            final-clause (some
+                          (fn [row]
+                            (let [node (first (:cols row))]
+                              (case (r.syntax/tag node)
+                                (:any :lvr :mvr)
+                                row
+                                ;; else
+                                nil)))
+                          matrix)]
+        (assoc data
+               :matrix matrix
+               :final-clause final-clause)))))
 
 
-(s/def :meander.match.alpha.match/clauses
-  (s/* (s/cat :pat ::r.syntax/term
-              :expr any?)))
+(defn exhaustive?
+  {:private true}
+  [match-data]
+  (some
+   (fn [node]
+     (case (r.syntax/tag node)
+       (:any :lvr :mvr)
+       true
+       ;; else
+       false))
+   (r.matrix/nth-column (:matrix match-data) 0)))
 
 
 (s/fdef match
-  :args (s/cat :target any?
+  :args (s/cat :expr any?
                :clauses :meander.match.alpha.match/clauses)
   :ret any?)
 
@@ -993,12 +1028,41 @@
 (defmacro match
   {:arglists '([x & clauses])}
   [& match-args]
-  (let [data (parse-match-args match-args)
+  (let [match-data (parse-match-args match-args)
+        expr (:expr match-data)
+        matrix (:matrix match-data)
+        final-clause (:final-clause match-data)
+        ;; Drop clauses below the final clause; they're redundant.
+        matrix (if final-clause
+                 (take-while (partial not= final-clause) matrix)
+                 matrix)
         target (gensym "target__")]
-    `(try
-       (let [~target ~(:target data)]
-         ~(compile [target] (:matrix data) `(throw backtrack)))
-       (catch Exception e#
-         (if (identical? e# backtrack)
-           (throw (Exception. "non exhaustive pattern match"))
-           (throw e#))))))
+    (case [(r.matrix/empty? matrix) (some? final-clause)]
+      ;; Only final clause
+      [true true]
+      `(let [~target ~expr]
+         ~(compile [target] [final-clause] `(throw backtrack)))
+
+      ;; Nothing to match.
+      [true false]
+      `(throw (Exception. "non exhaustive pattern match"))
+
+      ;; Non-empty matrix, no final clause.
+      [false false]
+      `(try
+         (let [~target ~expr]
+           ~(compile [target] matrix `(throw backtrack)))
+         (catch Exception e#
+           (if (identical? e# backtrack)
+             (throw (Exception. "non exhaustive pattern match"))
+             (throw e#))))
+
+      ;; Non-empty matrix, final clause.
+      [false true]
+      `(try
+         (let [~target ~expr]
+           ~(compile [target] matrix `(throw backtrack)))
+         (catch Exception e#
+           (if (identical? e# backtrack)
+             ~(compile [target] [final-clause] `(throw backtrack))
+             (throw e#)))))))
