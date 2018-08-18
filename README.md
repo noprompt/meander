@@ -29,11 +29,24 @@ Meander is a Clojure data transformation library which combines higher order fun
   * [`pred`](#pred)
   * [`guard`](#guard)
   * [`app`](#app)
+  * [`let`](#let)
 * [Escaping](#escaping)
   * [Unquote](#unquote)
   * [Unquote Splicing](#unquote-splicing)
 
+
+### `match`
+
+The `match` operator provides traditional pattern matching.
+
+
+### `match*`
+
+The `match*` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts. Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `match*` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made. In essence, `match*` allows you to _query_ arbitrary data.
+
+
 ### Pattern Syntax
+
 
 #### Literals
 
@@ -41,13 +54,13 @@ The simplest patterns to express are literal patterns. Literal patterns are patt
 
 For example, the pattern 
 
-```
+```clj
 [1 ?x 3]
 ```
 
 contains the literals `1` and `3`. And the pattern
 
-```
+```clj
 ('or ?x "foo")
 ```
 
@@ -68,13 +81,14 @@ To express any 2-tuple composed of equivalent elements we would write the follow
 ```
 
 This pattern will match a value like 
-```
+
+```clj
 [1 1]
 ``` 
 
 and bind `?x` to `1` but will not match a value like 
 
-```
+```clj
 [1 2]
 ```
 
@@ -101,4 +115,4 @@ This pattern will match a value like
 and bind `!xs` to `[:red :blue]` and `!ys` to `[:green :yellow]`.
 
 
-## Subsequence
+## Subsequences
