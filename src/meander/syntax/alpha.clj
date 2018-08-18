@@ -666,6 +666,25 @@
   (not (= (min-length node) (max-length node))))
 
 
+(s/fdef search?
+  :args (s/cat :node :meander.syntax.alpha/node)
+  :ret boolean?)
+
+
+(defn search?-dispatch
+  {:private true}
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (tag node))
+
+
+(defmulti search?
+  ""
+  {:arglists '([node])
+   :tag 'java.lang.Boolean}
+  #'search?-dispatch)
+
+
 ;; ---------------------------------------------------------------------
 ;; AST Method implementations
 
@@ -678,6 +697,11 @@
 
 (defmethod unparse :any
   [_] '_)
+
+
+(defmethod search? :any
+  [_] false)
+
 
 ;; :cap
 
@@ -693,6 +717,11 @@
 (defmethod unparse :cap
   [[_ {:keys [term binding]}]]
   `(~(unparse term) :as ~(unparse binding)))
+
+
+(defmethod search? :cap
+  [_ {:keys [term]}]
+  (search? term))
 
 
 (defn circular-cap?
@@ -716,8 +745,8 @@
     ;; subterms.
     false))
 
-;; :cat
 
+;; :cat
 
 (defmethod children :cat
   [[_ nodes]] nodes)
@@ -741,8 +770,13 @@
   [[_ nodes]]
   (sequence (map unparse) nodes))
 
-;; :cnj
 
+(defmethod search? :cat
+  [[_ nodes]]
+  (boolean (some search? nodes)))
+
+
+;; :cnj
 
 (defmethod children :cnj
   [[_ {nodes :terms}]] nodes)
@@ -755,6 +789,11 @@
 (defmethod unparse :cnj
   [[_ {nodes :terms}]]
   `(~'and ~@(sequence (map unparse) nodes)))
+
+
+(defmethod search? :cnj
+  [[_ {nodes :terms}]]
+  (boolean (some search? nodes)))
 
 
 ;; :drp
@@ -775,6 +814,9 @@
   [_] '(_ ...))
 
 
+(defmethod search? :drp
+  [_] false)
+
 ;; :dsj
 
 (defmethod children :dsj
@@ -790,6 +832,11 @@
   `(~'or ~@(sequence (map unparse) nodes)))
 
 
+(defmethod search? :dsj
+  [[_ {nodes :terms}]]
+  (boolean (some search? nodes)))
+
+
 ;; :grd
 
 (defmethod ground? :grd
@@ -799,6 +846,10 @@
 (defmethod unparse :grd
   [[_ {form :form}]]
   `(~'guard ~form))
+
+
+(defmethod search? :grd
+  [_] false)
 
 ;; :let
 
@@ -814,6 +865,10 @@
 (defmethod unparse :let
   [[_ {binding :binding, expr :expr}]]
   `(~'let ~binding ~expr))
+
+
+(defmethod search? :let
+  [_] false)
 
 
 ;; :lit
@@ -856,6 +911,10 @@
   [[_ lit]]
   (unparse-lit lit))
 
+
+(defmethod search? :lit
+  [_] false)
+
 ;; :lvr
 
 (defmethod ground? :lvr
@@ -865,6 +924,9 @@
 (defmethod unparse :lvr
   [[_ sym]] sym)
 
+
+(defmethod search? :lvr
+  [_] false)
 
 ;; :map
 
@@ -890,6 +952,18 @@
    {}
    map-data))
 
+
+(defmethod search? :map
+  [_ map-data]
+  (boolean
+   (some
+    (fn [[k v]]
+      (or (not (ground? k))
+          (search? k)
+          (search? v)))
+    map-data)))
+
+
 ;; :mvr
 
 (defmethod ground? :mvr
@@ -898,6 +972,9 @@
 
 (defmethod unparse :mvr
   [[_ sym]] sym)
+
+(defmethod search? :mvr
+  [_] false)
 
 
 ;; :prd
@@ -911,8 +988,11 @@
   `(~'pred ~form))
 
 
-;; :prt
+(defmethod search? :prd
+  [_] false)
 
+
+;; :prt
 
 (defmethod children :prt
   [[_ {left :left, right :right}]]
@@ -953,6 +1033,15 @@
           (when (some? right)
             (unparse right))))
 
+
+(defmethod search? :prt
+  [_ {left :left, right :right}]
+  (or (and (variable-length? left)
+           (variable-length? right))
+      (search? left)
+      (search? right)))
+
+
 ;; :quo
 
 (defmethod ground? :quo
@@ -963,8 +1052,16 @@
   [[_ {form :form}]]
   `(quote ~form))
 
+(defmethod search? :qu
+  [_] false)
+
 
 ;; :rp*
+
+(defmethod children :rp*
+  [[_ {items :items}]]
+  items)
+
 
 (defmethod ground? :rp*
   [_] false)
@@ -983,10 +1080,13 @@
   `(~@(sequence (map unparse) items) ~dots))
 
 
+(defmethod search? :rp*
+  [_] false)
+
 ;; :rp+
 
 
-(defmethod children :rp*
+(defmethod children :rp+
   [[_ {items :items}]]
   items)
 
@@ -1012,6 +1112,10 @@
   `(~@(sequence (map unparse) items) ~dots))
 
 
+(defmethod search? :rp+
+  [_] false)
+
+
 ;; :rst
 
 (defmethod children :rst
@@ -1035,10 +1139,16 @@
   [[_ {:keys [dots mvr]}]]
   (list mvr dots))
 
+
+(defmethod search? :rst
+  [_] false)
+
+
 ;; :seq
 
 (defmethod children :seq
   [[_ prt]] [prt])
+
 
 (defmethod ground? :seq
   [[_ prt]] (ground? prt))
@@ -1047,6 +1157,11 @@
 (defmethod unparse :seq
   [[_ prt]]
   (seq (unparse prt)))
+
+
+(defmethod search? :seq
+  [[_ prt]]
+  (search? prt))
 
 
 ;; :uns
@@ -1059,6 +1174,10 @@
   [[_ {expr :expr}]]
   (list 'clojure.core/unquote-splicing expr))
 
+
+(defmethod search? :uns
+  [_] false)
+
 ;; :unq
 
 (defmethod ground? :unq
@@ -1069,9 +1188,11 @@
   [[_ {expr :expr}]]
   (list 'clojure.core/unquote expr))
 
+(defmethod search? :unq
+  [_] false)
+
 
 ;; :vec
-
 
 (defmethod children :vec
   [[_ prt]] [prt])
@@ -1092,3 +1213,8 @@
 (defmethod unparse :vec
   [[_ prt]]
   (vec (unparse prt)))
+
+
+(defmethod search? :vec
+  [[_ prt]]
+  (search? prt))
