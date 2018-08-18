@@ -1001,9 +1001,9 @@
                                 ;; else
                                 nil)))
                           matrix)]
-        (assoc data
-               :matrix matrix
-               :final-clause final-clause)))))
+        {:expr (:expr data)
+         :final-clause final-clause
+         :matrix matrix}))))
 
 
 (defn exhaustive?
