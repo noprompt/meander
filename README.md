@@ -131,6 +131,17 @@ Example:
 ;; => :okay
 ```
 
+### `let`
+
+`(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allowpattern matching on an arbitrary expression.
+
+```
+(match 42
+  (or [?x ?y] (let [?x ?y] [1 2]))
+  [?x ?y])
+;; => [1 2]
+```
+
 #### `and`
 
 `(and pat₀ ,,, patₙ)` matches when all of `pat₀` through `patₙ` match.
