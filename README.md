@@ -135,7 +135,7 @@ Example:
 
 `(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allowpattern matching on an arbitrary expression.
 
-```
+```clj
 (match 42
   (or [?x ?y] (let [?x ?y] [1 2]))
   [?x ?y])
