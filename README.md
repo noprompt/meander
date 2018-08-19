@@ -13,40 +13,42 @@ Meander is a Clojure data transformation library which combines higher order fun
 
 ## Pattern Matching
 
-* [`match`](#match)
-* [`match*`](#match-star)
-* [Pattern Syntax](#pattern-syntax)
-* [Literals](#literals)
-* [Variables](#variables)
-  * [Logic Variables](#logic-variables)
-  * [Memory Variables](#memory-variables)
-* [Subsequences](#subsequences)
-  * [Zero or More](#zero-or-more)
-  * [N or More](#n-or-more)
 * [Operators](#operators)
-  * [`and`](#and)
-  * [`or`](#or)
-  * [`pred`](#pred)
-  * [`guard`](#guard)
-  * [`app`](#app)
-  * [`let`](#let)
-* [Escaping](#escaping)
-  * [Unquote](#unquote)
-  * [Unquote Splicing](#unquote-splicing)
+  * [`match`](#match)
+  * [`match*`](#match-star)
+* [Pattern Syntax](#pattern-syntax)
+  * [Literals](#literals)
+  * [Variables](#variables)
+    * [Logic Variables](#logic-variables)
+    * [Memory Variables](#memory-variables)
+  * [Operators](#operators)
+    * [`and`](#and)
+    * [`or`](#or)
+    * [`pred`](#pred)
+    * [`guard`](#guard)
+    * [`app`](#app)
+    * [`let`](#let)
+  * [Subsequences](#subsequences)
+    * [Zero or More](#zero-or-more)
+    * [N or More](#n-or-more)
+  * [Escaping](#escaping)
+    * [Unquote](#unquote)
+    * [Unquote Splicing](#unquote-splicing)
 
 
-### `match`
+### Operators
+
+#### `match`
 
 The `match` operator provides traditional pattern matching.
 
 
-### `match*`
+#### `match*`
 
 The `match*` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts. Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `match*` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made. In essence, `match*` allows you to _query_ arbitrary data.
 
 
 ### Pattern Syntax
-
 
 #### Literals
 
@@ -115,4 +117,56 @@ This pattern will match a value like
 and bind `!xs` to `[:red :blue]` and `!ys` to `[:green :yellow]`.
 
 
-## Subsequences
+### Operators
+
+### `guard`
+
+`(guard expr)` matches whenenver `expr` true.
+
+Example:
+
+```clj
+(match 42
+  (guard true) :okay)
+;; => :okay
+```
+
+#### `and`
+
+`(and pat₀ ,,, patₙ)` matches when all of `pat₀` through `patₙ` match.
+
+Example:
+
+```clj
+(match 42
+  (and ?x (guard (even? ?x)))
+  ?x)
+;; => 42
+```
+
+#### `or`
+
+`(or pat₀ ,,, patₙ)` matches when any one of `pat₀` through `patₙ` match.
+
+```clj
+(match 42
+  (or 43 42 41)
+  true)
+;; => true
+```
+
+Note that unbound variables _must_ be shared by `pat₀` through `patₙ`.
+
+```clj
+(match [1 2 3]
+  (or [?x ?y]
+      [?x ?y ?z])
+  [?x ?y])
+;; Every pattern of an or pattern must have references to the same
+;; unbound variables.
+;; {:pat (or [?x ?y] [?x ?y ?z]),
+;;  :env #{},
+;;  :problems [{:pat [?x ?y], :absent #{?z}}]}
+```
+
+### Subsequences
