@@ -369,11 +369,13 @@
        (s.gen/any)))))
 
 
+;; Borrowed from Emacs' pcase
+;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Pattern-matching-case-statement.html
 (s/def :meander.syntax.alpha/let
   (s/with-gen
     (s/and seq?
            (s/cat :let #{'let}
-                  :binding (s/or :lvr :meander.syntax.alpha/logic-variable)
+                  :binding :meander.syntax.alpha/term
                   :expr any?))
     (fn []
       (s.gen/fmap
@@ -855,7 +857,7 @@
 
 (defmethod children :let
   [[_ {binding :binding}]]
-  [binding])
+  (children binding))
 
 
 (defmethod ground? :let
