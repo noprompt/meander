@@ -21,6 +21,7 @@ Meander is a Clojure data transformation library which combines higher order fun
   * [Variables](#variables)
     * [Logic Variables](#logic-variables)
     * [Memory Variables](#memory-variables)
+    * [Any Variables](#any-variables)
   * [Operators](#operators)
     * [`and`](#and)
     * [`or`](#or)
@@ -70,11 +71,11 @@ contains the literals `or` and `"foo"`.
 
 #### Variables
 
-Pattern variables bind symbols to the values they match making them available for use in pattern actions, substitutions, and even within patterns. There are two types of pattern variables: logic variables and memory variables. 
+Pattern variables are variables which may or may not bind symbols to the values they match. In the case of variables which bind, the bindings are made available for use in pattern actions, substitutions, and even within patterns. There are two types of pattern variables which bind, _logic variables_ and _memory variables_, and one type of variable which does not, the so-called _any variable_ also known as a wild card.
 
 #### Logic Variables
 
-Logic variables are variables which express an equivalent, but not necessarily identical, value everywhere within a pattern. They are represented by an unqualified symbol prefixed with the `?` character.
+_Logic variables_ are variables which express an equivalent, but not necessarily identical, value everywhere within a pattern. They are represented by an unqualified symbol prefixed with the `?` character.
 
 To express any 2-tuple composed of equivalent elements we would write the following.
 
@@ -99,7 +100,7 @@ since the second occurence of `?x` is not equal to `1`.
 
 #### Memory Mariables
 
-Memory variables are variables which "remember" or collect values during pattern matching. They are represented by an unqualified symbol prefixed with the `!` character. Because they collect multiple values it is idiomatic to employ a plural naming convention e.g. `!xs` or `!people`.
+_Memory variables_ are variables which "remember" or collect values during pattern matching. They are represented by an unqualified symbol prefixed with the `!` character. Because they collect multiple values it is idiomatic to employ a plural naming convention e.g. `!xs` or `!people`.
 
 
 To collect values from a 4-tuple such that we collet the first and last elements in one container and the middle elements in another we would write the folowing.
@@ -117,6 +118,11 @@ This pattern will match a value like
 and bind `!xs` to `[:red :blue]` and `!ys` to `[:green :yellow]`.
 
 
+#### Any Variables
+
+_Any variables_ are variables which match anything but do not bind the values they match. They are represented as simple symbols prefixed with the `_` character e.g. `_`, `_first-name`, and so on. Any variables commonly appear in the last clause of a `match` expression as a catch-all when all other patterns fail to match.
+
+
 ### Operators
 
 ### `guard`
@@ -128,6 +134,18 @@ Example:
 ```clj
 (match 42
   (guard true) :okay)
+;; => :okay
+```
+
+### `pred`
+
+`(pred pred-fn)` matches whenenver `pred-fn` applied to the current value being matchedreturns a truthy value.
+
+Example:
+
+```clj
+(match 42
+  (pred even?) :okay)
 ;; => :okay
 ```
 
