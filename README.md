@@ -1,6 +1,6 @@
 # Meander
 
-Meander is a Clojure data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting). It does so with extensible syntactic pattern matching, syntactic pattern substitution, and a suite of combinators (also known as "strategies") that run the gamut from purely functional to purely declarative.
+Meander is a Clojure data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting). It does so with extensible syntactic pattern matching, syntactic pattern substitution, and a suite of combinators known as "strategies" that run the gamut from purely functional to purely declarative.
 
 
 ## Table of Contents
