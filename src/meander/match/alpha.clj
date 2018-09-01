@@ -149,6 +149,9 @@
 
 
 (defmulti compile-specialized-matrix
+  "Compile the matrix specialized for tag with respect to targets to a
+  sequence of decision trees."
+  {:arglists '([tag targets matrix])}
   (fn [tag targets matrix]
     tag))
 
@@ -723,10 +726,10 @@
    (r.matrix/drop-column matrix)))
 
 
-;; :rp* may not contain unbound logic variables.
-;; :dsj arguments must contain references to the same logic variables.
-
-(defn compile [targets matrix]
+(defn compile
+  "Compile the pattern matrix with respect to targets to a decision
+  tree."
+  [targets matrix]
   (cond
     (= (count matrix) 0)
     [:fail]
@@ -767,75 +770,79 @@
 ;; ---------------------------------------------------------------------
 ;; Code emission
 
-(defn emit [[tag :as node] fail]
-  (case tag
-    :action
-    (let [[_ expr] node]
-      expr)
 
-    :bind
-    (let [[_ bindings body] node]
-      ;; This isn't necessary but makes the resulting code easier to
-      ;; read.
-      (loop [bindings bindings
-             body body]
-        (let [[tag] body]
-          (if (= tag :bind)
-            (let [[_ bindings* body*] body]
-              (recur (into bindings bindings*) body*))
-            `(let ~bindings
-               ~(emit body fail))))))
+(defn emit*
+  "Rewrite the decision tree as Clojure code without optimizations."
+  [tree fail]
+  (let [[tag :as node] tree]
+    (case tag
+      :action
+      (let [[_ expr] node]
+        expr)
 
-    :branch
-    (let [[_ arms] node
-          fsyms (mapv
-                 (fn [_]
-                   (gensym "f__"))
-                 arms)]
-      (case (count arms)
-        1
-        (emit (first arms) fail)
+      :bind
+      (let [[_ bindings body] node]
+        ;; This isn't necessary but makes the resulting code easier to
+        ;; read.
+        (loop [bindings bindings
+               body body]
+          (let [[tag] body]
+            (if (= tag :bind)
+              (let [[_ bindings* body*] body]
+                (recur (into bindings bindings*) body*))
+              `(let ~bindings
+                 ~(emit* body fail))))))
 
-        2
-        (emit (first arms)
-              (emit (second arms) fail))
+      :branch
+      (let [[_ arms] node
+            fsyms (mapv
+                   (fn [_]
+                     (gensym "f__"))
+                   arms)]
+        (case (count arms)
+          1
+          (emit* (first arms) fail)
 
-        ;; else
-        `(letfn [~@(map
-                     (fn [fsym fail arm]
-                       `(~fsym []
-                         ~(emit arm fail)))
-                     fsyms
-                     (conj (mapv
-                            (fn [fsym]
-                              `(~fsym))
-                            (rest fsyms))
-                           fail)
-                     arms)]
-           (~(first fsyms)))))
+          2
+          (emit* (first arms)
+                 (emit* (second arms) fail))
 
-    :fail
-    fail
+          ;; else
+          `(letfn [~@(map
+                       (fn [fsym fail arm]
+                         `(~fsym []
+                           ~(emit* arm fail)))
+                       fsyms
+                       (conj (mapv
+                              (fn [fsym]
+                                `(~fsym))
+                              (rest fsyms))
+                             fail)
+                       arms)]
+             (~(first fsyms)))))
 
-    :loop
-    (let [[_ ident syms body] node]
-      `(letfn [(~ident ~syms
-                ~(emit body fail))]
-         (~ident ~@syms)))
+      :fail
+      fail
 
-    :pass
-    (let [[_ body] node]
-      (emit body fail))
+      :loop
+      (let [[_ ident syms body] node]
+        `(letfn [(~ident ~syms
+                  ~(emit* body fail))]
+           (~ident ~@syms)))
 
-    :recur
-    (let [[_ ident syms] node]
-      `(~ident ~@syms))
+      :pass
+      (let [[_ body] node]
+        (emit* body fail))
 
-    :test
-    (let [[_ test body] node]
-      `(if ~test
-         ~(emit body fail)
-         ~fail))))
+      :recur
+      (let [[_ ident syms] node]
+        `(~ident ~@syms))
+
+      :test
+      (let [[_ test body] node]
+        `(if ~test
+           ~(emit* body fail)
+           ~fail)))))
 
 
 (defn rewrite-bind-unused
@@ -893,7 +900,9 @@
       [:branch s-nodes])))
 
 
-(defn rewrite-branch-equal-bindings [[_ nodes]]
+(defn rewrite-branch-equal-bindings
+  {:private true}
+  [[_ nodes]]
   (loop [q-nodes nodes
          s-nodes []]
     (if-some [[tag :as node] (first q-nodes)]
@@ -918,7 +927,9 @@
       [:branch s-nodes])))
 
 
-(defn rewrite-branch-equal-tests [[_ nodes]]
+(defn rewrite-branch-equal-tests
+  {:private true}
+  [[_ nodes]]
   (loop [q-nodes nodes
          s-nodes []]
     (if-some [[tag :as node] (first q-nodes)]
@@ -943,7 +954,9 @@
       [:branch s-nodes])))
 
 
-(defn rewrite-branch-splice-branches [[_ nodes]]
+(defn rewrite-branch-splice-branches
+  {:private true}
+  [[_ nodes]]
   [:branch
    (into []
          (mapcat
@@ -955,7 +968,9 @@
          nodes)])
 
 
-(defn rewrite-branch-one-fail [[_ nodes]]
+(defn rewrite-branch-one-fail
+  {:private true}
+  [[_ nodes]]
   (if-some [fail-node (some
                        (fn [node]
                          (when (s/valid? :meander.match.alpha.tree/fail-node node)
@@ -967,13 +982,17 @@
      nodes]))
 
 
-(defn rewrite-branch-one-case [[_ nodes]]
+(defn rewrite-branch-one-case
+  {:private true}
+  [[_ nodes]]
   (if (= (count nodes) 1)
     (first nodes)
     [:branch nodes]))
 
 
-(defn rewrite-tree [tree]
+(defn rewrite-tree
+  {:private true}
+  [tree]
   (let [tree* (clojure.walk/prewalk
                (fn [x]
                  (cond
@@ -999,10 +1018,10 @@
       (recur tree*))))
 
 
-(defn emit*
-  {:private true}
+(defn emit
+  "Rewrite the decision tree as Clojure code with optimizations."
   [tree fail]
-  (emit (rewrite-tree tree) fail))
+  (emit* (rewrite-tree tree) fail))
 
 
 ;; ---------------------------------------------------------------------
@@ -1010,13 +1029,25 @@
 
 
 (defmulti check-node
+  "Validates the semantics of node returning
+
+  [:error [{:message string, :ex-data map?}]
+    whenever validation fails.
+
+  [:okay child-nodes new-env]
+    whenever validation succeeds. child-nodes are the child nodes of
+    node. new-env is env extended with variables that would be bound
+    during the process of matching node but not it's children."
+  {:arglists '([node env])}
   (fn [[tag] env]
     tag)
   :default ::default)
 
+
 (defmethod check-node ::default
   [node env]
   [:okay (r.syntax/children node) env])
+
 
 (defmethod check-node :dsj
   [[_ {terms :terms} :as node] env]
@@ -1046,6 +1077,7 @@
                                      problems)}}]]
       [:okay (r.syntax/children node) env])))
 
+
 (defmethod check-node :rp*
   [[_ {items :items} :as node] env]
   (let [init-cat [:cat items]
@@ -1056,11 +1088,13 @@
     (if (seq unbound-lvrs)
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
                 :ex-data {:unbound (into #{} (map r.syntax/unparse) unbound-lvrs)}}]]
-      [:okay (r.syntax/children node) (into env init-vars)])))
+      [:okay (r.syntax/children node) env])))
+
 
 (defmethod check-node :lvr
   [node env]
   [:okay [] (conj env node)])
+
 
 (defmethod check-node :map
   [[_ the-map] env]
@@ -1070,9 +1104,11 @@
                 :ex-data {:keys (mapv r.syntax/unparse invalid-keys)}}]]
       [:okay (vals the-map) env])))
 
+
 (defmethod check-node :mvr
   [node env]
   [:okay [] (conj env node)])
+
 
 (defmethod check-node :set
   [node env]
@@ -1081,7 +1117,21 @@
     [:error [{:message "Set patterns may not contain variables."
               :ex-data {}}]]))
 
-(defn check* [node env]
+
+(defn check*
+  "Checks if node is semantically valid with respect to env. Returns
+
+  [:error [{:message string?, :ex-data map?} & syntax-trace]
+    whenever an error is detected. syntax-trace is a sequence forms
+    which represent the path to the invalid pattern from the leaf
+    to the root.
+
+
+  [:okay exit-env]
+    whenever the semantics of node are valid. exit-env is a set of all
+    logic and memory variables which would be bound by a succesful
+    pattern match; equivalent to (meander.syntax.alpha/variables node)."
+  [node env]
   (let [[tag :as result] (check-node node env)]
     (case tag
       :error
@@ -1103,7 +1153,11 @@
          [:okay env]
          children)))))
 
-(defn check [node]
+
+(defn check
+  "Checks if node is semantically valid. Returns an instance of
+  clojure.lang.Exception if an error can be found and nil otherwise."
+  [node]
   (let [[tag :as result] (check* node #{})]
     (case tag
       :error
@@ -1154,8 +1208,27 @@
   :args (s/cat :match-args :meander.match.alpha.match/args)
   :ret :meander.match.alpha.match/data)
 
-
+;; TODO: Include useless clause analysis.
 (defn analyze-match-args
+  "Analyzes arguments as would be supplied to the match macro e.g.
+
+    (expr clause action ,,,)
+
+  Returns a map containing the following keys:
+
+  :errors A sequence of semantic errors. These are instances of
+    clojure.lang.Exception and are derived by applying check to the
+    pattern of each clause.
+  :expr The expression which is the target of pattern matching, the
+    first argument to the match macro.
+  :exhaustive? Boolean value indicating whether or not the match
+    clauses are exhaustive. true if :final-clause is present, false
+    otherwise.
+  :final-clause The pattern matrix row which is the first catch-all
+    pattern matching clause.
+  :matrix The pattern matrix derived from the (clause action ,,,)
+    forms. If :final-clause is present contains all of the rows above
+    :final-clause and none of the rows below it."
   [match-args]
   (let [data (s/conform :meander.match.alpha.match/args match-args)]
     (if (identical? data ::s/invalid)
@@ -1211,14 +1284,14 @@
             fail (gensym "fail__")]
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
-            (emit* (compile [expr] [final-clause]) nil)
+            (emit (compile [expr] [final-clause]) nil)
             `(throw (Exception. "non exhaustive pattern match")))
           `(let [~target ~expr
                  ~fail (fn []
                          ~(if (some? final-clause)
                             (emit* (compile [target] [final-clause]) nil)
                             `(throw (Exception. "non exhaustive pattern match"))))]
-             ~(emit* (compile [target] matrix) `(~fail))))))))
+             ~(emit (compile [target] matrix) `(~fail))))))))
 
 
 #_
