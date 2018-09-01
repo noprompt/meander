@@ -1,4 +1,18 @@
-(ns meander.util)
+(ns meander.util
+  (:require [clojure.pprint :as pprint]
+            [clojure.walk :as walk]))
+
+
+(defn pretty-expand [form]
+  (pprint/with-pprint-dispatch pprint/code-dispatch
+    (pprint/pprint
+     (walk/postwalk
+      (fn [x]
+        (if (and (qualified-symbol? x)
+                 (= (namespace x) "clojure.core"))
+          (symbol (name x))
+          x))
+      (macroexpand-1 form)))))
 
 
 (defmacro undefined

@@ -1292,23 +1292,3 @@
                             (emit* (compile [target] [final-clause]) nil)
                             `(throw (Exception. "non exhaustive pattern match"))))]
              ~(emit (compile [target] matrix) `(~fail))))))))
-
-
-#_
-(comment
-  (defmacro undefined
-    {:private true}
-    []
-    `(throw (ex-info "undefined" '~(meta &form))))
-
-
-  (defn pretty-expand [form]
-    (clojure.pprint/with-pprint-dispatch clojure.pprint/code-dispatch
-      (clojure.pprint/pprint
-       (walk/postwalk
-        (fn [x]
-          (if (and (qualified-symbol? x)
-                   (= (namespace x) "clojure.core"))
-            (symbol (name x))
-            x))
-        (macroexpand-1 form))))))
