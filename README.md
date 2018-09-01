@@ -153,6 +153,8 @@ Example:
 
 `(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allowpattern matching on an arbitrary expression.
 
+Example:
+
 ```clj
 (match 42
   (or [?x ?y] (let [?x ?y] [1 2]))
@@ -177,6 +179,8 @@ Example:
 
 `(or pat₀ ,,, patₙ)` matches when any one of `pat₀` through `patₙ` match.
 
+Example:
+
 ```clj
 (match 42
   (or 43 42 41)
@@ -185,6 +189,8 @@ Example:
 ```
 
 Note that unbound variables _must_ be shared by `pat₀` through `patₙ`.
+
+Example:
 
 ```clj
 (match [1 2 3]
