@@ -62,88 +62,6 @@
       false)))
 
 
-(tc.t/defspec any-x-cap-lvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (~x :as ?x)
-      (= x ?x)
-
-      _
-      false)))
-
-
-(tc.t/defspec any-x-cap-mvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (~x :as !xs)
-      (= [x] !xs)
-
-      _
-      false)))
-
-
-(tc.t/defspec lvr-cap-lvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (?x :as ?y)
-      (= x ?x ?y)
-
-      _
-      false)))
-
-
-(tc.t/defspec lvr-cap-mvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (?x :as !xs)
-      (and (= x ?x)
-           (= [x] !xs))
-
-      _
-      false)))
-
-
-(tc.t/defspec mvr-cap-lvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (!xs :as ?x)
-      (and (= x ?x)
-           (= [x] !xs))
-
-      _
-      false)))
-
-
-(tc.t/defspec circular-cap-fails
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      ((([?x] :as ?z) :as ?y) :as ?x)
-      false
-
-      _
-      true)))
-
-
-(tc.t/defspec ?x-cap-?x-succeeds
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (?x :as ?x)
-      (= x ?x)
-
-      _
-      false)))
-
-
-(tc.t/defspec !xs-cap-!xs
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match x
-      (!xs :as !xs)
-      (= [x x])
-
-      _
-      false)))
-
-
 (tc.t/defspec pred-succeeds
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
@@ -226,20 +144,11 @@
                                    (symbol (str ?x 2))
                                    (symbol (str ?x 3))])
                                 (s/gen :meander.syntax.alpha/logic-variable))]
-    (let [or-pat `(~'or ~?x ~?y ~?z)]
-      (t/is (= {:pat or-pat
-                :env #{}
-                :problems
-                [{:pat ?x, :absent #{?y ?z}}
-                 {:pat ?y, :absent #{?x ?z}}
-                 {:pat ?z, :absent #{?x ?y}}]}
-               (try
-                 (macroexpand
-                  `(r.match/match 1
-                     ~or-pat
-                     false))
-                 (catch clojure.lang.ExceptionInfo ex
-                   (ex-data ex))))))))
+    (t/is (try
+            (macroexpand `(r.match/match 1 (~'or ~?x ~?y ~?z) false))
+            false
+            (catch clojure.lang.ExceptionInfo _
+              true)))))
 
 
 (tc.t/defspec let-succeeds
@@ -354,15 +263,14 @@
       _
       false)))
 
-
-(tc.t/defspec seq-zero-or-more-lvr-in-head
+(tc.t/defspec seq-zero-or-more-lvr-previously-bound
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
                     x1 tc.gen/any
                     x2 tc.gen/any
                     y1 tc.gen/any
                     y2 tc.gen/any]
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
-      (?x1 ?x2 ... ~y1 ~y2)
+      (?x1 ?x2 . ?x1 ?x2 ... ~y1 ~y2)
       (and (= x1 ?x1)
            (= x2 ?x2))
 
@@ -399,76 +307,6 @@
     (r.match/match `(~@(map identity (repeat n x)) ~x ~x)
       (~x ~x . _ ...)
       true
-
-      _
-      false)))
-
-
-(tc.t/defspec seq-any-x-cap-lvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list x)
-      ((~x :as ?x))
-      (= x ?x)
-
-      _
-      false)))
-
-
-(tc.t/defspec seq-any-x-cap-mvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list x)
-      ((~x :as !xs))
-      (= [x] !xs)
-
-      _
-      false)))
-
-
-(tc.t/defspec seq-lvr-cap-lvr-okay
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list x x x)
-      (?y (?x :as ?y) ?x)
-      (= x ?x ?y)
-
-      _
-      false)))
-
-
-(tc.t/defspec seq-lvr-cap-lvr-fail
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list [x] x x)
-      (?y (?x :as ?y) ?x)
-      false
-
-      _
-      true)))
-
-
-(tc.t/defspec seq-lvr-cap-mvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list x x x)
-      (?x (?x :as !xs) ?x)
-      (and (= x ?x) (= [x] !xs))
-
-      _
-      false)))
-
-
-(tc.t/defspec seq-mvr-cap-lvr
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list x x x)
-      (?x (!xs :as ?x) ?x)
-      (and (= x ?x) (= [x] !xs))
-
-      _
-      false)))
-
-
-(tc.t/defspec seq-?x-cap-?x-with-unbound-?y-binds-?y
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match (list [x] [x])
-      (?x ([?y] :as ?x))
-      (= [x] ?x [?y])
 
       _
       false)))
@@ -579,14 +417,14 @@
       false)))
 
 
-(tc.t/defspec vec-zero-or-more-lvr-in-head
+(tc.t/defspec vec-zero-or-more-lvr-previously-bound
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
                     x1 tc.gen/any
                     x2 tc.gen/any
                     y1 tc.gen/any
                     y2 tc.gen/any]
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
-      [?x1 ?x2 ... ~y1 ~y2]
+      [?x1 ?x2 . ?x1 ?x2 ... ~y1 ~y2]
       (and (= x1 ?x1)
            (= x2 ?x2))
 
@@ -623,13 +461,6 @@
     (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
       [~x ~x . _ ...]
       true)))
-
-
-(tc.t/defspec vec-?x-cap-?x-with-unbound-?y-binds-?y
-  (tc.prop/for-all [x tc.gen/any]
-    (r.match/match [[x] [x]]
-      [?x ([?y] :as ?x)]
-      (= [x] ?x [?y]))))
 
 
 (tc.t/defspec vec-?x-guard-true-?x-succeeds

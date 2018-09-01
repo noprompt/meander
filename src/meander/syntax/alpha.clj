@@ -418,6 +418,9 @@
   keyword?)
 
 
+(s/def :meander.syntax.alpha.node/any
+  (s/tuple #{:any} any-symbol?))
+
 (s/def :meander.syntax.alpha.node/lvr
   (s/tuple #{:lvr} :meander.syntax.alpha/logic-variable))
 
@@ -447,6 +450,16 @@
 (defn node?
   [x]
   (s/valid? :meander.syntax.alpha/node x))
+
+
+(defn any-node?
+  [x]
+  (s/valid? :meander.syntax.alpha.node/any x))
+
+
+(defn dsj-node?
+  [x]
+  (s/valid? :meander.syntax.alpha.node/dsj x))
 
 
 (defn lvr-node?
@@ -616,7 +629,8 @@
    :any
    :lvr
    :quo
-   :lit])
+   :lit
+   :let])
 
 
 (defmethod rank :default [[tag _]]
@@ -956,7 +970,7 @@
 
 
 (defmethod search? :map
-  [_ map-data]
+  [[_ map-data]]
   (boolean
    (some
     (fn [[k v]]
@@ -1098,11 +1112,10 @@
 
 
 (defmethod min-length :rp+
-  [[_ {dots :dots}]]
-  (Integer/parseInt
-   (aget
-    (.split (name dots) "\\.+" 2)
-    1)))
+  [[_ {items :items, dots :dots}]]
+  (* (count items)
+     (Integer/parseInt
+      (aget (.split (name dots) "\\.+" 2) 1))))
 
 
 (defmethod max-length :rp+
@@ -1164,6 +1177,27 @@
 (defmethod search? :seq
   [[_ prt]]
   (search? prt))
+
+
+;; :set
+
+(defmethod children :set
+  [[_ the-set]] (vec the-set))
+
+
+(defmethod ground? :set
+  [[_ the-set]]
+  (every? ground? the-set))
+
+
+(defmethod unparse :set
+  [[_ the-set]]
+  (set (map unparse the-set)))
+
+
+(defmethod search? :set
+  [node]
+  (not (ground? node)))
 
 
 ;; :uns

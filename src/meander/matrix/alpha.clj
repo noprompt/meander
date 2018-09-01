@@ -56,20 +56,37 @@
 ;; ---------------------------------------------------------------------
 ;; Matrix
 
+(defn action [row]
+  (:rhs row))
+
+
+(defn row?
+  "true if x is a matrix row."
+  [x]
+  (s/valid? :meander.matrix.alpha/row x))
+
 
 (defn empty?
   "true if matrix has no columns."
   [matrix]
-  (every? (comp not seq :cols) matrix))
+  (every?
+   (fn [row]
+     (not (seq (:cols row))))
+   matrix))
 
 
-;; ---------------------------------------------------------------------
-;; Row/Column
+(defn element
+  ([matrix i j]
+   (nth (:cols (nth matrix i)) j))
+  ([matrix i j not-found]
+   (let [x (nth matrix i not-found)]
+     (if (identical? x not-found)
+       not-found
+       (nth (:cols x) j not-found)))))
 
 
 (defn swap
   "Swap elements at positions i and j in the vector v."
-  {:private true}
   [v i j]
   (let [v (vec v)]
     (assoc v i (nth v j) j (nth v i))))
@@ -85,11 +102,10 @@
 (defn swap-column
   "Swaps column i with column j in the matrix."
   [matrix i j]
-  (sequence
-   (map
-    (fn [row]
-      (update row :cols swap i j)))
-   matrix))
+  (into [] (map
+            (fn [row]
+              (update row :cols swap i j)))
+        matrix))
 
 
 (s/fdef subcols
@@ -104,17 +120,15 @@
 (defn subcols
   "Return matrix with only the columns after i or i through j."
   ([matrix i]
-   (sequence
-    (map
-     (fn [row]
-       (update row :cols subvec i)))
-    matrix))
+   (into [] (map
+             (fn [row]
+               (update row :cols subvec i)))
+         matrix))
   ([matrix i j]
-   (sequence
-    (map
-     (fn [row]
-       (update row :cols subvec i j)))
-    matrix)))
+   (into [] (map
+             (fn [row]
+               (update row :cols subvec i j)))
+         matrix)))
 
 
 (s/fdef width
@@ -134,25 +148,31 @@
 
 (defn nth-column
   ([matrix index]
-   (sequence
-    (comp (map :cols)
-          (map
-           (fn [col]
-             (nth col index))))
-    matrix))
+   (into [] (comp (map :cols)
+                  (map
+                   (fn [col]
+                     (nth col index))))
+         matrix))
   ([matrix index not-found]
-   (sequence
-    (comp (map :cols)
-          (map
-           (fn [col]
-             (nth col index not-found))))
-    matrix)))
+   (into [] (comp (map :cols)
+                  (map
+                   (fn [col]
+                     (nth col index not-found))))
+         matrix)))
 
 
 (defn first-column
-  "Return the first column in row."
-  [row]
-  (nth-column row 0 nil))
+  "Return the first column in matrix."
+  [matrix]
+  (nth-column matrix 0 nil))
+
+
+(defn columns
+  [matrix]
+  (sequence
+   (map nth-column)
+   (repeat matrix)
+   (range (width matrix))))
 
 
 (s/fdef drop-column
@@ -163,13 +183,12 @@
 (defn drop-column
   "Drop the first column in row."
   [matrix]
-  (sequence
-   (map
-    (fn [row]
-      (update row :cols rest)))
-   matrix))
-
-
+  (into [] (map
+            (fn [row]
+              (if (= (:cols row) [])
+                row
+                (update row :cols subvec 1))))
+        matrix))
 
 (s/fdef prepend-column
   :args (s/cat :matrix :meander.matrix.alpha/matrix
@@ -182,12 +201,11 @@
 (defn prepend-column
   "Drop the first column in row."
   [matrix column]
-  (sequence
-   (map
-    (fn [row col]
-      (assoc row :cols (cons col (:cols row)))))
-   matrix
-   column))
+  (into [] (map
+            (fn [row col]
+              (assoc row :cols (cons col (:cols row)))))
+        matrix
+        column))
 
 
 (s/fdef specialize-by
@@ -203,7 +221,23 @@
   "Split matrix into submatrices by the return result of applying f to
   the first column of each row in matrix."
   [f matrix]
-  (group-by (comp f first :cols) matrix))
+  (if (empty? matrix)
+    {}
+    (let [matrix (vec matrix)
+          grouped (group-by (comp f first :cols) matrix)]
+      (into
+       (sorted-map-by
+        (fn [k1 k2]
+          (compare
+           (apply min ##Inf
+                  (map (fn [v]
+                         (.indexOf matrix v))
+                       (get grouped k1)))
+           (apply min  ##Inf
+                  (map (fn [v]
+                         (.indexOf matrix v))
+                       (get grouped k2))))))
+       grouped))))
 
 
 ;; ---------------------------------------------------------------------
