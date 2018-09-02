@@ -4,7 +4,8 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [meander.matrix.alpha :as r.matrix]
-            [meander.syntax.alpha :as r.syntax]))
+            [meander.syntax.alpha :as r.syntax]
+            [meander.util :as r.util]))
 
 
 (def
@@ -493,14 +494,23 @@
              (if (zero? rlen)
                (compile targets [(assoc row :cols `[~left ~@(:cols row)])])
                [:bind [nsym `(count ~target)]
-                [:bind [msym `(- ~nsym ~rlen)]
+                [:bind [msym `(max 0 (- ~nsym ~rlen))]
                  [:bind [lsym (take-form msym target)]
                   [:bind [rsym (drop-form msym target)]
                    [:test (if (zero? rlen)
                             `(not (seq ~rsym))
                             `(= (count ~rsym) ~rlen))
                     (compile `[~lsym ~rsym ~@targets]
-                             [(assoc row :cols `[~left ~right ~@(:cols row)])])]]]]])))))
+                             [(assoc row :cols `[~left ~right ~@(:cols row)])])]]]]])
+
+             ;; Variable length on both sides.
+             [true true]
+             (let [parts-sym (gensym "parts__")]
+               [:search [parts-sym `(r.util/partitions 2 ~target)]
+                [:bind [lsym `(nth ~parts-sym 0)]
+                 [:bind [rsym `(nth ~parts-sym 1)]
+                  (compile `[~lsym ~rsym ~@targets]
+                           [(assoc row :cols `[~left ~right ~@(:cols row)])])]]])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -884,7 +894,7 @@
       :loop
       (let [[_ ident syms body] node]
         `(letfn [(~ident ~syms
-                  ~(emit* body fail search?))]
+                  ~(emit* body fail false))]
            (~ident ~@syms)))
 
       :pass
@@ -896,7 +906,7 @@
         ;; Assumes action node evaluates to a singleton list.
         `(mapcat
           (fn [~sym]
-            ~(emit* body nil search?))
+            ~(emit* body nil true))
           ~seq-expr))
 
       :recur
