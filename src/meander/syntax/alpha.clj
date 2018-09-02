@@ -979,7 +979,6 @@
           (search? v)))
     map-data)))
 
-
 ;; :mvr
 
 (defmethod ground? :mvr
@@ -1051,12 +1050,13 @@
 
 
 (defmethod search? :prt
-  [_ {left :left, right :right}]
-  (or (and (variable-length? left)
-           (variable-length? right))
-      (search? left)
-      (search? right)))
-
+  [[_ {left :left, right :right}]]
+  (if (some? right)
+    (or (and (variable-length? left)
+             (variable-length? right))
+        (search? left)
+        (search? right))
+    (search? left)))
 
 ;; :quo
 
