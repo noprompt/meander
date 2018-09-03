@@ -1189,6 +1189,19 @@
   [:okay [] (conj env node)])
 
 
+(defmethod check-node :prt
+  [node env search?]
+  (if search?
+    [:okay (r.syntax/children node) env]
+    (let [[_ {left :left, right :right}] node]
+      (if (and (some? right)
+               (r.syntax/variable-length? left)
+               (r.syntax/variable-length? right))
+        [:error [{:message "A variable length subsequence pattern may not be followed by another variable length subsequence pattern."
+                  :ex-data {}}]]
+        [:okay (r.syntax/children node) env])))) 
+
+
 (defmethod check-node :set
   [node env search?]
   (if search?

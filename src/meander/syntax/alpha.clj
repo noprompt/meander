@@ -988,6 +988,7 @@
 (defmethod unparse :mvr
   [[_ sym]] sym)
 
+
 (defmethod search? :mvr
   [_] false)
 
@@ -1049,6 +1050,15 @@
             (unparse right))))
 
 
+;; This is not really a good definition. While it is true that finding
+;; solutions for a series variable length subsequence patterns
+;; would require searching, it does not imply there is more than one
+;; solution. For example, the pattern
+;;
+;;   [1 2 ... 3 4 ...]
+;;
+;; can only have one solution. Therefore, for patterns such as these
+;; this method should return false.
 (defmethod search? :prt
   [[_ {left :left, right :right}]]
   (if (some? right)
@@ -1152,7 +1162,7 @@
 
 (defmethod unparse :rst
   [[_ {:keys [dots mvr]}]]
-  (list mvr dots))
+  (list (unparse mvr) dots))
 
 
 (defmethod search? :rst
@@ -1223,6 +1233,7 @@
 (defmethod unparse :unq
   [[_ {expr :expr}]]
   (list 'clojure.core/unquote expr))
+
 
 (defmethod search? :unq
   [_] false)

@@ -9,6 +9,8 @@
             [meander.match.alpha :as r.match]
             [meander.syntax.alpha :as r.syntax]))
 
+;; ---------------------------------------------------------------------
+;; match macro tests
 
 ;; Top level
 
@@ -542,3 +544,83 @@
 
       _
       false)))
+
+
+#_
+;; TODO: This should pass because ?x in the nested map can be bound
+;; previously.
+(t/deftest map-can-have-variable-bound-lvr-keys
+  (r.match/match {:k1 "v1"
+                  :k2 {"v1" "v2"}}
+    {:k1 ?x
+     :k2 {?x ?y}}
+    (t/is (and (= ?x "v1")
+               (= ?y "v2")))
+
+    _
+    false))
+
+#_
+;; TODO: This should pass because ?x and ?y can be matched before
+;; attempting to match the subsequence.
+(t/deftest zero-or-more-may-have-lvrs-if-lvrs-can-be-bound
+  (t/is  (= [1 2]
+            (r.match/match [[1 2 1 2] 1 2]
+              [[?x ?y ...] ?x ?y]
+              [?x ?y]))))
+
+#_
+;; TODO: This should pass because there is only one possible solution.
+(t/deftest sequences-of-zero-or-more
+  (t/is (r.match/match [1 2 3 4 3 4]
+          [1 2 ... 3 4 ...]
+          true
+
+          _
+          false)))
+
+;; ---------------------------------------------------------------------
+;; match*  macro tests
+
+
+(t/deftest match*-map-1-test
+  (t/is (= #{["v1" "v2"]}
+           (set (r.match/match* {:k1 "v1"
+                                 :k2 {"v1" "v2"}}
+
+                  {:k1 ?x
+                   :k2 {?x ?y}}
+                  [?x ?y])))))
+
+
+(t/deftest match*-map-2-test
+  (t/is (= #{[:k1 :k2 "v1" "v2"]
+             [:k1 :k2 :k3 "v1" "v2"]}
+           (set (r.match/match* {:k1 "v1"
+                                 :k2 {"v1" "v2"}
+                                 :k3 {"v2" "v1"}}
+
+                  {?k1 ?x
+                   ?k2 {?x ?y}}
+                  [?k1 ?k2 ?x ?y]
+
+                  {?k1 ?x
+                   ?k2 {?x ?y}
+                   ?k3 {?y ?x}}
+                  [?k1 ?k2 ?k3 ?x ?y])))))
+
+
+(t/deftest match*-or-1-test
+  (t/is (= #{[1 2] [2 1]})
+        (set (r.match/match* [1 2]
+               (or [?x ?y] [?y ?x])
+               [?x ?y]))))
+
+
+(t/deftest match*-subsequence-1-test
+  (= (set (r.match/match* [1 2 1 2 1 2 3 5 6 7 8 9 1 2]
+            [?x ?y . ?x ?y ... !zs ... ?x ?y]
+            {:?x ?x, :?y ?y, :!zs !zs}))
+     #{{:?x 1, :?y 2, :!zs [1 2 1 2 3 5 6 7 8 9]}
+       {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
+       {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}}))
