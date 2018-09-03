@@ -1071,14 +1071,20 @@
   [tree]
   (let [tree* (clojure.walk/prewalk
                (fn [x]
+                 (if (s/valid? :meander.match.alpha.tree/branch-node x)
+                   (rewrite-branch-one-case x)
+                   x))
+               tree)
+        tree* (clojure.walk/prewalk
+               (fn [x]
                  (cond
                    (s/valid? :meander.match.alpha.tree/branch-node x)
-                   (rewrite-branch-one-case
-                    (rewrite-branch-one-fail
-                     (rewrite-branch-splice-branches
-                      (rewrite-branch-shared-bindings
-                       (rewrite-branch-equal-bindings
-                        (rewrite-branch-equal-tests x))))))
+                   (-> x
+                       rewrite-branch-splice-branches
+                       rewrite-branch-one-fail 
+                       rewrite-branch-shared-bindings
+                       rewrite-branch-equal-bindings
+                       rewrite-branch-equal-tests)
 
                    (s/valid? :meander.match.alpha.tree/bind-node x)
                    (let [x* (rewrite-bind-unused x)]
@@ -1088,7 +1094,7 @@
 
                    :else
                    x))
-               tree)]
+               tree*)]
     (if (= tree tree*)
       tree
       (recur tree*))))
@@ -1438,3 +1444,4 @@
           nil
           `(let [~target ~expr]
              ~(emit (compile [target] matrix) nil true)))))))
+
