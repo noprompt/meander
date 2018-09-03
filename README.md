@@ -205,3 +205,70 @@ Example:
 ```
 
 ### Subsequences
+
+When matching subsequences it is often useful to express the notions of _zero or more_ or _n or more_ things. The postfix operators `...` or `..n` respectively provide this utility.
+
+#### Zero or more
+
+The `...` postfix operator matches the _subsequence_ of patterns to it's left (up to the first `.` or start of the collection) zero or more times.
+
+Example:
+
+```clj
+(match [1 2 1 2 2 3]
+  [1 2 ... ?x ?y]
+  [?x ?y])
+;; => [2 3]
+```
+  
+#### N or more
+
+The `..n` postfix operator matches the _subsequence_ of patterns to it's left (up to the first `.` or start of the collection) _n_ or more times where _n_ is a positive natural number.
+
+Example:
+
+```clj
+(match [1 1 1 2 3]
+  [1 ..3 ?x ?y]
+  [?x ?y])
+;; => [2 3]
+```
+  
+```clj
+(match [1 2 3]
+  [1 ..3 ?x ?y]
+  [:okay [?x ?y]]
+
+  _
+  [:fail])
+;; => [:fail]
+```
+
+### `.`
+
+The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is use primarily to delimit the start of a variable length subsequence. It is important to node that both `...` and `..n` act as partition operators as well.
+
+Example:
+
+```clj
+(match [3 4 5 6 7 8] 
+  [3 4 . !xs !ys ...]
+  [!xs !ys])
+;; => [[5 7] [6 8]]
+```
+
+Had the pattern `[3 4 . !xs !ys ...]` in this example been written as `[3 4 !xs !ys ...]` the match would have failed. This is because the latter pattern represents a subsequence of 4 elements beginning with the sequence `3 4`.
+
+Example:
+
+```clj
+(match* [3 0 0 3 1 1 3 2 2] 
+  [_ ... 3 . !ys ...]
+  {:!ys !ys})
+;; =>
+({:!ys [0 0 3 1 1 3 2 2]}
+ {:!ys [1 1 3 2 2]}
+ {:!ys [2 2]})
+```
+
+This example demonstrates how `match*` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurence of a `3`.
