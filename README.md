@@ -152,7 +152,7 @@ Example:
 
 ### `let`
 
-`(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allowpattern matching on an arbitrary expression.
+`(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allows pattern matching on an arbitrary expression.
 
 Example:
 
