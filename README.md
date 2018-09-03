@@ -32,6 +32,7 @@ Meander is a Clojure data transformation library which combines higher order fun
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
     * [N or More](#n-or-more)
+    * [Partition](#partition)
   * [Escaping](#escaping)
     * [Unquote](#unquote)
     * [Unquote Splicing](#unquote-splicing)
@@ -244,7 +245,7 @@ Example:
 ;; => [:fail]
 ```
 
-### `.`
+### Partition
 
 The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is use primarily to delimit the start of a variable length subsequence. It is important to node that both `...` and `..n` act as partition operators as well.
 
