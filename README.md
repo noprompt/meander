@@ -247,7 +247,7 @@ Example:
 
 #### Partition
 
-The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is use primarily to delimit the start of a variable length subsequence. It is important to node that both `...` and `..n` act as partition operators as well.
+The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is use primarily to delimit the start of a variable length subsequence. It is important to note that both `...` and `..n` act as partition operators as well.
 
 Example:
 
