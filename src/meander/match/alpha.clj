@@ -500,7 +500,7 @@
                    [:test (if (zero? rlen)
                             `(not (seq ~rsym))
                             `(= (count ~rsym) ~rlen))
-                    (compile `[~lsym ~rsym ~@targets]
+                    (compile `[~lsym ~rsym ~@targets*]
                              [(assoc row :cols `[~left ~right ~@(:cols row)])])]]]]])
 
              ;; Variable length on both sides.
@@ -509,7 +509,7 @@
                [:search [parts-sym `(r.util/partitions 2 ~target)]
                 [:bind [lsym `(nth ~parts-sym 0)]
                  [:bind [rsym `(nth ~parts-sym 1)]
-                  (compile `[~lsym ~rsym ~@targets]
+                  (compile `[~lsym ~rsym ~@targets*]
                            [(assoc row :cols `[~left ~right ~@(:cols row)])])]]])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -772,6 +772,20 @@
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
+(defn debug-compile
+  {:private true}
+  [targets matrix]
+  ;; This doesn't print the state accurately.
+  (clojure.pprint/print-table
+   (mapv
+    (fn [row]
+      (reduce merge
+              (mapv
+               (fn [target node]
+                 {target (r.syntax/unparse node)})
+               targets
+               (:cols row))))
+    matrix)))
 
 (defn compile
   "Compile the pattern matrix with respect to targets to a decision
@@ -857,11 +871,7 @@
                  (fn [arm]
                    (emit* arm fail search?))
                  arms))))
-        (let [[_ arms] node
-              fsyms (mapv
-                     (fn [_]
-                       (gensym "f__"))
-                     arms)]
+        (let [[_ arms] node]
           (case (count arms)
             0
             fail
@@ -875,18 +885,22 @@
                    search?)
 
             ;; else
-            `(letfn [~@(map
-                         (fn [fsym fail arm]
-                           `(~fsym []
-                             ~(emit* arm fail search?)))
-                         fsyms
-                         (conj (mapv
-                                (fn [fsym]
-                                  `(~fsym))
-                                (rest fsyms))
-                               fail)
+            (let [fsyms (mapv
+                         (fn [_]
+                           (gensym "f__"))
                          arms)]
-               (~(first fsyms))))))
+              `(letfn [~@(map
+                           (fn [fsym fail arm]
+                             `(~fsym []
+                               ~(emit* arm fail search?)))
+                           fsyms
+                           (conj (mapv
+                                  (fn [fsym]
+                                    `(~fsym))
+                                  (rest fsyms))
+                                 fail)
+                           arms)]
+                 (~(first fsyms)))))))
 
       :fail
       fail
@@ -1103,7 +1117,8 @@
 (defn emit
   "Rewrite the decision tree as Clojure code with optimizations."
   [tree fail search?]
-  (emit* (rewrite-tree tree) fail search?))
+  (let [tree* (rewrite-tree tree)]
+    (emit* tree* fail search?)))
 
 
 ;; ---------------------------------------------------------------------
