@@ -784,7 +784,7 @@
 
 (defmethod unparse :cat
   [[_ nodes]]
-  (sequence (map unparse) nodes))
+  (apply list (map unparse nodes)))
 
 
 (defmethod search? :cat
@@ -1043,11 +1043,12 @@
 
 (defmethod unparse :prt
   [[_ {dot :dot, left :left, right :right}]]
-  (concat (unparse left)
-          (when (some? dot)
-            (list dot))
-          (when (some? right)
-            (unparse right))))
+  (apply list
+    (concat (unparse left)
+            (when (some? dot)
+              (list dot))
+            (when (some? right)
+              (unparse right)))))
 
 
 ;; This is not really a good definition. While it is true that finding
