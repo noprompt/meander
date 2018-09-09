@@ -133,17 +133,6 @@
        (s/gen simple-symbol?)))))
 
 
-(s/def :meander.syntax.alpha.capture/binding
-  (s/or :lvr :meander.syntax.alpha/logic-variable
-        :mvr :meander.syntax.alpha/memory-variable))
-
-
-(s/def :meander.syntax.alpha/capture
-  (s/cat :term :meander.syntax.alpha/term
-         :as #{:as}
-         :binding :meander.syntax.alpha.capture/binding))
-
-
 (defn partition-symbol?
   [x]
   (= x '.))
@@ -159,6 +148,30 @@
   [x]
   (and (simple-symbol? x)
        (re-matches #"\.+\d+" (name x))))
+
+
+(defn pattern-op-dispatch
+  "Dispatch function for pattern-op."
+  [x]
+  (if (seq? x)
+    (let [y (first x)]
+      (if (symbol? y)
+        y))))
+
+
+(defmulti pattern-op
+  {:arglists '([seq])}
+  #'pattern-op-dispatch)
+
+
+(defmethod pattern-op :default
+  [_]
+  (s/conformer
+   (fn [_]
+     ;; This is wrapped in a do because spec considers the form
+     ;; without it invalid.
+     (do ::s/invalid))
+   identity))
 
 
 (s/def :meander.syntax.alpha.sequential/literal
@@ -183,10 +196,11 @@
         :uns :meander.syntax.alpha/unquote-splicing
         :cnj :meander.syntax.alpha/and
         :dsj :meander.syntax.alpha/or
+        :not :meander.syntax.alpha/not
         :let :meander.syntax.alpha/let
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
-        :cap :meander.syntax.alpha/capture
+        :usr (s/multi-spec pattern-op :usr)
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
         :set :meander.syntax.alpha/set
@@ -270,10 +284,11 @@
                    :uns :meander.syntax.alpha/unquote-splicing
                    :cnj :meander.syntax.alpha/and
                    :dsj :meander.syntax.alpha/or
+                   :not :meander.syntax.alpha/not
                    :let :meander.syntax.alpha/let
                    :prd :meander.syntax.alpha/pred
                    :grd :meander.syntax.alpha/guard
-                   :cap :meander.syntax.alpha/capture
+                   :usr (s/multi-spec pattern-op :usr)
                    :seq :meander.syntax.alpha/seq
                    :vec :meander.syntax.alpha/vector
                    :set :meander.syntax.alpha/set
@@ -284,6 +299,7 @@
                    :lit :meander.syntax.alpha.sequential/literal)
              :kind set?
              :into #{}))
+
 
 (s/def :meander.syntax.alpha/map
   (s/with-gen
@@ -332,7 +348,6 @@
        (s.gen/any)))))
 
 
-
 (s/def :meander.syntax.alpha/guard
   (s/with-gen
     (s/and seq?
@@ -369,6 +384,17 @@
        (s.gen/any)))))
 
 
+(s/def :meander.syntax.alpha/not
+  (s/with-gen
+    (s/and seq?
+           (s/cat :not #{'not}
+                  :term :meander.syntax.alpha/term))
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (list 'not x))
+       (s.gen/any)))))
+
 ;; Borrowed from Emacs' pcase
 ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Pattern-matching-case-statement.html
 (s/def :meander.syntax.alpha/let
@@ -389,12 +415,13 @@
 (s/def :meander.syntax.alpha/term
   (s/or :quo :meander.syntax.alpha/quote
         :unq :meander.syntax.alpha/unquote
-        :cap :meander.syntax.alpha/capture
         :cnj :meander.syntax.alpha/and
         :dsj :meander.syntax.alpha/or
+        :not :meander.syntax.alpha/not
         :let :meander.syntax.alpha/let
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
+        :usr (s/multi-spec pattern-op :usr)
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
         :set :meander.syntax.alpha/set
@@ -420,6 +447,7 @@
 
 (s/def :meander.syntax.alpha.node/any
   (s/tuple #{:any} any-symbol?))
+
 
 (s/def :meander.syntax.alpha.node/lvr
   (s/tuple #{:lvr} :meander.syntax.alpha/logic-variable))
@@ -719,49 +747,6 @@
   [_] false)
 
 
-;; :cap
-
-(defmethod ground? :cap
-  [_] false)
-
-
-(defmethod children :cap
-  [[_ {:keys [term binding]}]]
-  [term binding])
-
-
-(defmethod unparse :cap
-  [[_ {:keys [term binding]}]]
-  `(~(unparse term) :as ~(unparse binding)))
-
-
-(defmethod search? :cap
-  [_ {:keys [term]}]
-  (search? term))
-
-
-(defn circular-cap?
-  "true if cap-node binding is a logic variable and term contains a
-  circular reference to it's binding."
-  {:arglists '([cap-node])}
-  [[_ {:keys [term binding]}]]
-  (if (lvr-node? binding)
-    (transduce
-     (comp (remove (comp #{:cap} tag))
-           (map proper-subnodes))
-     (fn
-       ([init] init)
-       ([_ nodes]
-        (if (some #{binding} nodes)
-          (reduced true)
-          false)))
-     false
-     (subnodes term))
-    ;; :cap nodes which bind memory variables include themselves as
-    ;; subterms.
-    false))
-
-
 ;; :cat
 
 (defmethod children :cat
@@ -991,6 +976,26 @@
 
 (defmethod search? :mvr
   [_] false)
+
+
+;; :not
+
+(defmethod children :rp*
+  [[_ {term :term}]]
+  [term])
+
+(defmethod ground? :not
+  [_] false)
+
+
+(defmethod unparse :not
+  [[_ {term :term}]]
+  `(~'not ~term))
+
+
+(defmethod search? :not
+  [[_ {term :term}]]
+  (search? term))
 
 
 ;; :prd

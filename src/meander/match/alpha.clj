@@ -60,15 +60,27 @@
   (s/tuple #{:fail}))
 
 
-(s/def :meander.match.alpha.tree.loop-node/identitifer
+(s/def :meander.match.alpha.tree/identitifer
   simple-symbol?)
 
 
 (s/def :meander.match.alpha.tree/loop-node
   (s/tuple #{:loop}
-           :meander.match.alpha.tree.loop-node/identitifer
+           :meander.match.alpha.tree/identitifer
            (s/coll-of simple-symbol? :kind vector? :into [])
            :meander.match.alpha/tree))
+
+
+(s/def :meander.match.alpha.tree/save-node
+  (s/tuple #{:save}
+           :meander.match.alpha.tree/identitifer
+           :meander.match.alpha/tree
+           :meander.match.alpha/tree))
+
+
+(s/def :meander.match.alpah.tree/load-node
+  (s/tuple #{:load}
+           :meander.match.alpha.tree/identitifer))
 
 
 (s/def :meander.match.alpha.tree/pass-node
@@ -77,7 +89,7 @@
 
 (s/def :meander.match.alpha.tree/recur-node
   (s/tuple #{:recur}
-           :meander.match.alpha.tree.loop-node/identitifer
+           :meander.match.alpha.tree/identitifer
            (s/coll-of simple-symbol? :kind vector? :into [])))
 
 
@@ -424,6 +436,28 @@
               (compile targets* [row])]
              [:bind [sym [target]]
               (compile targets* [(r.matrix/add-var row node)])]))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
+(defmethod compile-specialized-matrix :not
+  [_ [target & targets*] matrix]
+  (let [targets* (vec targets*)]
+    (mapv
+     (fn [[tag :as node] row]
+       (case tag
+         :any
+         [:pass (compile targets* [row])]
+
+         :not
+         (let [[_ {term :term}] node
+               save-id (gensym "save__")
+               not-matrix [{:cols [term]
+                            :env (:env row),
+                            :rhs [:load save-id]}]]
+           [:save save-id
+            (compile [target] not-matrix)
+            (compile targets* [row])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -911,9 +945,20 @@
                   ~(emit* body fail false))]
            (~ident ~@syms)))
 
+      :load
+      (let [[_ ident] node]
+        `(~ident))
+
       :pass
       (let [[_ body] node]
         (emit* body fail search?))
+
+      :save
+      (let [[_ ident body1 body2] node
+            f-sym (gensym "f__")]
+        `(letfn [(~ident [] ~fail)
+                 (~f-sym [] ~(emit* body2 fail search?))]
+           ~(emit* body1 `(~f-sym) search?)))
 
       :search
       (let [[_ [sym seq-expr] body] node]
@@ -1459,4 +1504,3 @@
           nil
           `(let [~target ~expr]
              ~(emit (compile [target] matrix) nil true)))))))
-
