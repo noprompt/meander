@@ -78,7 +78,7 @@
            :meander.match.alpha/tree))
 
 
-(s/def :meander.match.alpah.tree/load-node
+(s/def :meander.match.alpha.tree/load-node
   (s/tuple #{:load}
            :meander.match.alpha.tree/identitifer))
 
@@ -109,8 +109,10 @@
         :branch :meander.match.alpha.tree/branch-node
         :fail :meander.match.alpha.tree/fail-node
         :pass :meander.match.alpha.tree/pass-node
+        :load :meander.match.alpha.tree/load-node
         :loop :meander.match.alpha.tree/loop-node
         :recur :meander.match.alpha.tree/recur-node
+        :save :meander.match.alpha.tree/save-node
         :search :meander.match.alpha.tree/search-node
         :test :meander.match.alpha.tree/test-node))
 
