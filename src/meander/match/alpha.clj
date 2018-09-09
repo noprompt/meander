@@ -10,7 +10,7 @@
 
 (def
   ^{:dynamic true
-    :doc "The curren collection context e.g. :vector, :seq, etc."}
+    :doc "The current collection context e.g. :vector, :seq, etc."}
   *collection-context*)
 
 
