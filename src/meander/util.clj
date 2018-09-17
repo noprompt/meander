@@ -108,7 +108,7 @@
      [(subvec v 0 i) (subvec v i)])))
 
 
-(defn vec-partitions [n coll]
+(defn vec-partitions [n v]
   {:private true}
   "
 
@@ -123,40 +123,40 @@
 ;;     [[:a :b] [] []])
 "
   {:pre [(nat-int? n)]}
-  (cond
-    (= n 0)
-    (list [])
-
-    (= n 1)
-    (list [coll])
-
-    :else
+  (case n
+    0 (list [])
+    1 (list [v])
+    2 (sequence
+       (map
+        (fn [i]
+          [(subvec v 0 i) (subvec v i)]))
+       (range (inc (count v))))
+    ;; else
     (sequence
-     (comp
-      (map-indexed
-       (fn [i _]
-         (vsplit-at i coll)))
-      (mapcat
-       (fn [[a b]]
-         (sequence
-          (map conj)
-          (vec-partitions (dec n) a)
-          (repeat b)))))
-     (range (inc (count coll))))))
-
+     (comp (map-indexed
+            (fn [i _]
+              [(subvec v 0 i) (subvec v i)]))
+           (mapcat
+            (fn [[a b]]
+              (sequence
+               (map conj)
+               (vec-partitions (dec n) a)
+               (repeat b)))))
+     (range (inc (count v))))))
 
 (defn coll-partitions
   {:private true}
   ([n coll]
    {:pre [(nat-int? n)]}
-   (cond
-     (= n 0)
-     (list [])
-
-     (= n 1)
-     (list [coll])
-
-     :else
+   (case n
+     0 (list [])
+     1 (list [coll])
+     2 (sequence
+        (map-indexed
+         (fn [i _]
+           (split-at i coll)))
+        (cons 1 coll))
+     ;; else
      (sequence
       (comp
        (map-indexed
@@ -205,14 +205,15 @@ Examples:
 ;;     [[\"ab\"] [] []])
 "
   {:pre [(nat-int? n)]}
-  (cond
-    (= n 0)
-    (list [])
-
-    (= n 1)
-    (list [str])
-
-    :else
+  (case n
+    0 (list [])
+    1 (list [str])
+    2 (sequence
+       (map
+        (fn [i]
+          [(subs str 0 i) (subs str i)]))
+       (range (inc (.length str))))
+    ;; else
     (sequence
      (comp
       (map

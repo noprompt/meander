@@ -220,7 +220,7 @@
               (compile targets* [(assoc row :cols `[~@nodes ~@(:cols row)])])
               (reverse (map-indexed vector nth-syms)))))))
      (r.matrix/first-column matrix)
-     (r.matrix/drop-column matrix)))) 
+     (r.matrix/drop-column matrix))))
 
 
 (defmethod compile-specialized-matrix :cnj
@@ -314,7 +314,7 @@
                xsym (gensym "x__")
                targets* `[~xsym ~@targets*]
                matrix* [(assoc row :cols `[~binding ~@(:cols row)])]]
-           [:bind [xsym expr] 
+           [:bind [xsym expr]
             (compile targets* matrix*)])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -333,7 +333,7 @@
          [:test `(= ~target ~(r.syntax/unparse node))
           (compile targets* [row])]))
      (r.matrix/first-column matrix)
-     (r.matrix/drop-column matrix)))) 
+     (r.matrix/drop-column matrix))))
 
 
 (defmethod compile-specialized-matrix :lvr
@@ -375,28 +375,30 @@
                      (assoc row :cols `[~@(repeat num-keys node) ~@(:cols row)])
 
                      :map
-                     (if (r.syntax/search? node)
-                       (let [[_ the-map] node
-                             set-node [:set (map
-                                             (fn [[k-node v-node]]
-                                               [:cat [k-node v-node]])
-                                             the-map)]
-                             let-node [:let {:binding set-node 
-                                             :expr `(set ~target)}]]
-                         (assoc row :cols `[~let-node ~@(repeat (dec num-keys) '[:any _]) ~@(:cols row)]))
-                       (let [[_ data] node
-                             new-cols (sort-by
-                                       (fn [[tag]]
-                                         (if (= tag :mkv)
-                                           0
-                                           1))
-                                       (map
-                                        (fn [key]
-                                          (if-some [entry (find data key)]
-                                            [:mkv entry]
-                                            '[:any _]))
-                                        key-sort))]
-                         (assoc row :cols `[~@new-cols ~@(:cols row)])))))
+                     (let [[_ the-map] node]
+                       (if (and (r.syntax/search? node)
+                                (some r.syntax/variable-node? (keys the-map)))
+                         (let [[_ the-map] node
+                               set-node [:set (map
+                                               (fn [[k-node v-node]]
+                                                 [:cat [k-node v-node]])
+                                               the-map)]
+                               let-node [:let {:binding set-node
+                                               :expr `(set ~target)}]]
+                           (assoc row :cols `[~let-node ~@(repeat (dec num-keys) '[:any _]) ~@(:cols row)]))
+                         (let [[_ data] node
+                               new-cols (sort-by
+                                         (fn [[tag]]
+                                           (if (= tag :mkv)
+                                             0
+                                             1))
+                                         (map
+                                          (fn [key]
+                                            (if-some [entry (find data key)]
+                                              [:mkv entry]
+                                              '[:any _]))
+                                          key-sort))]
+                           (assoc row :cols `[~@new-cols ~@(:cols row)]))))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))]
     [[:test `(map? ~target)
@@ -434,7 +436,7 @@
          :mvr
          (let [[_ sym] node]
            (if (r.matrix/get-var row node)
-             [:bind [sym `(conj ~sym ~target)] 
+             [:bind [sym `(conj ~sym ~target)]
               (compile targets* [row])]
              [:bind [sym [target]]
               (compile targets* [(r.matrix/add-var row node)])]))))
@@ -748,7 +750,7 @@
                   [:bind [part-sym `(subvec ~perm-sym 0 ~max-take-sym)]
                    (compile `[~part-sym ~@targets*]
                             [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]]]])
-           
+
            [:test `(= ~target ~(compile-ground node))
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
@@ -911,7 +913,7 @@
           (case (count arms)
             0
             fail
-            
+
             1
             (emit* (first arms) fail search?)
 
@@ -1142,7 +1144,7 @@
                    (s/valid? :meander.match.alpha.tree/branch-node x)
                    (-> x
                        rewrite-branch-splice-branches
-                       rewrite-branch-one-fail 
+                       rewrite-branch-one-fail
                        rewrite-branch-shared-bindings
                        rewrite-branch-equal-bindings
                        rewrite-branch-equal-tests)
@@ -1246,7 +1248,7 @@
     [:okay (r.syntax/children node) env]
     (let [[_ the-map] node
           invalid-keys (remove r.syntax/ground? (keys the-map))]
-      (if (seq invalid-keys) 
+      (if (seq invalid-keys)
         [:error [{:message "Map patterns may not contain variables in their keys."
                   :ex-data {:keys (mapv r.syntax/unparse invalid-keys)}}]]
         [:okay (vals the-map) env]))))
@@ -1267,7 +1269,7 @@
                (r.syntax/variable-length? right))
         [:error [{:message "A variable length subsequence pattern may not be followed by another variable length subsequence pattern."
                   :ex-data {}}]]
-        [:okay (r.syntax/children node) env])))) 
+        [:okay (r.syntax/children node) env]))))
 
 
 (defmethod check-node :set
@@ -1299,7 +1301,7 @@
       :error
       (let [[_ trace] result]
         [:error (conj trace node)])
-      
+
       :okay
       (let [[_ children env] result]
         (reduce
@@ -1396,12 +1398,16 @@
     (if (identical? data ::s/invalid)
       (throw (ex-info "Invalid match args"
                       (s/explain-data :meander.match.alpha.match/args match-args)))
-      (let [matrix (mapv
+      (let [clauses (mapv
+                     (fn [clause]
+                       (update clause :pat r.syntax/expand-usr-ops))
+                     (:clauses data))
+            matrix (mapv
                     (fn [{:keys [pat rhs]}]
                       {:cols [pat]
                        :env #{}
                        :rhs [:action rhs]})
-                    (:clauses data))
+                    clauses)
             final-clause (some
                           (fn [row]
                             (let [node (first (:cols row))]
@@ -1418,7 +1424,7 @@
             errors (into [] (keep
                              (fn [{pat :pat}]
                                (check pat false)))
-                         (:clauses data))]
+                         clauses)]
         {:errors errors
          :expr (:expr data)
          :exhaustive? (some? final-clause)
@@ -1476,16 +1482,20 @@
     (if (identical? data ::s/invalid)
       (throw (ex-info "Invalid match args"
                       (s/explain-data :meander.match.alpha.match/args match-args)))
-      (let [matrix (mapv
+      (let [clauses (mapv
+                     (fn [clause]
+                       (update clause :pat r.syntax/expand-usr-ops))
+                     (:clauses data))
+            matrix (mapv
                     (fn [{:keys [pat rhs]}]
                       {:cols [pat]
                        :env #{}
                        :rhs [:action `(list ~rhs)]})
-                    (:clauses data))
+                    clauses)
             errors (into [] (keep
                              (fn [{pat :pat}]
                                (check pat true)))
-                         (:clauses data))]
+                         clauses)]
         {:errors errors
          :expr (:expr data)
          :matrix matrix}))))

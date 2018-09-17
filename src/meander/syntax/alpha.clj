@@ -456,6 +456,12 @@
 (s/def :meander.syntax.alpha.node/mvr
   (s/tuple #{:mvr} :meander.syntax.alpha/memory-variable))
 
+(defn variable-node?
+  [x]
+  (s/valid? (s/or :lvr :meander.syntax.alpha.node/lvr
+                  :mvr :meander.syntax.alpha.node/mvr)
+            x))
+
 
 (s/def :meander.syntax.alpha.node.dsj/terms
   (s/* :meander.syntax.alpha/node))
@@ -465,15 +471,38 @@
   (s/tuple #{:dsj} (s/keys :req-un [:meander.syntax.alpha.node.dsj/terms])))
 
 
+(defn expand-usr-op-dispatch
+  [[_ {op :op}]]
+  op)
+
+(defmulti expand-usr-op
+  {:arglists '([usr-node])}
+  #'expand-usr-op-dispatch)
+
+(defmethod expand-usr-op :default
+  [node] node)
+
+
 (s/fdef parse
   :args (s/cat :x any?)
   :ret :meander.syntax.alpha/node)
 
+(defn expand-usr-ops
+  [node]
+  (walk/prewalk
+   (fn [x]
+     (if (and (vector? x)
+              (= (first x) :usr))
+       (expand-usr-op x)
+       x))
+   node))
 
 (defn parse
   [x]
-  (s/conform :meander.syntax.alpha/term x))
-
+  (let [data (s/conform :meander.syntax.alpha/term x)]
+    (if (= data ::s/invalid)
+      data
+      (expand-usr-ops data))))
 
 (defn node?
   [x]
@@ -1271,3 +1300,39 @@
 (defmethod search? :vec
   [[_ prt]]
   (search? prt))
+
+
+;; ---------------------------------------------------------------------
+;; Additional operators
+
+(defmethod pattern-op 'scan
+  [_]
+  (s/cat :op '#{scan}
+         :pats (s/+ :meander.syntax.alpha/term)))
+
+(defmethod expand-usr-op 'scan
+  [[_ {pats :pats}]]
+  [:seq
+   [:prt
+    {:left '[:drp {:any _, :dots ...}]
+     :right
+     [:prt
+      {:left [:cat pats],
+       :dot '.
+       :right '[:drp {:any _, :dots ...}]}]}]])
+
+(defmethod pattern-op 'vscan
+  [_]
+  (s/cat :op '#{vscan}
+         :pats (s/+ :meander.syntax.alpha/term)))
+
+(defmethod expand-usr-op 'vscan
+  [[_ {pats :pats}]]
+  [:vec
+   [:prt
+    {:left '[:drp {:any _, :dots ...}]
+     :right
+     [:prt
+      {:left [:cat pats],
+       :dot '.
+       :right '[:drp {:any _, :dots ...}]}]}]])
