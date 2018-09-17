@@ -580,47 +580,47 @@
           false)))
 
 ;; ---------------------------------------------------------------------
-;; match*  macro tests
+;; search  macro tests
 
 
-(t/deftest match*-map-1-test
+(t/deftest search-map-1-test
   (t/is (= #{["v1" "v2"]}
-           (set (r.match/match* {:k1 "v1"
+           (set (r.match/search {:k1 "v1"
                                  :k2 {"v1" "v2"}}
 
-                  {:k1 ?x
-                   :k2 {?x ?y}}
-                  [?x ?y])))))
+                                {:k1 ?x
+                                 :k2 {?x ?y}}
+                                [?x ?y])))))
 
 
-(t/deftest match*-map-2-test
+(t/deftest search-map-2-test
   (t/is (= #{[:k1 :k2 "v1" "v2"]
              [:k1 :k2 :k3 "v1" "v2"]}
-           (set (r.match/match* {:k1 "v1"
+           (set (r.match/search {:k1 "v1"
                                  :k2 {"v1" "v2"}
                                  :k3 {"v2" "v1"}}
 
-                  {?k1 ?x
-                   ?k2 {?x ?y}}
-                  [?k1 ?k2 ?x ?y]
+                                {?k1 ?x
+                                 ?k2 {?x ?y}}
+                                [?k1 ?k2 ?x ?y]
 
-                  {?k1 ?x
-                   ?k2 {?x ?y}
-                   ?k3 {?y ?x}}
-                  [?k1 ?k2 ?k3 ?x ?y])))))
+                                {?k1 ?x
+                                 ?k2 {?x ?y}
+                                 ?k3 {?y ?x}}
+                                [?k1 ?k2 ?k3 ?x ?y])))))
 
 
-(t/deftest match*-or-1-test
+(t/deftest search-or-1-test
   (t/is (= #{[1 2] [2 1]}
-           (set (r.match/match* [1 2]
-                  (or [?x ?y] [?y ?x])
-                  [?x ?y])))))
+           (set (r.match/search [1 2]
+                                (or [?x ?y] [?y ?x])
+                                [?x ?y])))))
 
 
-(t/deftest match*-subsequence-1-test
-  (t/is (= (set (r.match/match* [1 2 1 2 1 2 3 5 6 7 8 9 1 2]
-                  [?x ?y . ?x ?y ... !zs ... ?x ?y]
-                  {:?x ?x, :?y ?y, :!zs !zs}))
+(t/deftest search-subsequence-1-test
+  (t/is (= (set (r.match/search [1 2 1 2 1 2 3 5 6 7 8 9 1 2]
+                                [?x ?y . ?x ?y ... !zs ... ?x ?y]
+                                {:?x ?x, :?y ?y, :!zs !zs}))
            #{{:?x 1, :?y 2, :!zs [1 2 1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))

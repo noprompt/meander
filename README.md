@@ -15,7 +15,7 @@ Meander is a Clojure data transformation library which combines higher order fun
 
 * [Operators](#operators)
   * [`match`](#match)
-  * [`match*`](#match-star)
+  * [`search`](#search-star)
 * [Pattern Syntax](#pattern-syntax)
   * [Literals](#literals)
   * [Variables](#variables)
@@ -45,9 +45,9 @@ Meander is a Clojure data transformation library which combines higher order fun
 The `match` operator provides traditional pattern matching.
 
 
-#### `match*`
+#### `search`
 
-The `match*` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts. Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `match*` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made. In essence, `match*` allows you to _query_ arbitrary data.
+The `search` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts. Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `search` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made. In essence, `search` allows you to _query_ arbitrary data.
 
 
 ### Pattern Syntax
@@ -263,7 +263,7 @@ Had the pattern `[3 4 . !xs !ys ...]` in this example been written as `[3 4 !xs 
 Example:
 
 ```clj
-(match* [3 0 0 3 1 1 3 2 2] 
+(search [3 0 0 3 1 1 3 2 2] 
   [_ ... 3 . !ys ...]
   {:!ys !ys})
 ;; =>
@@ -272,4 +272,4 @@ Example:
  {:!ys [2 2]})
 ```
 
-This example demonstrates how `match*` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurence of a `3`.
+This example demonstrates how `search` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurence of a `3`.

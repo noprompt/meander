@@ -1463,8 +1463,8 @@
              ~(emit (compile [target] matrix) `(~fail) false)))))))
 
 
-(defn analyze-match*-args
-  "Analyzes arguments as would be supplied to the match* macro e.g.
+(defn analyze-search-args
+  "Analyzes arguments as would be supplied to the search macro e.g.
 
     (expr clause action ,,,)
 
@@ -1501,11 +1501,11 @@
          :matrix matrix}))))
 
 
-(defmacro match*
+(defmacro search
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-match*-args match-args)
+  (let [match-data (analyze-search-args match-args)
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
