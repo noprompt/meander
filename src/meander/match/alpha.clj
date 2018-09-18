@@ -1519,6 +1519,7 @@
 
 
 (defmacro search
+  ""
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
@@ -1533,3 +1534,8 @@
           nil
           `(let [~target ~expr]
              ~(emit (compile [target] matrix) nil true)))))))
+
+(s/fdef search
+  :args (s/cat :expr any?
+               :clauses :meander.match.alpha.match/clauses)
+  :ret any?)
