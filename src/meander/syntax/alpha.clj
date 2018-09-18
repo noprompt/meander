@@ -200,6 +200,7 @@
         :let :meander.syntax.alpha/let
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
+        :app :meander.syntax.alpha/app
         :usr (s/multi-spec pattern-op :usr)
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
@@ -288,6 +289,7 @@
                    :let :meander.syntax.alpha/let
                    :prd :meander.syntax.alpha/pred
                    :grd :meander.syntax.alpha/guard
+                   :app :meander.syntax.alpha/app
                    :usr (s/multi-spec pattern-op :usr)
                    :seq :meander.syntax.alpha/seq
                    :vec :meander.syntax.alpha/vector
@@ -360,6 +362,21 @@
        (s.gen/any)))))
 
 
+(s/def :meander.syntax.alpha/app
+  (s/with-gen
+    (s/and seq?
+           (s/cat :app #{'app}
+                  :form any?
+                  :pat :meander.syntax.alpha/term))
+    (fn []
+      (s.gen/fmap
+       (fn [[x t]]
+         (list 'app x))
+       (s.gen/tuple
+        (s.gen/any)
+        (s/gen :meander.syntax.alpha/term))))))
+
+
 (s/def :meander.syntax.alpha/and
   (s/with-gen
     (s/and seq?
@@ -421,6 +438,7 @@
         :let :meander.syntax.alpha/let
         :prd :meander.syntax.alpha/pred
         :grd :meander.syntax.alpha/guard
+        :app :meander.syntax.alpha/app
         :usr (s/multi-spec pattern-op :usr)
         :seq :meander.syntax.alpha/seq
         :vec :meander.syntax.alpha/vector
@@ -775,6 +793,20 @@
 (defmethod search? :any
   [_] false)
 
+
+;; :app
+
+(defmethod ground? :app
+  [_] false)
+
+
+(defmethod unparse :app
+  [[_ {form :form pat :pat}]]
+  `(~'app ~form ~pat))
+
+
+(defmethod search? :app
+  [_] false)
 
 ;; :cat
 
@@ -1312,14 +1344,17 @@
 
 (defmethod expand-usr-op 'scan
   [[_ {pats :pats}]]
-  [:seq
-   [:prt
-    {:left '[:drp {:any _, :dots ...}]
-     :right
-     [:prt
-      {:left [:cat pats],
-       :dot '.
-       :right '[:drp {:any _, :dots ...}]}]}]])
+  [:cnj {:terms [[:prd {:form `sequential?}]
+                 [:app {:form `seq
+                        :pat [:seq
+                              [:prt
+                               {:left '[:drp {:any _, :dots ...}]
+                                :right
+                                [:prt
+                                 {:left [:cat pats],
+                                  :dot '.
+                                  :right '[:drp {:any _, :dots ...}]}]}]]}]]}])
+
 
 (defmethod pattern-op 'vscan
   [_]

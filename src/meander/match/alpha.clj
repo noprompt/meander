@@ -184,6 +184,23 @@
                :matrix :meander.matrix.alpha/matrix)
   :ret (s/coll-of :meander.match.alpha/tree))
 
+(defmethod compile-specialized-matrix :app
+  [_ [target & targets*] matrix]
+  (let [app-target (gensym "app_target__")]
+    (mapv
+     (fn [[tag :as node] row]
+       (case tag
+         :any
+         [:pass (compile targets* [row])]
+
+         :app
+         (let [[_ {form :form, pat :pat}] node]
+           [:bind [app-target `(~form ~target)]
+            (compile `[~app-target ~@targets*]
+                     [(assoc row :cols `[~pat ~@(:cols row)])])])))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :cat
   [_ [target & targets*] matrix]
