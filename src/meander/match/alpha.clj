@@ -1519,7 +1519,19 @@
 
 
 (defmacro search
-  ""
+  "Like match but allows for patterns which may match x in more than
+  one way. Returns a lazy sequence of clause action values.
+
+  Example:
+
+  (search [1 2 3]
+    [!xs ... !ys ...]
+    {'!xs !xs, '!ys !ys})
+  ;; =>
+  ({!xs [], !ys [1 2 3]}
+   {!xs [1], !ys [2 3]}
+   {!xs [1 2], !ys [3]}
+   {!xs [1 2 3], !ys []})"
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
