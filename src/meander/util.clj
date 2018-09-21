@@ -55,12 +55,14 @@
   {:private true}
   [v i j]
   (-> v
-      (assoc i (get v j))
-      (assoc j (get v i))))
+      (assoc i (nth v j))
+      (assoc j (nth v i))))
 
 
 ;; SEE: https://en.wikipedia.org/wiki/Heap%27s_algorithm
-(defn permutations [coll]
+(defn permutations
+  "Return a sequence of all the ways to arrange coll."
+  [coll]
   (let [v (vec coll)
         n (count v)]
     (loop [n n
@@ -76,6 +78,29 @@
                      (range n)))
                   a)]
           (recur n* a*))))))
+
+
+(defn k-combinations
+  "All the ways to choose k items from coll."
+  [coll k]
+  (if (= k 1)
+    (sequence (map vector) coll)
+    (let [coll (vec coll)
+          n (count coll)]
+      (sequence
+       (comp
+        (reduce comp
+                (repeat (dec k)
+                        (mapcat
+                         (fn [v]
+                           (let [i (peek v)]
+                             (map conj (repeat v) (range i)))))))
+        (mapcat permutations)
+        (map
+         (fn [ptrs]
+           (mapv nth (repeat coll) ptrs))))
+       (map vector (range n))))))
+
 
 (defn subseqs [coll]
   (cond

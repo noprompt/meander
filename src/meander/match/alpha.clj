@@ -753,21 +753,13 @@
                  ;; Symbol for the size of target.
                  m-sym (gensym "m__")
                  ;; Symbol for each permutation of target.
-                 perm-sym (gensym "perm__")
-                 ;; Symbol for the slice of each permutation.
-                 part-sym (gensym "part__")
-                 ;; Symbol the maximum number of elements to take from
-                 ;; each permutation.
-                 max-take-sym (gensym "i__")]
+                 perm-sym (gensym "perm__")]
              [:test `(set? ~target)
               [:bind [m-sym `(count ~target)]
                [:test `(<= ~n ~m-sym)
-                [:bind [max-take-sym `(max ~n ~m-sym)]
-                 [:search [perm-sym `(meander.util/permutations ~target)]
-                  [:bind [part-sym `(subvec ~perm-sym 0 ~max-take-sym)]
-                   (compile `[~part-sym ~@targets*]
-                            [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]]]])
-
+                [:search [perm-sym `(meander.util/k-combinations ~target ~n)]
+                 (compile `[~perm-sym ~@targets*]
+                          [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]])
            [:test `(= ~target ~(compile-ground node))
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
