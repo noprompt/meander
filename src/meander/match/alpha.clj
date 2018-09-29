@@ -1139,16 +1139,13 @@
                tree)
         tree* (clojure.walk/prewalk
                (fn [x]
-                 (cond
-                   (s/valid? :meander.match.alpha.tree/branch-node x)
+                 (if (s/valid? :meander.match.alpha.tree/branch-node x)
                    (-> x
                        rewrite-branch-splice-branches
                        rewrite-branch-one-fail
                        rewrite-branch-shared-bindings
                        rewrite-branch-equal-bindings
                        rewrite-branch-equal-tests)
-
-                   :else
                    x))
                tree*)]
     (if (= tree tree*)
