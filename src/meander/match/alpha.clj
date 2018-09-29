@@ -1001,16 +1001,6 @@
     body))
 
 
-(defn rewrite-bind-only-used-once-inline
-  "If a binding is only used once, inline it."
-  {:private true}
-  [[_ [bsym bval] body]]
-  (if (= (count (filter #{bsym} (tree-seq coll? seq body)))
-         1)
-    (walk/postwalk-replace {bsym bval} body)
-    [:bind [bsym bval] body]))
-
-
 (defn rewrite-branch-shared-bindings
   "If a there are consecutive bindings to the same expression in the
   arms of a branch, create a new branch arm with a shared binding and
@@ -1157,12 +1147,6 @@
                        rewrite-branch-shared-bindings
                        rewrite-branch-equal-bindings
                        rewrite-branch-equal-tests)
-
-                   (s/valid? :meander.match.alpha.tree/bind-node x)
-                   (let [x* (rewrite-bind-unused x)]
-                     (if (= x x*)
-                       (rewrite-bind-only-used-once-inline x)
-                       x*))
 
                    :else
                    x))
