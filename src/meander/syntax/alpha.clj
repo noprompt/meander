@@ -1050,9 +1050,10 @@
 
 ;; :not
 
-(defmethod children :rp*
+(defmethod children :not
   [[_ {term :term}]]
   [term])
+
 
 (defmethod ground? :not
   [_] false)
