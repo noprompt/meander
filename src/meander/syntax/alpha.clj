@@ -657,6 +657,15 @@
         (subnodes node)))
 
 
+(defn memory-variables
+  "Return all :mvr nodes in node."
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (into #{}
+        (filter (comp #{:mvr} tag))
+        (subnodes node)))
+
+
 (s/fdef ground?
   :args (s/cat :node :meander.syntax.alpha/node)
   :ret boolean?)
