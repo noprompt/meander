@@ -11,8 +11,11 @@
   (:refer-clojure :exclude [while repeat some])
   (:require [clojure.core :as clj]
             [clojure.spec.alpha :as s]
+            [clojure.set :as set]
             [meander.protocols.alpha :as r.protocols]
-            [meander.match.alpha :as r.match]))
+            [meander.match.alpha :as r.match]
+            [meander.syntax.alpha :as r.syntax]
+            [meander.substitute.alpha :as r.substitute]))
 
 
 (def
@@ -671,3 +674,53 @@
       (map s)
       (remove fail?))
      (tree-seq coll? seq t))))
+
+
+(defn left-linear?
+  "true if no variable occurs more than once on the left side of a
+  rule."
+  {:private true}
+  [node]
+  (every? #(= 1 %) (vals (frequencies (r.syntax/variables node)))))
+
+
+(defn analyze-rewrite-args
+  {:private true}
+  [args]
+  (sequence
+   (map
+    (fn [[lhs rhs]]
+      (let [lhs-node (r.syntax/parse lhs)
+            rhs-node (r.syntax/parse rhs)
+            lhs-vars (r.syntax/variables lhs-node)
+            rhs-vars (r.syntax/variables rhs-node)]
+        {:lhs lhs-node 
+         :rhs rhs-node
+         :left-linear? (left-linear? lhs-node)})))
+   (partition 2 (rest args))))
+
+
+(defmacro rewrite
+  "Returns strategy which symbolically transforms t in to t' via
+  pattern matching and substitution.
+
+  Example:
+  
+  (let [s (rewrite
+           (let* [!bs !vs ..1]
+             . !body ...)
+           (let* [!bs !vs]
+             (let* [!bs !vs ...]
+               . !body ...)))]
+    (s '(let* [b1 :v1, b2 :v2, b3 :v3]
+          (vector b1 b2 b3))))"
+  [& rules]
+  `(match
+     ~@(mapcat
+        (fn [[pat rhs]]
+          [pat `(r.substitute/substitute ~rhs)])
+        (partition 2 rules))))
+
+(s/fdef rewrite
+  :args :meander.match.alpha.match/clauses
+  :ret any?)
