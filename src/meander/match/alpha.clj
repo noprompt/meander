@@ -709,8 +709,8 @@
             (compile [init init]
                      [(assoc row
                              :cols [init-grd init-cat]
-                             :rhs [:bind [iter 0]
-                                   [:bind [init (drop-form n target)]
+                             :rhs [:bind [target (drop-form n target)]
+                                   [:bind [iter 1]
                                     loop-tree]])])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
