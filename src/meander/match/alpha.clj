@@ -5,7 +5,7 @@
             [clojure.walk :as walk]
             [meander.matrix.alpha :as r.matrix]
             [meander.syntax.alpha :as r.syntax]
-            [meander.util :as r.util]))
+            [meander.util.alpha :as r.util]))
 
 
 (def
@@ -757,7 +757,7 @@
              [:test `(set? ~target)
               [:bind [m-sym `(count ~target)]
                [:test `(<= ~n ~m-sym)
-                [:search [perm-sym `(meander.util/k-combinations ~target ~n)]
+                [:search [perm-sym `(r.util/k-combinations ~target ~n)]
                  (compile `[~perm-sym ~@targets*]
                           [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]])
            [:test `(= ~target ~(compile-ground node))

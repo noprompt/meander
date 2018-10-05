@@ -1,54 +1,6 @@
-(ns meander.util
+(ns meander.util.alpha
   (:require [clojure.pprint :as pprint]
             [clojure.walk :as walk]))
-
-
-(defn pretty-expand [form]
-  (pprint/with-pprint-dispatch pprint/code-dispatch
-    (pprint/pprint
-     (walk/postwalk
-      (fn [x]
-        (if (and (qualified-symbol? x)
-                 (= (namespace x) "clojure.core"))
-          (symbol (name x))
-          x))
-      (macroexpand-1 form)))))
-
-
-(defmacro undefined
-  ([] `(throw (ex-info "undefined" ~(meta &form)))))
-
-
-(defn rotations
-  ([coll]
-   (lazy-seq
-    (cons coll
-          (rotations
-           (concat (rest coll)
-                   (list (first coll))))))))
-
-
-(defn cartesian-product
-  "All the ways to take one item from each sequence."
-  ([seqs]
-   (let [v-original-seqs (vec seqs)
-         step
-         (fn step [v-seqs]
-           (let [increment
-                 (fn [v-seqs]
-                   (loop [i (dec (count v-seqs))
-                          v-seqs v-seqs]
-                     (if (= i -1) nil
-                         (if-let [rst (next (v-seqs i))]
-                           (assoc v-seqs i rst)
-                           (recur (dec i)
-                                  (assoc v-seqs i (v-original-seqs i)))))))]
-             (when v-seqs
-               (cons (map first v-seqs)
-                     (lazy-seq (step (increment v-seqs)))))))]
-     (when (every? seq seqs)
-       (lazy-seq (step v-original-seqs))))))
-
 
 (defn swap
   "Swap the elements at positions `i` and `j` in `v`."
@@ -100,29 +52,6 @@
          (fn [ptrs]
            (mapv nth (repeat coll) ptrs))))
        (map vector (range n))))))
-
-
-(defn subseqs [coll]
-  (cond
-    (string? coll)
-    (let [l (inc (.length coll))]
-      (distinct
-       (for [i (range l)
-             j (range i)]
-         (subs coll j i))))
-
-    (vector? coll)
-    (distinct
-     (let [l (inc (.length coll))]
-       (for [i (range l)
-             j (range i)]
-         (subvec coll j i))))
-
-    (seq? coll)
-    (distinct
-     (for [i (map-indexed (fn [i _] (inc i)) coll)
-           j (range i)]
-       (take i (drop j coll))))))
 
 
 (defn vsplit-at
@@ -289,4 +218,4 @@ Examples:
     (str-partitions n coll)
 
     :else
-    (undefined)))
+    (throw (IllegalArgumentException. "coll must be a string? or coll?"))))
