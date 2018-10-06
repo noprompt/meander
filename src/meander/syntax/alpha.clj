@@ -935,7 +935,7 @@
 
 (defmethod unparse :let
   [[_ {binding :binding, expr :expr}]]
-  `(~'let ~binding ~expr))
+  `(~'let ~(unparse binding) ~expr))
 
 
 (defmethod search? :let
