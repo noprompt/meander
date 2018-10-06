@@ -1001,13 +1001,16 @@
     body))
 
 
+#_
 (defn rewrite-branch-shared-bindings
   "If a there are consecutive bindings to the same expression in the
   arms of a branch, create a new branch arm with a shared binding and
   move those arms beneath it."
   {:private true}
   [[_ nodes]]
-  (loop [q-nodes nodes
+  (loop [;; Queue
+         q-nodes nodes
+         ;; Stack
          s-nodes []]
     (if-some [[tag :as node] (first q-nodes)]
       (if (or (= tag :bind)
@@ -1143,7 +1146,7 @@
                    (-> x
                        rewrite-branch-splice-branches
                        rewrite-branch-one-fail
-                       rewrite-branch-shared-bindings
+                       #_rewrite-branch-shared-bindings
                        rewrite-branch-equal-bindings
                        rewrite-branch-equal-tests)
                    x))
