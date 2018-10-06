@@ -926,7 +926,7 @@
 
 (defmethod children :let
   [[_ {binding :binding}]]
-  (children binding))
+  [binding])
 
 
 (defmethod ground? :let
