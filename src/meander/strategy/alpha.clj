@@ -676,9 +676,8 @@
      (tree-seq coll? seq t))))
 
 
-(defn left-linear?
-  "true if no variable occurs more than once on the left side of a
-  rule."
+(defn linear?
+  "true if no variable occurs more than once in the term node."
   {:private true}
   [node]
   (every? #(= 1 %) (vals (frequencies (r.syntax/variables node)))))
@@ -695,8 +694,7 @@
             lhs-vars (r.syntax/variables lhs-node)
             rhs-vars (r.syntax/variables rhs-node)]
         {:lhs lhs-node 
-         :rhs rhs-node
-         :left-linear? (left-linear? lhs-node)})))
+         :rhs rhs-node})))
    (partition 2 (rest args))))
 
 
