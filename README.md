@@ -285,6 +285,43 @@ Example:
 
 This example demonstrates how `search` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurence of a `3`.
 
+#### Escaping
+
+In some cases you may want to "parameterize" a pattern by referencing an external value. This can be done using Clojure's `unquote` operator (`unquote-splicing` is currently not implemented).
+
+Example:
+
+```clj
+(let [f (fn [x]
+          (fn [z]
+            (match z
+              {:x ~x, :y ?y}
+              [:okay ?y]
+              _
+              [:fail])))
+      g (f 1)]
+  [(g {:x 1 :y 2})
+   (g {:x 2 :y 2})])
+;; =>
+[[:okay 2] [:fail]]
+```
+
+```clj
+;; The first two elements summed together equals the third.
+(let [f (fn [z]
+          (match z
+            [?x ?y ~(+ ?x ?y)]
+            :yes
+            _
+            :no))]
+  [(f [1 2 3])
+   (f [2 1 4])
+   (f [1 3 4])])
+;; =>
+[:yes :no :yes]
+```
+
+
 ## Pattern Substitution
 
 Pattern substitution can be thought of as the inverse to pattern matching. While pattern matching binds values by deconstructing an object, pattern substitution uses existing bindings to _construct_ an object.
