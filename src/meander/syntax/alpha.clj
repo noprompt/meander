@@ -805,13 +805,17 @@
 
 ;; :app
 
+(defmethod children :app
+  [[_ {pat :pat}]]
+  [pat])
+
 (defmethod ground? :app
   [_] false)
 
 
 (defmethod unparse :app
   [[_ {form :form pat :pat}]]
-  `(~'app ~form ~pat))
+  `(~'app ~form ~(unparse pat)))
 
 
 (defmethod search? :app
