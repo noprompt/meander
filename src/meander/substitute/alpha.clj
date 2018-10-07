@@ -221,13 +221,3 @@
 (s/fdef substitute
   :args (s/cat :term :meander.syntax.alpha/term)
   :ret any?)
-
-#_
-(meander.match.alpha/match [1 2 1 2 1 2]
-  [!xs !ys ...]
-  (substitute [~@!xs ~@!ys]))
-
-#_
-(let [pat (r.syntax/parse '[~@[1 2 3]])]
-  [pat 
-   (compile-substitute pat (make-env pat))])
