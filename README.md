@@ -102,7 +102,7 @@ and bind `?x` to `1` but will not match a value like
 since the second occurence of `?x` is not equal to `1`.
 
 
-#### Memory Mariables
+#### Memory Variables
 
 _Memory variables_ are variables which "remember" or collect values during pattern matching. They are represented by an unqualified symbol prefixed with the `!` character. Because they collect multiple values it is idiomatic to employ a plural naming convention e.g. `!xs` or `!people`.
 
