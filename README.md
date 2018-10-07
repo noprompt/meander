@@ -79,7 +79,7 @@ Pattern variables are variables which may or may not bind symbols to the values 
 
 #### Logic Variables
 
-_Logic variables_ are variables which express an equivalent, but not necessarily identical, value everywhere within a pattern. They are represented by an unqualified symbol prefixed with the `?` character.
+_Logic variables_ are variables which express an equivalent, but not necessarily identical, value everywhere within a pattern. They are represented by a simple symbol prefixed with the `?` character.
 
 To express any 2-tuple composed of equivalent elements we would write the following.
 
@@ -104,10 +104,10 @@ since the second occurence of `?x` is not equal to `1`.
 
 #### Memory Variables
 
-_Memory variables_ are variables which "remember" or collect values during pattern matching. They are represented by an unqualified symbol prefixed with the `!` character. Because they collect multiple values it is idiomatic to employ a plural naming convention e.g. `!xs` or `!people`.
+_Memory variables_ are variables which "remember" or collect values during pattern matching. They are represented by a simple symbol prefixed with the `!` character. Because they collect multiple values it is idiomatic to employ a plural naming convention e.g. `!xs` or `!people`.
 
 
-To collect values from a 4-tuple such that we collet the first and last elements in one container and the middle elements in another we would write the folowing.
+To collect values from a 4-tuple such that we collect the first and last elements in one container and the middle elements in another we would write the following.
 
 ```clj
 [!xs !ys !ys !xs]
@@ -223,6 +223,14 @@ Example:
   [1 2 ... ?x ?y]
   [?x ?y])
 ;; => [2 3]
+```
+
+```clj
+(match [:A :A :A :B :A :C :A :D]
+  [:A !xs ...]
+  !xs)
+;; =>
+[:A :B :C :D]
 ```
   
 #### N or more
