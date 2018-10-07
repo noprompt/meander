@@ -3,12 +3,12 @@
 Meander is a Clojure data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting) and [logic programming](https://en.wikipedia.org/wiki/Logic_programming). It does so with extensible syntactic [pattern matching](https://en.wikipedia.org/wiki/Pattern_matching), syntactic [pattern substitution](https://en.wikipedia.org/wiki/Substitution_(logic)), and a suite of combinators known as _strategies_ that run the gamut from purely functional to purely declarative.
 
 
-## Table of Contents
+## Contents
 
 * [Pattern Matching](#pattern-matching)
 * [Pattern Substituton](#pattern-matching)
-* [Strategy Combinators](#strategy-combinators)
 * [Rewriting](#rewriting)
+  * [Strategy Combinators](#strategy-combinators)
 
 
 ## Pattern Matching
@@ -39,6 +39,9 @@ Meander is a Clojure data transformation library which combines higher order fun
 
 
 ### Operators
+
+The primary operators for pattern matching and searching are available in `meander.match.alpha`.
+
 
 #### `match`
 
@@ -273,3 +276,63 @@ Example:
 ```
 
 This example demonstrates how `search` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurence of a `3`.
+
+## Pattern Substitution
+
+Pattern substitution can be thought of as the inverse to pattern matching. While pattern matching binds values by deconstructing an object, pattern substitution uses existing bindings to _construct_ an object.
+
+The `substitute` operator is available from the `meander.substitute.alpha` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On it's own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
+
+Because rewriting is a central theme it's worthwhile to understand substitution semantics.
+
+### Logic variables
+
+Logic variables have semantically equivalent behavior to the unquote operator.
+
+```clj
+(let [?x 1]
+  (substitute (+ ?x ~?x)))
+;; =>
+(+ 1 1)
+```
+
+### Memory variables
+
+Memory variables disperse their values throughout a substitution. Each occurence disperse one value from the collection into the expression.
+
+```clj
+(let [!xs [1 2 3]]
+  (substitute (!xs !xs !xs)))
+;; =>
+(1 2 3)
+```
+
+This works similarly for subsequence patterns: values are dispersed until one of the memory variables is exhausted.
+
+```clj
+(let [!bs '[x y]
+      !vs [1 2 3]
+      !body '[(println x) (println y) (+ x y)]]
+  (substitute (let* [!bs !vs ...] . !body ...)))
+;; =>
+(let* [x 1 y 2] (println x) (println y) (+ x y))
+```
+
+When an expression has memory variable occurences which exceed the number of available elements in it's collection `nil` is dispersed after it is exhausted.
+
+```clj
+(let [!xs [1]]
+  (substitute (!xs !xs !xs)))
+;; =>
+(1 nil nil)
+```
+
+`nil` is also dispersed in [n or more](#n-or-more) patterns up to `n`.
+
+```clj
+(let [!xs [1]
+      !ys [:A]]
+  (substitute (!xs !ys ..2)))
+;; =>
+(1 :A nil nil)
+```
