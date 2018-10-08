@@ -1,0 +1,8 @@
+{:paths ["src"]
+ :deps {org.clojure/clojure {:mvn/version "1.9.0"}}
+ :aliases {:test {:extra-paths ["test"]
+                  :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha2"}
+                               com.cognitect/test-runner {:git/url "git@github.com:healthfinch/test-runner"
+                                                          :sha "1d0cb97a14152959cdb7c1e8539a1759a1663f5b"}}
+                  :main-opts ["-m" "cognitect.test-runner"]}}}
+
