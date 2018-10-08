@@ -464,6 +464,33 @@
   ([p q r s & more]
    (apply tuple (tuple-body [p q r s]) more)))
 
+(defn at
+  "Build a strategy which modifies t at key with p, then q, etc. Works
+  with map?, vector?, and set?. For vector? and set? key must be
+  present."
+  {:arglists '([key]
+               [key p]
+               [key p q]
+               [key p q & more])}
+  ([k & ps]
+   (let [p (apply pipe ps)]
+     (fn [t]
+       (cond
+         (or (map? t)
+             (and (vector? t) (contains? t k)))
+         (let [v* (p (get t k))]
+           (if (fail? v*)
+             v*
+             (assoc t k v*)))
+
+         (and (set? t) (contains? t k))
+         (let [v* (p (get t k))]
+           (if (fail? v*)
+             v*
+             (conj (disj t k) v*)))
+
+         :else
+         *fail*)))))
 
 (extend-type clojure.lang.IPersistentVector
   r.protocols/IAll
