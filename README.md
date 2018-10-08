@@ -9,6 +9,8 @@ Meander is a Clojure data transformation library which combines higher order fun
 * [Pattern Substituton](#pattern-matching)
 * [Rewriting](#rewriting)
   * [Strategy Combinators](#strategy-combinators)
+    * [`pipe`](#pipe)
+    * [`choice`](#choice)
 
 
 ## Pattern Matching
@@ -453,3 +455,60 @@ But how did we know we were finished? Couldn't we continue to apply the commutat
 A _strategy_ is a function of one argument, a term `t`, and returns the term rewritten `t*`. A _strategy combinator_ is a function which accepts, as arguments, one or more _strategies_ and returns a _strategy_.
 
 Meander's strategy combinators can be found in the `meander.strategy.alpha` namespace.
+
+Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.alpha/*fail*` which is printed as `#meander.alpha/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.alpha/fail?`, however, you should rarely need to reach for this function outside of combinators.
+
+#### `fail`
+
+Strategy which always fails.
+
+```clj
+(fail 10)
+;; =>
+#meander.alpha/fail[]
+```
+
+#### `build`
+
+Strategy combinator which takes a value returns a strategy which always returns that value. Like `clojure.core/constantly` but the returned function takes only one argument.
+
+```clj
+(let [s (build "shoe")]
+  (s "horse"))
+;; =>
+"shoe"
+```
+
+#### `pipe`
+
+Strategy combinator which takes two (or more) strategies`p` and `q` and returns a strategy which applies `p` to `t` and then `q` if and only if `p` is successful. Fails if either `p` or `q` fails.
+
+
+```clj
+(let [s (pipe inc str)]
+  (s 10))
+;; =>
+"11"
+```
+
+```clj
+(let [s (pipe inc fail)]
+  (s 10))
+;; =>
+#meander.alpha/fail[]
+```
+
+Note: `pipe` actually takes zero or more strategies as arguments and has behavior analogous to `and` e.g. `((pipe) t)` and `((pipe s) t)` is the equivalent to `(identity t)` and `(s t)` respectively.
+
+#### `choice`
+
+Strategy which takes two (or more) strategies `p` and `q` and returns a strategy which attempts to apply `p` to `t` or `q` to `t` whichever succeeds first. Fails if all provided strategies fail. Choices are applied deterministically from left to right.
+
+```clj
+(let [s1 (pipe inc fail)
+      s2 (pipe inc str)
+      s (choice s1 s2)]
+  (s 10))
+;; =>
+"10"
+```
