@@ -383,3 +383,73 @@ When an expression has memory variable occurences which exceed the number of ava
 ;; =>
 (1 :A nil nil)
 ```
+
+## Rewriting
+
+Rewriting, also known as term rewriting or program transformation, is a programming paradigm based on the idea of replacing one term with another.
+
+A _term_ is simply some [valid expression](https://en.wikipedia.org/wiki/Well-formed_formula) in a given language. In Clojure these are objects which can be expressed in Clojure syntax.
+
+In a term rewriting system a replacement, formally known as a _reduction_, is described by a rule, or _identity_, which expresses an equivalence relation between two terms. In mathematics this relationship is often expressed with the `=` sign. To make this concept clear let's consider two properties of multiplication: the distributive and commutative properties.
+
+The distributive property of multiplication is defined as
+
+```
+a × (b + c) = (a × b) + (a × c)
+```
+
+The commutive property for multiplication is defined as
+
+```
+a × b = b × a
+```
+
+Putting multiplication aside for moment and considering only the symbols involved on both sides of the `=`, we can view these identities as a description of how to _rewrite_ the term on the left as the term on the right. Indeed, the term _rewrite_ is commonly used in mathematics text to express this concept. Let's evaluate the expression
+
+```
+(w + x) × (y + z)
+```
+
+with these rules.
+
+By the distributed property we have 
+
+```
+((w + x) × y) + ((w + x) × z)
+```
+
+with `a = (w + x)`, `b = y`, and `c = z`.
+
+Next we'll apply the commutative property twice with `a = (w + x)` and `b = y`,
+
+```
+(y × (w + x)) + ((w + x) × z)
+```
+
+and then with `a = (w + x)` and `b = z`.
+
+```
+(y × (w + x)) + (z × (w + x))
+```
+
+Finally we can apply the distributive property two more times with `a = y` and `b = (w + x)`,
+
+```
+((y × w) + (y × x)) + ((z × (w + x))
+```
+
+and then with `a = z` and `b = (w + x)`.
+
+```
+((y × w) + (y × x)) + ((z × w) + (z × x))
+```
+
+We've now rewritten our original expression by applying the rewrite rules. This is the fundamental concept of term rewriting.
+
+But how did we know we were finished? Couldn't we continue to apply the commutative rule infinitely? We could! It turns out _termination_ is a problem term rewriting systems must grapple with and there are many approaches to the problem. One of the simplest approaches is to place the burden of termination on the user. As programmers, we're already accustomed to this problem; we want a `loop` to stop at a certain point etc. In the term rewriting world this is achieved with something known as a _strategy_ or _strategy combinator_.
+
+### Strategy Combinators
+
+A _strategy_ is a function of one argument, a term `t`, and returns the term rewritten `t*`. A _strategy combinator_ is a function which accepts, as arguments, one or more _strategies_ and returns a _strategy_.
+
+Meander's strategy combinators can be found in the `meander.strategy.alpha` namespace.
