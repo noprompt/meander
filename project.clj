@@ -1,6 +1,6 @@
 (defproject meander/meander.alpha "0.0.0-SNAPSHOT"
-  :description "FIXME: write description"
-  :url "http://example.com/FIXME"
+  :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
+  :url "https://github.com/noprompt/meander"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]]
