@@ -446,7 +446,7 @@ and then with `a = z` and `b = (w + x)`.
 
 We've now rewritten our original expression by applying the rewrite rules. This is the fundamental concept of term rewriting.
 
-But how did we know we were finished? Couldn't we continue to apply the commutative rule infinitely? We could! It turns out _termination_ is a problem term rewriting systems must grapple with and there are many approaches to the problem. One of the simplest approaches is to place the burden of termination on the user. As programmers, we're already accustomed to this problem; we want a `loop` to stop at a certain point etc. In the term rewriting world this is achieved with something known as a _strategy_ or _strategy combinator_.
+But how did we know we were finished? Couldn't we continue to apply the commutative rule infinitely? We could! It turns out _termination_ is a problem term rewriting systems must grapple with and there are many approaches. One of the simplest is to place the burden of termination on the user. As programmers, we're already accustomed to this problem; we want a `loop` to stop at a certain point etc. In the term rewriting world this is achieved with something known as a _strategy_ or _strategy combinator_.
 
 ### Strategy Combinators
 
