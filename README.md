@@ -8,10 +8,6 @@ Meander is a Clojure data transformation library which combines higher order fun
 * [Pattern Matching](#pattern-matching)
 * [Pattern Substituton](#pattern-matching)
 * [Rewriting](#rewriting)
-  * [Strategy Combinators](#strategy-combinators)
-    * [`pipe`](#pipe)
-    * [`choice`](#choice)
-
 
 ## Pattern Matching
 
@@ -388,6 +384,15 @@ When an expression has memory variable occurences which exceed the number of ava
 
 ## Rewriting
 
+* [Rewriting Overview](#rewriting-overview)
+* [Strategy Combinators](#strategy-combinators)
+  * [`fail`](#fail)
+  * [`build`](#build)
+  * [`pipe`](#pipe)
+  * [`choice`](#choice)
+  
+### Rewriting Overview
+
 Rewriting, also known as term rewriting or program transformation, is a programming paradigm based on the idea of replacing one term with another.
 
 A _term_ is simply some [valid expression](https://en.wikipedia.org/wiki/Well-formed_formula) in a given language. In Clojure these are objects which can be expressed in Clojure syntax.
@@ -400,7 +405,7 @@ The distributive property of multiplication is defined as
 a × (b + c) = (a × b) + (a × c)
 ```
 
-The commutive property for multiplication is defined as
+The commutative property for multiplication is defined as
 
 ```
 a × b = b × a
@@ -448,7 +453,7 @@ and then with `a = z` and `b = (w + x)`.
 
 We've now rewritten our original expression by applying the rewrite rules. This is the fundamental concept of term rewriting.
 
-But how did we know we were finished? Couldn't we continue to apply the commutative rule infinitely? We could! It turns out _termination_ is a problem term rewriting systems must grapple with and there are many approaches. One of the simplest is to place the burden of termination on the user. As programmers, we're already accustomed to this problem; we want a `loop` to stop at a certain point etc. In the term rewriting world this is achieved with something known as a _strategy_ or _strategy combinator_.
+But how did we know we were finished? Couldn't we continue to apply the commutative rule infinitely? We could! It turns out _termination_ is a problem term rewriting systems must grapple with and there are many approaches. One of the simplest is to place the burden of termination on the user. As programmers, we're already accustomed to this problem; we want a `loop` to stop at a certain point etc. In the term rewriting world this is achieved with something with _strategies_ and _strategy combinators_.
 
 ### Strategy Combinators
 
