@@ -1224,10 +1224,15 @@
         unbound-lvrs (into #{} (comp (filter r.syntax/lvr-node?)
                                      (remove env))
                            init-vars)]
-    (if (seq unbound-lvrs)
+    (cond
+      (seq unbound-lvrs)
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
                 :ex-data {:unbound (into #{} (map r.syntax/unparse) unbound-lvrs)}}]]
-      [:okay (r.syntax/children node) env])))
+      (empty? items)
+      [:error [{:message "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"}]]
+      :else [:okay (r.syntax/children node) env])))
+
+
 
 
 (defmethod check-node :lvr

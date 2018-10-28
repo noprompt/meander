@@ -7,7 +7,8 @@
             [clojure.test.check.generators :as tc.gen]
             [clojure.test.check.properties :as tc.prop]
             [meander.match.alpha :as r.match]
-            [meander.syntax.alpha :as r.syntax]))
+            [meander.syntax.alpha :as r.syntax]
+            [clojure.string :as string]))
 
 ;; ---------------------------------------------------------------------
 ;; match macro tests
@@ -620,3 +621,17 @@
            #{{:?x 1, :?y 2, :!zs [1 2 1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))
+
+(defmacro catch-macroexpand-error
+  [body]
+  `(try
+     (macroexpand '~body)
+     (catch Exception e# e#)))
+
+(t/deftest no-value-before-zero-or-more
+  (let [error (catch-macroexpand-error
+               (r.match/match [1 2 3]
+                 [... ?x]
+                 [?]))]
+    (t/is (string/includes? (.getMessage error)
+                            "Zero or more (...) is a postfix operator"))))
