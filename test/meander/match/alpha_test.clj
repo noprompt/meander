@@ -622,16 +622,14 @@
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))
 
-(defmacro catch-macroexpand-error
-  [body]
-  `(try
-     (macroexpand '~body)
-     (catch Exception e# e#)))
 
 (t/deftest no-value-before-zero-or-more
-  (let [error (catch-macroexpand-error
-               (r.match/match [1 2 3]
-                 [... ?x]
-                 [?]))]
-    (t/is (string/includes? (.getMessage error)
-                            "Zero or more (...) is a postfix operator"))))
+  (t/testing "match"
+    (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
+      (t/is (= "Zero or more ... is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
+               (.getMessage error)))))
+
+  (t/testing "search"
+    (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
+      (t/is (= "Zero or more ... is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
+               (.getMessage error))))))
