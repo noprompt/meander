@@ -620,3 +620,15 @@
            #{{:?x 1, :?y 2, :!zs [1 2 1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))
+
+
+(t/deftest no-value-before-zero-or-more
+  (t/testing "match"
+    (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
+      (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
+               (.getMessage error)))))
+
+  (t/testing "search"
+    (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
+      (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
+               (.getMessage error))))))

@@ -141,7 +141,7 @@
 (defn zero-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.\.+" (name x))))
+       (re-matches #"\.\.\.+" (name x))))
 
 
 (defn n-or-more-symbol?
@@ -214,7 +214,7 @@
 
 (s/def :meander.syntax.alpha/zero-or-more
   (s/with-gen
-    (s/cat :items (s/+ :meander.syntax.alpha.sequential/subterm)
+    (s/cat :items (s/* :meander.syntax.alpha.sequential/subterm)
            :dots zero-or-more-symbol?)
     (fn []
       (s.gen/fmap

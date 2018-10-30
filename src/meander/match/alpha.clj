@@ -1177,7 +1177,7 @@
     whenever validation succeeds. child-nodes are the child nodes of
     node. new-env is env extended with variables that would be bound
     during the process of matching node but not it's children."
-  {:arglists '([node env])}
+  {:arglists '([node env search?])}
   (fn [[tag] env search?]
     tag)
   :default ::default)
@@ -1218,15 +1218,27 @@
 
 
 (defmethod check-node :rp*
-  [[_ {items :items} :as node] env _]
+  [[_ {items :items, dots :dots} :as node] env _]
   (let [init-cat [:cat items]
         init-vars (r.syntax/variables init-cat)
         unbound-lvrs (into #{} (comp (filter r.syntax/lvr-node?)
                                      (remove env))
                            init-vars)]
-    (if (seq unbound-lvrs)
+    (cond
+      (seq unbound-lvrs)
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
                 :ex-data {:unbound (into #{} (map r.syntax/unparse) unbound-lvrs)}}]]
+
+      (empty? items)
+      (let [dots (if (r.syntax/zero-or-more-symbol? dots)
+                   dots
+                   '...)]
+        [:error
+         [{:message (format "Zero or more (%s) is a postfix operator. It must have some value in front of it. (i.e. [1 %s ?x])"
+                            dots
+                            dots)}]])
+
+      :else
       [:okay (r.syntax/children node) env])))
 
 
