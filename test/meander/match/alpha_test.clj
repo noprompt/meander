@@ -7,8 +7,7 @@
             [clojure.test.check.generators :as tc.gen]
             [clojure.test.check.properties :as tc.prop]
             [meander.match.alpha :as r.match]
-            [meander.syntax.alpha :as r.syntax]
-            [clojure.string :as string]))
+            [meander.syntax.alpha :as r.syntax]))
 
 ;; ---------------------------------------------------------------------
 ;; match macro tests
