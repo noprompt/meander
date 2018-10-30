@@ -479,15 +479,13 @@
 
 
 (tc.t/defspec map-unq-succeeds
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
-    (r.match/match {:x x, :y y}
-      {:x ~x, :y ~y}
+  (tc.prop/for-all [x tc.gen/any]
+    (r.match/match {:x x, x :x}
+      {:x ~x, ~x :x}
       true
 
       _
       false)))
-
 
 (tc.t/defspec map-lvr-succeeds
   (tc.prop/for-all [x tc.gen/any
@@ -546,6 +544,14 @@
       false)))
 
 
+(tc.t/defspec set-unq
+  (tc.prop/for-all [k1 tc.gen/keyword
+                    k2 tc.gen/keyword]
+    (r.match/match #{k1 k2}
+      #{~(keyword (name k1)) ~k2}
+      true)))
+
+
 #_
 ;; TODO: This should pass because ?x in the nested map can be bound
 ;; previously.
@@ -580,7 +586,7 @@
           false)))
 
 ;; ---------------------------------------------------------------------
-;; search  macro tests
+;; search macro tests
 
 
 (t/deftest search-map-1-test

@@ -1309,7 +1309,7 @@
 ;; :unq
 
 (defmethod ground? :unq
-  [_] false)
+  [_] true)
 
 
 (defmethod unparse :unq

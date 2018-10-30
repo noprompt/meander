@@ -143,6 +143,10 @@
               (when (some? r)
                 (compile-ground r))))
 
+    :unq
+    (let [[_ {expr :expr}] node]
+      expr)
+
     :vec
     (let [[_ prt] node]
       (into [] (compile-ground prt)))
@@ -434,7 +438,7 @@
          :mkv
          (let [[_ [key-node val-node]] node
                row* (assoc row :cols `[~[:let {:binding val-node
-                                               :expr `(get ~target ~(r.syntax/unparse key-node))}]
+                                               :expr `(get ~target ~(compile-ground key-node))}]
                                        ~@(:cols row)])]
            (compile targets [row*]))))
      (r.matrix/first-column matrix)
@@ -760,7 +764,7 @@
                 [:search [perm-sym `(r.util/k-combinations ~target ~n)]
                  (compile `[~perm-sym ~@targets*]
                           [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]])
-           [:test `(= ~target ~(compile-ground node))
+           [:test `(set/subset? ~(compile-ground node) ~target)
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -1285,7 +1289,6 @@
       [:okay [] env]
       [:error [{:message "Set patterns may not contain variables."
                 :ex-data {}}]])))
-
 
 (defn check*
   "Checks if node is semantically valid with respect to env. Returns
