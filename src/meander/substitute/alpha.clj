@@ -123,6 +123,10 @@
                 (compile-substitute r env)))))
 
 
+(defmethod compile-substitute :quo
+  [[_ {form :form}] env]
+  `(quote ~form))
+
 (defmethod compile-substitute :rp* [node env]
   (let [[_ {items :items}] node
         cat-node [:cat items]
