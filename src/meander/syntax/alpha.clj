@@ -1159,7 +1159,7 @@
   [[_ {form :form}]]
   `(quote ~form))
 
-(defmethod search? :qu
+(defmethod search? :quo
   [_] false)
 
 
