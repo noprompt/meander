@@ -141,7 +141,7 @@
 (defn zero-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.\.+" (name x))))
+       (re-matches #"\.\.\.+" (name x))))
 
 
 (defn n-or-more-symbol?
