@@ -635,6 +635,6 @@
                (.getMessage error)))))
 
   (t/testing "search"
-    (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
+    (let [error (r.match/check (r.syntax/parse '[... ?x]) true)]
       (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
                (.getMessage error))))))
