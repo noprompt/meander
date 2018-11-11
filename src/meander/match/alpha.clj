@@ -1246,6 +1246,17 @@
       [:okay (r.syntax/children node) env])))
 
 
+(defmethod check-node :rp+
+  [[_ {items :items dots :dots} :as node] env _]
+  (cond
+    (= (name dots) "..")
+    [:error [{:message "Invalid dot operator. Perhaps you meant the one or more operator (..N) or the zero or more operator (...)?"}]]
+    (empty? items)
+    [:error [{:message (format "One or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 %s ?x])"
+                               dots)}]]
+    :else [:okay (r.syntax/children node) env]))
+
+
 (defmethod check-node :lvr
   [node env _]
   [:okay [] (conj env node)])

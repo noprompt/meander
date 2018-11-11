@@ -147,7 +147,7 @@
 (defn n-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.+\d+" (name x))))
+       (re-matches #"\.\.(\d+)?" (name x))))
 
 
 (defn pattern-op-dispatch
@@ -225,7 +225,7 @@
 
 (s/def :meander.syntax.alpha/n-or-more
   (s/with-gen
-    (s/cat :items (s/+ :meander.syntax.alpha.sequential/subterm)
+    (s/cat :items (s/* :meander.syntax.alpha.sequential/subterm)
            :dots n-or-more-symbol?)
     (fn []
       (s.gen/fmap
@@ -1205,9 +1205,11 @@
 
 (defmethod min-length :rp+
   [[_ {items :items, dots :dots}]]
-  (* (count items)
-     (Integer/parseInt
-      (aget (.split (name dots) "\\.+" 2) 1))))
+  (if (= (name dots) "..")
+    0 ;; handle invalid .. operator. Error message will appear later.
+    (* (count items)
+       (Integer/parseInt
+        (aget (.split (name dots) "\\.+" 2) 1)))))
 
 
 (defmethod max-length :rp+
