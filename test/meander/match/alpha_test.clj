@@ -643,22 +643,22 @@
 (t/deftest no-value-before-one-or-more
   (t/testing "match"
     (let [error (r.match/check (r.syntax/parse '[..2 ?x]) false)]
-      (t/is (= "One or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
+      (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
                (.getMessage error)))))
 
   (t/testing "search"
     (let [error (r.match/check (r.syntax/parse '[..2 ?x]) true)]
-      (t/is (= "One or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
+      (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
                (.getMessage error))))))
 
 
 (t/deftest no-value-after-one-or-more
   (t/testing "match"
     (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) false)]
-      (t/is (=  "Invalid dot operator. Perhaps you meant the one or more operator (..N) or the zero or more operator (...)?"
+      (t/is (=  "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                 (.getMessage error)))))
 
   (t/testing "search"
     (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) true)]
-      (t/is (= "Invalid dot operator. Perhaps you meant the one or more operator (..N) or the zero or more operator (...)?"
+      (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                (.getMessage error))))))
