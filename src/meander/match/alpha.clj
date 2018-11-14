@@ -1247,14 +1247,14 @@
 
 
 (defmethod check-node :rp+
-  [[_ {items :items dots :dots} :as node] env _]
+  [[_ {items :items n :n} :as node] env _]
   (cond
-    (= '.. dots)
+    (nil? n)
     [:error [{:message "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"}]]
 
     (empty? items)
-    [:error [{:message (format "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 %s ?x])"
-                               dots)}]]
+    [:error [{:message (format "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..%s ?x])"
+                               n)}]]
 
     :else
     [:okay (r.syntax/children node) env]))

@@ -226,7 +226,13 @@
 (s/def :meander.syntax.alpha/n-or-more
   (s/with-gen
     (s/cat :items (s/* :meander.syntax.alpha.sequential/subterm)
-           :dots n-or-more-symbol?)
+           :n (s/conformer
+               (fn conform-n-or-more-n [x]
+                 (if (n-or-more-symbol? x)
+                   (if (= x '..)
+                     nil
+                     (Integer/parseInt (aget (.split (name x) "\\.+" 2) 1)))
+                   ::s/invalid))))
     (fn []
       (s.gen/fmap
        (fn [[items ^long n]]
@@ -1204,12 +1210,10 @@
 
 
 (defmethod min-length :rp+
-  [[_ {items :items, dots :dots}]]
-  (if (= (name dots) "..")
-    0 ;; handle invalid .. operator. Error message will appear later.
-    (* (count items)
-       (Integer/parseInt
-        (aget (.split (name dots) "\\.+" 2) 1)))))
+  [[_ {items :items, n :n}]]
+  (if (integer? n)
+    (* n (count items))
+    0))
 
 
 (defmethod max-length :rp+
@@ -1217,8 +1221,11 @@
 
 
 (defmethod unparse :rp+
-  [[_ {items :items dots :dots}]]
-  `(~@(sequence (map unparse) items) ~dots))
+  [[_ {items :items n :n}]]
+  (let [dots (if (some? n)
+               (symbol (str ".." n))
+               '..)]
+    `(~@(sequence (map unparse) items) ~dots)))
 
 
 (defmethod search? :rp+
