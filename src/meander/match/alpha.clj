@@ -147,6 +147,10 @@
     (let [[_ {expr :expr}] node]
       expr)
 
+    :quo
+    (let [[_ {form :form}] node]
+      form)
+
     :vec
     (let [[_ prt] node]
       (into [] (compile-ground prt)))
