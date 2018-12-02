@@ -149,7 +149,7 @@
 
     :quo
     (let [[_ {form :form}] node]
-      form)
+      (list 'quote form))
 
     :vec
     (let [[_ prt] node]
