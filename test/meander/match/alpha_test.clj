@@ -662,3 +662,12 @@
     (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) true)]
       (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                (.getMessage error))))))
+
+(t/deftest memory-variables-in-nested-zero-or-more
+  (t/is (= [[:aa :bb :cc] [1 2 3]]
+           (r.match/match '[([:aa 1] [:bb 2]) ([:cc 3])]
+             [([!ks !vs] ...) ...]
+             [!ks !vs]
+
+             _
+             nil))))

@@ -644,7 +644,11 @@
                env* (into (:env row) init-mvrs)
                row* (assoc row :env env*)
                loop-id (gensym "loop__")
-               loop-targets (into [target] (map (fn [[_ sym]] sym)) init-mvrs)
+               loop-targets (into [target] (keep
+                                            (fn [[tag sym]]
+                                              (when (= tag :mvr)
+                                                sym)))
+                                  env*)
                loop-tree [:loop loop-id loop-targets
                           [:bind [init (take-form n target)]
                            [:branch
