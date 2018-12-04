@@ -348,7 +348,8 @@
   (s/with-gen
     (s/and seq?
            (s/cat :pred #{'pred}
-                  :form any?))
+                  :form any?
+                  :terms (s/* :meander.syntax.alpha/term)))
     (fn []
       (s.gen/fmap
        (fn [x]

@@ -579,7 +579,7 @@
 
 
 (defmethod compile-specialized-matrix :prd
-  [_ [target & targets*] matrix]
+  [_ [target & targets* :as targets] matrix]
   (let [targets* (vec targets*)]
     (mapv
      (fn [[tag :as node] row]
@@ -588,9 +588,11 @@
          [:pass (compile targets* [row])]
 
          :prd
-         (let [[_ {form :form}] node]
+         (let [[_ {form :form, terms :terms}] node]
            [:test `(~form ~target)
-            (compile targets* [row])])))
+            (if (seq terms)
+              (compile targets [(assoc row :cols `[~[:cnj {:terms terms}] ~@(:cols row)])])
+              (compile targets* [row]))])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 

@@ -671,3 +671,9 @@
 
              _
              nil))))
+
+(t/deftest pred
+  (t/is (= [1 2]
+           (r.match/match 1
+             (pred odd? ?x (app inc ?y))
+             [?x ?y]))))
