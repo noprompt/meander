@@ -141,14 +141,22 @@ Example:
 
 ### `pred`
 
-`(pred pred-fn)` matches whenenver `pred-fn` applied to the current value being matchedreturns a truthy value.
+`(pred pred-fn pat₀ ,,, patₙ)` matches whenenver `pred-fn` applied to the current value being matched returns a truthy value and all of `pat₀` through `patₙ` match.
 
 Example:
 
 ```clj
 (match 42
-  (pred even?) :okay)
+  (pred even?) 
+  :okay)
 ;; => :okay
+```
+
+```clj
+(match [42 43]
+  [(pred even? ?x) (pred odd?)]
+  ?x)
+;; => 42
 ```
 
 ### `let`
