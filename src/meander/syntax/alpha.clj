@@ -374,7 +374,7 @@
     (s/and seq?
            (s/cat :app #{'app}
                   :form any?
-                  :pat :meander.syntax.alpha/term))
+                  :terms (s/* :meander.syntax.alpha/term)))
     (fn []
       (s.gen/fmap
        (fn [[x t]]

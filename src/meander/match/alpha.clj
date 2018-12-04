@@ -202,10 +202,10 @@
          [:pass (compile targets* [row])]
 
          :app
-         (let [[_ {form :form, pat :pat}] node]
+         (let [[_ {form :form, terms :terms}] node]
            [:bind [app-target `(~form ~target)]
             (compile `[~app-target ~@targets*]
-                     [(assoc row :cols `[~pat ~@(:cols row)])])])))
+                     [(assoc row :cols `[~[:cnj {:terms terms}] ~@(:cols row)])])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 

@@ -677,3 +677,16 @@
            (r.match/match 1
              (pred odd? ?x (app inc ?y))
              [?x ?y]))))
+
+
+(t/deftest app
+  (t/is (r.match/match {:foo 1}
+          (app (fn [m] (assoc m :baz 2))
+               ?x
+               (app (fn [m] (assoc m :quux 3))
+                    ?y)
+               (let ?z [?x ?y]))
+          (= ?z
+             [?x ?y]
+             [{:foo 1, :baz 2}
+              {:foo 1, :baz 2, :quux 3}]))))
