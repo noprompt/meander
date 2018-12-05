@@ -55,7 +55,7 @@ The `search` operator is an extended version `match` which returns a sequence of
 
 #### Literals
 
-The simplest patterns to express are literal patterns. Literal patterns are patterns which are either quoted with `'` or are not variables, pattern operators, or pattern subsequences.
+The simplest patterns to express are literal patterns. Literal patterns are patterns which are either quoted with `'` or are not variables, pattern operators, or pattern subsequences. They match themselves.
 
 For example, the pattern 
 
@@ -66,10 +66,38 @@ For example, the pattern
 contains the literals `1` and `3`. And the pattern
 
 ```clj
-('or ?x "foo")
+(fn ?args "foo")
 ```
 
-contains the literals `or` and `"foo"`.
+contains the literals `fn` and `"foo"`.
+
+List and vector patterns may also qualify as literal patterns if they contain no map or set patterns.
+
+
+```clj
+([1] [2] [3])
+```
+
+is a literal pattern, however,
+
+```clj
+[{:foo 1} #{:bar :baz} {:quux 3}]
+```
+
+is not. This is because map and set patterns express submap and subset patterns respectively. The pattern
+
+```clj
+{:foo 1}
+```
+
+expresses the value being matched is a map containing the key `:foo` with value `1`. The pattern
+
+```clj
+#{:foo :bar}
+```
+
+expresses the value being matched is a set containing the values `:foo` and `:bar`.
+
 
 #### Variables
 

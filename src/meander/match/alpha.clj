@@ -117,10 +117,26 @@
         :test :meander.match.alpha.tree/test-node))
 
 
+(defn equality-check-possible?
+  "true if node is ground and does not contain :map or :set subnodes,
+  false otherwise.
+
+  The constraint that node may not contain :map or :set subnodes is
+  due to the semantics of map and set patterns: they express submap
+  and subsets respectively. Compiling these patterns to literals as
+  part of an equality check would result in false negative matches.
+
+  See also: compile-ground"
+  [node]
+  (and (r.syntax/ground? node)
+       (not-any? (comp #{:map :set} r.syntax/tag)
+                 (r.syntax/subnodes node))))
+
+
 (defn compile-ground
-  {:private true}
-  [[tag :as node]]
-  (case tag
+  "Compile node as a literal if possible."
+  [node]
+  (case (r.syntax/tag node)
     :cat
     (let [[_ nodes] node]
       (map compile-ground nodes))
@@ -232,7 +248,7 @@
          [:pass (compile targets* [row])]
 
          :cat
-         (if (r.syntax/ground? node)
+         (if (equality-check-possible? node)
            [:test `(= ~target ~(vec (compile-ground node)))
             (compile targets* [row])]
            (let [[_ nodes] node
@@ -824,7 +840,7 @@
 
        :vec
        (let [[_ prt] node]
-         (if (r.syntax/ground? node)
+         (if (equality-check-possible? node)
            [:test `(= ~target ~(compile-ground node))
             (compile targets [row])]
            [:test `(vector? ~target)
@@ -832,6 +848,7 @@
               (compile targets [(assoc row :cols `[~prt ~@(:cols row)])]))]))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
+
 
 (defn debug-compile
   {:private true}
@@ -847,6 +864,7 @@
                targets
                (:cols row))))
     matrix)))
+
 
 (defn compile
   "Compile the pattern matrix with respect to targets to a decision

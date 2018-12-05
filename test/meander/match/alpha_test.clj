@@ -690,3 +690,86 @@
              [?x ?y]
              [{:foo 1, :baz 2}
               {:foo 1, :baz 2, :quux 3}]))))
+
+
+(t/deftest ground-map-pattern-expresses-submap-match
+  (t/is (r.match/match {:foo 1, :bar 2, :baz 3}
+          {:foo 1}
+          true))
+
+  (t/is (r.match/match {:foo 1, :bar 2, :baz 3}
+          {:bar 2}
+          true))
+
+  (t/is (r.match/match {:foo 1, :bar 2, :baz 3}
+          {:baz 3}
+          true))
+
+  (t/is (r.match/match {:foo 1, :bar 2, :baz 3}
+          {:foo 1, :bar 2}
+          true))
+
+  (t/is (r.match/match {:foo 1, :bar 2, :baz 3}
+          {:bar 2, :baz 3}
+          true))
+
+  (t/is (r.match/match {:foo 1, :bar 2, :baz 3}
+          {:foo 1, :baz 3}
+          true))
+
+  (t/is (r.match/match '({:foo 1, :bar 2, :baz 3}
+                         {:foo 1, :bar 2, :baz 3}
+                         {:foo 1, :bar 2, :baz 3})
+          ({:foo 1, :bar 2}
+           {:bar 2, :baz 3}
+           {:foo 1, :baz 3})
+          true))
+
+  (t/is (r.match/match [{:foo 1, :bar 2, :baz 3}
+                        {:foo 1, :bar 2, :baz 3}
+                        {:foo 1, :bar 2, :baz 3}]
+          [{:foo 1, :bar 2}
+           {:bar 2, :baz 3}
+           {:foo 1, :baz 3}]
+          true)))
+
+(t/deftest ground-set-pattern-expresses-subset-match
+  (t/is (r.match/match #{1 2 3}
+          #{1}
+          true))
+
+  (t/is (r.match/match #{1 2 3}
+          #{2}
+          true))
+
+  (t/is (r.match/match #{1 2 3}
+          #{3}
+          true))
+
+  (t/is (r.match/match #{1 2 3}
+          #{1 2}
+          true))
+
+  (t/is (r.match/match #{1 2 3}
+          #{2 3}
+          true))
+
+  (t/is (r.match/match #{1 2 3}
+          #{1 3}
+          true))
+
+  (t/is (r.match/match '(#{1 2 3}
+                         #{1 2 3}
+                         #{1 2 3})
+          (#{1 2}
+           #{2 3}
+           #{1 3})
+          true))
+
+  (t/is (r.match/match [#{1 2 3}
+                        #{1 2 3}
+                        #{1 2 3}]
+          [#{1 2}
+           #{2 3}
+           #{1 3}]
+          true)))
