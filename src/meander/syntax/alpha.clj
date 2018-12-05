@@ -813,16 +813,17 @@
 ;; :app
 
 (defmethod children :app
-  [[_ {pat :pat}]]
-  [pat])
+  [[_ {terms :terms}]]
+  (vec terms))
+
 
 (defmethod ground? :app
   [_] false)
 
 
 (defmethod unparse :app
-  [[_ {form :form pat :pat}]]
-  `(~'app ~form ~(unparse pat)))
+  [[_ {form :form terms :terms}]]
+  `(~'app ~form ~@(map unparse terms)))
 
 
 (defmethod search? :app
@@ -1082,18 +1083,23 @@
 
 ;; :prd
 
+(defmethod children :prd
+  [[_ {terms :terms}]]
+  (vec terms))
+
+
 (defmethod ground? :prd
   [_] false)
 
 
 (defmethod unparse :prd
-  [[_ {form :form}]]
-  `(~'pred ~form))
+  [[_ {form :form, terms :terms}]]
+  `(~'pred ~form ~@terms))
 
 
 (defmethod search? :prd
-  [_] false)
-
+  [[_ {terms :terms}]]
+  (boolean (some search? terms)))
 
 ;; :prt
 
