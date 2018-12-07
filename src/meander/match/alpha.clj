@@ -103,11 +103,18 @@
            :meander.match.alpha/tree))
 
 
+(s/def :meander.match.alpha.tree/find-node
+  (s/tuple #{:find}
+           (s/tuple simple-symbol? any?)
+           :meander.match.alpha/tree))
+
+
 (s/def :meander.match.alpha/tree
   (s/or :action :meander.match.alpha.tree/action-node
         :bind :meander.match.alpha.tree/bind-node
         :branch :meander.match.alpha.tree/branch-node
         :fail :meander.match.alpha.tree/fail-node
+        :find :meander.match.alpha.tree/find-node
         :pass :meander.match.alpha.tree/pass-node
         :load :meander.match.alpha.tree/load-node
         :loop :meander.match.alpha.tree/loop-node
@@ -116,8 +123,7 @@
         :search :meander.match.alpha.tree/search-node
         :test :meander.match.alpha.tree/test-node))
 
-
-(defn equality-check-possible?
+(defn literal?
   "true if node is ground and does not contain :map or :set subnodes,
   false otherwise.
 
@@ -248,7 +254,7 @@
          [:pass (compile targets* [row])]
 
          :cat
-         (if (equality-check-possible? node)
+         (if (literal? node)
            [:test `(= ~target ~(vec (compile-ground node)))
             (compile targets* [row])]
            (let [[_ nodes] node
@@ -777,7 +783,8 @@
          [:pass (compile targets* [row])]
 
          :set
-         (if (r.syntax/search? node)
+         (cond
+           (r.syntax/search? node)
            (let [[_ the-set] node
                  n (count the-set)
                  ;; Symbol for the size of target.
@@ -790,6 +797,22 @@
                 [:search [perm-sym `(r.util/k-combinations ~target ~n)]
                  (compile `[~perm-sym ~@targets*]
                           [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]])
+
+           (some (comp #{:map :set} r.syntax/tag) (r.syntax/subnodes node))
+           (let [[_ the-set] node
+                 n (count the-set)
+                 ;; Symbol for the size of target.
+                 m-sym (gensym "m__")
+                 ;; Symbol for each permutation of target.
+                 perm-sym (gensym "perm__")]
+             [:test `(set? ~target)
+              [:bind [m-sym `(count ~target)]
+               [:test `(<= ~n ~m-sym)
+                [:find [perm-sym `(r.util/k-combinations ~target ~n)]
+                 (compile `[~perm-sym ~@targets*]
+                          [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]])
+
+           :else
            [:test `(set/subset? ~(compile-ground node) ~target)
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
@@ -840,7 +863,7 @@
 
        :vec
        (let [[_ prt] node]
-         (if (equality-check-possible? node)
+         (if (literal? node)
            [:test `(= ~target ~(compile-ground node))
             (compile targets [row])]
            [:test `(vector? ~target)
@@ -1012,6 +1035,23 @@
           (fn [~sym]
             ~(emit* body nil true))
           ~seq-expr))
+
+      :find
+      (let [[_ [sym seq-expr] body] node
+            result-sym (gensym "result__")
+            test-fail-sym (gensym "fail__")]
+        `(let [~test-fail-sym `(Object.)
+               ~result-sym (reduce
+                            (fn [~test-fail-sym ~sym]
+                              (let [~result-sym ~(emit* body test-fail-sym false)]
+                                (if (identical? ~result-sym ~test-fail-sym)
+                                  ~test-fail-sym
+                                  (reduced ~result-sym))))
+                            ~test-fail-sym
+                            ~seq-expr)]
+           (if (identical? ~result-sym ~test-fail-sym)
+             ~fail
+             ~result-sym)))
 
       :recur
       (let [[_ ident syms] node]
@@ -1584,3 +1624,5 @@
   :args (s/cat :expr any?
                :clauses :meander.match.alpha.match/clauses)
   :ret any?)
+
+

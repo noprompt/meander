@@ -772,4 +772,16 @@
           [#{1 2}
            #{2 3}
            #{1 3}]
+          true))
+
+  (t/is (r.match/match #{[{:foo "bar", :baz "foo"}]
+                         [{:foo "baz", :baz "quux"}]}
+          #{[{:foo "bar"}]
+            [{:baz "quux"}]}
+          true))
+
+  (t/is (r.match/match #{[{:foo "bar", :baz "foo"}]
+                         [{:foo "baz", :baz "quux"}]}
+          #{[{:foo "baz"}]
+            [{:baz "foo"}]}
           true)))
