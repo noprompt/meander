@@ -1644,7 +1644,7 @@
 (s/fdef search
   :args (s/cat :expr any?
                :clauses :meander.match.alpha.match/clauses)
-  :ret any?)
+  :ret (s/coll-of any? :kind sequential?))
 
 
 (defn analyze-find-args
