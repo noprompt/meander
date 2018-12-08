@@ -1,6 +1,7 @@
 (ns meander.match.alpha
-  (:refer-clojure :exclude [compile])
-  (:require [clojure.set :as set]
+  (:refer-clojure :exclude [compile find])
+  (:require [clojure.core :as clojure]
+            [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [meander.matrix.alpha :as r.matrix]
@@ -441,7 +442,7 @@
                                              1))
                                          (map
                                           (fn [key]
-                                            (if-some [entry (find data key)]
+                                            (if-some [entry (clojure/find data key)]
                                               [:mkv entry]
                                               '[:any _]))
                                           key-sort))]
@@ -935,7 +936,7 @@
 
 (defn emit*
   "Rewrite the decision tree as Clojure code without optimizations."
-  [tree fail search?]
+  [tree fail kind]
   (let [[tag :as node] tree]
     (case tag
       :action
@@ -953,10 +954,11 @@
               (let [[_ bindings* body*] body]
                 (recur (into bindings bindings*) body*))
               `(let ~bindings
-                 ~(emit* body fail search?))))))
+                 ~(emit* body fail kind))))))
 
       :branch
-      (if search?
+      (case kind
+        :search
         (let [[_ arms] node
               arms (remove #{[:fail]} arms)]
           (case (count arms)
@@ -964,26 +966,31 @@
             fail
 
             1
-            (emit* (first arms) fail search?)
+            (emit* (first arms) fail kind)
 
             ;;else
             `(concat
               ~@(map
                  (fn [arm]
-                   (emit* arm fail search?))
+                   (emit* arm fail kind))
                  arms))))
-        (let [[_ arms] node]
+
+        (:find :match)
+        (let [[_ arms] node
+              arms (if (= kind :find)
+                     (remove #{[:fail]} arms)
+                     arms)]
           (case (count arms)
             0
             fail
 
             1
-            (emit* (first arms) fail search?)
+            (emit* (first arms) fail kind)
 
             2
             (emit* (first arms)
-                   (emit* (second arms) fail search?)
-                   search?)
+                   (emit* (second arms) fail kind)
+                   kind)
 
             ;; else
             (let [fsyms (mapv
@@ -993,7 +1000,7 @@
               `(letfn [~@(map
                            (fn [fsym fail arm]
                              `(~fsym []
-                               ~(emit* arm fail search?)))
+                               ~(emit* arm fail kind)))
                            fsyms
                            (conj (mapv
                                   (fn [fsym]
@@ -1009,7 +1016,9 @@
       :loop
       (let [[_ ident syms body] node]
         `(letfn [(~ident ~syms
-                  ~(emit* body fail false))]
+                  ~(emit* body fail (if (= kind :search)
+                                      :match
+                                      kind)))]
            (~ident ~@syms)))
 
       :load
@@ -1018,31 +1027,36 @@
 
       :pass
       (let [[_ body] node]
-        (emit* body fail search?))
+        (emit* body fail kind))
 
       :save
       (let [[_ ident body1 body2] node
             f-sym (gensym "f__")]
         `(letfn [(~ident [] ~fail)
-                 (~f-sym [] ~(emit* body2 fail search?))]
-           ~(emit* body1 `(~f-sym) search?)))
+                 (~f-sym [] ~(emit* body2 fail kind))]
+           ~(emit* body1 `(~f-sym) kind)))
 
       :search
       (let [[_ [sym seq-expr] body] node]
-        ;; Assumes action node evaluates to a singleton list.
-        `(mapcat
-          (fn [~sym]
-            ~(emit* body nil true))
-          ~seq-expr))
+        (case kind
+          :find
+          (recur [:find [sym seq-expr] body] fail kind)
+
+          ;; Assumes action node evaluates to a singleton list.
+          :search
+          `(mapcat
+            (fn [~sym]
+              ~(emit* body nil kind))
+            ~seq-expr)))
 
       :find
       (let [[_ [sym seq-expr] body] node
             result-sym (gensym "result__")
             test-fail-sym (gensym "fail__")]
-        `(let [~test-fail-sym `(Object.)
+        `(let [~test-fail-sym (Object.)
                ~result-sym (reduce
                             (fn [~test-fail-sym ~sym]
-                              (let [~result-sym ~(emit* body test-fail-sym false)]
+                              (let [~result-sym ~(emit* body test-fail-sym kind)]
                                 (if (identical? ~result-sym ~test-fail-sym)
                                   ~test-fail-sym
                                   (reduced ~result-sym))))
@@ -1059,8 +1073,13 @@
       :test
       (let [[_ test body] node]
         `(if ~test
-           ~(emit* body fail search?)
+           ~(emit* body fail kind)
            ~fail)))))
+
+(s/fdef emit*
+  :args (s/cat :tree :meander.match.alpha/tree
+               :fail any?
+               :kind #{:find :match :search}))
 
 
 (defn rewrite-bind-unused
@@ -1229,10 +1248,14 @@
 
 (defn emit
   "Rewrite the decision tree as Clojure code with optimizations."
-  [tree fail search?]
+  [tree fail kind]
   (let [tree* (rewrite-tree tree)]
-    (emit* tree* fail search?)))
+    (emit* tree* fail kind)))
 
+(s/fdef emit
+  :args (s/cat :tree :meander.match.alpha/tree
+               :fail any?
+               :kind #{:find :match :search}))
 
 ;; ---------------------------------------------------------------------
 ;; match pattern checking
@@ -1542,14 +1565,14 @@
             fail (gensym "fail__")]
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
-            (emit (compile [expr] [final-clause]) nil false)
+            (emit (compile [expr] [final-clause]) nil :match)
             `(throw (Exception. "non exhaustive pattern match")))
           `(let [~target ~expr
                  ~fail (fn []
                          ~(if (some? final-clause)
-                            (emit (compile [target] [final-clause]) nil false)
+                            (emit (compile [target] [final-clause]) nil :match)
                             `(throw (Exception. "non exhaustive pattern match"))))]
-             ~(emit (compile [target] matrix) `(~fail) false)))))))
+             ~(emit (compile [target] matrix) `(~fail) :match)))))))
 
 
 (defn analyze-search-args
@@ -1617,7 +1640,7 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(emit (compile [target] matrix) nil true)))))))
+             ~(emit (compile [target] matrix) nil :search)))))))
 
 (s/fdef search
   :args (s/cat :expr any?
@@ -1625,3 +1648,62 @@
   :ret any?)
 
 
+(defn analyze-find-args
+  "Analyzes arguments as would be supplied to the find macro e.g.
+
+    (expr clause action ,,,)
+
+  Returns a map containing the following keys:
+
+  :errors A sequence of semantic errors. These are instances of
+    clojure.lang.Exception and are derived by applying check to the
+    pattern of each clause.
+  :expr The expression which is the target of pattern matching, the
+    first argument to the match macro.
+  :matrix The pattern matrix derived from the (clause action ,,,)
+    forms. Each action expression is wrapped in a list."
+  [match-args]
+  (let [data (s/conform :meander.match.alpha.match/args match-args)]
+    (if (identical? data ::s/invalid)
+      (throw (ex-info "Invalid match args"
+                      (s/explain-data :meander.match.alpha.match/args match-args)))
+      (let [clauses (mapv
+                     (fn [clause]
+                       (update clause :pat r.syntax/expand-usr-ops))
+                     (:clauses data))
+            matrix (mapv
+                    (fn [{:keys [pat rhs]}]
+                      {:cols [pat]
+                       :env #{}
+                       :rhs [:action rhs]})
+                    clauses)
+            errors (into [] (keep
+                             (fn [{pat :pat}]
+                               (check pat true)))
+                         clauses)]
+        {:errors errors
+         :expr (:expr data)
+         :matrix matrix}))))
+
+
+(defmacro find
+  {:arglists '([x & clauses])
+   :style/indent [1]}
+  [& match-args]
+  (let [match-data (analyze-find-args match-args)
+        expr (:expr match-data)
+        matrix (:matrix match-data)
+        errors (:errors match-data)]
+    (if-some [error (first errors)]
+      (throw error)
+      (let [target (gensym "target__")]
+        (if (r.matrix/empty? matrix)
+          nil
+          `(let [~target ~expr]
+             ~(emit (compile [target] matrix) nil :find)))))))
+
+
+(s/fdef find
+  :args (s/cat :expr any?
+               :clauses :meander.match.alpha.match/clauses)
+  :ret any?)
