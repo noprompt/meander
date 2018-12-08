@@ -1688,6 +1688,7 @@
 
 
 (defmacro find
+  "Like search but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
