@@ -785,3 +785,13 @@
           #{[{:foo "baz"}]
             [{:baz "foo"}]}
           true)))
+
+
+(tc.t/defspec find-results-are-elements-of-search-results
+  (tc.prop/for-all [v (tc.gen/vector tc.gen/nat 3 5)]
+    (contains? (set (r.match/search v
+                      [!xs ..1 !ys ...]
+                      {'!xs !xs, '!ys !ys}))
+               (r.match/find v
+                 [!xs ..1 !ys ...]
+                 {'!xs !xs, '!ys !ys}))))
