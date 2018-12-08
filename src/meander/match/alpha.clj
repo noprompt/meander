@@ -626,8 +626,7 @@
      (fn [[tag :as node] row]
        (case tag
          :any
-         [:pass
-          (compile targets* [row])]
+         [:pass (compile targets* [row])]
 
          :quo
          [:test `(= ~target ~(r.syntax/unparse node))
