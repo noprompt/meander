@@ -84,7 +84,7 @@
 
 
 (s/def :meander.match.alpha.tree/pass-node
-  (s/tuple #{:pass} any?))
+  (s/tuple #{:pass} :meander.match.alpha/tree))
 
 
 (s/def :meander.match.alpha.tree/recur-node
