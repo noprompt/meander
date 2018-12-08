@@ -702,10 +702,9 @@
          [:pass (compile targets* [row])]
 
          :rp+
-         (let [[_ {dots :dots items :items}] node
+         (let [[_ {items :items, times :n}] node
                n (count items)
                ;; The minimum number of times the loop must execute.
-               m (Integer/parseInt (aget (.split (name dots) "\\.+" 2) 1))
                ;; Symbol which tracks the number of successful iterations.
                iter (gensym "iter__")
                ;; Symbol which is bound to the first n elements of
@@ -738,7 +737,7 @@
                                               :rhs [:bind [target (drop-form n target)]
                                                     [:bind [iter `(inc ~iter)]
                                                      [:recur loop-id loop-targets]]])])
-                             [:test `(<= ~m ~iter)
+                             [:test `(<= ~times ~iter)
                               [:test `(not (seq ~target))
                                (compile targets* [row*])]]]]]]]
            [:bind [init (take-form n target)]
