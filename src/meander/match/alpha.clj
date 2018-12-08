@@ -1625,7 +1625,9 @@
   ({!xs [], !ys [1 2 3]}
    {!xs [1], !ys [2 3]}
    {!xs [1 2], !ys [3]}
-   {!xs [1 2 3], !ys []})"
+   {!xs [1 2 3], !ys []})
+
+  Note: If only the first value is needed, use find instead."
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
