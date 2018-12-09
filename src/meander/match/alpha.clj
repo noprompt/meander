@@ -1015,9 +1015,7 @@
       :loop
       (let [[_ ident syms body] node]
         `(letfn [(~ident ~syms
-                  ~(emit* body fail (if (= kind :search)
-                                      :match
-                                      kind)))]
+                  ~(emit* body fail kind))]
            (~ident ~@syms)))
 
       :load
