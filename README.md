@@ -55,7 +55,7 @@ The `match` operator provides traditional pattern matching. It takes an expressi
 
 1. `x` is the expression.
 2. `pattern` is the pattern to match against the expression. Patterns have special [syntax](#pattern-syntax) that is important to understand.
-3. `action` is the action. If the pattern matches successfully this expression will be evaluated. Certain patterns can bind variables and, if a match is successful, will be available to the `action` expression.
+3. `action` is the action expression to be evaluated if `pattern` matches successfully. Certain patterns can bind variables and, if a match is successful, will be available to the `action` expression.
 
 Like `clojure.core/case`, if no patterns match an exception will be
 thrown.
