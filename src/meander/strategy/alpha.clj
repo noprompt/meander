@@ -323,13 +323,13 @@
 (defn spine-td
   [s]
   (fn rec [t]
-    ((pipe s (attempt (one rec))))))
+    ((pipe s (attempt (one rec))) t)))
 
 
 (defn spine-bu
   [s]
   (fn rec [t]
-    ((pipe (attempt (one rec)) s))))
+    ((pipe (attempt (one rec)) s) t)))
 
 
 (defn breadth-first [s]
