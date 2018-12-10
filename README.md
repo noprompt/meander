@@ -14,6 +14,7 @@ Meander is a Clojure data transformation library which combines higher order fun
 * [Operators](#operators)
   * [`match`](#match)
   * [`search`](#search-star)
+  * [`find`](#find)
 * [Pattern Syntax](#pattern-syntax)
   * [Literals](#literals)
   * [Variables](#variables)
@@ -50,6 +51,29 @@ The `match` operator provides traditional pattern matching.
 
 The `search` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts. Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `search` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made. In essence, `search` allows you to _query_ arbitrary data.
 
+```clj
+;; Find all pairs of an odd number followed by an even number in the
+;; collection.
+(search [1 1 2 2 3 4 5]
+  [_ ... (pred odd? ?a) (pred even? ?b) . _ ...]
+  [?a ?b])
+;; =>
+([1 2] [3 4])
+```
+
+#### `find`
+
+The `find` operator is similar to `search`, however, returns only the first search result. If it cannot be found, `find` returns `nil`.
+
+```clj
+;; Find the first pair of an odd number followed by an even number in
+;; the collection.
+(search [1 1 2 2 3 4 5]
+  [_ ... (pred odd? ?a) (pred even? ?b) . _ ...]
+  [?a ?b])
+;; =>
+[1 2]
+```
 
 ### Pattern Syntax
 
