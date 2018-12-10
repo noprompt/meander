@@ -23,7 +23,7 @@
     :dynamic true}
   *pass*
   "Strategy which returns t."
-  (reify 
+  (reify
     clojure.lang.IFn
     (invoke [_ t]
       t)
@@ -445,7 +445,7 @@
     (spread zipmap 2))
    {\"foo\" \"bar\"
     \"baz\" \"quux\"})
-  ;; => 
+  ;; =>
   {:foo \"bar\"
    :baz \"quux\"}"
   ([f]
@@ -553,7 +553,7 @@
         this*
         *fail*)))
 
-  
+
   r.protocols/IOne
   (-one [this s]
     (reduce-kv
@@ -594,7 +594,7 @@
         this*
         *fail*)))
 
-  
+
   r.protocols/IOne
   (-one [this s]
     (reduce
@@ -650,7 +650,7 @@
         this*
         *fail*)))
 
-  
+
   r.protocols/IOne
   (-one [this s]
     (reduce-kv
@@ -681,7 +681,7 @@
 
   r.protocols/ISome
   (-some [this s]
-    (let [[this* pass?] 
+    (let [[this* pass?]
           (reduce
            (fn [[this* pass?] x]
              (let [x* (s x)]
@@ -694,7 +694,7 @@
         this*
         *fail*)))
 
-  
+
   r.protocols/IOne
   (-one [this s]
     (reduce
@@ -753,7 +753,7 @@
             rhs-node (r.syntax/parse rhs)
             lhs-vars (r.syntax/variables lhs-node)
             rhs-vars (r.syntax/variables rhs-node)]
-        {:lhs lhs-node 
+        {:lhs lhs-node
          :rhs rhs-node})))
    (partition 2 (rest args))))
 
@@ -763,7 +763,7 @@
   pattern matching and substitution.
 
   Example:
-  
+
   (let [s (rewrite
            (let* [!bs !vs ..1]
              . !body ...)
