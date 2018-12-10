@@ -214,15 +214,24 @@
   "Build a strategy which repeatedly applies `s` to `t` so long as `pred`
   is false for `t` and `t*`.
 
-  ((while not=
-     (t (let [~@bvs ~b ~v] ~@body)
-       (let [~@bvs] ((fn [~b] ~@body) ~v))))
-   '(let [a 1
-          b 2
-          c 3]
-      (+ a b c)))
-  =>
-  (let [] ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1))"
+    ((while not=
+       (rewrite
+        ('let [!bs !vs ... ?b ?v]
+         . !body ...)
+        ('let [!bs !vs ...]
+         (('fn [?b]
+           . !body ...)
+          ?v))
+
+        ('let [] ?x)
+        ?x))
+     '(let [a 1
+            b 2
+            c 3]
+        (+ a b c)))
+    ;; =>
+    ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1)
+  "
   {:style/indent :defn}
   [pred s]
   (fn rec [t]
@@ -233,20 +242,27 @@
                t*)))
      t)))
 
-
 (defn until
   "Build a strategy which repeatedly applies `s` to `t` so long as `pred`
   is false for `t` and `t*`.
 
-  ((until =
-     (t (let [~@bvs ~b ~v] ~@body)
-       (let [~@bvs] ((fn [~b] ~@body) ~v))))
-   '(let [a 1
-          b 2
-          c 3]
-      (+ a b c)))
-  =>
-  (let [] ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1))"
+    ((until =
+       (rewrite
+        ('let [!bs !vs ... ?b ?v]
+         . !body ...)
+        ('let [!bs !vs ...]
+         (('fn [?b]
+           . !body ...)
+          ?v))
+
+        ('let [] ?x)
+        ?x))
+     '(let [a 1
+            b 2
+            c 3]
+        (+ a b c)))
+    ;; =>
+    ((fn [a] ((fn [b] ((fn [c] (+ a b c)) 3)) 2)) 1)"
   {:style/indent :defn}
   [pred s]
   (fn [t]
