@@ -475,6 +475,13 @@
       _
       false)))
 
+
+(t/deftest vec-compile-inside-seq
+  (t/is (= 1 (r.match/match '(let [] 1)
+               ('let [] ?x)
+               ?x))))
+
+
 ;; Maps
 
 

@@ -859,7 +859,7 @@
 
 
 (defmethod compile-specialized-matrix :vec
-  [_ [target :as targets] matrix]
+  [_ [target & targets* :as targets] matrix]
   (mapv
    (fn [[tag :as node] row]
      (case tag
@@ -870,7 +870,7 @@
        (let [[_ prt] node]
          (if (literal? node)
            [:test `(= ~target ~(compile-ground node))
-            (compile targets [row])]
+            (compile targets* [row])]
            [:test `(vector? ~target)
             (binding [*collection-context* :vector]
               (compile targets [(assoc row :cols `[~prt ~@(:cols row)])]))]))))
