@@ -118,19 +118,36 @@
    (apply pipe (pipe-body [p q r s]) more)))
 
 
+(defmacro choice-body
+  {:private true}
+  [params]
+  (let [t (gensym "t__")
+        t* (gensym "t__")]
+    `(fn [~t]
+       ~(reduce
+         (fn [inner-form p]
+           `(let [~t* (~p ~t)]
+              (if (fail? ~t*)
+                ~inner-form
+                ~t*)))
+         `*fail*
+         (reverse params)))))
+
+
 (defn choice
   "Build a strategy which applies `p` or `q` to `t`. If `p` rewrites,
   return the result, otherwise apply `q`."
+  {:arglists '([] [p] [p q] [p q & more])}
   ([] *fail*)
   ([p] p)
   ([p q]
-   (fn [t]
-     (let [t* (p t)]
-       (if (fail? t*)
-         (q t)
-         t*))))
-  ([p q & more]
-   (apply choice (choice p q) more)))
+   (choice-body [p q]))
+  ([p q r]
+   (choice-body [p q r]))
+  ([p q r s]
+   (choice-body [p q r s]))
+  ([p q r s & more]
+   (apply choice (choice-body [p q r s]) more)))
 
 
 (defn branch
