@@ -680,7 +680,7 @@
 
 
 (defmacro match
-  "Strategy version of match which defaults to *fail*."
+  "Strategy version of match which defaults to returning *fail*."
   {:style/indent 0}
   [& clauses]
   `(fn [x#]
