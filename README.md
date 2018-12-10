@@ -68,7 +68,7 @@ The `find` operator is similar to `search`, however, returns only the first sear
 ```clj
 ;; Find the first pair of an odd number followed by an even number in
 ;; the collection.
-(search [1 1 2 2 3 4 5]
+(find [1 1 2 2 3 4 5]
   [_ ... (pred odd? ?a) (pred even? ?b) . _ ...]
   [?a ?b])
 ;; =>
