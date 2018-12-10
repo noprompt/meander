@@ -44,12 +44,42 @@ The primary operators for pattern matching and searching are available in `meand
 
 #### `match`
 
-The `match` operator provides traditional pattern matching.
+The `match` operator provides traditional pattern matching. It takes an expression to "match" followed by a series of pattern/action clauses.
 
+```clj
+(match x  ;; 1
+  pattern ;; 2
+  action  ;; 3
+  ,,,)
+```
+
+1. `x` is the expression.
+2. `pattern` is the pattern to match against the expression. Patterns have special [syntax](#pattern-syntax).
+3. `action` is the action. If the pattern matches successfully this expression will be evaluated. Certain patterns can bind variables and, if a match is successful, will be available to the `action` expression.
+
+Like `clojure.core/case`, if no patterns match an exception will be
+thrown.
+
+Example:
+
+```clj
+(match [1 2 1]
+  ;; Pair of equivalent objects.
+  [?a ?a]
+  ?a
+  
+  ;; Triple where the first and last element are equal.
+  [?a ?b ?a]
+  ?a)
+;; =>
+1
+```
 
 #### `search`
 
 The `search` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts. Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `search` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made. In essence, `search` allows you to _query_ arbitrary data.
+
+Example:
 
 ```clj
 ;; Find all pairs of an odd number followed by an even number in the
@@ -64,6 +94,8 @@ The `search` operator is an extended version `match` which returns a sequence of
 #### `find`
 
 The `find` operator is similar to `search`, however, returns only the first search result. If it cannot be found, `find` returns `nil`.
+
+Example:
 
 ```clj
 ;; Find the first pair of an odd number followed by an even number in
