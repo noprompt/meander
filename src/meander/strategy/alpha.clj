@@ -8,7 +8,7 @@
 
   t ∈ Term
   p, q, r, s ∈ Strategy"
-  (:refer-clojure :exclude [while repeat some])
+  (:refer-clojure :exclude [find while repeat some])
   (:require [clojure.core :as clj]
             [clojure.spec.alpha :as s]
             [clojure.set :as set]
@@ -749,3 +749,16 @@
 (s/fdef rewrite
   :args :meander.match.alpha.match/clauses
   :ret any?)
+
+
+(defmacro find
+  "Strategy version of meander.match.alpha/find that defaults to
+  returning *fail*."
+  {:style/indent 0}
+  [& clauses]
+  `(fn [x#]
+     (r.match/find x#
+       ~@clauses
+
+       ~'_
+       *fail*)))
