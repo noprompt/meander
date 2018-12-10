@@ -484,8 +484,14 @@
          :mvr
          (let [[_ sym] node]
            (if (r.matrix/get-var row node)
-             [:bind [sym `(conj ~sym ~target)]
-              (compile targets* [row])]
+             (let [save-id (gensym "save__")]
+               ;; :save/:load is necessary here since it is possible
+               ;; for the state of a memory variable to persist
+               ;; even after a match failure.
+               [:save save-id
+                [:bind [sym `(conj ~sym ~target)]
+                 (compile targets* [row])]
+                [:load save-id]])
              [:bind [sym [target]]
               (compile targets* [(r.matrix/add-var row node)])]))))
      (r.matrix/first-column matrix)
@@ -994,7 +1000,7 @@
             ;; else
             (let [fsyms (mapv
                          (fn [_]
-                           (gensym "f__"))
+                           (gensym "backtrack__"))
                          arms)]
               `(letfn [~@(map
                            (fn [fsym fail arm]
@@ -1036,7 +1042,7 @@
       :search
       (let [[_ [sym seq-expr] body] node]
         (case kind
-          :find
+          (:find :match)
           (recur [:find [sym seq-expr] body] fail kind)
 
           ;; Assumes action node evaluates to a singleton list.

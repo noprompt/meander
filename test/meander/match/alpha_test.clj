@@ -795,3 +795,46 @@
                (r.match/find v
                  [!xs ..1 !ys ...]
                  {'!xs !xs, '!ys !ys}))))
+
+(t/deftest find-mvrs-are-collected-properly
+  (let [data [{:name "George"
+               :species "Parakeet"
+               :age 3
+               :owners ["Frege" "Peirce"]}
+              {:name "Francis"
+               :species "Dog"
+               :age 8
+               :owners ["De Morgan"]}
+              {:name "Bob"
+               :species "Goldfish"
+               :age 1
+               :owners ["Peirce"]}]
+
+        expected-search-results
+        #{["Peirce" ["George" "Bob"]]
+          ["Peirce" ["Bob"]]
+          ["Peirce" ["George"]]
+          ["Frege" ["George"]]
+          ["De Morgan" ["Francis"]]}]
+    (t/is (= expected-search-results)
+          (set (r.match/search data
+                 [_ ...
+                  {:name !names
+                   :owners [_ ... ?owner . _ ...]}
+                  .
+                  (or (and {:name !names
+                            :owners [_ ... ?owner . _ ...]})
+                      _)
+                  ...]
+                 [?owner !names])))
+    (t/is (contains? expected-search-results
+                     (r.match/find data
+                       [_ ...
+                        {:name !names
+                         :owners [_ ... ?owner . _ ...]}
+                        .
+                        (or (and {:name !names
+                                  :owners [_ ... ?owner . _ ...]})
+                            _)
+                        ...]
+                       [?owner !names])))))
