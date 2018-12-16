@@ -724,6 +724,20 @@
        *fail*)))
 
 
+(s/fdef search
+  :args :meander.match.alpha.match/clauses
+  :ret any?)
+
+
+(defmacro search
+  "Strategy version of search."
+  {:style/indent 0}
+  [& clauses]
+  `(fn [x#]
+     (r.match/search x#
+       ~@clauses)))
+
+
 (defn extract
   "Return a sequence of all successful rewrites of s applied to all
   subterms of t."
