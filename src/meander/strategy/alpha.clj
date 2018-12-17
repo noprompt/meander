@@ -805,7 +805,4 @@
   [& clauses]
   `(fn [x#]
      (r.match/find x#
-       ~@clauses
-
-       ~'_
-       *fail*)))
+       ~@clauses)))
