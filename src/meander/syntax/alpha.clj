@@ -1094,7 +1094,7 @@
 
 (defmethod unparse :prd
   [[_ {form :form, terms :terms}]]
-  `(~'pred ~form ~@terms))
+  `(~'pred ~form ~@(map unparse terms)))
 
 
 (defmethod search? :prd
@@ -1375,16 +1375,14 @@
 
 (defmethod expand-usr-op 'scan
   [[_ {pats :pats}]]
-  [:cnj {:terms [[:prd {:form `sequential?}]
-                 [:app {:form `seq
-                        :pat [:seq
-                              [:prt
-                               {:left '[:drp {:any _, :dots ...}]
-                                :right
-                                [:prt
-                                 {:left [:cat pats],
-                                  :dot '.
-                                  :right '[:drp {:any _, :dots ...}]}]}]]}]]}])
+  [:prd {:form `sequential?
+         :terms [[:app {:form `seq
+                        :terms [[:seq
+                                 [:prt {:left '[:drp {:any _, :dots ...}],
+                                        :right
+                                        [:prt {:left [:cat pats],
+                                               :dot '.,
+                                               :right '[:drp {:any _, :dots ...}]}]}]]]}]]}])
 
 
 (defmethod pattern-op 'vscan
