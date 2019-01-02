@@ -823,17 +823,17 @@
           ["Peirce" ["George"]]
           ["Frege" ["George"]]
           ["De Morgan" ["Francis"]]}]
-    (t/is (= expected-search-results)
-          (set (r.match/search data
-                 [_ ...
-                  {:name !names
-                   :owners [_ ... ?owner . _ ...]}
-                  .
-                  (or (and {:name !names
-                            :owners [_ ... ?owner . _ ...]})
-                      _)
-                  ...]
-                 [?owner !names])))
+    (t/is (= expected-search-results
+             (set (r.match/search data
+                                  [_ ...
+                                   {:name !names
+                                    :owners [_ ... ?owner . _ ...]}
+                                   .
+                                   (or (and {:name !names
+                                             :owners [_ ... ?owner . _ ...]})
+                                       _)
+                                   ...]
+                                  [?owner !names]))))
     (t/is (contains? expected-search-results
                      (r.match/find data
                        [_ ...

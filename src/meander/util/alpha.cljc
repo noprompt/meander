@@ -1,6 +1,10 @@
-(ns meander.util.alpha
-  (:require [clojure.pprint :as pprint]
-            [clojure.walk :as walk]))
+(ns meander.util.alpha)
+
+
+(defn parse-int [s]
+  #?(:clj (Integer/parseInt s)
+     :cljs (js/parseInt s)))
+
 
 (defn swap
   "Swap the elements at positions `i` and `j` in `v`."
@@ -218,4 +222,4 @@ Examples:
     (str-partitions n coll)
 
     :else
-    (throw (IllegalArgumentException. "coll must be a string? or coll?"))))
+    (throw (ex-info "coll must be a string? or coll?" {:type (type coll)}))))

@@ -9,6 +9,7 @@
   t ∈ Term
   p, q, r, s ∈ Strategy"
   (:refer-clojure :exclude [find while repeat some])
+  #?(:cljs (:require-macros [meander.strategy.alpha]))
   (:require [clojure.core :as clj]
             [clojure.spec.alpha :as s]
             [clojure.set :as set]

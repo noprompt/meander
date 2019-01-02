@@ -199,13 +199,13 @@
 
 
 (defn prepend-column
-  "Drop the first column in row."
+  "Prepends column to matrix."
   [matrix column]
   (into [] (map
-            (fn [row col]
-              (assoc row :cols (cons col (:cols row)))))
-        matrix
-        column))
+             (fn [row col]
+               (assoc row :cols (cons col (:cols row))))
+             matrix
+             column)))
 
 
 (s/fdef specialize-by
