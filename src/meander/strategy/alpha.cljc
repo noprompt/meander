@@ -8,7 +8,7 @@
 
   t ∈ Term
   p, q, r, s ∈ Strategy"
-  (:refer-clojure :exclude [find while repeat some])
+  (:refer-clojure :exclude [find while repeat some spread])
   #?(:cljs (:require-macros [meander.strategy.alpha]))
   (:require [clojure.core :as clj]
             [clojure.spec.alpha :as s]
@@ -25,16 +25,23 @@
   *pass*
   "Strategy which returns t."
   (reify
-    clojure.lang.IFn
-    (invoke [_ t]
-      t)
+    #?@(:clj [clojure.lang.IFn
+              (invoke [_ t] t)
+              (applyTo [_ args] (first args))]
+        :cljs [cljs.core/IFn
+               (-invoke [_ t] t)
+               ;; TODO: why no applyTo?
+               #_(-applyTo [_ args] (first args))])))
 
-    (applyTo [_ args]
-      (first args))))
-
-
-(defmethod print-method (class *pass*) [v ^java.io.Writer w]
-  (.write w "#meander.alpha/pass[]"))
+#?(:clj
+   (defmethod print-method (class *pass*) [v ^java.io.Writer w]
+     (.write w "#meander.alpha/pass[]"))
+   ;; TODO:
+   #_#_:cljs
+   (extend-protocol IPrintWithWriter
+     *pass*
+     (-pr-writer [new-obj writer _]
+       (write-all writer "#meander.alpha/pass[]"))))
 
 
 (defn pass?
@@ -55,16 +62,23 @@
   *fail*
   "Strategy which always fails."
   (reify
-    clojure.lang.IFn
-    (invoke [this _]
-      this)
+    #?@(:clj [clojure.lang.IFn
+              (invoke [this _] this)
+              (applyTo [this _] this)]
+        :cljs [cljs.core/IFn
+               (-invoke [this _] this)
+               ;; TODO: why no applyTo?
+               #_(-applyTo [this _] this)])))
 
-    (applyTo [this _]
-      this)))
-
-
-(defmethod print-method (class *fail*) [v ^java.io.Writer w]
-  (.write w "#meander.alpha/fail[]"))
+#?(:clj
+   (defmethod print-method (class *fail*) [v ^java.io.Writer w]
+     (.write w "#meander.alpha/fail[]"))
+   ;; TODO:
+   #_#_:cljs
+   (extend-protocol IPrintWithWriter
+     *fail*
+     (-pr-writer [new-obj writer _]
+       (write-all writer "#meander.alpha/fail[]"))))
 
 
 (defn fail?
@@ -436,7 +450,7 @@
 
 
 (defn spread
-  "Build a strategey which applies the first `n` values of `t` to `f`
+  "Build a strategy which applies the first `n` values of `t` to `f`
   iff `t` is a coll. Behaves like apply if `n` is not supplied. Useful
   in conjunction with `juxt`.
 
@@ -526,7 +540,8 @@
          :else
          *fail*)))))
 
-(extend-type clojure.lang.IPersistentVector
+(extend-type #?(:clj clojure.lang.IPersistentVector
+                :cljs cljs.core/APersistentVector)
   r.protocols/IAll
   (-all [this s]
     (reduce
@@ -567,7 +582,8 @@
      this)))
 
 
-(extend-type clojure.lang.ISeq
+(extend-type #?(:clj clojure.lang.ISeq
+                :cljs cljs.core/ISeq)
   r.protocols/IAll
   (-all [this s]
     (reduce
@@ -610,7 +626,8 @@
      (map-indexed vector this))))
 
 
-(extend-type clojure.lang.IPersistentMap
+;; TODO: what is the cljs equiv?
+(extend-type #?(:clj clojure.lang.IPersistentMap :cljs cljs.core/PersistentArrayMap)
   r.protocols/IAll
   (-all [this s]
     (reduce-kv
@@ -667,7 +684,7 @@
      this)))
 
 
-(extend-type clojure.lang.IPersistentSet
+(extend-type #?(:clj clojure.lang.IPersistentSet :cljs cljs.core/ISet)
   r.protocols/IAll
   (-all [this s]
     (reduce

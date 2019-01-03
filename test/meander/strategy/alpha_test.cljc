@@ -1,14 +1,7 @@
 (ns meander.strategy.alpha-test
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as s.gen]
-            [clojure.test :as t]
-            [clojure.test.check :as tc]
-            [clojure.test.check.clojure-test :as tc.t]
-            [clojure.test.check.generators :as tc.gen]
-            [clojure.test.check.properties :as tc.prop]
-            [meander.match.alpha :as r.match]
-            [meander.util.alpha :as r.util]
-            [meander.strategy.alpha :as r]))
+  (:require [clojure.test :as t]
+            [meander.util.alpha :as r.util #?(:cljs :include-macros true)]
+            [meander.strategy.alpha :as r #?(:cljs :include-macros true)]))
 
 (t/deftest pipe-fail-test
   (t/testing "If any strategy to pipe fails then so does pipe."

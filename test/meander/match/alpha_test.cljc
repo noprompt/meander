@@ -1,13 +1,11 @@
 (ns meander.match.alpha-test
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as s.gen]
+  (:require [clojure.spec.alpha :as s #?(:cljs :include-macros true)]
             [clojure.test :as t]
-            [clojure.test.check :as tc]
-            [clojure.test.check.clojure-test :as tc.t]
-            [clojure.test.check.generators :as tc.gen]
-            [clojure.test.check.properties :as tc.prop]
-            [meander.match.alpha :as r.match]
-            [meander.syntax.alpha :as r.syntax]))
+            [clojure.test.check.clojure-test :as tc.t #?(:cljs :include-macros true)]
+            [clojure.test.check.generators :as tc.gen #?(:cljs :include-macros true)]
+            [clojure.test.check.properties :as tc.prop #?(:cljs :include-macros true)]
+            [meander.match.alpha :as r.match #?(:cljs :include-macros true)]
+            [meander.syntax.alpha :as r.syntax #?(:cljs :include-macros true)]))
 
 ;; ---------------------------------------------------------------------
 ;; match macro tests
@@ -147,7 +145,7 @@
                                    (symbol (str ?x 3))])
                                 (s/gen :meander.syntax.alpha/logic-variable))]
     (t/is (try
-            (macroexpand `(r.match/match 1 (~'or ~?x ~?y ~?z) false))
+            (macroexpand '(r.match/match 1 (~'or ~?x ~?y ~?z) false))
             false
             (catch clojure.lang.ExceptionInfo _
               true)))))
