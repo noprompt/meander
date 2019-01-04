@@ -627,7 +627,7 @@
 
 
 ;; TODO: what is the cljs equiv?
-(extend-type #?(:clj clojure.lang.IPersistentMap :cljs cljs.core/PersistentArrayMap)
+(extend-type #?(:clj clojure.lang.IPersistentMap :cljs cljs.core/IMap)
   r.protocols/IAll
   (-all [this s]
     (reduce-kv
