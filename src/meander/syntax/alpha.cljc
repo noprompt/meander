@@ -3,7 +3,8 @@
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
             [clojure.walk :as walk]
-            [meander.util.alpha :as util]))
+            [meander.util.alpha :as util])
+  (:import (java.util.regex Pattern)))
 
 
 #?(:clj (set! *warn-on-reflection* true))
@@ -36,12 +37,16 @@
 (s/def :meander.syntax.alpha/literal
   any?)
 
+#?(:clj (defn re-matches? [^Pattern re ^String s]
+          (.matches (re-matcher re s)))
+   :cljs (defn re-matches? [re s]
+           (.test re s)))
 
 (defn any-symbol?
   "true if x is a symbol beginning with _."
   [x]
   (and (simple-symbol? x)
-       (re-matches #"_.*" (name x))))
+       (re-matches? #"_.*" (name x))))
 
 
 (s/def :meander.syntax.alpha/any
@@ -103,7 +108,7 @@
   with a name beginning with \\?."
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\?.+" (name x))))
+       (re-matches? #"\?.+" (name x))))
 
 
 (s/def :meander.syntax.alpha/logic-variable
@@ -121,7 +126,7 @@
   with a name beginning with \\!."
   [x]
   (and (simple-symbol? x)
-       (re-matches #"!.+" (name x))))
+       (re-matches? #"!.+" (name x))))
 
 
 (s/def :meander.syntax.alpha/memory-variable
@@ -142,13 +147,13 @@
 (defn zero-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.\.\.+" (name x))))
+       (re-matches? #"\.\.\.+" (name x))))
 
 
 (defn n-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.\.(\d+)?" (name x))))
+       (re-matches? #"\.\.(\d+)?" (name x))))
 
 
 (defn pattern-op-dispatch

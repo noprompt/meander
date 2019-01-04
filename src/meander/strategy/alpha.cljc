@@ -36,13 +36,10 @@
 #?(:clj
    (defmethod print-method (class *pass*) [v ^java.io.Writer w]
      (.write w "#meander.alpha/pass[]"))
-   ;; TODO:
-   #_#_:cljs
-   (extend-protocol IPrintWithWriter
-     *pass*
+   :cljs
+   (specify! *pass* IPrintWithWriter
      (-pr-writer [new-obj writer _]
        (write-all writer "#meander.alpha/pass[]"))))
-
 
 (defn pass?
   "true if `x` is `*pass*`, false otherwise."
@@ -73,10 +70,8 @@
 #?(:clj
    (defmethod print-method (class *fail*) [v ^java.io.Writer w]
      (.write w "#meander.alpha/fail[]"))
-   ;; TODO:
-   #_#_:cljs
-   (extend-protocol IPrintWithWriter
-     *fail*
+   :cljs
+   (specify! *pass* IPrintWithWriter
      (-pr-writer [new-obj writer _]
        (write-all writer "#meander.alpha/fail[]"))))
 
