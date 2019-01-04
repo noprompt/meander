@@ -1,7 +1,7 @@
 (ns meander.strategy.alpha-test
   (:require [clojure.test :as t]
-            [meander.util.alpha :as r.util #?(:cljs :include-macros true)]
-            [meander.strategy.alpha :as r #?(:cljs :include-macros true)]))
+            [meander.util.alpha :as r.util :include-macros true]
+            [meander.strategy.alpha :as r :include-macros true]))
 
 (t/deftest pipe-fail-test
   (t/testing "If any strategy to pipe fails then so does pipe."

@@ -1,11 +1,11 @@
 (ns meander.match.alpha-test
-  (:require [clojure.spec.alpha :as s #?(:cljs :include-macros true)]
+  (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.test :as t]
-            [clojure.test.check.clojure-test :as tc.t #?(:cljs :include-macros true)]
-            [clojure.test.check.generators :as tc.gen #?(:cljs :include-macros true)]
-            [clojure.test.check.properties :as tc.prop #?(:cljs :include-macros true)]
-            [meander.match.alpha :as r.match #?(:cljs :include-macros true)]
-            [meander.syntax.alpha :as r.syntax #?(:cljs :include-macros true)]))
+            [clojure.test.check.clojure-test :as tc.t :include-macros true]
+            [clojure.test.check.generators :as tc.gen :include-macros true]
+            [clojure.test.check.properties :as tc.prop :include-macros true]
+            [meander.match.alpha :as r.match :include-macros true]
+            [meander.syntax.alpha :as r.syntax :include-macros true]))
 
 ;; ---------------------------------------------------------------------
 ;; match macro tests
@@ -145,7 +145,9 @@
                                    (symbol (str ?x 3))])
                                 (s/gen :meander.syntax.alpha/logic-variable))]
     (t/is (try
-            (macroexpand '(r.match/match 1 (~'or ~?x ~?y ~?z) false))
+            (macroexpand
+              #?(:clj `(r.match/match 1 (~'or ~?x ~?y ~?z) false)
+                 :cljs '(r.match/match 1 (~'or ~?x ~?y ~?z) false)))
             false
             (catch clojure.lang.ExceptionInfo _
               true)))))

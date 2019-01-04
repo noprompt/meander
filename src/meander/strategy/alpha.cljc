@@ -541,7 +541,7 @@
          *fail*)))))
 
 (extend-type #?(:clj clojure.lang.IPersistentVector
-                :cljs cljs.core/APersistentVector)
+                :cljs cljs.core/PersistentVector)
   r.protocols/IAll
   (-all [this s]
     (reduce
