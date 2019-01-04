@@ -1,10 +1,8 @@
 (ns meander.syntax.alpha
-  (:require [clojure.set :as set]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
             [clojure.walk :as walk]
-            [meander.util.alpha :as util])
-  (:import (java.util.regex Pattern)))
+            [meander.util.alpha :as util]))
 
 
 #?(:clj (set! *warn-on-reflection* true))
@@ -37,7 +35,7 @@
 (s/def :meander.syntax.alpha/literal
   any?)
 
-#?(:clj (defn re-matches? [^Pattern re ^String s]
+#?(:clj (defn re-matches? [^java.util.regex.Pattern re ^String s]
           (.matches (re-matcher re s)))
    :cljs (defn re-matches? [re s]
            (.test re s)))
