@@ -819,7 +819,9 @@
      ~@(mapcat
         (fn [[pat rhs]]
           [pat `(r.substitute/substitute ~rhs)])
-        (partition 2 rules))))
+        (partition 2 rules))
+     ~'_
+     *fail*))
 
 (s/fdef rewrite
   :args :meander.match.alpha.match/clauses
