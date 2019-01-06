@@ -845,3 +845,11 @@
                             _)
                         ...]
                        [?owner !names])))))
+
+(t/deftest find-separated-items 
+  (t/is (= [:a :v '[[:any _] [:lvr ?a] [:lit "Bill"]]])
+        (r.match/find '([:a [[:any _] [:lvr ?a] [:lit "Bill"]]]
+                        [:e [[:lvr ?e] [:any _] [:lit "Alice"]]]
+                        [:v [[:any _] [:lvr ?a] [:lit "Bill"]]])
+          (_ ... [?i1 ?tuple] . _ ... [?i2 ?tuple] . _ ...)
+          [?i1 ?i2 ?tuple])))

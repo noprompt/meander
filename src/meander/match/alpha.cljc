@@ -873,8 +873,17 @@
            [:test `(= ~target ~(compile-ground node))
             (compile targets* [row])]
            [:test `(vector? ~target)
-            (binding [*collection-context* :vector]
-              (compile targets [(assoc row :cols `[~prt ~@(:cols row)])]))]))))
+            (let [;; prt needs to be compiled within a :vector
+                  ;; collection-context separately from the targets*
+                  ;; to the right. The targets* on the right need to
+                  ;; be compiled in an environment including variables
+                  ;; bound by compiling prt.
+                  rhs*-env (into (get row :env) (r.syntax/variables prt))
+                  rhs*-row (assoc row :env rhs*-env)
+                  rhs* (compile targets* [rhs*-row])
+                  row* (assoc row :cols [prt] :rhs rhs*)]
+              (binding [*collection-context* :vector]
+                (compile [target] [row*])))]))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
