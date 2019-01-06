@@ -763,6 +763,21 @@
      (tree-seq coll? seq t))))
 
 
+(defmacro find
+  "Strategy version of meander.match.alpha/find that defaults to
+  returning *fail*."
+  {:style/indent 0}
+  [& clauses]
+  `(fn [x#]
+     (r.match/find x#
+       ~@clauses)))
+
+
+(s/fdef find
+  :args :meander.match.alpha.match/clauses
+  :ret any?)
+
+
 (defn linear?
   "true if no variable occurs more than once in the term node."
   {:private true}
@@ -800,7 +815,7 @@
     (s '(let* [b1 :v1, b2 :v2, b3 :v3]
           (vector b1 b2 b3))))"
   [& rules]
-  `(match
+  `(find
      ~@(mapcat
         (fn [[pat rhs]]
           [pat `(r.substitute/substitute ~rhs)])
@@ -809,13 +824,3 @@
 (s/fdef rewrite
   :args :meander.match.alpha.match/clauses
   :ret any?)
-
-
-(defmacro find
-  "Strategy version of meander.match.alpha/find that defaults to
-  returning *fail*."
-  {:style/indent 0}
-  [& clauses]
-  `(fn [x#]
-     (r.match/find x#
-       ~@clauses)))
