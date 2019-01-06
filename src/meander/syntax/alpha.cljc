@@ -1,11 +1,11 @@
 (ns meander.syntax.alpha
-  (:require [clojure.set :as set]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
-            [clojure.walk :as walk]))
+            [clojure.walk :as walk]
+            [meander.util.alpha :as util]))
 
 
-(set! *warn-on-reflection* true)
+#?(:clj (set! *warn-on-reflection* true))
 
 
 ;; ---------------------------------------------------------------------
@@ -35,12 +35,16 @@
 (s/def :meander.syntax.alpha/literal
   any?)
 
+#?(:clj (defn re-matches? [^java.util.regex.Pattern re ^String s]
+          (.matches (re-matcher re s)))
+   :cljs (defn re-matches? [re s]
+           (.test re s)))
 
 (defn any-symbol?
   "true if x is a symbol beginning with _."
   [x]
   (and (simple-symbol? x)
-       (.matches (re-matcher #"_.*" (name x)))))
+       (re-matches? #"_.*" (name x))))
 
 
 (s/def :meander.syntax.alpha/any
@@ -102,7 +106,7 @@
   with a name beginning with \\?."
   [x]
   (and (simple-symbol? x)
-       (.matches (re-matcher #"\?.+" (name x)))))
+       (re-matches? #"\?.+" (name x))))
 
 
 (s/def :meander.syntax.alpha/logic-variable
@@ -120,7 +124,7 @@
   with a name beginning with \\!."
   [x]
   (and (simple-symbol? x)
-       (.matches (re-matcher #"!.+" (name x)))))
+       (re-matches? #"!.+" (name x))))
 
 
 (s/def :meander.syntax.alpha/memory-variable
@@ -141,13 +145,13 @@
 (defn zero-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.\.\.+" (name x))))
+       (re-matches? #"\.\.\.+" (name x))))
 
 
 (defn n-or-more-symbol?
   [x]
   (and (simple-symbol? x)
-       (re-matches #"\.\.(\d+)?" (name x))))
+       (re-matches? #"\.\.(\d+)?" (name x))))
 
 
 (defn pattern-op-dispatch
@@ -219,9 +223,8 @@
     (fn []
       (s.gen/fmap
        (fn [items]
-         (~@items ~'...))
+         `(~@items ~'...))
        (s.gen/not-empty (s.gen/list (s/gen :meander.syntax.alpha.sequential/subterm)))))))
-
 
 (s/def :meander.syntax.alpha/n-or-more
   (s/with-gen
@@ -231,7 +234,8 @@
                  (if (n-or-more-symbol? x)
                    (if (= x '..)
                      nil
-                     (Integer/parseInt (aget (.split (name x) "\\.+" 2) 1)))
+                     (util/parse-int
+                       (aget (.split (name x) "\\.+" 2) 1)))
                    ::s/invalid))))
     (fn []
       (s.gen/fmap
@@ -334,8 +338,8 @@
        (transduce
         (map
          (fn [[ck cv]]
-           [(s/unform :meander.syntax.alpha/term)
-            (s/unform :meander.syntax.alpha/term)]))
+           [(s/unform :meander.syntax.alpha/term ck)
+            (s/unform :meander.syntax.alpha/term cv)]))
         conj
         {}
         m)))

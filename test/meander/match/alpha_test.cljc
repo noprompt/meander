@@ -1,13 +1,11 @@
 (ns meander.match.alpha-test
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as s.gen]
+  (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.test :as t]
-            [clojure.test.check :as tc]
-            [clojure.test.check.clojure-test :as tc.t]
-            [clojure.test.check.generators :as tc.gen]
-            [clojure.test.check.properties :as tc.prop]
-            [meander.match.alpha :as r.match]
-            [meander.syntax.alpha :as r.syntax]))
+            [clojure.test.check.clojure-test :as tc.t :include-macros true]
+            [clojure.test.check.generators :as tc.gen :include-macros true]
+            [clojure.test.check.properties :as tc.prop :include-macros true]
+            [meander.match.alpha :as r.match :include-macros true]
+            [meander.syntax.alpha :as r.syntax :include-macros true]))
 
 ;; ---------------------------------------------------------------------
 ;; match macro tests
@@ -147,7 +145,9 @@
                                    (symbol (str ?x 3))])
                                 (s/gen :meander.syntax.alpha/logic-variable))]
     (t/is (try
-            (macroexpand `(r.match/match 1 (~'or ~?x ~?y ~?z) false))
+            (macroexpand
+              #?(:clj `(r.match/match 1 (~'or ~?x ~?y ~?z) false)
+                 :cljs '(r.match/match 1 (~'or ~?x ~?y ~?z) false)))
             false
             (catch clojure.lang.ExceptionInfo _
               true)))))
@@ -823,17 +823,17 @@
           ["Peirce" ["George"]]
           ["Frege" ["George"]]
           ["De Morgan" ["Francis"]]}]
-    (t/is (= expected-search-results)
-          (set (r.match/search data
-                 [_ ...
-                  {:name !names
-                   :owners [_ ... ?owner . _ ...]}
-                  .
-                  (or (and {:name !names
-                            :owners [_ ... ?owner . _ ...]})
-                      _)
-                  ...]
-                 [?owner !names])))
+    (t/is (= expected-search-results
+             (set (r.match/search data
+                                  [_ ...
+                                   {:name !names
+                                    :owners [_ ... ?owner . _ ...]}
+                                   .
+                                   (or (and {:name !names
+                                             :owners [_ ... ?owner . _ ...]})
+                                       _)
+                                   ...]
+                                  [?owner !names]))))
     (t/is (contains? expected-search-results
                      (r.match/find data
                        [_ ...

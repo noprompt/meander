@@ -1,7 +1,8 @@
 (ns meander.substitute.alpha
-  (:require [clojure.set :as set] 
-            [clojure.spec.alpha :as s]
-            [meander.syntax.alpha :as r.syntax]))
+  #?(:cljs (:require-macros [meander.substitute.alpha]))
+  (:require [clojure.spec.alpha :as s]
+            [meander.syntax.alpha :as r.syntax]
+            [meander.util.alpha :as r.util]))
 
 
 (defn make-env
@@ -151,7 +152,7 @@
 
 (defmethod compile-substitute :rp+ [node env]
   (let [[_ {items :items, dots :dots}] node
-        n (Integer/parseInt (aget (.split (name dots) "\\.+" 2) 1))
+        n (r.util/parse-int (aget (.split (name dots) "\\.+" 2) 1))
         cat-node [:cat items]
         mvrs (r.syntax/memory-variables node)]
     (if (seq mvrs)

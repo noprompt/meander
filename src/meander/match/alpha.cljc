@@ -1,9 +1,10 @@
 (ns meander.match.alpha
   (:refer-clojure :exclude [compile find])
+  #?(:cljs (:require-macros [meander.match.alpha]))
   (:require [clojure.core :as clojure]
+            [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
-            [clojure.walk :as walk]
             [meander.matrix.alpha :as r.matrix]
             [meander.syntax.alpha :as r.syntax]
             [meander.util.alpha :as r.util]))
@@ -882,7 +883,7 @@
   {:private true}
   [targets matrix]
   ;; This doesn't print the state accurately.
-  (clojure.pprint/print-table
+  (pprint/print-table
    (mapv
     (fn [row]
       (reduce merge
@@ -1331,9 +1332,7 @@
                    dots
                    '...)]
         [:error
-         [{:message (format "Zero or more (%s) is a postfix operator. It must have some value in front of it. (i.e. [1 %s ?x])"
-                            dots
-                            dots)}]])
+         [{:message (str "Zero or more (" dots ") is a postfix operator. It must have some value in front of it. (i.e. [1 " dots " ?x])")}]])
 
       :else
       [:okay (r.syntax/children node) env])))
@@ -1346,8 +1345,7 @@
     [:error [{:message "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"}]]
 
     (empty? items)
-    [:error [{:message (format "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..%s ?x])"
-                               n)}]]
+    [:error [{:message (str "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 .." n " ?x])")}]]
 
     :else
     [:okay (r.syntax/children node) env]))
