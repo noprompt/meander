@@ -1,7 +1,12 @@
 (ns meander.strategy.alpha-test
-  (:require [clojure.test :as t]
-            [meander.util.alpha :as r.util :include-macros true]
-            [meander.strategy.alpha :as r :include-macros true]))
+  (:require
+   [clojure.test :as t]
+   [clojure.test.check.clojure-test :as tc.t :include-macros true]
+   [clojure.test.check.generators :as tc.gen :include-macros true]
+   [clojure.test.check.properties :as tc.prop :include-macros true]
+   [meander.match.alpha :as r.match :include-macros true]
+   [meander.util.alpha :as r.util :include-macros true]
+   [meander.strategy.alpha :as r :include-macros true]))
 
 (t/deftest pipe-fail-test
   (t/testing "If any strategy to pipe fails then so does pipe."
@@ -43,3 +48,185 @@
                (apply r/choice fs))))
       (range 5)))))
 
+(defn inc-number
+  "Strategy which increments numbers."
+  [x]
+  (if (number? x)
+    (inc x)
+    r/*fail*))
+
+;; ---------------------------------------------------------------------
+;; one
+
+(def inc-number-one
+  "inc-number strategy utilizing the one combinator."
+  (r/one inc-number))
+
+(t/deftest one-seq-test
+  (t/testing "one with seq? like objects"
+    (t/is (r/fail? (inc-number-one '())))  
+    (t/is (r/fail? (inc-number-one '(a))))
+    (t/is (= '(2)
+             (inc-number-one '(1))))
+    (t/is (= '(2 a)
+             (inc-number-one '(1 a))))
+    (t/is (= '(a 2)
+             (inc-number-one '(a 1))))
+    (t/is (= '(a 2 b)
+             (inc-number-one '(a 1 b))))
+    (t/is (= '(a b 2)
+             (inc-number-one '(a b 1))))))
+
+(t/deftest one-vector-test
+  (t/testing "one with vector? like objects"
+    (t/is (r/fail? (inc-number-one [])))  
+    (t/is (r/fail? (inc-number-one '[a])))
+    (t/is (= '[2]
+             (inc-number-one '[1])))
+    (t/is (= '[2 a]
+             (inc-number-one '[1 a])))
+    (t/is (= '[a 2]
+             (inc-number-one '[a 1])))
+    (t/is (= '[a 2 b]
+             (inc-number-one '[a 1 b])))
+    (t/is (= '[a b 2]
+             (inc-number-one '[a b 1])))))
+
+(t/deftest one-set-test
+  (t/testing "one with set? like objects"
+    (t/is (r/fail? (inc-number-one #{})))  
+    (t/is (r/fail? (inc-number-one '#{a})))
+    (t/is (= '#{2}
+             (inc-number-one '#{1})))
+    (t/is (= '#{2 a}
+             (inc-number-one '#{1 a})))
+    (t/is (= '#{a 2}
+             (inc-number-one '#{a 1})))
+    (t/is (= '#{a 2 b}
+             (inc-number-one '#{a 1 b})))
+    (t/is (= '#{a b 2}
+             (inc-number-one '#{a b 1})))))
+
+(t/deftest one-map-test
+  (t/testing "one with map? like objects"
+    (t/is (r/fail? (inc-number-one {})))
+    (t/is (r/fail? (inc-number-one {:a :a})))
+    (t/is (= {:a 2}
+             (inc-number-one {:a 1})))))
+
+;; ---------------------------------------------------------------------
+;; some
+
+(def inc-number-some
+  "inc-number strategy utilizing the some combinator."
+  (r/some inc-number))
+
+(t/deftest some-seq-test
+  (t/testing "some with seq? like objects"
+    (t/is (r/fail? (inc-number-some '())))  
+    (t/is (r/fail? (inc-number-some '(a))))
+    (t/is (= '(2)
+             (inc-number-some '(1))))
+    (t/is (= '(2 a)
+             (inc-number-some '(1 a))))
+    (t/is (= '(a 2)
+             (inc-number-some '(a 1))))
+    (t/is (= '(a 2 b)
+             (inc-number-some '(a 1 b))))
+    (t/is (= '(a b 2)
+             (inc-number-some '(a b 1))))
+    (t/is (= '(a 1 b 2)
+             (inc-number-some '(a 0 b 1))))))
+
+(t/deftest some-vector-test
+  (t/testing "some with vector? like objects"
+    (t/is (r/fail? (inc-number-some [])))  
+    (t/is (r/fail? (inc-number-some '[a])))
+    (t/is (= '[2]
+             (inc-number-some '[1])))
+    (t/is (= '[2 a]
+             (inc-number-some '[1 a])))
+    (t/is (= '[a 2]
+             (inc-number-some '[a 1])))
+    (t/is (= '[a 2 b]
+             (inc-number-some '[a 1 b])))
+    (t/is (= '[a b 2]
+             (inc-number-some '[a b 1])))
+    (t/is (= '[a 1 b 2]
+             (inc-number-some '[a 0 b 1])))))
+
+(t/deftest some-set-test
+  (t/testing "some with set? like objects"
+    (t/is (r/fail? (inc-number-some #{})))  
+    (t/is (r/fail? (inc-number-some '#{a})))
+    (t/is (= '#{2}
+             (inc-number-some '#{1})))
+    (t/is (= '#{2 a}
+             (inc-number-some '#{1 a})))
+    (t/is (= '#{a 2}
+             (inc-number-some '#{a 1})))
+    (t/is (= '#{a 2 b}
+             (inc-number-some '#{a 1 b})))
+    (t/is (= '#{a b 2}
+             (inc-number-some '#{a b 1})))
+    (t/is (= '#{a 1 b 2}
+             (inc-number-some '#{a 0 b 1})))))
+
+(t/deftest some-map-test
+  (t/testing "some with map? like objects"
+    (t/is (r/fail? (inc-number-some {})))
+    (t/is (r/fail? (inc-number-some {:a :a})))
+    (t/is (= {:a 2 :b 3}
+             (inc-number-some {:a 1 :b 2})))))
+
+;; ---------------------------------------------------------------------
+;; all
+
+(def inc-number-all
+  "inc-number strategy utilizing the all combinator."
+  (r/all inc-number))
+
+(t/deftest all-seq-test
+  (t/testing "all with seq? like objects"
+    (t/is (= '()
+             (inc-number-all '())))  
+    (t/is (r/fail? (inc-number-all '(a))))
+    (t/is (r/fail? (inc-number-all '(1 a))))
+    (t/is (r/fail? (inc-number-all '(a b 1))))
+    (t/is (= '(2)
+             (inc-number-all '(1))))
+    (t/is (= '(2 3 4)
+             (inc-number-all '(1 2 3))))))
+
+(t/deftest all-vector-test
+  (t/testing "all with vector? like objects"
+    (t/is (= []
+             (inc-number-all [])))  
+    (t/is (r/fail? (inc-number-all '[a])))
+    (t/is (r/fail? (inc-number-all '[1 a])))
+    (t/is (r/fail? (inc-number-all '[a b 1])))
+    (t/is (= [2]
+             (inc-number-all [1])))
+    (t/is (= [2 3 4]
+             (inc-number-all [1 2 3])))))
+
+(t/deftest all-set-test
+  (t/testing "all with set? like objects"
+    (t/is (= #{}
+             (inc-number-all #{})))  
+    (t/is (r/fail? (inc-number-all '#{a})))
+    (t/is (r/fail? (inc-number-all '#{1 a})))
+    (t/is (r/fail? (inc-number-all '#{a b 1})))
+    (t/is (= #{2}
+             (inc-number-all #{1})))
+    (t/is (= #{2 3 4}
+             (inc-number-all #{1 2 3})))))
+
+(t/deftest all-map-test
+  (t/testing "all with map? like objects"
+    (t/is (= {}
+             (inc-number-all {})))
+    (t/is (r/fail? (inc-number-all {:a :a})))
+    (t/is (r/fail? (inc-number-all {:a 1 :b 2})))
+    (t/is (= {1 2 11 12}
+             (inc-number-all {0 1 10 11})))))

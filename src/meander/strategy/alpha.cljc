@@ -10,13 +10,14 @@
   p, q, r, s ∈ Strategy"
   (:refer-clojure :exclude [find while repeat some spread])
   #?(:cljs (:require-macros [meander.strategy.alpha]))
-  (:require [clojure.core :as clj]
-            [clojure.spec.alpha :as s]
-            [clojure.set :as set]
-            [meander.protocols.alpha :as r.protocols]
-            [meander.match.alpha :as r.match]
-            [meander.syntax.alpha :as r.syntax]
-            [meander.substitute.alpha :as r.substitute]))
+  (:require
+   [clojure.core :as clj]
+   [clojure.spec.alpha :as s]
+   [clojure.set :as set]
+   [meander.protocols.alpha :as r.protocols]
+   [meander.match.alpha :as r.match]
+   [meander.syntax.alpha :as r.syntax]
+   [meander.substitute.alpha :as r.substitute]))
 
 
 (def
@@ -119,13 +120,13 @@
   ([] *pass*)
   ([p] p)
   ([p q]
-   (pipe-body [p q]))
+   (meander.strategy.alpha/pipe-body [p q]))
   ([p q r]
-   (pipe-body [p q r]))
+   (meander.strategy.alpha/pipe-body [p q r]))
   ([p q r s]
-   (pipe-body [p q r s]))
+   (meander.strategy.alpha/pipe-body [p q r s]))
   ([p q r s & more]
-   (apply pipe (pipe-body [p q r s]) more)))
+   (apply pipe (meander.strategy.alpha/pipe-body [p q r s]) more)))
 
 
 (defmacro choice-body
@@ -151,13 +152,13 @@
   ([] *fail*)
   ([p] p)
   ([p q]
-   (choice-body [p q]))
+   (meander.strategy.alpha/choice-body [p q]))
   ([p q r]
-   (choice-body [p q r]))
+   (meander.strategy.alpha/choice-body [p q r]))
   ([p q r s]
-   (choice-body [p q r s]))
+   (meander.strategy.alpha/choice-body [p q r s]))
   ([p q r s & more]
-   (apply choice (choice-body [p q r s]) more)))
+   (apply choice (meander.strategy.alpha/choice-body [p q r s]) more)))
 
 
 (defn branch
@@ -286,11 +287,101 @@
   (satisfies? r.protocols/IAll x))
 
 
+(defmacro iseq-all-body
+  [t s]
+  `(reduce
+    (fn [t*# x#]
+      (let [x*# (~s x#)]
+        (if (fail? x*#)
+          (reduced *fail*)
+          (concat t*# (list x*#)))))
+    ()
+    ~t))
+
+
+(defmacro ivector-all-body
+  {:private true}
+  [t s]
+  `(reduce
+    (fn [t*# x#]
+      (let [x*# (~s x#)]
+        (if (fail? x*#)
+          (reduced *fail*)
+          (conj t*# x*#))))
+    []
+    ~t))
+
+
+(defmacro imap-all-body
+  {:private true}
+  [t s]
+  `(reduce-kv
+    (fn [t*# k# v#]
+      (let [k*# (~s k#)]
+        (if (fail? k*#)
+          *fail*
+          (let [v*# (~s v#)]
+            (if (fail? v*#)
+              *fail*
+              (assoc t*# k*# v*#))))))
+    {}
+    ~t))
+
+
+(defmacro iset-all-body
+  {:private true}
+  [t s]
+  `(reduce
+    (fn [t*# x#]
+      (let [x*# (~s x#)]
+        (if (fail? x*#)
+          (reduced *fail*)
+          (conj t*# x*#))))
+    #{}
+    ~t))
+
+
+(extend-protocol r.protocols/IAll
+  #?@(:clj [clojure.lang.IPersistentMap (-all [this s] (imap-all-body this s))])
+  #?@(:clj [clojure.lang.IPersistentSet (-all [this s] (iset-all-body this s))])
+  #?@(:clj [clojure.lang.IPersistentVector (-all [this s] (ivector-all-body this s))])
+  #?@(:clj [clojure.lang.ISeq (-all [this s] (iseq-all-body this s))])
+  #?@(:cljs [cljs.core/LazySeq (-all [this s] (meander.strategy.alpha/iseq-all-body this s))])
+  #?@(:cljs [cljs.core/List (-all [this s] (meander.strategy.alpha/iseq-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-all [this s] (meander.strategy.alpha/imap-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-all [this s] (meander.strategy.alpha/imap-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-all [this s] (meander.strategy.alpha/iset-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-all [this s] (meander.strategy.alpha/ivector-all-body this s))])
+  #?@(:cljs [cljs.core/Range (-all [this s] (meander.strategy.alpha/iseq-all-body this s))]))
+
+
 (defn all [s]
-  (fn [t]
-    (if (iall? t)
-      (r.protocols/-all t s)
-      t)))
+  #?(:clj
+     (fn [t]
+       (if (iall? t)
+         (r.protocols/-all t s)
+         t))
+
+     :cljs
+     (fn [t]
+       (cond
+         (iall? t)
+         (r.protocols/-all t s)
+
+         (satisfies? cljs.core/ISeq t)
+         (meander.strategy.alpha/iseq-all-body t s)
+
+         (satisfies? cljs.core/IVector t)
+         (meander.strategy.alpha/ivector-all-body t s)
+
+         (satisfies? cljs.core/IMap t)
+         (meander.strategy.alpha/iseq-all-body t s)
+
+         (satisfies? cljs.core/ISet t)
+         (meander.strategy.alpha/iseq-all-body t s)
+
+         :else
+         t))))
 
 
 (defn all-td
@@ -313,11 +404,103 @@
   (satisfies? r.protocols/IOne x))
 
 
+(defmacro iseq-one-body
+  {:private true}
+  [t s]
+  `(reduce
+    (fn [_acc# [i# x#]]
+      (let [x*# (~s x#)]
+        (if (fail? x*#)
+          *fail*
+          (reduced (concat (take i# ~t)
+                           (list x*#)
+                           (drop (inc i#) ~t))))))
+    *fail*
+    (map-indexed vector ~t)))
+
+
+(defmacro ivector-one-body
+  {:private true}
+  [t s]
+  `(reduce-kv
+    (fn [acc# i# x#]
+      (let [x*# (~s x#)]
+        (if (fail? x*#)
+          acc#
+          (reduced (assoc ~t i# x*#)))))
+    *fail*
+    ~t))
+
+
+(defmacro imap-one-body
+  {:private true}
+  [t s]
+  `(reduce-kv
+    (fn [acc# k# v#]
+      (let [k*# (~s k#)]
+        (if (fail? k*#)
+          (let [v*# (~s v#)]
+            (if (fail? v*#)
+              acc#
+              (reduced (assoc ~t k# v*#))))
+          (reduced (assoc ~t k*# v#)))))
+    *fail*
+    ~t))
+
+
+(defmacro iset-one-body
+  {:private true}
+  [t s]
+  `(reduce
+    (fn [acc# x#]
+      (let [x*# (~s x#)]
+        (if (fail? x*#)
+          *fail*
+          (reduced (conj (disj ~t x#) x*#)))))
+    *fail*
+    ~t))
+
+
+(extend-protocol r.protocols/IOne
+  #?@(:clj [clojure.lang.IPersistentMap (-one [this s] (imap-one-body this s))])
+  #?@(:clj [clojure.lang.IPersistentSet (-one [this s] (iset-one-body this s))])
+  #?@(:clj [clojure.lang.IPersistentVector (-one [this s] (ivector-one-body this s))])
+  #?@(:clj [clojure.lang.ISeq (-one [this s] (iseq-one-body this s))])
+  #?@(:cljs [cljs.core/LazySeq (-one [this s] (meander.strategy.alpha/iseq-one-body this s))])
+  #?@(:cljs [cljs.core/List (-one [this s] (meander.strategy.alpha/iseq-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-one [this s] (meander.strategy.alpha/imap-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-one [this s] (meander.strategy.alpha/imap-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-one [this s] (meander.strategy.alpha/iset-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-one [this s] (meander.strategy.alpha/ivector-one-body this s))])
+  #?@(:cljs [cljs.core/Range (-one [this s] (meander.strategy.alpha/iseq-one-body this s))]))
+
+
 (defn one [s]
-  (fn [t]
-    (if (ione? t)
-      (r.protocols/-one t s)
-      t)))
+  #?(:clj
+     (fn [t]
+       (if (ione? t)
+         (r.protocols/-one t s)
+         t))
+     :cljs
+     (fn [t]
+       (cond
+         (ione? t)
+         (r.protocols/-one t s)
+
+         (satisfies? cljs.core/ISeq t)
+         (meander.strategy.alpha/iseq-one-body t s)
+
+         (satisfies? cljs.core/IVector t)
+         (meander.strategy.alpha/ivector-one-body t s)
+
+         (satisfies? cljs.core/IMap t)
+         (meander.strategy.alpha/imap-one-body t s)
+
+         (satisfies? cljs.core/ISet t)
+         (meander.strategy.alpha/iset-one-body t s)
+
+         :else
+         t))))
 
 
 (defn once-td
@@ -340,15 +523,129 @@
   (satisfies? r.protocols/ISome x))
 
 
+(defmacro iseq-some-body
+  {:private true}
+  [t s]
+  `(let [[t*# pass?#]
+         (reduce
+          (fn [[t*# pass?#] x#]
+            (let [x*# (~s x#)]
+              (if (fail? x*#)
+                [(cons x# t*#) pass?#]
+                [(cons x*# t*#) true])))
+          [() false]
+          (reverse ~t))]
+     (if pass?#
+       t*#
+       *fail*)))
+
+
+(defmacro ivector-some-body
+  {:private true}
+  [t s]
+  `(let [[t*# pass?#]
+         (reduce-kv
+          (fn [[t*# pass?#] i# x#]
+            (let [x*# (~s x#)]
+              (if (fail? x*#)
+                [t*# pass?#]
+                [(assoc t*# i# x*#) true])))
+          [~t false]
+          ~t)]
+     (if pass?#
+       t*#
+       *fail*)))
+
+
+(defmacro imap-some-body
+  {:private true}
+  [t s]
+  `(let [[t*# pass?#]
+         (reduce-kv
+          (fn [[t*# pass?#] k# v#]
+            (let [k*# (~s k#)
+                  v*# (~s v#)]
+              (case [(fail? k*#) (fail? v*#)]
+                [true true]
+                [(assoc t*# k# v#) pass?#]
+
+                [true false]
+                [(assoc t*# k# v*#) true]
+
+                [false true]
+                [(assoc t*# k*# v#) true]
+
+                [false false]
+                [(assoc t*# k*# v*#) true])))
+          [{} false]
+          ~t)]
+     (if pass?#
+       t*#
+       *fail*)))
+
+
+(defmacro iset-some-body
+  {:private true}
+  [t s]
+  `(let [[t*# pass?#]
+         (reduce
+          (fn [[t*# pass?#] x#]
+            (let [x*# (~s x#)]
+              (if (fail? x*#)
+                [(conj t*# x#) pass?#]
+                [(conj t*# x*#) true])))
+          [#{} false]
+          ~t)]
+     (if pass?#
+       t*#
+       *fail*)))
+
+
+(extend-protocol r.protocols/ISome
+  #?@(:clj [clojure.lang.IPersistentMap (-some [this s] (imap-some-body this s))])
+  #?@(:clj [clojure.lang.IPersistentSet (-some [this s] (iset-some-body this s))])
+  #?@(:clj [clojure.lang.IPersistentVector (-some [this s] (ivector-some-body this s))])
+  #?@(:clj [clojure.lang.ISeq (-some [this s] (iseq-some-body this s))])
+  #?@(:cljs [cljs.core/LazySeq (-some [this s] (meander.strategy.alpha/iseq-some-body this s))])
+  #?@(:cljs [cljs.core/List (-some [this s] (meander.strategy.alpha/iseq-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-some [this s] (meander.strategy.alpha/imap-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-some [this s] (meander.strategy.alpha/imap-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-some [this s] (meander.strategy.alpha/iset-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-some [this s] (meander.strategy.alpha/ivector-some-body this s))])
+  #?@(:cljs [cljs.core/Range (-some [this s] (meander.strategy.alpha/iseq-some-body this s))]))
+
+
 (defn some
   "Build a strategy which applies `s` to as many direct subterms of
   `t` as possible. Succeeds if at least one application applies, fails
   otherwise."
   [s]
-  (fn [t]
-    (if (isome? t)
-      (r.protocols/-some t s)
-      t)))
+  #?(:clj
+     (fn [t]
+       (if (isome? t)
+         (r.protocols/-some t s)
+         t))
+
+     :cljs
+     (fn [t]
+       (cond
+         (isome? t)
+         (r.protocols/-some t s)
+
+         (satisfies? cljs.core/ISeq t)
+         (meander.strategy.alpha/iseq-some-body t s)
+
+         (satisfies? cljs.core/IVector t)
+         (meander.strategy.alpha/ivector-some-body t s)
+
+         (satisfies? cljs.core/IMap t)
+         (meander.strategy.alpha/imap-some-body t s)
+
+         (satisfies? cljs.core/ISet t)
+         (meander.strategy.alpha/iset-some-body t s)
+         
+         :else
+         t))))
 
 
 (defn some-td
@@ -534,190 +831,6 @@
 
          :else
          *fail*)))))
-
-(extend-type #?(:clj clojure.lang.IPersistentVector
-                :cljs cljs.core/PersistentVector)
-  r.protocols/IAll
-  (-all [this s]
-    (reduce
-     (fn [this* x]
-       (let [x* (s x)]
-         (if (fail? x*)
-           (reduced *fail*)
-           (conj this* x*))))
-     []
-     this))
-
-
-  r.protocols/ISome
-  (-some [this s]
-    (let [[this* pass?]
-          (reduce-kv
-           (fn [[this* pass?] i x]
-             (let [x* (s x)]
-               (if (fail? x*)
-                 [this* pass?]
-                 [(assoc this* i x*) true])))
-           [this false]
-           this)]
-      (if pass?
-        this*
-        *fail*)))
-
-
-  r.protocols/IOne
-  (-one [this s]
-    (reduce-kv
-     (fn [acc i x]
-       (let [x* (s x)]
-         (if (fail? x*)
-           acc
-           (reduced (assoc this i x*)))))
-     *fail*
-     this)))
-
-
-(extend-type #?(:clj clojure.lang.ISeq
-                :cljs cljs.core/ISeq)
-  r.protocols/IAll
-  (-all [this s]
-    (reduce
-     (fn [this* x]
-       (let [x* (s x)]
-         (if (fail? x*)
-           (reduced *fail*)
-           (concat this* (list x*)))))
-     ()
-     this))
-
-
-  r.protocols/ISome
-  (-some [this s]
-    (let [[this* pass?]
-          (reduce
-           (fn [[this* pass?] x]
-             (let [x* (s x)]
-               (if (fail? x*)
-                 [(cons x this*) pass?]
-                 [(cons x* this*) true])))
-           [() false]
-           (reverse this))]
-      (if pass?
-        this*
-        *fail*)))
-
-
-  r.protocols/IOne
-  (-one [this s]
-    (reduce
-     (fn [_acc [i x]]
-       (let [x* (s x)]
-         (if (fail? x*)
-           *fail*
-           (reduced (concat (take i this)
-                            (list x*)
-                            (drop (inc i) this))))))
-     *fail*
-     (map-indexed vector this))))
-
-
-;; TODO: what is the cljs equiv?
-(extend-type #?(:clj clojure.lang.IPersistentMap :cljs cljs.core/IMap)
-  r.protocols/IAll
-  (-all [this s]
-    (reduce-kv
-     (fn [this* k v]
-       (let [k* (s k)]
-         (if (fail? k*)
-           *fail*
-           (let [v* (s v)]
-             (if (fail? v*)
-               *fail*
-               (assoc this* k* v*))))))
-     {}
-     this))
-
-
-  r.protocols/ISome
-  (-some [this s]
-    (let [[this* pass?]
-          (reduce-kv
-           (fn [[this* pass?] k v]
-             (let [k* (s k)
-                   v* (s v)]
-               (case [(fail? k*) (fail? v*)]
-                 [true true]
-                 [(assoc this* k v) pass?]
-
-                 [true false]
-                 [(assoc this* k v*) true]
-
-                 [false true]
-                 [(assoc this* k* v) true]
-
-                 [false false]
-                 [(assoc this* k* v*) true])))
-           [{} false]
-           this)]
-      (if pass?
-        this*
-        *fail*)))
-
-
-  r.protocols/IOne
-  (-one [this s]
-    (reduce-kv
-     (fn [acc k v]
-       (let [k* (s k)]
-         (if (fail? k*)
-           (let [v* (s v)]
-             (if (fail? v*)
-               acc
-               (reduced (assoc this k v*))))
-           (reduced (assoc this k* v)))))
-     *fail*
-     this)))
-
-
-(extend-type #?(:clj clojure.lang.IPersistentSet :cljs cljs.core/ISet)
-  r.protocols/IAll
-  (-all [this s]
-    (reduce
-     (fn [this* x]
-       (let [x* (s x)]
-         (if (fail? x*)
-           (reduced *fail*)
-           (conj this* x*))))
-     #{}
-     this))
-
-
-  r.protocols/ISome
-  (-some [this s]
-    (let [[this* pass?]
-          (reduce
-           (fn [[this* pass?] x]
-             (let [x* (s x)]
-               (if (fail? x*)
-                 [(conj this* x) pass?]
-                 [(conj this* x*) true])))
-           [#{} false]
-           this)]
-      (if pass?
-        this*
-        *fail*)))
-
-
-  r.protocols/IOne
-  (-one [this s]
-    (reduce
-     (fn [acc x]
-       (let [x* (s x)]
-         (if (fail? x*)
-           *fail*
-           (reduced (conj (disj this x) x*)))))
-     *fail*
-     this)))
 
 
 (s/fdef match

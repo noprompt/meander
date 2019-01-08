@@ -6,4 +6,8 @@
                   :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                com.cognitect/test-runner {:git/url "https://github.com/healthfinch/test-runner"
                                                           :sha "1d0cb97a14152959cdb7c1e8539a1759a1663f5b"}}
-                  :main-opts ["-m" "cognitect.test-runner"]}}}
+                  :main-opts ["-m" "cognitect.test-runner"]}
+           :cljs-test {:extra-paths ["test"]
+                       :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
+                                    olical/cljs-test-runner {:mvn/version "3.4.0"}}
+                       :main-opts ["-m" "cljs-test-runner.main"]}}}
