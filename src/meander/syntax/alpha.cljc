@@ -1,6 +1,7 @@
 (ns meander.syntax.alpha
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
+            [clojure.string :as string]
             [clojure.walk :as walk]
             [meander.util.alpha :as util]))
 
@@ -237,7 +238,7 @@
                    (if (= x '..)
                      nil
                      (util/parse-int
-                       (aget (.split (name x) "\\.+" 2) 1)))
+                      (nth (string/split (name "..2") #"\.+" 2) 1)))
                    ::s/invalid))))
     (fn []
       (s.gen/fmap
