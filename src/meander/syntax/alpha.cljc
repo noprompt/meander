@@ -35,10 +35,12 @@
 (s/def :meander.syntax.alpha/literal
   any?)
 
-#?(:clj (defn re-matches? [^java.util.regex.Pattern re ^String s]
-          (.matches (re-matcher re s)))
-   :cljs (defn re-matches? [re s]
-           (.test re s)))
+#?(:clj
+   (defn re-matches? [ re s]
+     (.matches (re-matcher re s)))
+   :cljs
+   (defn re-matches? [re s]
+     (.test re s)))
 
 (defn any-symbol?
   "true if x is a symbol beginning with _."
@@ -709,8 +711,7 @@
 
 
 (defmulti rank 
-  "true if node is ground i.e. it contains no variables or is not a
-  match operator."
+  ""
   {:arglists '([node])}
   #'rank-dispatch)
 
@@ -747,8 +748,7 @@
 
 (defmulti max-length
   ""
-  {:arglists '([node])
-   :tag 'java.lang.Number}
+  {:arglists '([node])}
   #'max-length-dispatch)
 
 
@@ -761,8 +761,7 @@
 
 (defmulti min-length
   ""
-  {:arglists '([node])
-   :tag 'java.lang.Number}
+  {:arglists '([node])}
   #'min-length-dispatch)
 
 
@@ -791,8 +790,7 @@
 
 (defmulti search?
   ""
-  {:arglists '([node])
-   :tag 'java.lang.Boolean}
+  {:arglists '([node])}
   #'search?-dispatch)
 
 

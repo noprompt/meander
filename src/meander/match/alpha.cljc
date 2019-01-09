@@ -1066,7 +1066,8 @@
       (let [[_ [sym seq-expr] body] node
             result-sym (gensym "result__")
             test-fail-sym (gensym "fail__")]
-        `(let [~test-fail-sym (Object.)
+        `(let [~test-fail-sym #?(:clj (Object.)
+                                 :cljs (js/Object.))
                ~result-sym (reduce
                             (fn [~test-fail-sym ~sym]
                               (let [~result-sym ~(emit* body test-fail-sym kind)]
@@ -1576,12 +1577,12 @@
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
             (emit (compile [expr] [final-clause]) nil :match)
-            `(throw (Exception. "non exhaustive pattern match")))
+            `(throw (ex-info "non exhaustive pattern match" {})))
           `(let [~target ~expr
                  ~fail (fn []
                          ~(if (some? final-clause)
                             (emit (compile [target] [final-clause]) nil :match)
-                            `(throw (Exception. "non exhaustive pattern match"))))]
+                            `(throw (ex-info "non exhaustive pattern match" {}))))]
              ~(emit (compile [target] matrix) `(~fail) :match)))))))
 
 

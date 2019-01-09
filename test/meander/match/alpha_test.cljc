@@ -136,23 +136,14 @@
       _
       true)))
 
-
-(tc.t/defspec or-compilation-fails
-  (tc.prop/for-all [[?x ?y ?z] (tc.gen/fmap
-                                (fn [?x]
-                                  [(symbol (str ?x 1))
-                                   (symbol (str ?x 2))
-                                   (symbol (str ?x 3))])
-                                (s/gen :meander.syntax.alpha/logic-variable))]
-    (t/is (try
-            (macroexpand
-              #?(:clj `(r.match/match 1 (~'or ~?x ~?y ~?z) false)
-                 :cljs '(r.match/match 1 (~'or ~?x ~?y ~?z) false)))
-            false
-            (catch clojure.lang.ExceptionInfo _
-              true)))))
-
-
+#?(:clj
+   (t/deftest or-compilation-fails
+     (t/is (try
+             (macroexpand '(meander.match.alpha/match 1 (or ?x ?y ?z) false))
+             false
+             (catch clojure.lang.ExceptionInfo _
+               true)))))
+ 
 (tc.t/defspec let-succeeds
   (tc.prop/for-all [x tc.gen/any
                     y tc.gen/any]
@@ -639,36 +630,42 @@
   (t/testing "match"
     (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
       (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
-               (.getMessage error)))))
+               #?(:clj (.getMessage error)
+                  :cljs (.-message error))))))
 
   (t/testing "search"
     (let [error (r.match/check (r.syntax/parse '[... ?x]) true)]
       (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
-               (.getMessage error))))))
+               #?(:clj (.getMessage error)
+                  :cljs (.-message error)))))))
 
 
 (t/deftest no-value-before-one-or-more
   (t/testing "match"
     (let [error (r.match/check (r.syntax/parse '[..2 ?x]) false)]
       (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
-               (.getMessage error)))))
+               #?(:clj (.getMessage error)
+                  :cljs (.-message error))))))
 
   (t/testing "search"
     (let [error (r.match/check (r.syntax/parse '[..2 ?x]) true)]
       (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
-               (.getMessage error))))))
+               #?(:clj (.getMessage error)
+                  :cljs (.-message error)))))))
 
 
 (t/deftest no-value-after-one-or-more
   (t/testing "match"
     (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) false)]
       (t/is (=  "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
-                (.getMessage error)))))
+                #?(:clj (.getMessage error)
+                   :cljs (.-message error))))))
 
   (t/testing "search"
     (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) true)]
       (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
-               (.getMessage error))))))
+               #?(:clj (.getMessage error)
+                  :cljs (.-message error)))))))
 
 (t/deftest memory-variables-in-nested-zero-or-more
   (t/is (= [[:aa :bb :cc] [1 2 3]]
