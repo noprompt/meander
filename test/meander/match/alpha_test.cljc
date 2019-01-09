@@ -790,7 +790,6 @@
             [{:baz "foo"}]}
           true)))
 
-
 (tc.t/defspec find-results-are-elements-of-search-results
   (tc.prop/for-all [v (tc.gen/vector tc.gen/nat 3 5)]
     (contains? (set (r.match/search v
@@ -822,15 +821,15 @@
           ["De Morgan" ["Francis"]]}]
     (t/is (= expected-search-results
              (set (r.match/search data
-                                  [_ ...
-                                   {:name !names
-                                    :owners [_ ... ?owner . _ ...]}
-                                   .
-                                   (or (and {:name !names
-                                             :owners [_ ... ?owner . _ ...]})
-                                       _)
-                                   ...]
-                                  [?owner !names]))))
+                    [_ ...
+                     {:name !names
+                      :owners [_ ... ?owner . _ ...]}
+                     .
+                     (or (and {:name !names
+                               :owners [_ ... ?owner . _ ...]})
+                         _)
+                     ...]
+                    [?owner !names]))))
     (t/is (contains? expected-search-results
                      (r.match/find data
                        [_ ...

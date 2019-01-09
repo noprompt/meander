@@ -1066,8 +1066,7 @@
       (let [[_ [sym seq-expr] body] node
             result-sym (gensym "result__")
             test-fail-sym (gensym "fail__")]
-        `(let [~test-fail-sym #?(:clj (Object.)
-                                 :cljs (js/Object.))
+        `(let [~test-fail-sym (reify)
                ~result-sym (reduce
                             (fn [~test-fail-sym ~sym]
                               (let [~result-sym ~(emit* body test-fail-sym kind)]
