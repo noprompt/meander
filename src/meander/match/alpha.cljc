@@ -141,6 +141,18 @@
                  (r.syntax/subnodes node))))
 
 
+(defn solved?
+  "true if all logic variables occuring in node are bound in env and
+  node is free of memory variables, false otherwise."
+  [node env]
+  (if (r.syntax/ground? node)
+    true
+    (let [vars (r.syntax/variables node)]
+      (if (some r.syntax/mvr-node? vars)
+        false
+        (every? env vars)))))
+
+
 (defn compile-ground
   "Compile node as a literal if possible."
   [node]
