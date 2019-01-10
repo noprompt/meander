@@ -12,6 +12,19 @@
 
 (def
   ^{:dynamic true
+    :doc ""}
+  *negating* false)
+
+
+(defn negating?
+  "true if currently compiling a matrix dervied from a not pattern,
+  false otherwise."
+  []
+  (true? *negating*))
+
+
+(def
+  ^{:dynamic true
     :doc "The current collection context e.g. :vector, :seq, etc."}
   *collection-context*)
 
@@ -527,7 +540,8 @@
                             :env (:env row),
                             :rhs [:load save-id]}]]
            [:save save-id
-            (compile [target] not-matrix)
+            (binding [*negating* true]
+              (compile [target] not-matrix))
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -808,13 +822,17 @@
                  ;; Symbol for the size of target.
                  m-sym (gensym "m__")
                  ;; Symbol for each permutation of target.
-                 perm-sym (gensym "perm__")]
+                 perm-sym (gensym "perm__")
+                 targets** `[~perm-sym ~@targets*]
+                 matrix*  [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])]]
              [:test `(set? ~target)
               [:bind [m-sym `(count ~target)]
                [:test `(<= ~n ~m-sym)
-                [:search [perm-sym `(r.util/k-combinations ~target ~n)]
-                 (compile `[~perm-sym ~@targets*]
-                          [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])])]]]])
+                (if (negating?)
+                  [:find [perm-sym `(r.util/k-combinations ~target ~n)]
+                   (compile targets** matrix*)]
+                  [:search [perm-sym `(r.util/k-combinations ~target ~n)]
+                   (compile targets** matrix*)])]]])
 
            (some (comp #{:map :set} r.syntax/tag) (r.syntax/subnodes node))
            (let [[_ the-set] node

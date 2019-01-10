@@ -849,3 +849,15 @@
                         [:v [[:any _] [:lvr ?a] [:lit "Bill"]]])
           (_ ... [?i1 ?tuple] . _ ... [?i2 ?tuple] . _ ...)
           [?i1 ?i2 ?tuple])))
+
+(t/deftest set-negation
+  (t/is (= '(1 3)
+           (r.match/search [#{1 2 3} #{[2 2]}]
+             [#{?x} (not #{[?x ?x]})]
+             ?x)))
+
+  (let [x (r.match/find [#{1 2 3} #{[2 2]}]
+            [#{?x} (not #{[?x ?x]})]
+            ?x)]
+    (t/is (or (= x 1)
+              (= x 3)))))
