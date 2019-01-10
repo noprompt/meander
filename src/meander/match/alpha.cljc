@@ -1,7 +1,7 @@
 (ns meander.match.alpha
   (:refer-clojure :exclude [compile find])
   #?(:cljs (:require-macros [meander.match.alpha]))
-  (:require [clojure.core :as clojure]
+  (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]
             [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
