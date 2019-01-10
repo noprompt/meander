@@ -1059,7 +1059,7 @@
           :search
           `(mapcat
             (fn [~sym]
-              ~(emit* body nil kind))
+              ~(emit* body fail kind))
             ~seq-expr)))
 
       :find
