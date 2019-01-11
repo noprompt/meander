@@ -1076,7 +1076,7 @@
 
 (defmethod unparse :not
   [[_ {term :term}]]
-  `(~'not ~term))
+  `(~'not ~(unparse term)))
 
 
 (defmethod search? :not
