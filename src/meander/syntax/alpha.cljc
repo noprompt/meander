@@ -431,13 +431,13 @@
 (s/def :meander.syntax.alpha/let
   (s/with-gen
     (s/and seq?
-           (s/cat :let #{'let}
+           (s/cat :let #{'let*}
                   :binding :meander.syntax.alpha/term
                   :expr any?))
     (fn []
       (s.gen/fmap
        (fn [[lvr x]]
-         (list 'let lvr x))
+         (list 'let* lvr x))
        (s.gen/tuple
         (s/gen :meander.syntax.alpha/logic-variable)
         (s.gen/any))))))
@@ -950,7 +950,7 @@
 
 (defmethod unparse :let
   [[_ {binding :binding, expr :expr}]]
-  `(~'let ~(unparse binding) ~expr))
+  `(~'let* ~(unparse binding) ~expr))
 
 
 (defmethod search? :let
@@ -1403,3 +1403,16 @@
       {:left [:cat pats],
        :dot '.
        :right '[:drp {:any _, :dots ...}]}]}]])
+
+(defmethod pattern-op 'let
+  [_]
+  (s/cat :op '#{let}
+         :bindings (s/* (s/cat :binding :meander.syntax.alpha/term
+                               :expr any?))))
+
+(defmethod expand-usr-op 'let
+  [[_ {bindings :bindings}]]
+  [:cnj {:terms (mapv
+                 (juxt (constantly :let)
+                       identity)
+                 bindings)}])
