@@ -1327,11 +1327,12 @@
 
 (defmethod check-node :dsj
   [[_ {terms :terms} :as node] env _]
-  (let [term-vars (sequence
+  (let [env* (into #{} (remove r.syntax/mvr-node?) env)
+        term-vars (sequence
                    (map
                     (fn [term]
                       ;; We don't need to account for bound variables.
-                      (set/difference (r.syntax/variables term) env)))
+                      (set/difference (r.syntax/logic-variables term) env*)))
                    terms)
         all-vars (reduce set/union #{} term-vars)
         problems (sequence
@@ -1744,7 +1745,6 @@
           nil
           `(let [~target ~expr]
              ~(emit (compile [target] matrix) nil :find)))))))
-
 
 (s/fdef find
   :args (s/cat :expr any?

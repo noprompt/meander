@@ -861,3 +861,10 @@
             ?x)]
     (t/is (or (= x 1)
               (= x 3)))))
+
+(t/deftest unbound-mvrs-in-dsj
+  (t/is (= [[0 2 4 6 8] [1 3 5 7 9]]
+           (r.match/match (range 10)
+             ((or (pred even? !evens) (pred odd? !odds)) ...)
+             [!evens !odds]))))
+
