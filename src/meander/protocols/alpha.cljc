@@ -15,3 +15,8 @@
   (-some [term strategy]
     "Apply strategy to at least one subterm in term."))
 
+
+(defprotocol ISelect
+  (-select [term strategy]
+    "Return term such that only subterms for which strategy succeeds
+    are retained."))

@@ -283,6 +283,11 @@
         (recur t*)))))
 
 
+;; ---------------------------------------------------------------------
+;; IAll implementation
+
+
+
 (defn iall? [x]
   (satisfies? r.protocols/IAll x))
 
@@ -398,6 +403,10 @@
   [s]
   (fn rec [t]
     ((choice (all rec) s) t)))
+
+
+;; ---------------------------------------------------------------------
+;; IOne implementation
 
 
 (defn ione? [x]
@@ -517,6 +526,10 @@
   [s]
   (fn rec [t]
     ((choice (one rec) s) t)))
+
+
+;; ---------------------------------------------------------------------
+;; ISome implementation
 
 
 (defn isome? [x]
@@ -658,6 +671,66 @@
   [s]
   (fn rec [t]
     ((choice (some rec) s) t)))
+
+
+;; ---------------------------------------------------------------------
+;; ISelect implementation
+
+
+(defn iselect? [x]
+  (satisfies? r.protocols/ISelect x))
+
+
+(defmacro iseq-select-body
+  {:private true}
+  [t s]
+  `(sequence (comp (map ~s) (remove fail?)) ~t))
+
+
+(defmacro ivector-select-body
+  {:private true}
+  [t s]
+  `(into [] (comp (map ~s) (remove fail?)) ~t))
+
+
+(defmacro iset-select-body
+  {:private true}
+  [t s]
+  `(into #{} (comp (map ~s) (remove fail?)) ~t))
+
+
+(defmacro imap-select-body
+  {:private true}
+  [t s]
+  `(into {} (comp (map ~s) (remove fail?)) ~t))
+
+
+(extend-protocol r.protocols/ISelect
+  #?@(:clj [clojure.lang.IPersistentMap (-select [this s] (imap-select-body this s))])
+  #?@(:clj [clojure.lang.IPersistentSet (-select [this s] (iset-select-body this s))])
+  #?@(:clj [clojure.lang.IPersistentVector (-select [this s] (ivector-select-body this s))])
+  #?@(:clj [clojure.lang.ISeq (-select [this s] (iseq-select-body this s))])
+  #?@(:cljs [cljs.core/LazySeq (-select [this s] (meander.strategy.alpha/iseq-select-body this s))])
+  #?@(:cljs [cljs.core/List (-select [this s] (meander.strategy.alpha/iseq-select-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-select [this s] (meander.strategy.alpha/imap-select-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-select [this s] (meander.strategy.alpha/imap-select-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-select [this s] (meander.strategy.alpha/iset-select-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-select [this s] (meander.strategy.alpha/ivector-select-body this s))])
+  #?@(:cljs [cljs.core/Range (-select [this s] (meander.strategy.alpha/iseq-select-body this s))]))
+
+
+(defn select
+  "Return a strategy which retains subterms of t for which the
+  strategy s succeeds."
+  ([s]
+   (fn [t]
+     (if (iselect? t)
+       (r.protocols/-select t s)
+       t)))
+  ([s t]
+   (if (iselect? t)
+     (r.protocols/-select t s)
+     t)))
 
 
 (defn spine-td
