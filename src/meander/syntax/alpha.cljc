@@ -157,13 +157,40 @@
        (re-matches? #"\.\.(\d+)?" (name x))))
 
 
+(def
+  ^{:dynamic true
+    :private true}
+  *pattern-registry*
+  (atom #{}))
+
+
+(defn pattern-registered?
+  {:private true}
+  [x]
+  (contains? (deref *pattern-registry*) x))
+
+
+(defn expand-symbol
+  {:private true}
+  [sym]
+  #?(:clj (if (qualified-symbol? sym)
+            (let [ns-sym (symbol (namespace sym))]
+              (if-some [ns (get (ns-aliases *ns*) ns-sym)]
+                (symbol (name (ns-name ns)) (name sym))
+                nil))
+            (symbol (name (ns-name *ns*)) (name sym)))
+     :cljs sym))
+
+
 (defn pattern-op-dispatch
   "Dispatch function for pattern-op."
   [x]
   (if (seq? x)
     (let [y (first x)]
       (if (symbol? y)
-        y))))
+        (expand-symbol y)
+        nil))
+    nil))
 
 
 (defmulti pattern-op
