@@ -671,6 +671,15 @@
         (subnodes node)))
 
 
+(defn logic-variables
+  "Return all :lvr nodes in node."
+  [node]
+  (s/assert :meander.syntax.alpha/node node)
+  (into #{}
+        (filter (comp #{:lvr} tag))
+        (subnodes node)))
+
+
 (defn memory-variables
   "Return all :mvr nodes in node."
   [node]
