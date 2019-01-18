@@ -215,6 +215,28 @@
       (into #{} (map compile-ground set)))))
 
 
+(defn compile-with-memory-variables-initialized
+  {:private true}
+  [targets matrix]
+  (let [last-row (last matrix)]
+    (reduce
+     (fn [[matrix* all-mvrs] row]
+       (let [mvrs (r.syntax/memory-variables (first (:cols row)))
+             row* (assoc row :env mvrs)
+             all-mvrs* (set/union all-mvrs mvrs)
+             matrix** (conj matrix* row*)]
+         (if (= row last-row)
+           (reduce
+            (fn [tree [_ mvr]]
+              [:bind [mvr []]
+               tree])
+            (compile targets matrix**)
+            all-mvrs*)
+           [matrix** all-mvrs*])))
+     [[] #{}]
+     matrix)))
+
+
 (defn specialize-matrix
   "Retains rows of the matrix whose tag is tag or :any."
   [tag matrix]
@@ -1327,11 +1349,12 @@
 
 (defmethod check-node :dsj
   [[_ {terms :terms} :as node] env _]
-  (let [term-vars (sequence
+  (let [env* (into #{} (remove r.syntax/mvr-node?) env)
+        term-vars (sequence
                    (map
                     (fn [term]
                       ;; We don't need to account for bound variables.
-                      (set/difference (r.syntax/variables term) env)))
+                      (set/difference (r.syntax/logic-variables term) env*)))
                    terms)
         all-vars (reduce set/union #{} term-vars)
         problems (sequence
@@ -1612,7 +1635,7 @@
                          ~(if (some? final-clause)
                             (emit (compile [target] [final-clause]) nil :match)
                             `(throw (ex-info "non exhaustive pattern match" {}))))]
-             ~(emit (compile [target] matrix) `(~fail) :match)))))))
+             ~(emit (compile-with-memory-variables-initialized [target] matrix) `(~fail) :match)))))))
 
 
 (defn analyze-search-args
@@ -1682,7 +1705,7 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(emit (compile [target] matrix) nil :search)))))))
+             ~(emit (compile-with-memory-variables-initialized [target] matrix) nil :search)))))))
 
 (s/fdef search
   :args (s/cat :expr any?
@@ -1743,8 +1766,7 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(emit (compile [target] matrix) nil :find)))))))
-
+             ~(emit (compile-with-memory-variables-initialized [target] matrix) nil :find)))))))
 
 (s/fdef find
   :args (s/cat :expr any?
