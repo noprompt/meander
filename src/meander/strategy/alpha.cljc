@@ -674,102 +674,102 @@
 
 
 ;; ---------------------------------------------------------------------
-;; ISelect implementation
+;; IProject implementation
 
 
-(defn iselect? [x]
-  (satisfies? r.protocols/ISelect x))
+(defn iproject? [x]
+  (satisfies? r.protocols/IProject x))
 
 
-(defmacro iseq-select-body
+(defmacro iseq-project-body
   {:private true}
   [t s]
   `(sequence (comp (map ~s) (remove fail?)) ~t))
 
 
-(defmacro ivector-select-body
+(defmacro ivector-project-body
   {:private true}
   [t s]
   `(into [] (comp (map ~s) (remove fail?)) ~t))
 
 
-(defmacro iset-select-body
+(defmacro iset-project-body
   {:private true}
   [t s]
   `(into #{} (comp (map ~s) (remove fail?)) ~t))
 
 
-(defmacro imap-select-body
+(defmacro imap-project-body
   {:private true}
   [t s]
   `(into {} (comp (map ~s) (remove fail?)) ~t))
 
 
-(extend-protocol r.protocols/ISelect
-  #?@(:clj [clojure.lang.IPersistentMap (-select [this s] (imap-select-body this s))])
-  #?@(:clj [clojure.lang.IPersistentSet (-select [this s] (iset-select-body this s))])
-  #?@(:clj [clojure.lang.IPersistentVector (-select [this s] (ivector-select-body this s))])
-  #?@(:clj [clojure.lang.ISeq (-select [this s] (iseq-select-body this s))])
-  #?@(:cljs [cljs.core/LazySeq (-select [this s] (meander.strategy.alpha/iseq-select-body this s))])
-  #?@(:cljs [cljs.core/List (-select [this s] (meander.strategy.alpha/iseq-select-body this s))])
-  #?@(:cljs [cljs.core/PersistentArrayMap (-select [this s] (meander.strategy.alpha/imap-select-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashMap (-select [this s] (meander.strategy.alpha/imap-select-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashSet (-select [this s] (meander.strategy.alpha/iset-select-body this s))])
-  #?@(:cljs [cljs.core/PersistentVector (-select [this s] (meander.strategy.alpha/ivector-select-body this s))])
-  #?@(:cljs [cljs.core/Range (-select [this s] (meander.strategy.alpha/iseq-select-body this s))]))
+(extend-protocol r.protocols/IProject
+  #?@(:clj [clojure.lang.IPersistentMap (-project [this s] (imap-project-body this s))])
+  #?@(:clj [clojure.lang.IPersistentSet (-project [this s] (iset-project-body this s))])
+  #?@(:clj [clojure.lang.IPersistentVector (-project [this s] (ivector-project-body this s))])
+  #?@(:clj [clojure.lang.ISeq (-project [this s] (iseq-project-body this s))])
+  #?@(:cljs [cljs.core/LazySeq (-project [this s] (meander.strategy.alpha/iseq-project-body this s))])
+  #?@(:cljs [cljs.core/List (-project [this s] (meander.strategy.alpha/iseq-project-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-project [this s] (meander.strategy.alpha/imap-project-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-project [this s] (meander.strategy.alpha/imap-project-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-project [this s] (meander.strategy.alpha/iset-project-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-project [this s] (meander.strategy.alpha/ivector-project-body this s))])
+  #?@(:cljs [cljs.core/Range (-project [this s] (meander.strategy.alpha/iseq-project-body this s))]))
 
 
-(defn select
+(defn project
   "Return a strategy which retains subterms of t for which the
   strategy s succeeds."
   ([s]
    (fn [t]
      #?(:clj
-        (if (iselect? t)
-          (r.protocols/-select t s)
+        (if (iproject? t)
+          (r.protocols/-project t s)
           t)
 
         :cljs
         (cond
-          (iselect? t)
-          (r.protocols/-select t s)
+          (iproject? t)
+          (r.protocols/-project t s)
 
           (satisfies? cljs.core/ISeq t)
-          (meander.strategy.alpha/iseq-select-body t s)
+          (meander.strategy.alpha/iseq-project-body t s)
 
           (satisfies? cljs.core/IVector t)
-          (meander.strategy.alpha/ivector-select-body t s)
+          (meander.strategy.alpha/ivector-project-body t s)
 
           (satisfies? cljs.core/IMap t)
-          (meander.strategy.alpha/imap-select-body t s)
+          (meander.strategy.alpha/imap-project-body t s)
 
           (satisfies? cljs.core/ISet t)
-          (meander.strategy.alpha/iset-select-body t s)
+          (meander.strategy.alpha/iset-project-body t s)
 
           :else
           t))))
   ([s t]
    #?(:clj
-      (if (iselect? t)
-        (r.protocols/-select t s)
+      (if (iproject? t)
+        (r.protocols/-project t s)
         t)
 
       :cljs
       (cond
-        (iselect? t)
-        (r.protocols/-select t s)
+        (iproject? t)
+        (r.protocols/-project t s)
 
         (satisfies? cljs.core/ISeq t)
-        (meander.strategy.alpha/iseq-select-body t s)
+        (meander.strategy.alpha/iseq-project-body t s)
 
         (satisfies? cljs.core/IVector t)
-        (meander.strategy.alpha/ivector-select-body t s)
+        (meander.strategy.alpha/ivector-project-body t s)
 
         (satisfies? cljs.core/IMap t)
-        (meander.strategy.alpha/imap-select-body t s)
+        (meander.strategy.alpha/imap-project-body t s)
 
         (satisfies? cljs.core/ISet t)
-        (meander.strategy.alpha/iset-select-body t s)
+        (meander.strategy.alpha/iset-project-body t s)
 
         :else
         t))))

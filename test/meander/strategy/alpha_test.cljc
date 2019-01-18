@@ -232,43 +232,43 @@
              (inc-number-all {0 1 10 11})))))
 
 
-(t/deftest select-test
-  (t/is (= (2 3 4)
-           (r/select (r/pipe (r/pred number?) inc)
-                     '(1 :a 2 :b 3 :c))))
+(t/deftest project-test
+  (t/is (= '(2 3 4)
+           (r/project (r/pipe (r/pred number?) inc)
+                      '(1 :a 2 :b 3 :c))))
 
-  (t/is (= (2 3 4)
-           ((r/select (r/pipe (r/pred number?) inc))
+  (t/is (= '(2 3 4)
+           ((r/project (r/pipe (r/pred number?) inc))
             '(1 :a 2 :b 3 :c))))
 
   (t/is (= [2 3 4]
-           (r/select (r/pipe (r/pred number?) inc)
-                     [1 :a 2 :b 3 :c])))
+           (r/project (r/pipe (r/pred number?) inc)
+                      [1 :a 2 :b 3 :c])))
 
   
   (t/is (= [2 3 4]
-           ((r/select (r/pipe (r/pred number?) inc))
+           ((r/project (r/pipe (r/pred number?) inc))
             [1 :a 2 :b 3 :c])))
 
   (t/is (= #{2 3 4}
-           (r/select (r/pipe (r/pred number?) inc)
-                     #{1 :a 2 :b 3 :c})))
+           (r/project (r/pipe (r/pred number?) inc)
+                      #{1 :a 2 :b 3 :c})))
 
   
   (t/is (= #{2 3 4}
-           ((r/select (r/pipe (r/pred number?) inc))
+           ((r/project (r/pipe (r/pred number?) inc))
             #{1 :a 2 :b 3 :c})))
 
   (t/is (= {:a 1, :c 2}
-           (r/select (r/pipe
-                      (r/match
-                        [?k (pred number? ?v)]
-                        [?k (inc ?v)]))
-                     {:a 0, :b "B", :c 1, :d "D"})))
-
-  (t/is (= {:a 1, :c 2}
-           ((r/select (r/pipe
+           (r/project (r/pipe
                        (r/match
                          [?k (pred number? ?v)]
-                         [?k (inc ?v)])))
+                         [?k (inc ?v)]))
+                      {:a 0, :b "B", :c 1, :d "D"})))
+
+  (t/is (= {:a 1, :c 2}
+           ((r/project (r/pipe
+                        (r/match
+                          [?k (pred number? ?v)]
+                          [?k (inc ?v)])))
             {:a 0, :b "B", :c 1, :d "D"}))))
