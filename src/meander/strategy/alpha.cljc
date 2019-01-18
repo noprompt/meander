@@ -724,13 +724,55 @@
   strategy s succeeds."
   ([s]
    (fn [t]
-     (if (iselect? t)
-       (r.protocols/-select t s)
-       t)))
+     #?(:clj
+        (if (iselect? t)
+          (r.protocols/-select t s)
+          t)
+
+        :cljs
+        (cond
+          (iselect? t)
+          (r.protocols/-select t s)
+
+          (satisfies? cljs.core/ISeq t)
+          (meander.strategy.alpha/iseq-select-body t s)
+
+          (satisfies? cljs.core/IVector t)
+          (meander.strategy.alpha/ivector-select-body t s)
+
+          (satisfies? cljs.core/IMap t)
+          (meander.strategy.alpha/imap-select-body t s)
+
+          (satisfies? cljs.core/ISet t)
+          (meander.strategy.alpha/iset-select-body t s)
+
+          :else
+          t))))
   ([s t]
-   (if (iselect? t)
-     (r.protocols/-select t s)
-     t)))
+   #?(:clj
+      (if (iselect? t)
+        (r.protocols/-select t s)
+        t)
+
+      :cljs
+      (cond
+        (iselect? t)
+        (r.protocols/-select t s)
+
+        (satisfies? cljs.core/ISeq t)
+        (meander.strategy.alpha/iseq-select-body t s)
+
+        (satisfies? cljs.core/IVector t)
+        (meander.strategy.alpha/ivector-select-body t s)
+
+        (satisfies? cljs.core/IMap t)
+        (meander.strategy.alpha/imap-select-body t s)
+
+        (satisfies? cljs.core/ISet t)
+        (meander.strategy.alpha/iset-select-body t s)
+
+        :else
+        t))))
 
 
 (defn spine-td
