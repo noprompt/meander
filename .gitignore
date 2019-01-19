@@ -9,3 +9,9 @@ pom.xml.asc
 /.nrepl-port
 .hgignore
 .hg/
+\#*\#
+.\#*
+.cljs_nashorn_repl/
+.cpcache/
+cljs-test-runner-out/
+nashorn_code_cache/
