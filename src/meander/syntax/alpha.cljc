@@ -3,7 +3,8 @@
             [clojure.spec.gen.alpha :as s.gen]
             [clojure.string :as string]
             [clojure.walk :as walk]
-            [meander.util.alpha :as util]))
+            [meander.util.alpha :as util])
+  #?(:cljs (:require-macros [meander.syntax.alpha])))
 
 
 #?(:clj (set! *warn-on-reflection* true))
@@ -157,13 +158,27 @@
        (re-matches? #"\.\.(\d+)?" (name x))))
 
 
+(defn expand-symbol
+  {:private true}
+  [sym]
+  #?(:clj (if (qualified-symbol? sym)
+            (let [ns-sym (symbol (namespace sym))]
+              (if-some [ns (get (ns-aliases *ns*) ns-sym)]
+                (symbol (name (ns-name ns)) (name sym))
+                nil))
+            (symbol (name (ns-name *ns*)) (name sym)))
+     :cljs sym))
+
+
 (defn pattern-op-dispatch
   "Dispatch function for pattern-op."
   [x]
   (if (seq? x)
     (let [y (first x)]
       (if (symbol? y)
-        y))))
+        (expand-symbol y)
+        nil))
+    nil))
 
 
 (defmulti pattern-op
@@ -1425,3 +1440,74 @@
                  (juxt (constantly :let)
                        identity)
                  bindings)}])
+
+;; ---------------------------------------------------------------------
+;; defsyntax
+
+(s/def :meander.syntax.alpha/defsyntax-args
+  (s/cat :name simple-symbol?
+         :docstring (s/? string?)
+         :meta (s/? map?)
+         :arglist (s/coll-of simple-symbol? :kind vector?)
+         :body (s/* any?)))
+
+
+(defmacro defsyntax
+  "EXPERIMENTAL Like defn but for defining new pattern syntax by
+  extending the parser. When parsing, if a seq is encountered starting
+  with a symbol which can be resolved to the created var then the tail
+  of the seq is applied to the var and the result is parsed.
+
+  Example
+
+  (defsyntax re [regex]
+    `(~'pred
+      (fn [s#]
+        (and (string? s#)
+             (re-matches ~regex s#)))))
+
+  (require '[meander.match.alpha :as r.match])
+
+  (r.match \"elf\"
+    (re #\"[a-z]+\")
+    :okay!)
+  ;; => :okay
+  "
+  {:arglists '([name docstring? meta? arglist & body])}
+  [& args]
+  (let [data (s/conform :meander.syntax.alpha/defsyntax-args args)]
+    (if (identical? data ::s/invalid)
+      nil
+      (let [sym (get data :name)
+            q-sym (symbol (name (ns-name *ns*))
+                          (name sym))
+            arglist (get data :arglist)
+            body (get data :body)
+            name-key (keyword (name (gensym "name__")))]
+        `(do
+           (defn ~sym
+             ~@(when-some [docstring (get data :docstring)]
+                 [docstring])
+             ~@(when-some [meta (get data :meta)]
+                 [meta])
+             ~arglist
+             ~@body)
+
+           (defmethod pattern-op '~q-sym [form#]
+             (case (dec (count form#))
+               ~(count arglist)
+               (s/cat :op (s/conformer (constantly '~q-sym))
+                      ~@(mapcat (juxt (comp keyword name)
+                                      (constantly `any?))
+                                arglist))
+               (throw (ex-info ~(str "Wrong number of arguments passed to " q-sym)
+                               {}))))
+
+           (defmethod expand-usr-op '~q-sym [[_# {:keys ~arglist}]]
+             (parse (do ~@body)))
+
+           (var ~q-sym))))))
+
+
+(s/fdef defsyntax
+  :args :meander.syntax.alpha/defsyntax-args)
