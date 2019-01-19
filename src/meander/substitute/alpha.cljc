@@ -69,6 +69,11 @@
   #'compile-substitute-dispatch)
 
 
+(defmethod compile-substitute :app
+  [[_ {form :form, terms :terms}] env]
+  `(list '~'app ~form ~@(map compile-substitute terms (repeat env))))
+
+
 (defmethod compile-substitute :cat
   [[_ nodes] env]
   (if (some #{:uns} (map r.syntax/tag nodes))
@@ -83,9 +88,20 @@
     `(list ~@(sequence (map compile-substitute) nodes (repeat env)))))
 
 
+(defmethod compile-substitute :cnj
+  [[_ {terms :terms}] env]
+  `(list '~'and ~@(map compile-substitute terms (repeat env))))
+
+
 (defmethod compile-substitute :drp
   [_ _]
   `(list))
+
+
+(defmethod compile-substitute :dsj
+  [[_ {terms :terms}] env]
+  `(list '~'or  ~@(map compile-substitute terms (repeat env))))
+
 
 (defmethod compile-substitute :lit
   [[_ x] env]
@@ -111,6 +127,16 @@
       `(when-some [[_# ~item] (find (deref ~mvr-ref-sym) 0)]
          (vswap! ~mvr-ref-sym subvec 1)
          ~item)))) 
+
+
+(defmethod compile-substitute :not
+  [[_ {term :term}] env]
+  `(list '~'not ~(compile-substitute term env)))
+
+
+(defmethod compile-substitute :prd
+  [[_ {form :form, terms :terms}] env]
+  `(list '~'pred ~form ~@(map compile-substitute terms (repeat env))))
 
 
 (defmethod compile-substitute :prt
