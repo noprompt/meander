@@ -10,4 +10,6 @@
            :cljs-test {:extra-paths ["test"]
                        :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
-                       :main-opts ["-m" "cljs-test-runner.main"]}}}
+                       :main-opts ["-m" "cljs-test-runner.main"]}
+           :make-defproject {:extra-paths ["scripts"]
+                             :main-opts ["-m" "make-defproject"]}}}
