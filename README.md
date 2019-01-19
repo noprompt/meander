@@ -3,11 +3,15 @@
 Meander is a Clojure/ClojureScript data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting) and [logic programming](https://en.wikipedia.org/wiki/Logic_programming). It does so with extensible syntactic [pattern matching](https://en.wikipedia.org/wiki/Pattern_matching), syntactic [pattern substitution](https://en.wikipedia.org/wiki/Substitution_(logic)), and a suite of combinators known as _strategies_ that run the gamut from purely functional to purely declarative.
 
 
+[![Clojars Project](https://img.shields.io/clojars/v/meander/alpha.svg)](https://clojars.org/meander/alpha)
+
+
 ## Contents
 
 * [Pattern Matching](#pattern-matching)
 * [Pattern Substituton](#pattern-matching)
 * [Rewriting](#rewriting)
+
 
 ## Pattern Matching
 
