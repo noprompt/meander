@@ -158,19 +158,6 @@
        (re-matches? #"\.\.(\d+)?" (name x))))
 
 
-(def
-  ^{:dynamic true
-    :private true}
-  *pattern-registry*
-  (atom #{}))
-
-
-(defn pattern-registered?
-  {:private true}
-  [x]
-  (contains? (deref *pattern-registry*) x))
-
-
 (defn expand-symbol
   {:private true}
   [sym]
