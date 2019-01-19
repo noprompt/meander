@@ -1,4 +1,4 @@
-(defproject meander/meander.alpha "0.0.0-SNAPSHOT"
+(defproject meander/alpha "0.0.0-SNAPSHOT"
   :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
   :url "https://github.com/noprompt/meander"
   :license {:name "Eclipse Public License"
