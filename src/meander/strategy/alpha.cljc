@@ -283,6 +283,11 @@
         (recur t*)))))
 
 
+;; ---------------------------------------------------------------------
+;; IAll implementation
+
+
+
 (defn iall? [x]
   (satisfies? r.protocols/IAll x))
 
@@ -398,6 +403,10 @@
   [s]
   (fn rec [t]
     ((choice (all rec) s) t)))
+
+
+;; ---------------------------------------------------------------------
+;; IOne implementation
 
 
 (defn ione? [x]
@@ -517,6 +526,10 @@
   [s]
   (fn rec [t]
     ((choice (one rec) s) t)))
+
+
+;; ---------------------------------------------------------------------
+;; ISome implementation
 
 
 (defn isome? [x]
@@ -658,6 +671,108 @@
   [s]
   (fn rec [t]
     ((choice (some rec) s) t)))
+
+
+;; ---------------------------------------------------------------------
+;; IRetain implementation
+
+
+(defn iretain? [x]
+  (satisfies? r.protocols/IRetain x))
+
+
+(defmacro iseq-retain-body
+  {:private true}
+  [t s]
+  `(sequence (comp (map ~s) (remove fail?)) ~t))
+
+
+(defmacro ivector-retain-body
+  {:private true}
+  [t s]
+  `(into [] (comp (map ~s) (remove fail?)) ~t))
+
+
+(defmacro iset-retain-body
+  {:private true}
+  [t s]
+  `(into #{} (comp (map ~s) (remove fail?)) ~t))
+
+
+(defmacro imap-retain-body
+  {:private true}
+  [t s]
+  `(into {} (comp (map ~s) (remove fail?)) ~t))
+
+
+(extend-protocol r.protocols/IRetain
+  #?@(:clj [clojure.lang.IPersistentMap (-retain [this s] (imap-retain-body this s))])
+  #?@(:clj [clojure.lang.IPersistentSet (-retain [this s] (iset-retain-body this s))])
+  #?@(:clj [clojure.lang.IPersistentVector (-retain [this s] (ivector-retain-body this s))])
+  #?@(:clj [clojure.lang.ISeq (-retain [this s] (iseq-retain-body this s))])
+  #?@(:cljs [cljs.core/LazySeq (-retain [this s] (meander.strategy.alpha/iseq-retain-body this s))])
+  #?@(:cljs [cljs.core/List (-retain [this s] (meander.strategy.alpha/iseq-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-retain [this s] (meander.strategy.alpha/imap-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-retain [this s] (meander.strategy.alpha/imap-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-retain [this s] (meander.strategy.alpha/iset-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-retain [this s] (meander.strategy.alpha/ivector-retain-body this s))])
+  #?@(:cljs [cljs.core/Range (-retain [this s] (meander.strategy.alpha/iseq-retain-body this s))]))
+
+
+(defn retain
+  "Return a strategy which retains subterms of t for which the
+  strategy s succeeds."
+  ([s]
+   (fn [t]
+     #?(:clj
+        (if (iretain? t)
+          (r.protocols/-retain t s)
+          t)
+
+        :cljs
+        (cond
+          (iretain? t)
+          (r.protocols/-retain t s)
+
+          (satisfies? cljs.core/ISeq t)
+          (meander.strategy.alpha/iseq-retain-body t s)
+
+          (satisfies? cljs.core/IVector t)
+          (meander.strategy.alpha/ivector-retain-body t s)
+
+          (satisfies? cljs.core/IMap t)
+          (meander.strategy.alpha/imap-retain-body t s)
+
+          (satisfies? cljs.core/ISet t)
+          (meander.strategy.alpha/iset-retain-body t s)
+
+          :else
+          t))))
+  ([s t]
+   #?(:clj
+      (if (iretain? t)
+        (r.protocols/-retain t s)
+        t)
+
+      :cljs
+      (cond
+        (iretain? t)
+        (r.protocols/-retain t s)
+
+        (satisfies? cljs.core/ISeq t)
+        (meander.strategy.alpha/iseq-retain-body t s)
+
+        (satisfies? cljs.core/IVector t)
+        (meander.strategy.alpha/ivector-retain-body t s)
+
+        (satisfies? cljs.core/IMap t)
+        (meander.strategy.alpha/imap-retain-body t s)
+
+        (satisfies? cljs.core/ISet t)
+        (meander.strategy.alpha/iset-retain-body t s)
+
+        :else
+        t))))
 
 
 (defn spine-td
