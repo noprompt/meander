@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# This script clones the current repository into ./release and builds
+# a project.clj file with .
+
+# Delete ./release if it exists.
+[[ -d release ]] && rm -rf release
+
+project_root=`git rev-parse --absolute-git-dir | sed -e 's/\.git$//'`
+git clone $project_root release
+
+cd release
+printf "cd "; pwd
+
+echo "Writing 'project.clj'..."
+
+clojure -Amake-defproject
+
+echo "done."
+
+cd ..
+printf "cd "; pwd
