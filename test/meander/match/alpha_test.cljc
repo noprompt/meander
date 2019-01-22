@@ -162,6 +162,13 @@
       _
       true)))
 
+
+(t/deftest let-test
+  (t/is (= [1 2]
+           (r.match/match 42
+             (or [?x ?y] (let [?x ?y] [1 2]))
+             [?x ?y]))))
+
 ;; Seqs
 
 (tc.t/defspec seq-unquote-patterns-match

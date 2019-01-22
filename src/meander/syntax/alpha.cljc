@@ -166,7 +166,9 @@
               (if-some [ns (get (ns-aliases *ns*) ns-sym)]
                 (symbol (name (ns-name ns)) (name sym))
                 nil))
-            (symbol (name (ns-name *ns*)) (name sym)))
+            (if (contains? (ns-interns *ns*) sym)
+              (symbol (name (ns-name *ns*)) (name sym))
+              sym))
      :cljs sym))
 
 
