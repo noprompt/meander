@@ -229,7 +229,7 @@ Example:
 
 ### `pred`
 
-`(pred pred-fn pat₀ ,,, patₙ)` matches whenenver `pred-fn` applied to the current value being matched returns a truthy value and all of `pat₀` through `patₙ` match.
+`(pred pred-fn pat-0 ,,, pat-n)` matches whenenver `pred-fn` applied to the current value being matched returns a truthy value and all of `pat-0` through `pat-n` match.
 
 Example:
 
@@ -262,7 +262,7 @@ Example:
 
 #### `and`
 
-`(and pat₀ ,,, patₙ)` matches when all of `pat₀` through `patₙ` match.
+`(and pat-0 ,,, pat-n)` matches when all of `pat-0` through `pat-n` match.
 
 Example:
 
@@ -275,7 +275,7 @@ Example:
 
 #### `or`
 
-`(or pat₀ ,,, patₙ)` matches when any one of `pat₀` through `patₙ` match.
+`(or pat-0 ,,, pat-n)` matches when any one of `pat-0` through `pat-n` match.
 
 Example:
 
@@ -286,7 +286,7 @@ Example:
 ;; => true
 ```
 
-Note that unbound variables _must_ be shared by `pat₀` through `patₙ`.
+Note that unbound variables _must_ be shared by `pat-0` through `pat-n`.
 
 Example:
 
@@ -316,7 +316,8 @@ Example:
 (match [1 2 1 2 2 3]
   [1 2 ... ?x ?y]
   [?x ?y])
-;; => [2 3]
+;; =>
+[2 3]
 ```
 
 ```clj
@@ -337,7 +338,8 @@ Example:
 (match [1 1 1 2 3]
   [1 ..3 ?x ?y]
   [?x ?y])
-;; => [2 3]
+;; =>
+[2 3]
 ```
   
 ```clj
@@ -347,7 +349,8 @@ Example:
 
   _
   [:fail])
-;; => [:fail]
+;; => 
+[:fail]
 ```
 
 #### Partition
@@ -360,7 +363,8 @@ Example:
 (match [3 4 5 6 7 8] 
   [3 4 . !xs !ys ...]
   [!xs !ys])
-;; => [[5 7] [6 8]]
+;; =>
+[[5 7] [6 8]]
 ```
 
 Had the pattern `[3 4 . !xs !ys ...]` in this example been written as `[3 4 !xs !ys ...]` the match would have failed. This is because the latter pattern represents a subsequence of 4 elements beginning with the sequence `3 4`.
@@ -439,7 +443,7 @@ Logic variables have semantically equivalent behavior to the unquote operator.
 
 ### Memory variables
 
-Memory variables disperse their values throughout a substitution. Each occurence disperse one value from the collection into the expression.
+Memory variables disperse their values throughout a substitution. Each occurence disperses one value from the collection into the expression.
 
 ```clj
 (let [!xs [1 2 3]]
