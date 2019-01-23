@@ -247,6 +247,27 @@ Example:
 ;; => 42
 ```
 
+### `app`
+
+`(app fn-expr pat-0 ,,, pat-n)` matches whenever `fn-expr` applied to the current value being matched matches `pat-0` through `pat-n`.
+
+```clj
+(r.match/match 42
+  (app inc (pred odd? ?x))
+  :even
+
+  _
+  :odd)
+;; =>
+:even
+
+(r.match/match (list 1 2 3)
+  (and (app first ?x) (app rest ?xs))
+  {'?x ?x, '?xs ?xs})
+;; =>
+{'?x 1, '?xs (2 3)}
+```
+
 ### `let`
 
 `(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allows pattern matching on an arbitrary expression.
