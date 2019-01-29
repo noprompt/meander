@@ -507,10 +507,15 @@ When an expression has memory variable occurences which exceed the number of ava
 
 * [Rewriting Overview](#rewriting-overview)
 * [Strategy Combinators](#strategy-combinators)
+* [Basic Combinators](#basic-combinators)
   * [`fail`](#fail)
   * [`build`](#build)
   * [`pipe`](#pipe)
   * [`choice`](#choice)
+* [Traversal Combinators](#traversal-combinators)
+  * [`one`](#one)
+  * [`some`](#some)
+  * [`all`](#all)
   
 ### Rewriting Overview
 
@@ -582,14 +587,22 @@ A _strategy_ is a function of one argument, a term `t`, and returns the term rew
 
 Meander's strategy combinators can be found in the `meander.strategy.alpha` namespace.
 
+```
+(require '[meander.strategy.alpha :as r])
+```
+
+The alias `r` stands for "rewrite" and will be used throughout the following examples.
+
 Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.alpha/*fail*` which is printed as `#meander.alpha/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.alpha/fail?`, however, you should rarely need to reach for this function outside of combinators.
+
+### Basic Combinators
 
 #### `fail`
 
 Strategy which always fails.
 
 ```clj
-(fail 10)
+(r/fail 10)
 ;; =>
 #meander.alpha/fail[]
 ```
@@ -599,7 +612,7 @@ Strategy which always fails.
 Strategy combinator which takes a value returns a strategy which always returns that value. Like `clojure.core/constantly` but the returned function takes only one argument.
 
 ```clj
-(let [s (build "shoe")]
+(let [s (r/build "shoe")]
   (s "horse"))
 ;; =>
 "shoe"
@@ -611,14 +624,14 @@ Strategy combinator which takes two (or more) strategies`p` and `q` and returns 
 
 
 ```clj
-(let [s (pipe inc str)]
+(let [s (r/pipe inc str)]
   (s 10))
 ;; =>
 "11"
 ```
 
 ```clj
-(let [s (pipe inc fail)]
+(let [s (r/pipe inc fail)]
   (s 10))
 ;; =>
 #meander.alpha/fail[]
@@ -630,11 +643,91 @@ Note: `pipe` actually takes zero or more strategies as arguments and has behavio
 
 Strategy which takes two (or more) strategies `p` and `q` and returns a strategy which attempts to apply `p` to `t` or `q` to `t` whichever succeeds first. Fails if all provided strategies fail. Choices are applied deterministically from left to right.
 
-```clj
-(let [s1 (pipe inc fail)
-      s2 (pipe inc str)
-      s (choice s1 s2)]
+```clj example
+(let [s1 (r/pipe inc fail)
+      s2 (r/pipe inc str)
+      s (r/choice s1 s2)]
   (s 10))
 ;; =>
 "10"
+```
+
+### Traversal Combinators
+
+#### `one`
+
+The `one` combinator is a traversal combinator which applies a strategy `s` to one child of a term `t`. If there is no child term for which `s` succeeds then `(one s)` fails.
+
+```clj example
+(let [s (fn [x]
+          (if (number? x)
+            (inc x)
+            r/*fail*))
+      one-s (r/one s)]
+  (one-s ["a" 2 "b" 3]))
+;; => 
+["a" 3 "b" 3]
+```
+
+```clj example
+(let [s (fn [x]
+          (if (number? x)
+            (inc x)
+            r/*fail*))
+      one-s (r/one s)]
+  (s ["a" "b" "c"]))
+;; => 
+#meander.alpha/fail[]
+```
+
+#### `some`
+
+The `some` combinator is a traversal combinator which applies a strategy `s` to at least child of a term `t`. If there is no child term for which `s` succeeds then `(some s)` fails.
+
+```clj example
+(let [s (fn [x]
+          (if (number? x)
+            (inc x)
+            r/*fail*))
+      some-s (r/some s)]
+  (some-s ["a" 2 "b" 3]))
+;; => 
+["a" 3 "b" 4]
+```
+
+```clj example
+(let [s (fn [x]
+          (if (number? x)
+            (inc x)
+            r/*fail*))
+      some-s (r/some s)]
+  (some-s ["a" "b" "c"]))
+;; => 
+#meander.alpha/fail[]
+```
+
+#### `all`
+
+The `all` combinator is a traversal combinator which applies a strategy `s` to every child of a term `t`. If there one child term for which `s` fails then `(all s)` fails.
+
+```clj example
+(let [s (fn [x]
+          (if (number? x)
+            (inc x)
+            r/*fail*))
+      all-s (r/all s)]
+  (all-s [1 2 3]))
+;; => 
+[2 3 4]
+```
+
+```clj example
+(let [s (fn [x]
+          (if (number? x)
+            (inc x)
+            r/*fail*))
+      all-s (r/all s)]
+  (all-s [1 2 "c"]))
+;; => 
+#meander.alpha/fail[]
 ```
