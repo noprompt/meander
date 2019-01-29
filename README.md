@@ -512,10 +512,15 @@ When an expression has memory variable occurences which exceed the number of ava
   * [`build`](#build)
   * [`pipe`](#pipe)
   * [`choice`](#choice)
+  * [`pred`](#choice)
 * [Traversal Combinators](#traversal-combinators)
   * [`one`](#one)
   * [`some`](#some)
   * [`all`](#all)
+* [Matching Combinators](#traversal-combinators)
+  * [`match`](#match)
+  * [`find`](#find)
+  * [`rewrite`](#rewrite)
   
 ### Rewriting Overview
 
@@ -650,6 +655,25 @@ Strategy which takes two (or more) strategies `p` and `q` and returns a strategy
   (s 10))
 ;; =>
 "10"
+```
+
+#### `pred`
+
+The strategy `(pred pred-fn)` succeeds returning `t` if the result of applying pred-fn to `t`is truthy.
+
+
+```clj example
+(let [s (r/pred even?)]
+  (s 2))
+;; =>
+2
+```
+
+```clj example
+(let [s (r/pipe (r/pred even?) inc)]
+  (s 2))
+;; =>
+3
 ```
 
 ### Traversal Combinators
