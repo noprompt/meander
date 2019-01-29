@@ -755,3 +755,74 @@ The `all` combinator is a traversal combinator which applies a strategy `s` to e
 ;; => 
 #meander.alpha/fail[]
 ```
+
+### Matching Combinators
+
+#### `match`
+
+The `match` strategy is built on top of `meander.match.alpha/match`. It succeeds whenever some term `t` is successfully matched.
+
+```clj example
+(let [s (r/match
+          [:foo ?bar ?baz]
+          {:bar ?bar, :baz ?baz})]
+  (s [:foo 1 2]))
+;; =>
+{:bar 1, :baz 2}
+```
+
+```clj example
+(let [s (r/match
+          [:foo ?bar ?baz]
+          {:bar ?bar, :baz ?baz})]
+  (s [:baz 1 2]))
+;; =>
+#meander.alpha/fail[]
+```
+
+#### `find`
+
+The `find` strategy is built on top of `meander.match.alpha/find`. 
+
+```clj example
+(let [s (r/find
+          {:ns ?ns
+           :namespaces {?ns ?syms}}
+          ?syms)]
+  (s '{:ns b.core
+       :namespaces {a.core [a aa aaa]
+                    b.core [b bb bbb]}}))
+;; =>
+[b bb bbb]
+```
+
+Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.alpha/*fail*`.
+
+```clj example
+(let [s (r/find
+          {:ns ?ns
+           :namespaces {?ns ?syms}}
+          ?syms)]
+  (s '{:ns c.core
+       :namespaces {a.core [a aa aaa]
+                    b.core [b bb bbb]}}))
+;; =>
+nil
+```
+
+```clj example
+(let [s (r/find
+          {:ns ?ns
+           :namespaces {?ns ?syms}}
+          ?syms
+
+          _
+          r/*fail*)]
+  (s '{:ns c.core
+       :namespaces {a.core [a aa aaa]
+                    b.core [b bb bbb]}}))
+;; =>
+#meander.alpha/fail[]
+```
+
+#### `rewrite`
