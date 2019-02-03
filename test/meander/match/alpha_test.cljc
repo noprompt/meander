@@ -884,3 +884,18 @@
            (r.match/match [1 2 3 4 5 6 7 8 9]
              [(or (pred even? !xs) (pred odd? !ys)) ...]
              [!xs !ys]))))
+
+(t/deftest seq-pattern-matching-with-infinite-sequences
+  (t/is (r.match/match (iterate inc 1)
+          (_1)
+          false
+
+          _n
+          true))
+
+  (t/is (r.match/match (iterate inc 1)
+          (_1 _2)
+          false
+
+          _n
+          true)))

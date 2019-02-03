@@ -605,11 +605,11 @@
                 (compile targets [row])]
 
                (zero? llen)
-               [:test `(= (count ~target) ~llen)
+               [:test `(= (bound-count ~(inc rlen) ~target) ~rlen)
                 (compile targets [(assoc row :cols `[~right ~@(:cols row)])])]
 
                (zero? rlen)
-               [:test `(= (count ~target) ~llen)
+               [:test `(= (bounded-count ~(inc llen) ~target) ~llen)
                 (compile targets [(assoc row :cols `[~left ~@(:cols row)])])]
 
                :else
