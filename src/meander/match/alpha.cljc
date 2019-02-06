@@ -1617,7 +1617,8 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-match-args match-args)
+  (let [match-data (binding [r.syntax/*env* &env]
+                     (analyze-match-args match-args))
         expr (:expr match-data)
         matrix (:matrix match-data)
         final-clause (:final-clause match-data)
@@ -1695,7 +1696,8 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-search-args match-args)
+  (let [match-data (binding [r.syntax/*env* &env]
+                     (analyze-search-args match-args))
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
@@ -1756,7 +1758,8 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-find-args match-args)
+  (let [match-data (binding [r.syntax/*env* &env]
+                     (analyze-find-args match-args))
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]

@@ -1,14 +1,26 @@
 (ns meander.syntax.alpha
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as s.gen]
-            [clojure.string :as string]
-            [clojure.walk :as walk]
-            [meander.util.alpha :as util])
+  #?(:clj
+     (:require [clojure.spec.alpha :as s]
+               [clojure.spec.gen.alpha :as s.gen]
+               [clojure.string :as string]
+               [clojure.walk :as walk]
+               [meander.util.alpha :as util])
+     :cljs
+     (:require [cljs.spec.alpha :as s :include-macros true]
+               [cljs.spec.gen.alpha :as s.gen :include-macros true]
+               [clojure.string :as string]
+               [clojure.walk :as walk]
+               [meander.util.alpha :as util]))
   #?(:cljs (:require-macros [meander.syntax.alpha])))
 
 
 #?(:clj (set! *warn-on-reflection* true))
 
+(def
+  ^{:doc "Environment (&env) used when parsing pattern syntax."
+    :dynamic true}
+  *env*
+  {})
 
 ;; ---------------------------------------------------------------------
 ;; Grammar
@@ -161,14 +173,25 @@
 (defn expand-symbol
   {:private true}
   [sym]
-  #?(:clj (if (qualified-symbol? sym)
-            (let [ns-sym (symbol (namespace sym))]
-              (if-some [ns (get (ns-aliases *ns*) ns-sym)]
-                (symbol (name (ns-name ns)) (name sym))
-                nil))
-            (if (contains? (ns-interns *ns*) sym)
-              (symbol (name (ns-name *ns*)) (name sym))
-              sym))
+  #?(:clj (if-some [cljs-ns (:ns *env*)]
+            ;; ClojureScript
+            (if (qualified-symbol? sym)
+              (let [ns-sym (symbol (namespace sym))]
+                (if-some [ns (get (:requires cljs-ns) ns-sym)]
+                  (symbol (name ns) (name sym))
+                  sym))
+              (if (contains? (:defs cljs-ns) sym)
+                (symbol (name (:name cljs-ns)) (name sym))
+                sym))
+            ;; Clojure
+            (if (qualified-symbol? sym)
+             (let [ns-sym (symbol (namespace sym))]
+               (if-some [ns (get (ns-aliases *ns*) ns-sym)]
+                 (symbol (name (ns-name ns)) (name sym))
+                 sym))
+             (if (contains? (ns-interns *ns*) sym)
+               (symbol (name (ns-name *ns*)) (name sym))
+               sym)))
      :cljs sym))
 
 
@@ -547,11 +570,14 @@
    node))
 
 (defn parse
-  [x]
-  (let [data (s/conform :meander.syntax.alpha/term x)]
-    (if (= data ::s/invalid)
-      data
-      (expand-usr-ops data))))
+  ([x]
+   (let [data (s/conform :meander.syntax.alpha/term x)]
+     (if (= data ::s/invalid)
+       data
+       (expand-usr-ops data))))
+  ([x env]
+   (binding [*env* env]
+     (parse x))))
 
 (defn node?
   [x]
@@ -1485,7 +1511,54 @@
                           (name sym))
             arglist (get data :arglist)
             body (get data :body)
-            name-key (keyword (name (gensym "name__")))]
+            name-key (keyword (name (gensym "name__")))
+            s-cat  (if (util/cljs-env? &env)
+                     'cljs.spec.alpha/cat
+                     'clojure.spec.alpha/cat)
+            s-conformer  (if (util/cljs-env? &env)
+                           'cljs.spec.alpha/conformer
+                           'clojure.spec.alpha/conformer)]
+        ;; When defining new syntax in ClojureScript it is also
+        ;; necessary to define the methods which parse and expand the
+        ;; syntax in Clojure. This is because the match, search, and
+        ;; find macros (in meander.match.alpha) are expanded in
+        ;; Clojure which, in turn, rely on these methods.
+        #?(:clj
+           (when-some [cljs-ns (:ns &env)]
+             ;; Visit the namespace.
+             (in-ns (:name cljs-ns))
+             ;; Try to require the namespace or everything in
+             ;; :requires. Both operations can fail.
+             (try
+               (require (:name cljs-ns))
+               (catch Exception _
+                 (doseq [[alias ns-name] (:requires cljs-ns)]
+                   (if (= alias ns-name)
+                     (require ns-name)
+                     (require [ns-name :as alias])))))
+             (eval
+              `(do
+                 (defn ~sym
+                   ~@(when-some [docstring (get data :docstring)]
+                       [docstring])
+                   ~@(when-some [meta (get data :meta)]
+                       [meta])
+                   ~arglist
+                   ~@body)
+
+                 (defmethod meander.syntax.alpha/pattern-op '~q-sym [form#]
+                   (case (dec (count form#))
+                     ~(count arglist)
+                     (s/cat :op (s/conformer (constantly '~q-sym))
+                            ~@(mapcat (juxt (comp keyword name)
+                                            (constantly `any?))
+                                      arglist))
+                     (throw (ex-info ~(str "Wrong number of arguments passed to " q-sym)
+                                     {}))))
+
+                 (defmethod meander.syntax.alpha/expand-usr-op '~q-sym [[_# {:keys ~arglist}]]
+                   (parse (do ~@body)))))
+             (in-ns 'meander.syntax.alpha)))
         `(do
            (defn ~sym
              ~@(when-some [docstring (get data :docstring)]
@@ -1498,10 +1571,10 @@
            (defmethod pattern-op '~q-sym [form#]
              (case (dec (count form#))
                ~(count arglist)
-               (s/cat :op (s/conformer (constantly '~q-sym))
-                      ~@(mapcat (juxt (comp keyword name)
-                                      (constantly `any?))
-                                arglist))
+               (~s-cat :op (~s-conformer (constantly '~q-sym))
+                ~@(mapcat (juxt (comp keyword name)
+                                (constantly `any?))
+                          arglist))
                (throw (ex-info ~(str "Wrong number of arguments passed to " q-sym)
                                {}))))
 
