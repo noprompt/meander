@@ -71,7 +71,7 @@
 
 (defmethod compile-substitute :app
   [[_ {form :form, terms :terms}] env]
-  `(list '~'app ~form ~@(map compile-substitute terms (repeat env))))
+  `(list '~'app '~form ~@(map compile-substitute terms (repeat env))))
 
 
 (defmethod compile-substitute :cat
@@ -136,7 +136,7 @@
 
 (defmethod compile-substitute :prd
   [[_ {form :form, terms :terms}] env]
-  `(list '~'pred ~form ~@(map compile-substitute terms (repeat env))))
+  `(list '~'pred '~form ~@(map compile-substitute terms (repeat env))))
 
 
 (defmethod compile-substitute :prt
