@@ -1,5 +1,14 @@
 (ns meander.util.alpha)
 
+
+(defn cljs-env?
+  "true if compiling ClojureScript or in a ClojureScript setting,
+  false otherwise."
+  [env]
+  #?(:clj (some? (:ns env))
+     :cljs true))
+
+
 (defn parse-int
   "Parse the string s as an integer."
   [s]
