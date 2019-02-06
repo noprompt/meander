@@ -1,7 +1,8 @@
 (ns meander.util.alpha)
 
-
-(defn parse-int [s]
+(defn parse-int
+  "Parse the string s as an integer."
+  [s]
   #?(:clj (Integer/parseInt s)
      :cljs (js/parseInt s)))
 
