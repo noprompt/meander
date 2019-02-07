@@ -605,7 +605,7 @@
                 (compile targets [row])]
 
                (zero? llen)
-               [:test `(= (bound-count ~(inc rlen) ~target) ~rlen)
+               [:test `(= (bounded-count ~(inc rlen) ~target) ~rlen)
                 (compile targets [(assoc row :cols `[~right ~@(:cols row)])])]
 
                (zero? rlen)
