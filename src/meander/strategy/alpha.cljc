@@ -917,7 +917,11 @@
   ([p q r s]
    (tuple-body [p q r s]))
   ([p q r s & more]
-   (apply tuple (tuple-body [p q r s]) more)))
+   (pipe (tuple (tuple-body [p q r s])
+                (apply tuple more))
+         (fn [v]
+           (into (nth v 0) (nth v 1))))))
+
 
 (defn at
   "Build a strategy which modifies t at key with p, then q, etc. Works

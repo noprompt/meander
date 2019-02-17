@@ -272,3 +272,11 @@
                           [?k (pred number? ?v)]
                           [?k (inc ?v)])))
             {:a 0, :b "B", :c 1, :d "D"}))))
+
+
+(t/deftest tuple-test
+  (doseq [fs (reductions conj [inc] (map (constantly inc) (range 0 4)))]
+    (let [s (apply r/tuple fs)
+          v (s 1)]
+      (t/is (= (count v) (count fs)))
+      (t/is (every? #{2} v)))))
