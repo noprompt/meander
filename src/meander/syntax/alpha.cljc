@@ -800,7 +800,7 @@
 
 
 (defmulti max-length
-  ""
+  "The maximum possible length the pattern described by node can be."
   {:arglists '([node])}
   #'max-length-dispatch)
 
@@ -813,7 +813,7 @@
 
 
 (defmulti min-length
-  ""
+  "The minimum possible length the pattern described by node can be."
   {:arglists '([node])}
   #'min-length-dispatch)
 
@@ -1496,7 +1496,7 @@
 
   (require '[meander.match.alpha :as r.match])
 
-  (r.match \"elf\"
+  (r.match/match \"elf\"
     (re #\"[a-z]+\")
     :okay!)
   ;; => :okay
