@@ -7,7 +7,7 @@
             [clojure.spec.alpha :as s]
             [meander.matrix.beta :as r.matrix]
             [meander.syntax.beta :as r.syntax]
-            [meander.util.alpha :as r.util]))
+            [meander.util.beta :as r.util]))
 
 
 (def
