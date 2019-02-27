@@ -1,12 +1,12 @@
-(ns meander.match.alpha
+(ns meander.match.beta
   (:refer-clojure :exclude [compile find])
-  #?(:cljs (:require-macros [meander.match.alpha]))
+  #?(:cljs (:require-macros [meander.match.beta]))
   (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]
             [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
-            [meander.matrix.alpha :as r.matrix]
-            [meander.syntax.alpha :as r.syntax]
+            [meander.matrix.beta :as r.matrix]
+            [meander.syntax.beta :as r.syntax]
             [meander.util.alpha :as r.util]))
 
 
@@ -56,87 +56,87 @@
 (declare compile)
 
 
-(s/def :meander.match.alpha.tree/action-node
+(s/def :meander.match.beta.tree/action-node
   (s/tuple #{:action} any?))
 
 
-(s/def :meander.match.alpha.tree/bind-node
-  (s/tuple #{:bind} vector? :meander.match.alpha/tree))
+(s/def :meander.match.beta.tree/bind-node
+  (s/tuple #{:bind} vector? :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha.tree/branch-node
+(s/def :meander.match.beta.tree/branch-node
   (s/tuple #{:branch}
-           (s/coll-of :meander.match.alpha/tree
+           (s/coll-of :meander.match.beta/tree
                       :kind vector?
                       :into [])))
 
 
-(s/def :meander.match.alpha.tree/fail-node
+(s/def :meander.match.beta.tree/fail-node
   (s/tuple #{:fail}))
 
 
-(s/def :meander.match.alpha.tree/identitifer
+(s/def :meander.match.beta.tree/identitifer
   simple-symbol?)
 
 
-(s/def :meander.match.alpha.tree/loop-node
+(s/def :meander.match.beta.tree/loop-node
   (s/tuple #{:loop}
-           :meander.match.alpha.tree/identitifer
+           :meander.match.beta.tree/identitifer
            (s/coll-of simple-symbol? :kind vector? :into [])
-           :meander.match.alpha/tree))
+           :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha.tree/save-node
+(s/def :meander.match.beta.tree/save-node
   (s/tuple #{:save}
-           :meander.match.alpha.tree/identitifer
-           :meander.match.alpha/tree
-           :meander.match.alpha/tree))
+           :meander.match.beta.tree/identitifer
+           :meander.match.beta/tree
+           :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha.tree/load-node
+(s/def :meander.match.beta.tree/load-node
   (s/tuple #{:load}
-           :meander.match.alpha.tree/identitifer))
+           :meander.match.beta.tree/identitifer))
 
 
-(s/def :meander.match.alpha.tree/pass-node
-  (s/tuple #{:pass} :meander.match.alpha/tree))
+(s/def :meander.match.beta.tree/pass-node
+  (s/tuple #{:pass} :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha.tree/recur-node
+(s/def :meander.match.beta.tree/recur-node
   (s/tuple #{:recur}
-           :meander.match.alpha.tree/identitifer
+           :meander.match.beta.tree/identitifer
            (s/coll-of simple-symbol? :kind vector? :into [])))
 
 
-(s/def :meander.match.alpha.tree/test-node
-  (s/tuple #{:test} any? :meander.match.alpha/tree))
+(s/def :meander.match.beta.tree/test-node
+  (s/tuple #{:test} any? :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha.tree/search-node
+(s/def :meander.match.beta.tree/search-node
   (s/tuple #{:search}
            (s/tuple simple-symbol? any?)
-           :meander.match.alpha/tree))
+           :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha.tree/find-node
+(s/def :meander.match.beta.tree/find-node
   (s/tuple #{:find}
            (s/tuple simple-symbol? any?)
-           :meander.match.alpha/tree))
+           :meander.match.beta/tree))
 
 
-(s/def :meander.match.alpha/tree
-  (s/or :action :meander.match.alpha.tree/action-node
-        :bind :meander.match.alpha.tree/bind-node
-        :branch :meander.match.alpha.tree/branch-node
-        :fail :meander.match.alpha.tree/fail-node
-        :find :meander.match.alpha.tree/find-node
-        :pass :meander.match.alpha.tree/pass-node
-        :load :meander.match.alpha.tree/load-node
-        :loop :meander.match.alpha.tree/loop-node
-        :recur :meander.match.alpha.tree/recur-node
-        :save :meander.match.alpha.tree/save-node
-        :search :meander.match.alpha.tree/search-node
-        :test :meander.match.alpha.tree/test-node))
+(s/def :meander.match.beta/tree
+  (s/or :action :meander.match.beta.tree/action-node
+        :bind :meander.match.beta.tree/bind-node
+        :branch :meander.match.beta.tree/branch-node
+        :fail :meander.match.beta.tree/fail-node
+        :find :meander.match.beta.tree/find-node
+        :pass :meander.match.beta.tree/pass-node
+        :load :meander.match.beta.tree/load-node
+        :loop :meander.match.beta.tree/loop-node
+        :recur :meander.match.beta.tree/recur-node
+        :save :meander.match.beta.tree/save-node
+        :search :meander.match.beta.tree/search-node
+        :test :meander.match.beta.tree/test-node))
 
 (defn literal?
   "true if node is ground and does not contain :map or :set subnodes,
@@ -260,8 +260,8 @@
 (s/fdef compile-specialized-matrix
   :args (s/cat :tag keyword?
                :targets (s/coll-of simple-symbol? :kind vector? :into [])
-               :matrix :meander.matrix.alpha/matrix)
-  :ret (s/coll-of :meander.match.alpha/tree))
+               :matrix :meander.matrix.beta/matrix)
+  :ret (s/coll-of :meander.match.beta/tree))
 
 (defmethod compile-specialized-matrix :app
   [_ [target & targets*] matrix]
@@ -701,8 +701,8 @@
          [:pass (compile targets* [row])]
 
          :rp*
-         (let [[_ {items :items}] node
-               n (count items)
+         (let [[_ {terms :terms}] node
+               n (count terms)
                ;; Symbol which is bound to the first n elements of
                ;; target at the top of each loop.
                init (gensym "init__")
@@ -710,7 +710,7 @@
                ;; slice at the top of each loop.
                init-grd [:grd {:form `(= (count ~init) ~n)}]
                ;; The sequence to match.
-               init-cat [:cat items]
+               init-cat [:cat terms]
                ;; Unbound memory variables must be bound before loop
                ;; execution and added to the compilation environment
                ;; for the internal loop body.
@@ -757,8 +757,8 @@
          [:pass (compile targets* [row])]
 
          :rp+
-         (let [[_ {items :items, times :n}] node
-               n (count items)
+         (let [[_ {terms :terms, times :n}] node
+               n (count terms)
                ;; The minimum number of times the loop must execute.
                ;; Symbol which tracks the number of successful iterations.
                iter (gensym "iter__")
@@ -769,7 +769,7 @@
                ;; slice at the top of each loop.
                init-grd [:grd {:form `(= (count ~init) ~n)}]
                ;; The sequence to match.
-               init-cat [:cat items]
+               init-cat [:cat terms]
                init-vars (r.syntax/variables init-cat)
                ;; Memory variables must be tracked during loop
                ;; execution and added to the compilation environment
@@ -1142,7 +1142,7 @@
            ~fail)))))
 
 (s/fdef emit*
-  :args (s/cat :tree :meander.match.alpha/tree
+  :args (s/cat :tree :meander.match.beta/tree
                :fail any?
                :kind #{:find :match :search}))
 
@@ -1269,7 +1269,7 @@
   [[_ nodes]]
   (if-some [fail-node (some
                        (fn [node]
-                         (when (s/valid? :meander.match.alpha.tree/fail-node node)
+                         (when (s/valid? :meander.match.beta.tree/fail-node node)
                            node))
                        nodes)]
     [:branch
@@ -1291,13 +1291,13 @@
   [tree]
   (let [tree* (clojure.walk/prewalk
                (fn [x]
-                 (if (s/valid? :meander.match.alpha.tree/branch-node x)
+                 (if (s/valid? :meander.match.beta.tree/branch-node x)
                    (rewrite-branch-one-case x)
                    x))
                tree)
         tree* (clojure.walk/prewalk
                (fn [x]
-                 (if (s/valid? :meander.match.alpha.tree/branch-node x)
+                 (if (s/valid? :meander.match.beta.tree/branch-node x)
                    (-> x
                        rewrite-branch-splice-branches
                        rewrite-branch-one-fail
@@ -1318,7 +1318,7 @@
     (emit* tree* fail kind)))
 
 (s/fdef emit
-  :args (s/cat :tree :meander.match.alpha/tree
+  :args (s/cat :tree :meander.match.beta/tree
                :fail any?
                :kind #{:find :match :search}))
 
@@ -1378,8 +1378,8 @@
 
 
 (defmethod check-node :rp*
-  [[_ {items :items, dots :dots} :as node] env _]
-  (let [init-cat [:cat items]
+  [[_ {terms :terms} :as node] env _]
+  (let [init-cat [:cat terms]
         init-vars (r.syntax/variables init-cat)
         unbound-lvrs (into #{} (comp (filter r.syntax/lvr-node?)
                                      (remove env))
@@ -1389,10 +1389,8 @@
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
                 :ex-data {:unbound (into #{} (map r.syntax/unparse) unbound-lvrs)}}]]
 
-      (empty? items)
-      (let [dots (if (r.syntax/zero-or-more-symbol? dots)
-                   dots
-                   '...)]
+      (empty? terms)
+      (let [dots '...]
         [:error
          [{:message (str "Zero or more (" dots ") is a postfix operator. It must have some value in front of it. (i.e. [1 " dots " ?x])")}]])
 
@@ -1401,12 +1399,12 @@
 
 
 (defmethod check-node :rp+
-  [[_ {items :items n :n} :as node] env _]
+  [[_ {terms :terms n :n} :as node] env _]
   (cond
     (nil? n)
     [:error [{:message "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"}]]
 
-    (empty? items)
+    (empty? terms)
     [:error [{:message (str "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 .." n " ?x])")}]]
 
     :else
@@ -1457,6 +1455,7 @@
       [:error [{:message "Set patterns may not contain variables."
                 :ex-data {}}]])))
 
+
 (defn check*
   "Checks if node is semantically valid with respect to env. Returns
 
@@ -1469,7 +1468,7 @@
   [:okay exit-env]
     whenever the semantics of node are valid. exit-env is a set of all
     logic and memory variables which would be bound by a succesful
-    pattern match; equivalent to (meander.syntax.alpha/variables node)."
+    pattern match; equivalent to (meander.syntax.beta/variables node)."
   [node env search?]
   (let [[tag :as result] (check-node node env search?)]
     (case tag
@@ -1492,7 +1491,6 @@
          [:okay env]
          children)))))
 
-
 (defn check
   "Checks if node is semantically valid. Returns an instance of
   clojure.lang.Exception if an error can be found and nil otherwise."
@@ -1509,43 +1507,46 @@
       :okay
       nil)))
 
-
 ;; ---------------------------------------------------------------------
 ;; match macro
 
 
-(s/def :meander.match.alpha/expr
+(s/def :meander.match.beta/expr
   any?)
 
 
-(s/def :meander.match.alpha/clause
-  (s/cat :pat ::r.syntax/term
-         :rhs :meander.match.alpha/expr))
+(s/def :meander.match.beta/pattern
+  any?)
 
 
-(s/def :meander.match.alpha.match/clauses
-  (s/* (s/cat :pat ::r.syntax/term
-              :rhs :meander.match.alpha/expr)))
+(s/def :meander.match.beta/clause
+  (s/cat :pat :meander.match.beta/pattern
+         :rhs :meander.match.beta/expr))
 
 
-(s/def :meander.match.alpha.match/args
-  (s/cat :expr :meander.match.alpha/expr
-         :clauses (s/* :meander.match.alpha/clause)))
+(s/def :meander.match.beta.match/clauses
+  (s/* (s/cat :pat :meander.match.beta/pattern
+              :rhs :meander.match.beta/expr)))
 
 
-(s/def :meander.match.alpha.match/data
-  (s/keys :req-un [:meander.match.alpha/expr
-                   :meander.matrix.alpha/matrix
-                   :meander.matrix.alpha.data/final-clause]))
+(s/def :meander.match.beta.match/args
+  (s/cat :expr :meander.match.beta/expr
+         :clauses (s/* :meander.match.beta/clause)))
 
 
-(s/def :meander.match.alpha.match.data/final-clause
+(s/def :meander.match.beta.match/data
+  (s/keys :req-un [:meander.match.beta/expr
+                   :meander.matrix.beta/matrix
+                   :meander.matrix.beta.data/final-clause]))
+
+
+(s/def :meander.match.beta.match.data/final-clause
   (s/nilable :meander.matrix.alpha/row))
 
 
 (s/fdef analyze-match-args
-  :args (s/cat :match-args :meander.match.alpha.match/args)
-  :ret :meander.match.alpha.match/data)
+  :args (s/cat :match-args :meander.match.beta.match/args)
+  :ret :meander.match.beta.match/data)
 
 ;; TODO: Include useless clause analysis.
 (defn analyze-match-args
@@ -1568,48 +1569,51 @@
   :matrix The pattern matrix derived from the (clause action ,,,)
     forms. If :final-clause is present contains all of the rows above
     :final-clause and none of the rows below it."
-  [match-args]
-  (let [data (s/conform :meander.match.alpha.match/args match-args)]
-    (if (identical? data ::s/invalid)
-      (throw (ex-info "Invalid match args"
-                      (s/explain-data :meander.match.alpha.match/args match-args)))
-      (let [clauses (mapv
-                     (fn [clause]
-                       (update clause :pat r.syntax/expand-usr-ops))
-                     (:clauses data))
-            matrix (mapv
-                    (fn [{:keys [pat rhs]}]
-                      {:cols [pat]
-                       :env #{}
-                       :rhs [:action rhs]})
-                    clauses)
-            final-clause (some
-                          (fn [row]
-                            (let [node (first (:cols row))]
-                              (case (r.syntax/tag node)
-                                (:any :lvr :mvr)
-                                row
-                                ;; else
-                                nil)))
-                          matrix)
-            ;; Drop clauses below the final clause; they're redundant.
-            matrix (if final-clause
-                     (vec (take-while (partial not= final-clause) matrix))
-                     matrix)
-            errors (into [] (keep
-                             (fn [{pat :pat}]
-                               (check pat false)))
-                         clauses)]
-        {:errors errors
-         :expr (:expr data)
-         :exhaustive? (some? final-clause)
-         :final-clause final-clause
-         :matrix matrix}))))
+  ([match-args]
+   (analyze-match-args match-args {}))
+  ([match-args env]
+   (let [data (s/conform :meander.match.beta.match/args match-args)]
+     (if (identical? data ::s/invalid)
+       (throw (ex-info "Invalid match-args"
+                       (s/explain-data :meander.match.beta.match/args match-args)))
 
+       (let [clauses (map
+                      (fn [{:keys [pat rhs]}]
+                        {:pat (r.syntax/parse pat env)
+                         :rhs rhs})
+                      (:clauses data))
+             matrix (mapv
+                     (fn [{:keys [pat rhs]}]
+                       {:cols [pat]
+                        :env #{}
+                        :rhs [:action rhs]})
+                     clauses)
+             final-clause (some
+                           (fn [row]
+                             (let [node (first (:cols row))]
+                               (case (r.syntax/tag node)
+                                 (:any :lvr :mvr)
+                                 row
+                                 ;; else
+                                 nil)))
+                           matrix)
+             ;; Drop clauses below the final clause; they're redundant.
+             matrix (if final-clause
+                      (vec (take-while (partial not= final-clause) matrix))
+                      matrix)
+             errors (into [] (keep
+                              (fn [{pat :pat}]
+                                (check pat false)))
+                          clauses)]
+         {:errors errors
+          :expr (:expr data)
+          :exhaustive? (some? final-clause)
+          :final-clause final-clause
+          :matrix matrix})))))
 
 (s/fdef match
   :args (s/cat :expr any?
-               :clauses :meander.match.alpha.match/clauses)
+               :clauses :meander.match.beta.match/clauses)
   :ret any?)
 
 
@@ -1617,8 +1621,7 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (binding [r.syntax/*env* &env]
-                     (analyze-match-args match-args))
+  (let [match-data (analyze-match-args match-args &env)
         expr (:expr match-data)
         matrix (:matrix match-data)
         final-clause (:final-clause match-data)
@@ -1653,28 +1656,31 @@
     first argument to the match macro.
   :matrix The pattern matrix derived from the (clause action ,,,)
     forms. Each action expression is wrapped in a list."
-  [match-args]
-  (let [data (s/conform :meander.match.alpha.match/args match-args)]
-    (if (identical? data ::s/invalid)
-      (throw (ex-info "Invalid match args"
-                      (s/explain-data :meander.match.alpha.match/args match-args)))
-      (let [clauses (mapv
-                     (fn [clause]
-                       (update clause :pat r.syntax/expand-usr-ops))
-                     (:clauses data))
-            matrix (mapv
-                    (fn [{:keys [pat rhs]}]
-                      {:cols [pat]
-                       :env #{}
-                       :rhs [:action `(list ~rhs)]})
-                    clauses)
-            errors (into [] (keep
-                             (fn [{pat :pat}]
-                               (check pat true)))
-                         clauses)]
-        {:errors errors
-         :expr (:expr data)
-         :matrix matrix}))))
+  ([match-args]
+   (analyze-search-args match-args {}))
+  ([match-args env]
+   (let [data (s/conform :meander.match.beta.match/args match-args)]
+     (if (identical? data ::s/invalid)
+       (throw (ex-info "Invalid search args"
+                       (s/explain-data :meander.match.beta.match/args match-args)))
+       (let [clauses (mapv
+                      (fn [{:keys [pat rhs]}]
+                        {:pat (r.syntax/parse pat env)
+                         :rhs rhs})
+                      (:clauses data))
+             matrix (mapv
+                     (fn [{:keys [pat rhs]}]
+                       {:cols [pat]
+                        :env #{}
+                        :rhs [:action `(list ~rhs)]})
+                     clauses)
+             errors (into [] (keep
+                              (fn [{pat :pat}]
+                                (check pat true)))
+                          clauses)]
+         {:errors errors
+          :expr (:expr data)
+          :matrix matrix})))))
 
 
 (defmacro search
@@ -1696,8 +1702,7 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (binding [r.syntax/*env* &env]
-                     (analyze-search-args match-args))
+  (let [match-data (analyze-search-args match-args &env)
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
@@ -1709,9 +1714,10 @@
           `(let [~target ~expr]
              ~(emit (compile-with-memory-variables-initialized [target] matrix) nil :search)))))))
 
+
 (s/fdef search
   :args (s/cat :expr any?
-               :clauses :meander.match.alpha.match/clauses)
+               :clauses :meander.match.beta.match/clauses)
   :ret (s/coll-of any? :kind sequential?))
 
 
@@ -1729,37 +1735,38 @@
     first argument to the match macro.
   :matrix The pattern matrix derived from the (clause action ,,,)
     forms. Each action expression is wrapped in a list."
-  [match-args]
-  (let [data (s/conform :meander.match.alpha.match/args match-args)]
-    (if (identical? data ::s/invalid)
-      (throw (ex-info "Invalid match args"
-                      (s/explain-data :meander.match.alpha.match/args match-args)))
-      (let [clauses (mapv
-                     (fn [clause]
-                       (update clause :pat r.syntax/expand-usr-ops))
-                     (:clauses data))
-            matrix (mapv
-                    (fn [{:keys [pat rhs]}]
-                      {:cols [pat]
-                       :env #{}
-                       :rhs [:action rhs]})
-                    clauses)
-            errors (into [] (keep
-                             (fn [{pat :pat}]
-                               (check pat true)))
-                         clauses)]
-        {:errors errors
-         :expr (:expr data)
-         :matrix matrix}))))
-
+  ([match-args]
+   (analyze-find-args match-args {}))
+  ([match-args env]
+   (let [data (s/conform :meander.match.beta.match/args match-args)]
+     (if (identical? data ::s/invalid)
+       (throw (ex-info "Invalid match args"
+                       (s/explain-data :meander.match.beta.match/args match-args)))
+       (let [clauses (mapv
+                      (fn [{:keys [pat rhs]}]
+                        {:pat (r.syntax/parse pat env)
+                         :rhs rhs})
+                      (:clauses data))
+             matrix (mapv
+                     (fn [{:keys [pat rhs]}]
+                       {:cols [pat]
+                        :env #{}
+                        :rhs [:action rhs]})
+                     clauses)
+             errors (into [] (keep
+                              (fn [{pat :pat}]
+                                (check pat true)))
+                          clauses)]
+         {:errors errors
+          :expr (:expr data)
+          :matrix matrix})))))
 
 (defmacro find
   "Like search but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (binding [r.syntax/*env* &env]
-                     (analyze-find-args match-args))
+  (let [match-data (analyze-find-args match-args &env)
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
@@ -1773,5 +1780,5 @@
 
 (s/fdef find
   :args (s/cat :expr any?
-               :clauses :meander.match.alpha.match/clauses)
+               :clauses :meander.match.beta.match/clauses)
   :ret any?)

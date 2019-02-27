@@ -1,11 +1,11 @@
-(ns meander.match.alpha-test
+(ns meander.match.beta-test
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.test :as t]
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.match.alpha :as r.match :include-macros true]
-            [meander.syntax.alpha :as r.syntax :include-macros true]))
+            [meander.match.beta :as r.match :include-macros true]
+            [meander.syntax.beta :as r.syntax :include-macros true]))
 
 ;; ---------------------------------------------------------------------
 ;; match macro tests
@@ -139,7 +139,7 @@
 #?(:clj
    (t/deftest or-compilation-fails
      (t/is (try
-             (macroexpand '(meander.match.alpha/match 1 (or ?x ?y ?z) false))
+             (macroexpand '(meander.match.beta/match 1 (or ?x ?y ?z) false))
              false
              (catch clojure.lang.ExceptionInfo _
                true)))))
@@ -850,12 +850,12 @@
                        [?owner !names])))))
 
 (t/deftest find-separated-items 
-  (t/is (= [:a :v '[[:any _] [:lvr ?a] [:lit "Bill"]]])
-        (r.match/find '([:a [[:any _] [:lvr ?a] [:lit "Bill"]]]
-                        [:e [[:lvr ?e] [:any _] [:lit "Alice"]]]
-                        [:v [[:any _] [:lvr ?a] [:lit "Bill"]]])
-          (_ ... [?i1 ?tuple] . _ ... [?i2 ?tuple] . _ ...)
-          [?i1 ?i2 ?tuple])))
+  (t/is (= [:a :v '[[:any _] [:lvr ?a] [:lit "Bill"]]]
+           (r.match/find '([:a [[:any _] [:lvr ?a] [:lit "Bill"]]]
+                           [:e [[:lvr ?e] [:any _] [:lit "Alice"]]]
+                           [:v [[:any _] [:lvr ?a] [:lit "Bill"]]])
+             (_ ... [?i1 ?tuple] . _ ... [?i2 ?tuple] . _ ...)
+             [?i1 ?i2 ?tuple]))))
 
 (t/deftest set-negation
   (t/is (= '(1 3)

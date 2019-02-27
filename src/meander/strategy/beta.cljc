@@ -1,4 +1,4 @@
-(ns meander.strategy.alpha
+(ns meander.strategy.beta
   "Rewrite strategy combinators.
 
   A strategy is a unary function of a term (any object) and returns
@@ -9,14 +9,14 @@
   t ∈ Term
   p, q, r, s ∈ Strategy"
   (:refer-clojure :exclude [find while repeat some spread])
-  #?(:cljs (:require-macros [meander.strategy.alpha]))
+  #?(:cljs (:require-macros [meander.strategy.beta]))
   (:require
    [clojure.core :as clj]
    [clojure.spec.alpha :as s]
    [clojure.set :as set]
-   [meander.protocols.alpha :as r.protocols]
-   [meander.match.alpha :as r.match]
-   [meander.syntax.alpha :as r.syntax]
+   [meander.protocols.beta :as r.protocols]
+   [meander.match.beta :as r.match]
+   [meander.syntax.beta :as r.syntax]
    [meander.substitute.alpha :as r.substitute]))
 
 
@@ -36,11 +36,11 @@
 
 #?(:clj
    (defmethod print-method (class *pass*) [v ^java.io.Writer w]
-     (.write w "#meander.alpha/pass[]"))
+     (.write w "#meander.beta/pass[]"))
    :cljs
    (specify! *pass* IPrintWithWriter
      (-pr-writer [new-obj writer _]
-       (write-all writer "#meander.alpha/pass[]"))))
+       (write-all writer "#meander.beta/pass[]"))))
 
 (defn pass?
   "true if `x` is `*pass*`, false otherwise."
@@ -70,11 +70,11 @@
 
 #?(:clj
    (defmethod print-method (class *fail*) [v ^java.io.Writer w]
-     (.write w "#meander.alpha/fail[]"))
+     (.write w "#meander.beta/fail[]"))
    :cljs
    (specify! *pass* IPrintWithWriter
      (-pr-writer [new-obj writer _]
-       (write-all writer "#meander.alpha/fail[]"))))
+       (write-all writer "#meander.beta/fail[]"))))
 
 
 (defn fail?
@@ -120,13 +120,13 @@
   ([] *pass*)
   ([p] p)
   ([p q]
-   (meander.strategy.alpha/pipe-body [p q]))
+   (meander.strategy.beta/pipe-body [p q]))
   ([p q r]
-   (meander.strategy.alpha/pipe-body [p q r]))
+   (meander.strategy.beta/pipe-body [p q r]))
   ([p q r s]
-   (meander.strategy.alpha/pipe-body [p q r s]))
+   (meander.strategy.beta/pipe-body [p q r s]))
   ([p q r s & more]
-   (apply pipe (meander.strategy.alpha/pipe-body [p q r s]) more)))
+   (apply pipe (meander.strategy.beta/pipe-body [p q r s]) more)))
 
 
 (defmacro choice-body
@@ -152,13 +152,13 @@
   ([] *fail*)
   ([p] p)
   ([p q]
-   (meander.strategy.alpha/choice-body [p q]))
+   (meander.strategy.beta/choice-body [p q]))
   ([p q r]
-   (meander.strategy.alpha/choice-body [p q r]))
+   (meander.strategy.beta/choice-body [p q r]))
   ([p q r s]
-   (meander.strategy.alpha/choice-body [p q r s]))
+   (meander.strategy.beta/choice-body [p q r s]))
   ([p q r s & more]
-   (apply choice (meander.strategy.alpha/choice-body [p q r s]) more)))
+   (apply choice (meander.strategy.beta/choice-body [p q r s]) more)))
 
 
 (defn branch
@@ -351,13 +351,13 @@
   #?@(:clj [clojure.lang.IPersistentSet (-all [this s] (iset-all-body this s))])
   #?@(:clj [clojure.lang.IPersistentVector (-all [this s] (ivector-all-body this s))])
   #?@(:clj [clojure.lang.ISeq (-all [this s] (iseq-all-body this s))])
-  #?@(:cljs [cljs.core/LazySeq (-all [this s] (meander.strategy.alpha/iseq-all-body this s))])
-  #?@(:cljs [cljs.core/List (-all [this s] (meander.strategy.alpha/iseq-all-body this s))])
-  #?@(:cljs [cljs.core/PersistentArrayMap (-all [this s] (meander.strategy.alpha/imap-all-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashMap (-all [this s] (meander.strategy.alpha/imap-all-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashSet (-all [this s] (meander.strategy.alpha/iset-all-body this s))])
-  #?@(:cljs [cljs.core/PersistentVector (-all [this s] (meander.strategy.alpha/ivector-all-body this s))])
-  #?@(:cljs [cljs.core/Range (-all [this s] (meander.strategy.alpha/iseq-all-body this s))]))
+  #?@(:cljs [cljs.core/LazySeq (-all [this s] (meander.strategy.beta/iseq-all-body this s))])
+  #?@(:cljs [cljs.core/List (-all [this s] (meander.strategy.beta/iseq-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-all [this s] (meander.strategy.beta/imap-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-all [this s] (meander.strategy.beta/imap-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-all [this s] (meander.strategy.beta/iset-all-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-all [this s] (meander.strategy.beta/ivector-all-body this s))])
+  #?@(:cljs [cljs.core/Range (-all [this s] (meander.strategy.beta/iseq-all-body this s))]))
 
 
 (defn all [s]
@@ -374,16 +374,16 @@
          (r.protocols/-all t s)
 
          (satisfies? cljs.core/ISeq t)
-         (meander.strategy.alpha/iseq-all-body t s)
+         (meander.strategy.beta/iseq-all-body t s)
 
          (satisfies? cljs.core/IVector t)
-         (meander.strategy.alpha/ivector-all-body t s)
+         (meander.strategy.beta/ivector-all-body t s)
 
          (satisfies? cljs.core/IMap t)
-         (meander.strategy.alpha/iseq-all-body t s)
+         (meander.strategy.beta/iseq-all-body t s)
 
          (satisfies? cljs.core/ISet t)
-         (meander.strategy.alpha/iseq-all-body t s)
+         (meander.strategy.beta/iseq-all-body t s)
 
          :else
          t))))
@@ -475,13 +475,13 @@
   #?@(:clj [clojure.lang.IPersistentSet (-one [this s] (iset-one-body this s))])
   #?@(:clj [clojure.lang.IPersistentVector (-one [this s] (ivector-one-body this s))])
   #?@(:clj [clojure.lang.ISeq (-one [this s] (iseq-one-body this s))])
-  #?@(:cljs [cljs.core/LazySeq (-one [this s] (meander.strategy.alpha/iseq-one-body this s))])
-  #?@(:cljs [cljs.core/List (-one [this s] (meander.strategy.alpha/iseq-one-body this s))])
-  #?@(:cljs [cljs.core/PersistentArrayMap (-one [this s] (meander.strategy.alpha/imap-one-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashMap (-one [this s] (meander.strategy.alpha/imap-one-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashSet (-one [this s] (meander.strategy.alpha/iset-one-body this s))])
-  #?@(:cljs [cljs.core/PersistentVector (-one [this s] (meander.strategy.alpha/ivector-one-body this s))])
-  #?@(:cljs [cljs.core/Range (-one [this s] (meander.strategy.alpha/iseq-one-body this s))]))
+  #?@(:cljs [cljs.core/LazySeq (-one [this s] (meander.strategy.beta/iseq-one-body this s))])
+  #?@(:cljs [cljs.core/List (-one [this s] (meander.strategy.beta/iseq-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-one [this s] (meander.strategy.beta/imap-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-one [this s] (meander.strategy.beta/imap-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-one [this s] (meander.strategy.beta/iset-one-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-one [this s] (meander.strategy.beta/ivector-one-body this s))])
+  #?@(:cljs [cljs.core/Range (-one [this s] (meander.strategy.beta/iseq-one-body this s))]))
 
 
 (defn one [s]
@@ -497,16 +497,16 @@
          (r.protocols/-one t s)
 
          (satisfies? cljs.core/ISeq t)
-         (meander.strategy.alpha/iseq-one-body t s)
+         (meander.strategy.beta/iseq-one-body t s)
 
          (satisfies? cljs.core/IVector t)
-         (meander.strategy.alpha/ivector-one-body t s)
+         (meander.strategy.beta/ivector-one-body t s)
 
          (satisfies? cljs.core/IMap t)
-         (meander.strategy.alpha/imap-one-body t s)
+         (meander.strategy.beta/imap-one-body t s)
 
          (satisfies? cljs.core/ISet t)
-         (meander.strategy.alpha/iset-one-body t s)
+         (meander.strategy.beta/iset-one-body t s)
 
          :else
          t))))
@@ -619,13 +619,13 @@
   #?@(:clj [clojure.lang.IPersistentSet (-some [this s] (iset-some-body this s))])
   #?@(:clj [clojure.lang.IPersistentVector (-some [this s] (ivector-some-body this s))])
   #?@(:clj [clojure.lang.ISeq (-some [this s] (iseq-some-body this s))])
-  #?@(:cljs [cljs.core/LazySeq (-some [this s] (meander.strategy.alpha/iseq-some-body this s))])
-  #?@(:cljs [cljs.core/List (-some [this s] (meander.strategy.alpha/iseq-some-body this s))])
-  #?@(:cljs [cljs.core/PersistentArrayMap (-some [this s] (meander.strategy.alpha/imap-some-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashMap (-some [this s] (meander.strategy.alpha/imap-some-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashSet (-some [this s] (meander.strategy.alpha/iset-some-body this s))])
-  #?@(:cljs [cljs.core/PersistentVector (-some [this s] (meander.strategy.alpha/ivector-some-body this s))])
-  #?@(:cljs [cljs.core/Range (-some [this s] (meander.strategy.alpha/iseq-some-body this s))]))
+  #?@(:cljs [cljs.core/LazySeq (-some [this s] (meander.strategy.beta/iseq-some-body this s))])
+  #?@(:cljs [cljs.core/List (-some [this s] (meander.strategy.beta/iseq-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-some [this s] (meander.strategy.beta/imap-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-some [this s] (meander.strategy.beta/imap-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-some [this s] (meander.strategy.beta/iset-some-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-some [this s] (meander.strategy.beta/ivector-some-body this s))])
+  #?@(:cljs [cljs.core/Range (-some [this s] (meander.strategy.beta/iseq-some-body this s))]))
 
 
 (defn some
@@ -646,16 +646,16 @@
          (r.protocols/-some t s)
 
          (satisfies? cljs.core/ISeq t)
-         (meander.strategy.alpha/iseq-some-body t s)
+         (meander.strategy.beta/iseq-some-body t s)
 
          (satisfies? cljs.core/IVector t)
-         (meander.strategy.alpha/ivector-some-body t s)
+         (meander.strategy.beta/ivector-some-body t s)
 
          (satisfies? cljs.core/IMap t)
-         (meander.strategy.alpha/imap-some-body t s)
+         (meander.strategy.beta/imap-some-body t s)
 
          (satisfies? cljs.core/ISet t)
-         (meander.strategy.alpha/iset-some-body t s)
+         (meander.strategy.beta/iset-some-body t s)
          
          :else
          t))))
@@ -710,13 +710,13 @@
   #?@(:clj [clojure.lang.IPersistentSet (-retain [this s] (iset-retain-body this s))])
   #?@(:clj [clojure.lang.IPersistentVector (-retain [this s] (ivector-retain-body this s))])
   #?@(:clj [clojure.lang.ISeq (-retain [this s] (iseq-retain-body this s))])
-  #?@(:cljs [cljs.core/LazySeq (-retain [this s] (meander.strategy.alpha/iseq-retain-body this s))])
-  #?@(:cljs [cljs.core/List (-retain [this s] (meander.strategy.alpha/iseq-retain-body this s))])
-  #?@(:cljs [cljs.core/PersistentArrayMap (-retain [this s] (meander.strategy.alpha/imap-retain-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashMap (-retain [this s] (meander.strategy.alpha/imap-retain-body this s))])
-  #?@(:cljs [cljs.core/PersistentHashSet (-retain [this s] (meander.strategy.alpha/iset-retain-body this s))])
-  #?@(:cljs [cljs.core/PersistentVector (-retain [this s] (meander.strategy.alpha/ivector-retain-body this s))])
-  #?@(:cljs [cljs.core/Range (-retain [this s] (meander.strategy.alpha/iseq-retain-body this s))]))
+  #?@(:cljs [cljs.core/LazySeq (-retain [this s] (meander.strategy.beta/iseq-retain-body this s))])
+  #?@(:cljs [cljs.core/List (-retain [this s] (meander.strategy.beta/iseq-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentArrayMap (-retain [this s] (meander.strategy.beta/imap-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashMap (-retain [this s] (meander.strategy.beta/imap-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentHashSet (-retain [this s] (meander.strategy.beta/iset-retain-body this s))])
+  #?@(:cljs [cljs.core/PersistentVector (-retain [this s] (meander.strategy.beta/ivector-retain-body this s))])
+  #?@(:cljs [cljs.core/Range (-retain [this s] (meander.strategy.beta/iseq-retain-body this s))]))
 
 
 (defn retain
@@ -735,16 +735,16 @@
           (r.protocols/-retain t s)
 
           (satisfies? cljs.core/ISeq t)
-          (meander.strategy.alpha/iseq-retain-body t s)
+          (meander.strategy.beta/iseq-retain-body t s)
 
           (satisfies? cljs.core/IVector t)
-          (meander.strategy.alpha/ivector-retain-body t s)
+          (meander.strategy.beta/ivector-retain-body t s)
 
           (satisfies? cljs.core/IMap t)
-          (meander.strategy.alpha/imap-retain-body t s)
+          (meander.strategy.beta/imap-retain-body t s)
 
           (satisfies? cljs.core/ISet t)
-          (meander.strategy.alpha/iset-retain-body t s)
+          (meander.strategy.beta/iset-retain-body t s)
 
           :else
           t))))
@@ -760,16 +760,16 @@
         (r.protocols/-retain t s)
 
         (satisfies? cljs.core/ISeq t)
-        (meander.strategy.alpha/iseq-retain-body t s)
+        (meander.strategy.beta/iseq-retain-body t s)
 
         (satisfies? cljs.core/IVector t)
-        (meander.strategy.alpha/ivector-retain-body t s)
+        (meander.strategy.beta/ivector-retain-body t s)
 
         (satisfies? cljs.core/IMap t)
-        (meander.strategy.alpha/imap-retain-body t s)
+        (meander.strategy.beta/imap-retain-body t s)
 
         (satisfies? cljs.core/ISet t)
-        (meander.strategy.alpha/iset-retain-body t s)
+        (meander.strategy.beta/iset-retain-body t s)
 
         :else
         t))))
@@ -953,7 +953,7 @@
 
 
 (s/fdef match
-  :args :meander.match.alpha.match/clauses
+  :args :meander.match.beta.match/clauses
   :ret any?)
 
 
@@ -970,7 +970,7 @@
 
 
 (s/fdef search
-  :args :meander.match.alpha.match/clauses
+  :args :meander.match.beta.match/clauses
   :ret any?)
 
 
@@ -996,7 +996,7 @@
 
 
 (defmacro find
-  "Strategy version of meander.match.alpha/find that defaults to
+  "Strategy version of meander.match.beta/find that defaults to
   returning *fail*."
   {:style/indent 0}
   [& clauses]
@@ -1006,7 +1006,7 @@
 
 
 (s/fdef find
-  :args :meander.match.alpha.match/clauses
+  :args :meander.match.beta.match/clauses
   :ret any?)
 
 
@@ -1056,5 +1056,5 @@
      *fail*))
 
 (s/fdef rewrite
-  :args :meander.match.alpha.match/clauses
+  :args :meander.match.beta.match/clauses
   :ret any?)

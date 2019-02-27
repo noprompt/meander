@@ -1,13 +1,13 @@
-(ns meander.matrix.alpha
+(ns meander.matrix.beta
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
-            [meander.syntax.alpha :as r.syntax]))
+            [meander.syntax.beta :as r.syntax]))
 
 
-(s/def :meander.matrix.alpha/matrix
-  (s/coll-of :meander.matrix.alpha/row
+(s/def :meander.matrix.beta/matrix
+  (s/coll-of :meander.matrix.beta/row
              :kind sequential?
              :into []
              :gen (fn []
@@ -21,35 +21,35 @@
                                   (update row :cols subvec 0 i)))
                                rows)))
                      (s.gen/vector
-                      (s/gen :meander.matrix.alpha/row))))))
+                      (s/gen :meander.matrix.beta/row))))))
 
 
-(s/def :meander.matrix.alpha/row
-  (s/keys :req-un [:meander.matrix.alpha.row/cols
-                   :meander.matrix.alpha.row/rhs]
-          :opt-un [:meander.matrix.alpha.row/env]))
+(s/def :meander.matrix.beta/row
+  (s/keys :req-un [:meander.matrix.beta.row/cols
+                   :meander.matrix.beta.row/rhs]
+          :opt-un [:meander.matrix.beta.row/env]))
 
 
-(s/def :meander.matrix.alpha.row/cols
-  (s/coll-of :meander.syntax.alpha/node
+(s/def :meander.matrix.beta.row/cols
+  (s/coll-of :meander.syntax.beta/node
              :kind sequential?
              :into []))
 
 
-(s/def :meander.matrix.alpha.row/rhs
+(s/def :meander.matrix.beta.row/rhs
   any?)
 
 
-(s/def :meander.matrix.alpha.row/env
-  (s/coll-of (s/or :lvr :meander.syntax.alpha/logic-variable
-                   :mvr :meander.syntax.alpha/memory-variable)
+(s/def :meander.matrix.beta.row/env
+  (s/coll-of (s/or :lvr :meander.syntax.beta/logic-variable
+                   :mvr :meander.syntax.beta/memory-variable)
              :kind set?
              :into #{}))
 
 
-(s/def :meander.matrix.alpha/object
-  (s/or :matrix :meander.matrix.alpha/matrix
-        :row :meander.matrix.alpha/row
+(s/def :meander.matrix.beta/object
+  (s/or :matrix :meander.matrix.beta/matrix
+        :row :meander.matrix.beta/row
         :unknown any?))
 
 
@@ -63,7 +63,7 @@
 (defn row?
   "true if x is a matrix row."
   [x]
-  (s/valid? :meander.matrix.alpha/row x))
+  (s/valid? :meander.matrix.beta/row x))
 
 
 (defn empty?
@@ -93,10 +93,10 @@
 
 
 (s/fdef swap-column
-  :args (s/cat :matrix :meander.matrix.alpha/matrix
+  :args (s/cat :matrix :meander.matrix.beta/matrix
                :i nat-int?
                :j nat-int?)
-  :ret :meander.matrix.alpha/matrix)
+  :ret :meander.matrix.beta/matrix)
 
 
 (defn swap-column
@@ -109,12 +109,12 @@
 
 
 (s/fdef subcols
-  :args (s/or :a2 (s/cat :matrix :meander.matrix.alpha/matrix
+  :args (s/or :a2 (s/cat :matrix :meander.matrix.beta/matrix
                          :i nat-int?)
-              :a3 (s/cat :matrix :meander.matrix.alpha/matrix
+              :a3 (s/cat :matrix :meander.matrix.beta/matrix
                          :i nat-int?
                          :j nat-int?))
-  :ret :meander.matrix.alpha/matrix)
+  :ret :meander.matrix.beta/matrix)
 
 
 (defn subcols
@@ -132,7 +132,7 @@
 
 
 (s/fdef width
-  :args (s/cat :matrix :meander.matrix.alpha/matrix)
+  :args (s/cat :matrix :meander.matrix.beta/matrix)
   :ret nat-int?)
 
 
@@ -142,8 +142,8 @@
 
 
 (s/fdef nth-column
-  :args (s/cat :matrix :meander.matrix.alpha/matrix)
-  :ret (s/coll-of :meander.syntax.alpha/node))
+  :args (s/cat :matrix :meander.matrix.beta/matrix)
+  :ret (s/coll-of :meander.syntax.beta/node))
 
 
 (defn nth-column
@@ -176,8 +176,8 @@
 
 
 (s/fdef drop-column
-  :args (s/cat :matrix :meander.matrix.alpha/matrix)
-  :ret :meander.matrix.alpha/matrix)
+  :args (s/cat :matrix :meander.matrix.beta/matrix)
+  :ret :meander.matrix.beta/matrix)
 
 
 (defn drop-column
@@ -191,11 +191,11 @@
         matrix))
 
 (s/fdef prepend-column
-  :args (s/cat :matrix :meander.matrix.alpha/matrix
-               :column (s/coll-of :meander.syntax.alpha/node
+  :args (s/cat :matrix :meander.matrix.beta/matrix
+               :column (s/coll-of :meander.syntax.beta/node
                                   :kind sequential?
                                   :into []))
-  :ret :meander.matrix.alpha/matrix)
+  :ret :meander.matrix.beta/matrix)
 
 
 (defn prepend-column
@@ -210,11 +210,11 @@
 
 (s/fdef specialize-by
   :args (s/cat :f (s/fspec
-                   :args (s/cat :node :meander.syntax.alpha/node)
+                   :args (s/cat :node :meander.syntax.beta/node)
                    :ret any?)
-               :matrix :meander.matrix.alpha/matrix)
-  :ret (s/map-of :meander.syntax.alpha.node/tag
-                 :meander.matrix.alpha/matrix))
+               :matrix :meander.matrix.beta/matrix)
+  :ret (s/map-of :meander.syntax.beta.node/tag
+                 :meander.matrix.beta/matrix))
 
 
 (defn specialize-by
@@ -244,8 +244,8 @@
 ;; Environment
 
 (s/fdef get-env
-  :args (s/cat :row :meander.matrix.alpha/row)
-  :ret :meander.matrix.alpha.row/env)
+  :args (s/cat :row :meander.matrix.beta/row)
+  :ret :meander.matrix.beta.row/env)
 
 
 (defn get-env
@@ -254,10 +254,10 @@
 
 
 (s/fdef add-var
-  :args (s/cat :row :meander.matrix.alpha/row
-               :var (s/or :meander.syntax.alpha.node/lvr
-                          :meander.syntax.alpha.node/mvr))
-  :ret :meander.matrix.alpha/row)
+  :args (s/cat :row :meander.matrix.beta/row
+               :var (s/or :meander.syntax.beta.node/lvr
+                          :meander.syntax.beta.node/mvr))
+  :ret :meander.matrix.beta/row)
 
 (defn add-var
   "Add var to the environment in row."
@@ -266,79 +266,15 @@
 
 
 (s/fdef get-var
-  :args (s/cat :row :meander.matrix.alpha/row
-               :var (s/or :meander.syntax.alpha.node/lvr
-                          :meander.syntax.alpha.node/mvr))
+  :args (s/cat :row :meander.matrix.beta/row
+               :var (s/or :meander.syntax.beta.node/lvr
+                          :meander.syntax.beta.node/mvr))
   :ret (s/nilable
-        (s/or :meander.syntax.alpha.node/lvr
-              :meander.syntax.alpha.node/mvr)))
+        (s/or :meander.syntax.beta.node/lvr
+              :meander.syntax.beta.node/mvr)))
 
 
 (defn get-var
   "Get var from the environment in row."
   [row var]
   (get (:env row) var))
-
-
-
-;; ---------------------------------------------------------------------
-;; Usefulness
-
-
-(s/fdef useful?
-  :args (s/cat :matrix :meander.matrix.alpha/matrix
-               :clause (s/coll-of :meander.syntax.alpha/node))
-  :ret boolean?)
-
-;; Maranget, L. (2007). Warnings for pattern matching.
-;; http://moscova.inria.fr/~maranget/papers/warn/warn.pdf
-(defn useful?
-  "true if clause is useful with respect to matrix."
-  [matrix clause]
-  (cond
-    ;; Base case 1
-    (and (empty? matrix)
-         (not (seq clause)))
-    false
-
-    ;; Base case 2
-    (not (seq clause))
-    true
-
-    ;; Induction
-    :else
-    (let [[node & clause*] clause]
-      (if-some [node-children (seq (r.syntax/children node))]
-        (let [matrices (specialize-by r.syntax/tag matrix)]
-          (if-some [s-matrix (get matrices (r.syntax/tag node))]
-            (let [total-node-children (count node-children)
-                  d-matrix (sequence
-                            (keep
-                             (fn [row]
-                               (let [[col & cols*] (:cols row)
-                                     col-children (r.syntax/children col)]
-                                 (when (= (count col-children)
-                                          total-node-children)
-                                   (assoc row :cols (concat col-children cols*))))))
-                            s-matrix)]
-              (useful? d-matrix (concat node-children clause*)))
-            ;; No tags match.
-            (not-any?
-             (fn [m-node]
-               (case (r.syntax/tag m-node)
-                 ;; No variables.
-                 (:any :lvr :mvr)
-                 true))
-             (nth-column matrix 0))))
-        ;; Node has no children.
-        (or (not-any?
-             (fn [m-node]
-               (case (r.syntax/tag m-node)
-                 ;; No variables.
-                 (:any :lvr :mvr)
-                 true
-
-                 ;; No equivalent values.
-                 (= m-node node)))
-             (nth-column matrix 0))
-            (useful? (drop-column matrix) clause*))))))

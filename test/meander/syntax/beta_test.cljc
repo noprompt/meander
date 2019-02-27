@@ -1,9 +1,9 @@
-(ns meander.syntax.alpha-test
+(ns meander.syntax.beta-test
   (:require
    [clojure.test :as t]
    [meander.match.alpha :as r.match]
    [meander.substitute.alpha :as r.substitute]
-   [meander.syntax.alpha :as r.syntax :include-macros true]))
+   [meander.syntax.beta :as r.syntax :include-macros true]))
 
 (r.syntax/defsyntax $cons [?head ?tail]
   (r.substitute/substitute

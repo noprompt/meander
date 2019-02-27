@@ -1,8 +1,8 @@
-(ns meander.substitute.alpha
-  #?(:cljs (:require-macros [meander.substitute.alpha]))
+(ns meander.substitute.beta
+  #?(:cljs (:require-macros [meander.substitute.beta]))
   (:require [clojure.spec.alpha :as s]
-            [meander.syntax.alpha :as r.syntax]
-            [meander.util.alpha :as r.util]))
+            [meander.syntax.beta :as r.syntax]
+            [meander.util.beta :as r.util]))
 
 
 (defn make-env
@@ -250,5 +250,5 @@
        ~(compile-substitute node env))))
 
 (s/fdef substitute
-  :args (s/cat :term :meander.syntax.alpha/term)
+  :args (s/cat :term :meander.syntax.beta/node)
   :ret any?)

@@ -1,4 +1,4 @@
-(ns meander.util.alpha)
+(ns meander.util.beta)
 
 
 (defn cljs-env?
