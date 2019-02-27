@@ -1630,12 +1630,12 @@
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
             (emit (compile [expr] [final-clause]) nil :match)
-            `(throw (ex-info "non exhaustive pattern match" {})))
+            `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
           `(let [~target ~expr
                  ~fail (fn []
                          ~(if (some? final-clause)
                             (emit (compile [target] [final-clause]) nil :match)
-                            `(throw (ex-info "non exhaustive pattern match" {}))))]
+                            `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
              ~(emit (compile-with-memory-variables-initialized [target] matrix) `(~fail) :match)))))))
 
 
