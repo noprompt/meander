@@ -1363,6 +1363,13 @@
   (not (ground? node)))
 
 
+(defmethod min-length :seq
+  [[_ prt]] (min-length prt))
+
+
+(defmethod max-length :seq
+  [[_ prt]] (max-length prt))
+
 ;; :uns
 
 (defmethod ground? :uns
