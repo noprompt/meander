@@ -250,5 +250,5 @@
        ~(compile-substitute node env))))
 
 (s/fdef substitute
-  :args (s/cat :term :meander.syntax.beta/node)
+  :args (s/cat :term any?)
   :ret any?)
