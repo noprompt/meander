@@ -17,7 +17,7 @@
    [meander.protocols.beta :as r.protocols]
    [meander.match.beta :as r.match]
    [meander.syntax.beta :as r.syntax]
-   [meander.substitute.alpha :as r.substitute]))
+   [meander.substitute.beta :as r.substitute]))
 
 
 (def
