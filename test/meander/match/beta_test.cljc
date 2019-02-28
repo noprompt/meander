@@ -7,6 +7,12 @@
             [meander.match.beta :as r.match :include-macros true]
             [meander.syntax.beta :as r.syntax :include-macros true]))
 
+(def gen-scalar
+  (tc.gen/one-of [tc.gen/int
+                  tc.gen/string
+                  tc.gen/keyword
+                  tc.gen/symbol]))
+
 ;; ---------------------------------------------------------------------
 ;; match macro tests
 
@@ -29,7 +35,7 @@
 
 
 (tc.t/defspec unquote-any-x-matches-any-x
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match x
       ~x
       true
@@ -39,21 +45,21 @@
 
 
 (tc.t/defspec _-matches-any-x
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match x
       _
       true)))
 
 
 (tc.t/defspec ?x-matches-any-x
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match x
       ?x
       true)))
 
 
 (tc.t/defspec !xs-collects-any-x
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match x
       !xs
       (= [x] !xs)
@@ -104,7 +110,7 @@
 
 
 (tc.t/defspec and-fails
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match x
       (and ~x ?x (guard false))
       false
@@ -114,9 +120,9 @@
 
 
 (tc.t/defspec or-succeeds
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any
-                    z tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar
+                    z gen-scalar]
     (r.match/match x
       (or ~z ~y ~x)
       true
@@ -126,9 +132,9 @@
 
 
 (tc.t/defspec or-fails
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any
-                    z tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar
+                    z gen-scalar]
     (r.match/match [x y z]
       (or ~z ~y ~x)
       false
@@ -145,8 +151,8 @@
                true)))))
  
 (tc.t/defspec let-succeeds
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match y
       (and ?y (let ?x x))
       (and (= y ?y)
@@ -154,7 +160,7 @@
 
 
 (tc.t/defspec let-fails
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match x
       (and ?x (let ?x [x]))
       false
@@ -172,8 +178,8 @@
 ;; Seqs
 
 (tc.t/defspec seq-unquote-patterns-match
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match (list x (list y x) y)
       (~x (~y ~x) ~y)
       true
@@ -183,8 +189,8 @@
 
 
 (tc.t/defspec seq-lvrs-bind-the-values-they-match
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match (list x (list y x) y)
       (?x (?y ?x) ?y)
       (and (= ?x x)
@@ -195,8 +201,8 @@
 
 
 (tc.t/defspec seq-mvrs-collect-the-values-they-match
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match (list x (list y x) y)
       (!xs (!ys !xs) !ys)
       (and (= [x x] !xs)
@@ -208,10 +214,10 @@
 
 (tc.t/defspec seq-zero-or-more-any-in-head
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
       (~x1 ~x2 ... ~y1 ~y2)
       true
@@ -222,10 +228,10 @@
 
 (tc.t/defspec seq-zero-or-more-any-in-tail
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `(~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2])))
       (~x1 ~x2 . ~y1 ~y2 ...)
       true
@@ -236,10 +242,10 @@
 
 (tc.t/defspec seq-zero-or-more-mvr-in-head
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
       (!xs1 !xs2 ... ~y1 ~y2)
       (and (= (repeat n x1) !xs1)
@@ -251,10 +257,10 @@
 
 (tc.t/defspec seq-zero-or-more-mvr-in-tail
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `(~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2])))
       (~x1 ~x2 . !ys1 !ys2 ...)
       (and (= (repeat n y1) !ys1)
@@ -265,10 +271,10 @@
 
 (tc.t/defspec seq-zero-or-more-lvr-previously-bound
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `(~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2)
       (?x1 ?x2 . ?x1 ?x2 ... ~y1 ~y2)
       (and (= x1 ?x1)
@@ -281,7 +287,7 @@
 (tc.t/defspec seq-zero-or-more-nested-mvr
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
                     b (s/gen simple-symbol?)
-                    v tc.gen/any]
+                    v gen-scalar]
     (r.match/match `(let (~@(mapcat identity (repeat n [b v])))
                       ~@(repeat n b))
       (`let (!bs !vs ...) . !body ...)
@@ -295,7 +301,7 @@
 
 (tc.t/defspec seq-drop-in-head
   (tc.prop/for-all [n tc.gen/nat
-                    x tc.gen/any]
+                    x gen-scalar]
     (r.match/match `(~@(map identity (repeat n x)) ~x ~x)
       (_ ... ~x ~x)
       true)))
@@ -303,7 +309,7 @@
 
 (tc.t/defspec seq-drop-in-tail
   (tc.prop/for-all [n tc.gen/nat
-                    x tc.gen/any]
+                    x gen-scalar]
     (r.match/match `(~@(map identity (repeat n x)) ~x ~x)
       (~x ~x . _ ...)
       true
@@ -313,8 +319,8 @@
 
 
 (tc.t/defspec seq-?x-guard-true-?x-succeeds
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match (list x y x)
       (?x (guard (= ?x ?x)) ?x)
       true
@@ -325,8 +331,8 @@
 ;; Vectors
 
 (tc.t/defspec vec-unquote-patterns-match
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match [x [y x] y]
       [~x [~y ~x] ~y]
       true
@@ -336,8 +342,8 @@
 
 
 (tc.t/defspec vec-lvrs-bind-the-values-they-match
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match [x [y x] y]
       [?x [?y ?x] ?y]
       (and (= ?x x)
@@ -348,8 +354,8 @@
 
 
 (tc.t/defspec vec-mvrs-collect-the-values-they-match
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match [x [y x] y]
       [!xs [!ys !xs] !ys]
       (and (= [x x] !xs)
@@ -361,10 +367,10 @@
 
 (tc.t/defspec vec-zero-or-more-any-in-head
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
       [~x1 ~x2 ... ~y1 ~y2]
       true
@@ -375,10 +381,10 @@
 
 (tc.t/defspec vec-zero-or-more-any-in-tail
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `[~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2]))]
       [~x1 ~x2 . ~y1 ~y2 ...]
       true
@@ -389,10 +395,10 @@
 
 (tc.t/defspec vec-zero-or-more-mvr-in-head
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
       [!xs1 !xs2 ... ~y1 ~y2]
       (and (= (repeat n x1) !xs1)
@@ -404,10 +410,10 @@
 
 (tc.t/defspec vec-zero-or-more-mvr-in-tail
   (tc.prop/for-all [n tc.gen/nat
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `[~x1 ~x2 ~@(mapcat identity (repeat n [y1 y2]))]
       [~x1 ~x2 . !ys1 !ys2 ...]
       (and (= (repeat n y1) !ys1)
@@ -419,10 +425,10 @@
 
 (tc.t/defspec vec-zero-or-more-lvr-previously-bound
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
-                    x1 tc.gen/any
-                    x2 tc.gen/any
-                    y1 tc.gen/any
-                    y2 tc.gen/any]
+                    x1 gen-scalar
+                    x2 gen-scalar
+                    y1 gen-scalar
+                    y2 gen-scalar]
     (r.match/match `[~@(mapcat identity (repeat n [x1 x2])) ~y1 ~y2]
       [?x1 ?x2 . ?x1 ?x2 ... ~y1 ~y2]
       (and (= x1 ?x1)
@@ -435,7 +441,7 @@
 (tc.t/defspec vec-zero-or-more-nested-mvr
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
                     b (s/gen simple-symbol?)
-                    v tc.gen/any]
+                    v gen-scalar]
     (r.match/match `(let [~@(mapcat identity (repeat n [b v]))]
                       ~@(repeat n b))
       (`let [!bs !vs ...] . !body ...)
@@ -449,7 +455,7 @@
 
 (tc.t/defspec vec-drop-in-head
   (tc.prop/for-all [n tc.gen/nat
-                    x tc.gen/any]
+                    x gen-scalar]
     (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
       [_ ... ~x ~x]
       true)))
@@ -457,15 +463,15 @@
 
 (tc.t/defspec vec-drop-in-tail
   (tc.prop/for-all [n tc.gen/nat
-                    x tc.gen/any]
+                    x gen-scalar]
     (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
       [~x ~x . _ ...]
       true)))
 
 
 (tc.t/defspec vec-?x-guard-true-?x-succeeds
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match [x y x]
       [?x (guard (= ?x ?x)) ?x]
       true
@@ -484,7 +490,7 @@
 
 
 (tc.t/defspec map-unq-succeeds
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match {:x x, x :x}
       {:x ~x, ~x :x}
       true
@@ -493,8 +499,8 @@
       false)))
 
 (tc.t/defspec map-lvr-succeeds
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match {:x x, :y y}
       {:x ?x, :y ?y}
       (= [x y] [?x ?y])
@@ -504,7 +510,7 @@
 
 
 (tc.t/defspec map-vec-lvr
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (let [y [x]
           z [[x]]]
       (r.match/match {:x [x y], :y [y x], :z [z]}
@@ -516,7 +522,7 @@
 
 
 (tc.t/defspec map-seq-lvr
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (let [y [x]
           z [[x]]]
       (r.match/match {:x (list x y), :y (list y x), :z (list z)}
@@ -528,8 +534,8 @@
 
 
 (tc.t/defspec map-mvr
-  (tc.prop/for-all [x tc.gen/any
-                    y tc.gen/any]
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
     (r.match/match {:x x, :y y}
       {:x !xs, :y !xs}
       (or (= [x y] !xs)
@@ -540,7 +546,7 @@
 
 
 (tc.t/defspec map-map
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x gen-scalar]
     (r.match/match {:x {:y x}, :z x}
       {:x {:y ~x}, :z ~x}
       true
@@ -549,9 +555,9 @@
       false)))
 
 
-(tc.t/defspec set-unq
-  (tc.prop/for-all [k1 tc.gen/keyword
-                    k2 tc.gen/keyword]
+(t/deftest set-unq
+  (let [k1 :k1
+        k2 :k2]
     (r.match/match #{k1 k2}
       #{~(keyword (name k1)) ~k2}
       true)))
@@ -905,8 +911,8 @@
 
 #?(:cljs
    (tc.t/defspec jsa-unquote-patterns-match
-     (tc.prop/for-all [x tc.gen/any
-                       y tc.gen/any]
+     (tc.prop/for-all [x gen-scalar
+                       y gen-scalar]
        (r.match/match #js [x #js [y x] y]
          #js [~x #js [~y ~x] ~y]
          true
@@ -917,8 +923,8 @@
 
 #?(:cljs
    (tc.t/defspec jsa-lvrs-bind-the-values-they-match
-     (tc.prop/for-all [x tc.gen/any
-                       y tc.gen/any]
+     (tc.prop/for-all [x gen-scalar
+                       y gen-scalar]
        (r.match/match #js [x #js [y x] y]
          #js [?x #js [?y ?x] ?y]
          (and (= ?x x)
@@ -930,8 +936,8 @@
 
 #?(:cljs
    (tc.t/defspec jsa-mvrs-collect-the-values-they-match
-     (tc.prop/for-all [x tc.gen/any
-                       y tc.gen/any]
+     (tc.prop/for-all [x gen-scalar
+                       y gen-scalar]
        (r.match/match #js [x #js [y x] y]
          #js [!xs #js [!ys !xs] !ys]
          (and (= [x x] !xs)
@@ -944,10 +950,10 @@
 #?(:cljs
    (tc.t/defspec jsa-zero-or-more-any-in-head
      (tc.prop/for-all [n tc.gen/int
-                       x1 tc.gen/any
-                       x2 tc.gen/any
-                       y1 tc.gen/any
-                       y2 tc.gen/any]
+                       x1 gen-scalar
+                       x2 gen-scalar
+                       y1 gen-scalar
+                       y2 gen-scalar]
        (r.match/match (into-array (conj (into [] (mapcat identity) (repeat n [x1 x2])) y1 y2))
          #js [~x1 ~x2 ... ~y1 ~y2]
          true
@@ -959,10 +965,10 @@
 #?(:cljs
    (tc.t/defspec jsa-zero-or-more-any-in-tail
      (tc.prop/for-all [n tc.gen/nat
-                       x1 tc.gen/any
-                       x2 tc.gen/any
-                       y1 tc.gen/any
-                       y2 tc.gen/any]
+                       x1 gen-scalar
+                       x2 gen-scalar
+                       y1 gen-scalar
+                       y2 gen-scalar]
        (r.match/match (into-array (into [x1 x2] (mapcat identity) (repeat n [y1 y2])))
          #js [~x1 ~x2 . ~y1 ~y2 ...]
          true
@@ -974,10 +980,10 @@
 #?(:cljs
    (tc.t/defspec jsa-zero-or-more-mvr-in-head
      (tc.prop/for-all [n tc.gen/nat
-                       x1 tc.gen/any
-                       x2 tc.gen/any
-                       y1 tc.gen/any
-                       y2 tc.gen/any]
+                       x1 gen-scalar
+                       x2 gen-scalar
+                       y1 gen-scalar
+                       y2 gen-scalar]
        (r.match/match (into-array (conj (into [] (mapcat identity) (repeat n [x1 x2])) y1 y2))
          #js [!xs1 !xs2 ... ~y1 ~y2]
          (and (= (repeat n x1) !xs1)
@@ -990,10 +996,10 @@
 #?(:cljs
    (tc.t/defspec jsa-zero-or-more-mvr-in-tail
      (tc.prop/for-all [n tc.gen/nat
-                       x1 tc.gen/any
-                       x2 tc.gen/any
-                       y1 tc.gen/any
-                       y2 tc.gen/any]
+                       x1 gen-scalar
+                       x2 gen-scalar
+                       y1 gen-scalar
+                       y2 gen-scalar]
        (r.match/match (into-array (into [x1 x2] (mapcat identity) (repeat n [y1 y2])))
          #js [~x1 ~x2 . !ys1 !ys2 ...]
          (and (= (repeat n y1) !ys1)
@@ -1006,10 +1012,10 @@
 #?(:cljs
    (tc.t/defspec jsa-zero-or-more-lvr-previously-bound
      (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
-                       x1 tc.gen/any
-                       x2 tc.gen/any
-                       y1 tc.gen/any
-                       y2 tc.gen/any]
+                       x1 gen-scalar
+                       x2 gen-scalar
+                       y1 gen-scalar
+                       y2 gen-scalar]
        (r.match/match (into-array (conj (into [] (mapcat identity) (repeat n [x1 x2])) y1 y2))
          #js [?x1 ?x2 . ?x1 ?x2 ... ~y1 ~y2]
          (and (= x1 ?x1)
@@ -1023,7 +1029,7 @@
    (tc.t/defspec jsa-zero-or-more-nested-mvr
      (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
                        b (s/gen simple-symbol?)
-                       v tc.gen/any]
+                       v gen-scalar]
        (r.match/match (list* `let (into-array (into [] (mapcat identity) (repeat n [b v])))
                              (repeat n b))
          (`let #js [!bs !vs ...] . !body ...)
@@ -1038,7 +1044,7 @@
 #?(:cljs
    (tc.t/defspec jsa-drop-in-head
      (tc.prop/for-all [n tc.gen/nat
-                       x tc.gen/any]
+                       x gen-scalar]
        (r.match/match (into-array (conj (into [] (map identity) (repeat n x)) x x))
          #js [_ ... ~x ~x]
          true))))
@@ -1047,7 +1053,7 @@
 #?(:cljs
    (tc.t/defspec jsa-drop-in-tail
      (tc.prop/for-all [n tc.gen/nat
-                       x tc.gen/any]
+                       x gen-scalar]
        (r.match/match (into-array (conj (into [] (map identity) (repeat n x)) x x))
          #js [~x ~x . _ ...]
          true))))
@@ -1055,8 +1061,8 @@
 
 #?(:cljs
    (tc.t/defspec jsa-?x-guard-true-?x-succeeds
-     (tc.prop/for-all [x tc.gen/any
-                       y tc.gen/any]
+     (tc.prop/for-all [x gen-scalar
+                       y gen-scalar]
        (r.match/match #js [x y x]
          #js [?x (guard (= ?x ?x)) ?x]
          true
