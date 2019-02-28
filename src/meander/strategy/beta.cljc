@@ -911,13 +911,13 @@
   ([p]
    (pipe p vector))
   ([p q]
-   (tuple-body [p q]))
+   (meander.strategy.beta/tuple-body [p q]))
   ([p q r]
-   (tuple-body [p q r]))
+   (meander.strategy.beta/tuple-body [p q r]))
   ([p q r s]
-   (tuple-body [p q r s]))
+   (meander.strategy.beta/tuple-body [p q r s]))
   ([p q r s & more]
-   (pipe (tuple (tuple-body [p q r s])
+   (pipe (tuple (meander.strategy.beta/tuple-body [p q r s])
                 (apply tuple more))
          (fn [v]
            (into (nth v 0) (nth v 1))))))
