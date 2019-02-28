@@ -21,7 +21,7 @@
   ;; Test fully qualified symbol resolution.
   (t/is (= [1 '(2 3)]
            (r.match/find '(1 2 3)
-             (meander.syntax.alpha-test/$cons ?first ?rest)
+             (meander.syntax.beta-test/$cons ?first ?rest)
              [?first ?rest])))
 
   (t/is (= 1
