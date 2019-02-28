@@ -416,7 +416,7 @@
   {:private true}
   [sym]
   (if (namespace sym)
-    [:sym sym]
+    [:lit sym]
     (let [s (name sym)
           [$0 $N] (re-matches #"\.(?:\.(?:\.|(\d+))?)?" s)]
       (case $N
