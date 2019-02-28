@@ -1,7 +1,7 @@
 (ns meander.syntax.beta-test
   (:require
    [clojure.test :as t]
-   [meander.match.alpha :as r.match]
+   [meander.match.beta :as r.match]
    [meander.substitute.alpha :as r.substitute]
    [meander.syntax.beta :as r.syntax :include-macros true]))
 
