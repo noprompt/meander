@@ -2,7 +2,7 @@
   (:require
    [clojure.test :as t]
    [meander.match.beta :as r.match]
-   [meander.substitute.alpha :as r.substitute]
+   [meander.substitute.beta :as r.substitute]
    [meander.syntax.beta :as r.syntax :include-macros true]))
 
 (r.syntax/defsyntax $cons [?head ?tail]
