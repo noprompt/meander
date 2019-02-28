@@ -24,7 +24,7 @@
   []
   (r.match/match (git-branch-name)
     [:okay ?branch-name]
-    (r.match/match (shell/sh "git" "rev-list" "--count" ?branch-name)
+    (r.match/match (shell/sh "git" "rev-list" (str ?branch-name "...origin/alpha") "--count")
       {:exit 0, :out ?out}
       [:okay (string/trim ?out)]
 
