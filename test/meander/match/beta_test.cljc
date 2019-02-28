@@ -899,3 +899,161 @@
 
           _n
           true)))
+
+;; ---------------------------------------------------------------------
+;; JS Array match tests
+
+(tc.t/defspec jsa-unquote-patterns-match
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match #js [x #js [y x] y]
+      #js [~x #js [~y ~x] ~y]
+      true
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-lvrs-bind-the-values-they-match
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match #js [x #js [y x] y]
+      #js [?x #js [?y ?x] ?y]
+      (and (= ?x x)
+           (= ?y y))
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-mvrs-collect-the-values-they-match
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match #js [x #js [y x] y]
+      #js [!xs #js [!ys !xs] !ys]
+      (and (= [x x] !xs)
+           (= [y y] !ys))
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-zero-or-more-any-in-head
+  (tc.prop/for-all [n tc.gen/int
+                    x1 tc.gen/any
+                    x2 tc.gen/any
+                    y1 tc.gen/any
+                    y2 tc.gen/any]
+    (r.match/match (into-array (conj (into [] (mapcat identity) (repeat n [x1 x2])) y1 y2))
+      #js [~x1 ~x2 ... ~y1 ~y2]
+      true
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-zero-or-more-any-in-tail
+  (tc.prop/for-all [n tc.gen/nat
+                    x1 tc.gen/any
+                    x2 tc.gen/any
+                    y1 tc.gen/any
+                    y2 tc.gen/any]
+    (r.match/match (into-array (into [x1 x2] (mapcat identity) (repeat n [y1 y2])))
+      #js [~x1 ~x2 . ~y1 ~y2 ...]
+      true
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-zero-or-more-mvr-in-head
+  (tc.prop/for-all [n tc.gen/nat
+                    x1 tc.gen/any
+                    x2 tc.gen/any
+                    y1 tc.gen/any
+                    y2 tc.gen/any]
+    (r.match/match (into-array (conj (into [] (mapcat identity) (repeat n [x1 x2])) y1 y2))
+      #js [!xs1 !xs2 ... ~y1 ~y2]
+      (and (= (repeat n x1) !xs1)
+           (= (repeat n x2) !xs2))
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-zero-or-more-mvr-in-tail
+  (tc.prop/for-all [n tc.gen/nat
+                    x1 tc.gen/any
+                    x2 tc.gen/any
+                    y1 tc.gen/any
+                    y2 tc.gen/any]
+    (r.match/match (into-array (into [x1 x2] (mapcat identity) (repeat n [y1 y2])))
+      #js [~x1 ~x2 . !ys1 !ys2 ...]
+      (and (= (repeat n y1) !ys1)
+           (= (repeat n y2) !ys2))
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-zero-or-more-lvr-previously-bound
+  (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
+                    x1 tc.gen/any
+                    x2 tc.gen/any
+                    y1 tc.gen/any
+                    y2 tc.gen/any]
+    (r.match/match (into-array (conj (into [] (mapcat identity) (repeat n [x1 x2])) y1 y2))
+      #js [?x1 ?x2 . ?x1 ?x2 ... ~y1 ~y2]
+      (and (= x1 ?x1)
+           (= x2 ?x2))
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-zero-or-more-nested-mvr
+  (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
+                    b (s/gen simple-symbol?)
+                    v tc.gen/any]
+    (r.match/match (list* `let (into-array (into [] (mapcat identity) (repeat n [b v])))
+                          (repeat n b))
+      (`let #js [!bs !vs ...] . !body ...)
+      (and (= !bs (repeat n b))
+           (= !vs (repeat n v))
+           (= !body (repeat n b)))
+
+      _
+      false)))
+
+
+(tc.t/defspec jsa-drop-in-head
+  (tc.prop/for-all [n tc.gen/nat
+                    x tc.gen/any]
+    (r.match/match (into-array (conj (into [] (map identity) (repeat n x)) x x))
+      #js [_ ... ~x ~x]
+      true)))
+
+
+(tc.t/defspec jsa-drop-in-tail
+  (tc.prop/for-all [n tc.gen/nat
+                    x tc.gen/any]
+    (r.match/match (into-array (conj (into [] (map identity) (repeat n x)) x x))
+      #js [~x ~x . _ ...]
+      true)))
+
+
+(tc.t/defspec jsa-?x-guard-true-?x-succeeds
+  (tc.prop/for-all [x tc.gen/any
+                    y tc.gen/any]
+    (r.match/match #js [x y x]
+      #js [?x (guard (= ?x ?x)) ?x]
+      true
+
+      _
+      false)))
+
+
+(t/deftest jsa-compile-inside-seq
+  (t/is (= 1 (r.match/match '(let #js [] 1)
+               ('let #js [] ?x)
+               ?x))))

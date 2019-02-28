@@ -4,6 +4,7 @@
                [clojure.spec.gen.alpha :as s.gen]
                [clojure.string :as string]
                [clojure.walk :as walk]
+               [cljs.tagged-literals]
                [meander.util.beta :as util])
      :cljs
      (:require [cljs.spec.alpha :as s :include-macros true]
@@ -14,16 +15,12 @@
   #?(:cljs
      (:require-macros [meander.syntax.beta]))
   #?(:clj
-     (:import (clojure.lang Symbol))))
+     (:import (cljs.tagged_literals JSValue))))
 
 #?(:clj (set! *warn-on-reflection* true))
 
 (s/def :meander.syntax.beta/node
   (s/tuple keyword? any?))
-
-(defprotocol IParse
-  (-parse [this env]
-    "Parse this as a :meander.syntax.beta/node"))
 
 (defn children-dispatch
   {:private true}
@@ -452,7 +449,22 @@
         [:dt*]
 
         ;; else
-        [:dt+ (Integer/parseInt $N)]))))
+        [:dt+ (util/parse-int $N)]))))
+
+(defn parse-js-value [^JSValue js-value env]
+  (let [x (.val js-value)]
+    (cond
+      (vector? x)
+      [:jsa
+       (expand-prt (parse-all x env))]
+
+      (map? x)
+      [:jso
+       (into {}
+             (map
+              (fn [[k v]]
+                [(parse k) (parse v)]))
+             x)])))
 
 (defn parse
   ([x]
@@ -479,6 +491,9 @@
 
      (symbol? x)
      (parse-symbol x)
+
+     #?@(:clj [(instance? JSValue x)
+               (parse-js-value x env)])
 
      :else
      [:lit x])))
@@ -588,6 +603,30 @@
 (defmethod search? :grd [_]
   false)
 
+;; :jsa
+
+(defmethod children :jsa [[_ prt]]
+  [prt])
+
+(defmethod ground? :jsa [[_ prt]]
+  (ground? prt))
+
+(defmethod min-length :jsa [[_ prt]]
+  (min-length prt))
+
+(defmethod max-length :jsa [[_ prt]]
+  (max-length prt))
+
+(defmethod unparse :jsa [[_ prt]]
+  #?(:clj
+     (JSValue. (vec (unparse prt)))
+     :cljs
+     (into-array (unparse prt))))
+
+(defmethod search? :jsa [[_ prt]]
+  (search? prt))
+
+
 ;; :let
 
 (defmethod children :let [[_ {binding :binding, expr :expr}]]
@@ -597,7 +636,7 @@
   false)
 
 (defmethod unparse :let [[_ {binding :binding, expr :expr}]]
-  `(~'let* ~(unparse binding) ~expr))
+  `(~'let ~(unparse binding) ~expr))
 
 (defmethod search? :let [_]
   false)

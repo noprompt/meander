@@ -7,7 +7,11 @@
             [clojure.spec.alpha :as s]
             [meander.matrix.beta :as r.matrix]
             [meander.syntax.beta :as r.syntax]
-            [meander.util.beta :as r.util]))
+            [meander.util.beta :as r.util])
+  #?(:clj
+     (:import (cljs.tagged_literals JSValue))
+     :cljs
+     (:import (goog.object))))
 
 
 (def
@@ -35,12 +39,24 @@
   (= *collection-context* :vector))
 
 
+(defn js-array-context?
+  "true if the current value of *collect-context* is :js-array."
+  []
+  (= *collection-context* :js-array))
+
+
 (defn take-form
   "Form for taking n elements from target with respect to the current
   value of *collection-context*."
   [n target]
-  (if (vector-context?)
+  (cond
+    (vector-context?)
     `(subvec ~target 0 (min (count ~target) ~n))
+
+    (js-array-context?)
+    `(.slice ~target 0 (min (.-length ~target) ~n))
+
+    :else
     `(take ~n ~target)))
 
 
@@ -48,9 +64,23 @@
   "Form for dropping n elements from target with respect to the
   current value of *collection-context*."
   [n target]
-  (if (vector-context?)
+  (cond
+    (vector-context?)
     `(subvec ~target (min (count ~target) ~n))
+
+    (js-array-context?)
+    `(.slice ~target (min (.-length ~target) ~n))
+
+    :else
     `(drop ~n ~target)))
+
+
+(defn js-array-equals-form [a b]
+  `(goog.array/equals ~a ~b
+                      (fn f# [a# b#]
+                        (if (cljs.core/array? a#)
+                          (goog.array/equals a# b# f#)
+                          (= a# b#)))))
 
 
 (declare compile)
@@ -174,6 +204,13 @@
     (let [[_ nodes] node]
       (map compile-ground nodes))
 
+    :jsa
+    (let [[_ prt] node]
+      #?(:clj
+         (JSValue. (vec (compile-ground prt)))
+         :cljs 
+         (into-array (compile-ground prt))))
+
     :lit
     (r.syntax/unparse node)
 
@@ -193,8 +230,8 @@
                 (compile-ground r))))
 
     :unq
-    (let [[_ {expr :expr}] node]
-      expr)
+    (let [[_ {form :form}] node]
+      form)
 
     :quo
     (let [[_ {form :form}] node]
@@ -304,7 +341,11 @@
 
          :cat
          (if (literal? node)
-           [:test `(= ~target ~(vec (compile-ground node)))
+           [:test (if (js-array-context?)
+                    (js-array-equals-form target (compile-ground
+                                                  [:jsa [:prt {:left node
+                                                               :right [:cat []]}]]))
+                    `(= ~target ~(vec (compile-ground node))))
             (compile targets* [row])]
            (let [[_ nodes] node
                  nth-syms (take (count nodes) nth-syms)
@@ -394,6 +435,35 @@
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
+
+(defmethod compile-specialized-matrix :jsa
+  [_ [target & targets* :as targets] matrix]
+  (mapv
+   (fn [[tag :as node] row]
+     (case tag
+       :any
+       [:pass (compile targets [row])]
+
+       :jsa
+       (let [[_ prt] node]
+         (if (literal? node)
+           [:test (js-array-equals-form target (compile-ground node))
+            (compile targets* [row])]
+           [:test `(cljs.core/array? ~target)
+            (let [;; prt needs to be compiled within a :vector
+                  ;; collection-context separately from the targets*
+                  ;; to the right. The targets* on the right need to
+                  ;; be compiled in an environment including variables
+                  ;; bound by compiling prt.
+                  rhs*-env (into (get row :env) (r.syntax/variables prt))
+                  rhs*-row (assoc row :env rhs*-env)
+                  rhs* (compile targets* [rhs*-row])
+                  row* (assoc row :cols [prt] :rhs rhs*)]
+              (binding [*collection-context* :js-array]
+                (compile [target] [row*])))]))))
+   (r.matrix/first-column matrix)
+   (r.matrix/drop-column matrix)))
 
 
 (defmethod compile-specialized-matrix :let
@@ -904,8 +974,8 @@
          [:pass (compile targets* [row])]
 
          :unq
-         (let [[_ {expr :expr}] node]
-           [:test `(= ~target ~expr)
+         (let [[_ {form :form}] node]
+           [:test `(= ~target ~form)
             (compile targets* [row])])))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
