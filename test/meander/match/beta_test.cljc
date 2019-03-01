@@ -638,6 +638,8 @@
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))
 
+;; ---------------------------------------------------------------------
+;; check
 
 (t/deftest no-value-before-zero-or-more
   (t/testing "match"
@@ -679,6 +681,9 @@
       (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                #?(:clj (.getMessage error)
                   :cljs (.-message error)))))))
+ 
+;; ---------------------------------------------------------------------
+;; Misc
 
 (t/deftest memory-variables-in-nested-zero-or-more
   (t/is (= [[:aa :bb :cc] [1 2 3]]

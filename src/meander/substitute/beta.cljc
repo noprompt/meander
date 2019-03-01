@@ -140,14 +140,9 @@
 
 
 (defmethod compile-substitute :prt
-  [[_ {l :left, r :right}] env]
-  (if (and (= (r.syntax/tag l) :cat)
-           (zero? (count (second l))))
-    (when r
-      (compile-substitute r env))
-    `(concat ~(compile-substitute l env)
-             ~(when r
-                (compile-substitute r env)))))
+  [[_ {left :left, right :right}] env]
+  `(concat ~(compile-substitute left env)
+           ~(compile-substitute right env)))
 
 
 (defmethod compile-substitute :quo
@@ -155,8 +150,8 @@
   `(quote ~form))
 
 (defmethod compile-substitute :rp* [node env]
-  (let [[_ {items :items}] node
-        cat-node [:cat items]
+  (let [[_ {terms :terms}] node
+        cat-node [:cat terms]
         mvrs (r.syntax/memory-variables node)]
     (if (seq mvrs)
       ;; If there are mem-vars, loop until one of them is
@@ -177,41 +172,12 @@
                  (repeatedly (fn [] ~(compile-substitute cat-node env)))))))
 
 (defmethod compile-substitute :rp+ [node env]
-  (let [[_ {items :items, dots :dots}] node
-        n (r.util/parse-int (aget (.split (name dots) "\\.+" 2) 1))
-        cat-node [:cat items]
-        mvrs (r.syntax/memory-variables node)]
-    (if (seq mvrs)
-      ;; If there are mem-vars, loop until one or all of them is
-      ;; exhausted and we've looped at least twice.
-      `(let [ret# (transient [])]
-         (loop [n# 0]
-           (if (and ~@(map
-                       (fn [mvr]
-                         `(seq (deref ~(get-mvr-ref-sym env mvr))))
-                       mvrs))
-             (do
-               (run! (fn [x#] (conj! ret# x#)) ~(compile-substitute cat-node env))
-               (recur (inc n#)))
-             (if (< n# ~n)
-               (do
-                 (run! (fn [x#] (conj! ret# x#)) ~(compile-substitute cat-node env))
-                 (recur (inc n#)))
-               (persistent! ret#)))))
-      ;; If there are no mem-vars, loop forever. This case should
-      ;; either warn or throw!
-      `(sequence (mapcat identity)
-                 (repeatedly (fn [] ~(compile-substitute cat-node env)))))))
-
-
-(defmethod compile-substitute :rst [[_ {mvr-sym :mvr}] env]
-  (let [mvr-ref-sym (get-mvr-ref-sym env mvr-sym)]
-    ;; Memory variable substitution is stateful so we must consume
-    ;; all remaining elements in the memory variable reference to
-    ;; avoid nondeterministic behavior.
-    `(let [res# (deref ~mvr-ref-sym)]
-       (vreset! ~mvr-ref-sym [])
-       res#)))
+  (let [[_ {terms :terms, n :n}] node
+        cat-node [:cat terms]]
+    ;; Yield n substitutions.
+    `(into []
+           (mapcat identity)
+           (repeatedly ~n (fn [] ~(compile-substitute cat-node env))))))
 
 
 (defmethod compile-substitute :set [[_ s] env]
@@ -225,8 +191,8 @@
 
 
 (defmethod compile-substitute :unq
-  [[_ {expr :expr}] env]
-  expr)
+  [[_ {form :form}] env]
+  form)
 
 
 (defmethod compile-substitute :uns
