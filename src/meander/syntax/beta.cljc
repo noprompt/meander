@@ -694,7 +694,7 @@
 ;; :map
 
 (defmethod children :map [[_ map-data]]
-  (seq map-data))
+  (mapcat identity map-data))
 
 (defmethod ground? :map [[_ map-data]]
   (every?
