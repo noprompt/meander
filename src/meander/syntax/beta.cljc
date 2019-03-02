@@ -3,14 +3,12 @@
      (:require [clojure.spec.alpha :as s]
                [clojure.spec.gen.alpha :as s.gen]
                [clojure.string :as string]
-               [clojure.walk :as walk]
                [cljs.tagged-literals]
                [meander.util.beta :as util])
      :cljs
      (:require [cljs.spec.alpha :as s :include-macros true]
                [cljs.spec.gen.alpha :as s.gen :include-macros true]
                [clojure.string :as string]
-               [clojure.walk :as walk]
                [meander.util.beta :as util]))
   #?(:cljs
      (:require-macros [meander.syntax.beta]))
@@ -397,6 +395,19 @@
 
         quote 
         [:quo {:form (second xs)}]
+
+        re
+        (let [nothing (gensym)
+              regex (nth xs 1 nothing)]
+          (if (identical? regex nothing)
+            (throw (ex-info "re pattern expects at least one argument"
+                            {:pattern xs
+                             :meta (meta xs)}))
+            (let [capture (nth xs 2 nothing)]
+              (if (identical? regex nothing)
+                [:rxt {:regex regex}]
+                [:rxc {:regex regex
+                       :capture capture}]))))
 
         clojure.core/unquote
         [:unq {:form (second xs)}]
