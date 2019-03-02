@@ -42,15 +42,7 @@
 (defn subnodes
   "Return a sequence of all subnodes of node."
   [node]
-  (lazy-seq
-   (cons node
-         ((fn rec [node]
-            (sequence
-             (mapcat
-              (fn [node]
-                (lazy-seq (cons node (rec node)))))
-             (children node)))
-          node))))
+  (cons node (mapcat subnodes (children node))))
 
 (defn proper-subnodes
   "Return the all subnodes in node excluding node."
