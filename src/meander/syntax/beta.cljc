@@ -396,10 +396,10 @@
                             {:pattern xs
                              :meta (meta xs)}))
             (let [capture (nth xs 2 nothing)]
-              (if (identical? regex nothing)
+              (if (identical? capture nothing)
                 [:rxt {:regex regex}]
                 [:rxc {:regex regex
-                       :capture capture}]))))
+                       :capture (parse capture env)}]))))
 
         clojure.core/unquote
         [:unq {:form (second xs)}]

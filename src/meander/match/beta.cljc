@@ -761,6 +761,46 @@
      (r.matrix/drop-column matrix))))
 
 
+(defmethod compile-specialized-matrix :rxt
+  [_ [target & targets*] matrix]
+  (let [targets* (vec targets*)]
+    (mapv
+     (fn [[tag :as node] row]
+       (case tag
+         :any
+         [:pass (compile targets* [row])]
+
+         :rxt
+         (let [[_ {regex :regex}] node]
+           [:test `(string? ~target)
+            [:test `(re-matches ~regex ~target)
+             (compile targets* [row])]])))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
+(defmethod compile-specialized-matrix :rxc
+  [_ [target & targets*] matrix]
+  (let [targets* (vec targets*)]
+    (mapv
+     (fn [[tag :as node] row]
+       (case tag
+         :any
+         [:pass (compile targets* [row])]
+
+         :rxc
+         (let [[_ {regex :regex, capture :capture}] node
+               ret-sym (gensym "ret__")
+               cols* `[~capture ~@(:cols row)]
+               row* (assoc row :cols cols*)]
+           [:test `(string? ~target)
+            [:bind [ret-sym `(re-matches ~regex ~target)]
+             [:test `(some? ~ret-sym) 
+              (compile `[~ret-sym ~@targets*] [row*])]]])))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
 (defmethod compile-specialized-matrix :rp*
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]

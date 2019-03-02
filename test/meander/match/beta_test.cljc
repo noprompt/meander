@@ -596,6 +596,24 @@
           _
           false)))
 
+
+;; Regex
+
+(t/deftest rxt-test
+  (r.match/match "foo"
+    (re #"[fo]{3}")
+    true
+    _
+    false))
+
+(t/deftest rxc-test
+  (r.match/match "foo"
+    (re #"f(oo)" [_ ?x])
+    (= ?x "oo")
+
+    _
+    false))
+
 ;; ---------------------------------------------------------------------
 ;; search macro tests
 
