@@ -343,7 +343,65 @@
   [xs env]
   xs)
 
+(defn parse-scan
+  {:private true}
+  [xs env]
+  (if (and (seq? xs)
+           (= (first xs) 'scan))
+    (let [nothing (gensym)
+          pattern (nth xs 1 nothing)]
+      (if (identical? pattern nothing)
+        (throw (ex-info "scan expects at least on argument"
+                        {:pattern xs
+                         :meta (meta xs)}))
+        (parse
+         `(~'pred coll?
+           ;; Will cause compiler to emit a useless seq? check.
+           (~'app seq (~@'(_ ...) ~pattern ~@'(. _ ...))))
+         env)))
+    (parse xs env)))
+
+(defn parse-vscan
+  {:private true}
+  [xs env]
+  (if (and (seq? xs)
+           (= (first xs) 'vscan))
+    (let [nothing (gensym)
+          pattern (nth xs 1 nothing)]
+      (if (identical? pattern nothing)
+        (throw (ex-info "vscan expects at least on argument"
+                        {:pattern xs
+                         :meta (meta xs)}))
+        (parse
+         `(~'pred coll?
+           ;; Will cause compiler to emit a useless vector?
+           ;; check.
+           (~'app vec [~@'(_ ...) ~pattern ~@'(. _ ...)]))
+         env)))
+    (parse xs env)))
+
 (defn parse-seq
+  "Parses a seq? into a :meander.syntax.beta/node.
+
+  seqs? of the following form are handled specially, all other seqs
+  are parsed as :seq nodes.
+
+    (and <pattern_0> ... <pattern_n>)
+    (app <expr> <pattern> ...)
+    (guard <expr>)
+    (let <pattern_0> <expr_0> ... <pattern_n> <expr_n>)
+    (not <pattern>)
+    (or <pattern_0> ... <pattern_n>)
+    (pred <expr> <pattern_0> ... <pattern_n>)
+    (quote <form>)
+    (re <regex-expr>)
+    (re <regex-expr> <pattern>)
+    (clojure.core/unquote <form>) 
+    (clojure.core/unquote-splicig <form>)
+    (<symbol*> <form_0> ... <form_n>)
+
+  where symbol* is a fully qualified symbol with respect to the
+  current namespace."
   {:private true}
   [xs env]
   (let [x (first xs)]
@@ -401,6 +459,12 @@
                 [:rxc {:regex regex
                        :capture (parse capture env)}]))))
 
+        scan
+        (parse-scan xs env) 
+
+        vscan
+        (parse-vscan xs env)
+
         clojure.core/unquote
         [:unq {:form (second xs)}]
 
@@ -413,7 +477,6 @@
             [:seq (expand-prt (parse-all xs env))]
             (parse xs* env))))
       [:seq (expand-prt (parse-all xs env))])))
-
 
 (defn parse-symbol
   {:private true}
