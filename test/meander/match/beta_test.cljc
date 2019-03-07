@@ -1113,3 +1113,75 @@
      (t/is (= 1 (r.match/match '(let #js [] 1)
                   ('let #js [] ?x)
                   ?x)))))
+
+;; ---------------------------------------------------------------------
+;; JS Object match tests
+
+#?(:cljs
+   (tc.t/defspec jso-unq-succeeds
+     (tc.prop/for-all [x gen-scalar]
+       (r.match/match #js {:x x}
+         #js {:x ~x}
+         true
+
+         _
+         false))))
+
+#?(:cljs
+   (tc.t/defspec jso-lvr-succeeds
+     (tc.prop/for-all [x gen-scalar
+                       y gen-scalar]
+       (r.match/match #js {:x x, :y y}
+         #js {:x ?x, :y ?y}
+         (= [x y] [?x ?y])
+
+         _
+         false))))
+
+
+#?(:cljs
+   (tc.t/defspec jso-vec-lvr
+     (tc.prop/for-all [x gen-scalar]
+       (let [y [x]
+             z [[x]]]
+         (r.match/match #js {:x [x y], :y [y x], :z [z]}
+           #js {:x [?x ?y] :y [?y ?x] :z [?z]}
+           (= [x y z] [?x ?y ?z])
+
+           _
+           false)))))
+
+#?(:cljs
+   (tc.t/defspec jso-seq-lvr
+     (tc.prop/for-all [x gen-scalar]
+       (let [y [x]
+             z [[x]]]
+         (r.match/match #js {:x (list x y), :y (list y x), :z (list z)}
+           #js {:x (?x ?y) :y (?y ?x) :z (?z)}
+           (= (list x y z) (list ?x ?y ?z))
+
+           _
+           false)))))
+
+#?(:cljs
+   (tc.t/defspec jso-mvr
+     (tc.prop/for-all [x gen-scalar
+                       y gen-scalar]
+       (r.match/match #js {:x x, :y y}
+         #js {:x !xs, :y !xs}
+         (or (= [x y] !xs)
+             (= [y x] !xs))
+
+         _
+         false))))
+
+
+#?(:cljs
+   (tc.t/defspec jso-jso
+     (tc.prop/for-all [x gen-scalar]
+       (r.match/match #js {:x #js {:y x}, :z x}
+         #js {:x #js {:y ~x}, :z ~x}
+         true
+
+         _
+         false))))

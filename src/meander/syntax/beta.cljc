@@ -529,7 +529,10 @@
        (into {}
              (map
               (fn [[k v]]
-                [(parse k) (parse v)]))
+                (let [k* (if (keyword? k)
+                           (subs (str k) 1)
+                           k)]
+                  [(parse k*) (parse v)])))
              x)])))
 
 (defn parse

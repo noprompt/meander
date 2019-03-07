@@ -480,6 +480,89 @@
    (r.matrix/drop-column matrix)))
 
 
+(defn jso-matrix-all-keys
+  "Return a sequence of all :jso keys in matrix."
+  {:private true}
+  [matrix]
+  (mapcat
+   (fn [[tag data]]
+     (case tag
+       :jso
+       (keys data)
+       ()))
+   (r.matrix/first-column matrix)))
+
+
+(defn rank
+  "Returns a sorted sequence of values in xs by frequency of
+  occurence."
+  {:private true}
+  [xs]
+  (map first (sort-by (comp - val) (frequencies xs))))
+
+
+(defmethod compile-specialized-matrix :jso
+  [_ [target & targets*] matrix]
+  (let [ranked-keys (rank (jso-matrix-all-keys matrix))]
+    ;; Recompile with object keys aligned. For example if the pattern
+    ;; conditions were
+    ;;
+    ;;   #js {:x ?1, :y ?2, :z ?3}
+    ;;   #js {:x ?1}
+    ;;   #js {:w ?2, :z ?3}
+    ;;
+    ;; then we would organize the matrix as
+    ;;
+    ;;   [:x ?1] [:z ?3] [:y ?2] [:w __]
+    ;;   [:x ?1] [:z __] [:y __] [:w __]
+    ;;   [:x __] [:z ?3] [:y __] [:w ?2]
+    [[:test `(some? ~target) ;; This may be a bit liberal.
+      (compile `[~@(repeat (count ranked-keys) target) ~@targets*]
+               (mapv
+                (fn [row]
+                  (let [[[tag data] & rest-cols] (get row :cols)]
+                    (case tag
+                      (:jso :map)
+                      (let [prefix (mapv
+                                    (fn [k]
+                                      (if-some [entry (clojure/find data k)]
+                                        [:okv entry]
+                                        [:okv [k [:any '_]]]))
+                                    ranked-keys)]
+                        (assoc row :cols `[~@prefix ~@rest-cols]))
+                      row)))
+                matrix))]]))
+
+(defmethod compile-specialized-matrix :okv
+  [_ [target & targets* :as targets] matrix]
+  (let [targets* (vec targets*)]
+    (mapv
+     (fn [[tag :as node] row]
+       (case tag
+         :any
+         [:pass (compile targets* [row])]
+
+         :okv
+         (let [[_ [key-node val-node]] node]
+           (if (r.syntax/ground? key-node)
+             (let [row* (assoc row :cols `[~[:let {:binding val-node
+                                                   :expr `(goog.object/get ~target ~(compile-ground key-node))}]
+                                           ~@(:cols row)])]
+               (compile targets [row*]))
+             ;; The #js {} reader only allows keys that are strings or
+             ;; unqualified keywords. Without and alternative notation
+             ;; this branch should never be entered.
+             (let [row* (assoc row :cols `[~[:cat [key-node val-node]]
+                                           ~@(:cols row)])
+                   search-target (gensym* "okv__")]
+               [:search [search-target `(map (fn [k#]
+                                               [k# (goog.object/get ~target k#)])
+                                             (goog.object/getKeys ~target))]
+                (compile `[~search-target ~@targets*] [row*])])))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
 (defmethod compile-specialized-matrix :let
   [_ [target & targets* :as targets] matrix]
   (let [targets* (vec targets*)]
