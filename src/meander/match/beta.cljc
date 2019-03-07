@@ -5,6 +5,7 @@
             [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
+            [clojure.walk :as walk]
             [meander.matrix.beta :as r.matrix]
             [meander.syntax.beta :as r.syntax]
             [meander.util.beta :as r.util])
@@ -82,6 +83,19 @@
                           (goog.array/equals a# b# f#)
                           (= a# b#)))))
 
+(defn gensym*
+  "Like gensym but adds additional meta data which can be used by the
+  match compiler."
+  {:private true}
+  ([]
+   (with-meta (gensym) {::gensym? true}))
+  ([prefix-string]
+   (with-meta (gensym prefix-string) {::gensym? true})))
+
+(defn gensym?
+  {:private true}
+  ([x]
+   (and (symbol? x) (::gensym? (meta x)))))
 
 (declare compile)
 
@@ -302,7 +316,7 @@
 
 (defmethod compile-specialized-matrix :app
   [_ [target & targets*] matrix]
-  (let [app-target (gensym "app_target__")]
+  (let [app-target (gensym* "app_target__")]
     (mapv
      (fn [[tag :as node] row]
        (case tag
@@ -331,7 +345,7 @@
                   (r.matrix/first-column matrix))
         nth-syms (mapv
                   (fn [i]
-                    (gensym (str "nth_" i "__")))
+                    (gensym* (str "nth_" i "__")))
                   (range max-size))]
     (mapv
      (fn [[tag :as node] row]
@@ -477,7 +491,7 @@
 
          :let
          (let [[_ {:keys [binding expr]}] node
-               xsym (gensym "x__")
+               xsym (gensym* "x__")
                targets* `[~xsym ~@targets*]
                matrix* [(assoc row :cols `[~binding ~@(:cols row)])]]
            [:bind [xsym expr]
@@ -654,17 +668,17 @@
                        right
                        [:cat []])
                ;; Left tree symbol
-               lsym (gensym "l__")
+               lsym (gensym* "l__")
                ;; Left min length
                llen (r.syntax/min-length left)
                ;; Right tree symbol
-               rsym (gensym "r__")
+               rsym (gensym* "r__")
                ;; Right min length
                rlen (r.syntax/min-length right)
                ;; Target length symbol
                nsym (gensym "n__")
                ;; Target length symbol minus either the left or right min length
-               msym (gensym "m__")]
+               msym (gensym* "m__")]
            (case [(r.syntax/variable-length? left) (r.syntax/variable-length? right)]
              ;; Invariable length.
              [false false]
@@ -716,7 +730,7 @@
 
              ;; Variable length on both sides.
              [true true]
-             (let [parts-sym (gensym "parts__")]
+             (let [parts-sym (gensym* "parts__")]
                [:search [parts-sym `(r.util/partitions 2 ~target)]
                 [:bind [lsym `(nth ~parts-sym 0)]
                  [:bind [rsym `(nth ~parts-sym 1)]
@@ -790,7 +804,7 @@
 
          :rxc
          (let [[_ {regex :regex, capture :capture}] node
-               ret-sym (gensym "ret__")
+               ret-sym (gensym* "ret__")
                cols* `[~capture ~@(:cols row)]
                row* (assoc row :cols cols*)]
            [:test `(string? ~target)
@@ -815,7 +829,7 @@
                n (count terms)
                ;; Symbol which is bound to the first n elements of
                ;; target at the top of each loop.
-               init (gensym "init__")
+               init (gensym* "init__")
                ;; Gaurd pattern to check the length of the initial
                ;; slice at the top of each loop.
                init-grd [:grd {:form `(= (count ~init) ~n)}]
@@ -871,10 +885,10 @@
                n (count terms)
                ;; The minimum number of times the loop must execute.
                ;; Symbol which tracks the number of successful iterations.
-               iter (gensym "iter__")
+               iter (gensym* "iter__")
                ;; Symbol which is bound to the first n elements of
                ;; target at the top of each loop.
-               init (gensym "init__")
+               init (gensym* "init__")
                ;; Gaurd pattern to check the length of the initial
                ;; slice at the top of each loop.
                init-grd [:grd {:form `(= (count ~init) ~n)}]
@@ -952,9 +966,9 @@
            (let [[_ the-set] node
                  n (count the-set)
                  ;; Symbol for the size of target.
-                 m-sym (gensym "m__")
+                 m-sym (gensym* "m__")
                  ;; Symbol for each permutation of target.
-                 perm-sym (gensym "perm__")
+                 perm-sym (gensym* "perm__")
                  targets** `[~perm-sym ~@targets*]
                  matrix*  [(assoc row :cols `[~[:cat (vec the-set)] ~@(:cols row)])]]
              [:test `(set? ~target)
@@ -970,9 +984,9 @@
            (let [[_ the-set] node
                  n (count the-set)
                  ;; Symbol for the size of target.
-                 m-sym (gensym "m__")
+                 m-sym (gensym* "m__")
                  ;; Symbol for each permutation of target.
-                 perm-sym (gensym "perm__")]
+                 perm-sym (gensym* "perm__")]
              [:test `(set? ~target)
               [:bind [m-sym `(count ~target)]
                [:test `(<= ~n ~m-sym)
@@ -1060,7 +1074,8 @@
       (reduce merge
               (mapv
                (fn [target node]
-                 {target (r.syntax/unparse node)})
+                 {target (r.syntax/unparse node)
+                  :node node})
                targets
                (:cols row))))
     matrix)))
@@ -1266,7 +1281,6 @@
     body))
 
 
-#_
 (defn rewrite-branch-shared-bindings
   "If a there are consecutive bindings to the same expression in the
   arms of a branch, create a new branch arm with a shared binding and
@@ -1280,26 +1294,32 @@
     (if-some [[tag :as node] (first q-nodes)]
       (if (or (= tag :bind)
               (= tag :search))
-        (let [[_ [bsym bval]] node
-              [xs ys] (split-with
-                       (fn [[other-tag :as other-node]]
-                         (and (= other-tag tag)
-                              (let [[_ [_ other-bval]] other-node]
-                                (= other-bval bval))))
-                       q-nodes)
-              q-nodes ys
-              s-nodes (conj s-nodes
-                            (if (= xs [node])
-                              node
-                              (let [bsym* (gensym "x__")]
-                                [tag [bsym* bval]
-                                 [:branch
-                                  (mapv
-                                   (fn [[_ [bsym _] body]]
-                                     ;; This is potentially dangerous and irresponsible.
-                                     (walk/postwalk-replace {bsym bsym*} body))
-                                   xs)]])))]
-          (recur q-nodes s-nodes))
+        (let [[_ [bsym bval]] node]
+          (if (::gensym? (meta bsym))
+            (let [[xs ys] (split-with
+                           (fn [[other-tag :as other-node]]
+                             (and (= other-tag tag)
+                                  (let [[_ [_ other-bval]] other-node]
+                                    (= other-bval bval))))
+                           q-nodes)
+                  q-nodes ys
+                  s-nodes (conj s-nodes
+                                (if (= xs [node])
+                                  node
+                                  (let [bsym* (gensym "x__")]
+                                    [tag [bsym* bval]
+                                     [:branch
+                                      (mapv
+                                       (fn [[_ [bsym _] body]]
+                                         ;; This should be safe since
+                                         ;; we're only renaming
+                                         ;; symbols we've generated.
+                                         (walk/postwalk-replace {bsym bsym*} body))
+                                       xs)]])))]
+              (recur q-nodes s-nodes))
+            (let [q-nodes (rest q-nodes)
+                  s-nodes (conj s-nodes node)]
+              (recur q-nodes s-nodes))))
         (let [q-nodes (rest q-nodes)
               s-nodes (conj s-nodes node)]
           (recur q-nodes s-nodes)))
@@ -1411,7 +1431,7 @@
                    (-> x
                        rewrite-branch-splice-branches
                        rewrite-branch-one-fail
-                       #_rewrite-branch-shared-bindings
+                       rewrite-branch-shared-bindings
                        rewrite-branch-equal-bindings
                        rewrite-branch-equal-tests)
                    x))
