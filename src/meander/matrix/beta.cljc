@@ -202,8 +202,8 @@
   "Prepends column to matrix."
   [matrix column]
   (into [] (map
-             (fn [row col]
-               (assoc row :cols (cons col (:cols row))))
+             (fn [row cell]
+               (assoc row :cols (into [cell] (:cols row))))
              matrix
              column)))
 
