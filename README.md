@@ -12,7 +12,6 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
 * [Pattern Substituton](#pattern-matching)
 * [Rewriting](#rewriting)
 
-
 ## Pattern Matching
 
 * [Operators](#operators)
@@ -158,6 +157,25 @@ expresses the value being matched is a map containing the key `:foo` with value 
 
 expresses the value being matched is a set containing the values `:foo` and `:bar`.
 
+
+In ClojureScript it is possible to pattern match on JavaScript `Array`s and `Object` using the `#js []` and `#js {}` literal syntaxes respectively.
+
+```clj
+(match #js [1 2 1]
+  #js [?x ?y ?x]
+  ?x)
+;; => 1
+```
+
+```clj
+(match js/process
+  #js {:version ?version, :platform ?platform}
+  [?version ?platform])
+;; =>
+["v11.4.0" "darwin"]
+```
+
+`#js {}` pattern matching is _very_ liberal and matches against _any_ non `nil` equivalent JavaScript object.
 
 #### Variables
 
@@ -824,5 +842,3 @@ nil
 ;; =>
 #meander.beta/fail[]
 ```
-
-#### `rewrite`
