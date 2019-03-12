@@ -546,7 +546,7 @@
          (let [[_ [key-node val-node]] node]
            (if (r.syntax/ground? key-node)
              (let [row* (assoc row :cols `[~[:let {:binding val-node
-                                                   :expr `(goog.object/get ~target ~(compile-ground key-node))}]
+                                                   :expr (list 'js* "(~{}[~{}])" target (compile-ground key-node))}]
                                            ~@(:cols row)])]
                (compile targets [row*]))
              ;; The #js {} reader only allows keys that are strings or
