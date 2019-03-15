@@ -1,15 +1,13 @@
-(ns meander.syntax.beta-test
+(ns meander.syntax.gamma-test
   (:require
    [clojure.test :as t]
-   [meander.match.beta :as r.match]
-   [meander.substitute.beta :as r.substitute]
-   [meander.syntax.beta :as r.syntax :include-macros true]))
+   [meander.match.gamma :as r.match]
+   [meander.syntax.gamma :as r.syntax :include-macros true]))
 
 (r.syntax/defsyntax $cons [?head ?tail]
-  (r.substitute/substitute
-   (pred clojure.core/seq?
-         (app clojure.core/first ?head)
-         (app clojure.core/rest ?tail))))
+  `(~'pred clojure.core/seq?
+    (~'app clojure.core/first ~?head)
+    (~'app clojure.core/rest ~?tail)))
 
 (t/deftest defsyntax-test
   ;; $cons will be fully qualified.
@@ -21,7 +19,7 @@
   ;; Test fully qualified symbol resolution.
   (t/is (= [1 '(2 3)]
            (r.match/find '(1 2 3)
-             (meander.syntax.beta-test/$cons ?first ?rest)
+             (meander.syntax.gamma-test/$cons ?first ?rest)
              [?first ?rest])))
 
   (t/is (= 1

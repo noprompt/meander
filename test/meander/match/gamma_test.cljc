@@ -1,11 +1,11 @@
-(ns meander.match.beta-test
+(ns meander.match.gamma-test
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.test :as t]
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.match.beta :as r.match :include-macros true]
-            [meander.syntax.beta :as r.syntax :include-macros true]))
+            [meander.match.gamma :as r.match :include-macros true]
+            [meander.syntax.gamma :as r.syntax :include-macros true]))
 
 (def gen-scalar
   (tc.gen/one-of [tc.gen/int
@@ -145,7 +145,7 @@
 #?(:clj
    (t/deftest or-compilation-fails
      (t/is (try
-             (macroexpand '(meander.match.beta/match 1 (or ?x ?y ?z) false))
+             (macroexpand '(meander.match.gamma/match 1 (or ?x ?y ?z) false))
              false
              (catch clojure.lang.ExceptionInfo _
                true)))))
@@ -498,6 +498,7 @@
       _
       false)))
 
+
 (tc.t/defspec map-lvr-succeeds
   (tc.prop/for-all [x gen-scalar
                     y gen-scalar]
@@ -554,6 +555,26 @@
       _
       false)))
 
+
+(t/deftest map-rest-map
+  (= [2 {:_1 1, :_3 3}]
+     (r.match/match {:_1 1, :_2 2, :_3 3}
+       {:_2 ?2 & ?rest-map}
+       [?2 ?rest-map]))
+
+  (= [2 3 {:_1 1}]
+     (r.match/match {:_1 1, :_2 2, :_3 3}
+       {:_2 ?2 & {:_3 ?3 & ?rest-map}}
+       [?2 ?3 ?rest-map]))
+
+  (= '([2 :_1 1] [2 :_3 3])
+     (r.match/search {:_1 1, :_2 2, :_3 3}
+       {:_2 ?2 & (vscan [?k ?v])}
+       [?2 ?k ?v])
+
+     ))
+
+;; Sets
 
 (t/deftest set-unq
   (let [k1 :k1
@@ -1185,3 +1206,20 @@
 
          _
          false))))
+
+;; ---------------------------------------------------------------------
+;; re match tests
+
+(t/deftest re-test
+  (t/is (r.match/match "foo foo foo"
+          (re #"(?:foo ?)+")
+          true
+          _
+          false))
+
+  (t/is (r.match/match "Harry Hacker"
+          (re #"([^ ]+) *([^ ]+)" [_ ?Harry ?Hacker])
+          (and (= ?Harry "Harry")
+               (= ?Hacker "Hacker"))
+          _
+          false)))

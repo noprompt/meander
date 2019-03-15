@@ -1,13 +1,13 @@
-(ns meander.matrix.beta
+(ns meander.matrix.gamma
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as s.gen]
-            [meander.syntax.beta :as r.syntax]))
+            [meander.syntax.gamma :as r.syntax]))
 
 
-(s/def :meander.matrix.beta/matrix
-  (s/coll-of :meander.matrix.beta/row
+(s/def :meander.matrix.gamma/matrix
+  (s/coll-of :meander.matrix.gamma/row
              :kind sequential?
              :into []
              :gen (fn []
@@ -21,35 +21,35 @@
                                   (update row :cols subvec 0 i)))
                                rows)))
                      (s.gen/vector
-                      (s/gen :meander.matrix.beta/row))))))
+                      (s/gen :meander.matrix.gamma/row))))))
 
 
-(s/def :meander.matrix.beta/row
-  (s/keys :req-un [:meander.matrix.beta.row/cols
-                   :meander.matrix.beta.row/rhs]
-          :opt-un [:meander.matrix.beta.row/env]))
+(s/def :meander.matrix.gamma/row
+  (s/keys :req-un [:meander.matrix.gamma.row/cols
+                   :meander.matrix.gamma.row/rhs]
+          :opt-un [:meander.matrix.gamma.row/env]))
 
 
-(s/def :meander.matrix.beta.row/cols
-  (s/coll-of :meander.syntax.beta/node
+(s/def :meander.matrix.gamma.row/cols
+  (s/coll-of :meander.syntax.gamma/node
              :kind sequential?
              :into []))
 
 
-(s/def :meander.matrix.beta.row/rhs
+(s/def :meander.matrix.gamma.row/rhs
   any?)
 
 
-(s/def :meander.matrix.beta.row/env
-  (s/coll-of (s/or :lvr :meander.syntax.beta/logic-variable
-                   :mvr :meander.syntax.beta/memory-variable)
+(s/def :meander.matrix.gamma.row/env
+  (s/coll-of (s/or :lvr :meander.syntax.gamma/logic-variable
+                   :mvr :meander.syntax.gamma/memory-variable)
              :kind set?
              :into #{}))
 
 
-(s/def :meander.matrix.beta/object
-  (s/or :matrix :meander.matrix.beta/matrix
-        :row :meander.matrix.beta/row
+(s/def :meander.matrix.gamma/object
+  (s/or :matrix :meander.matrix.gamma/matrix
+        :row :meander.matrix.gamma/row
         :unknown any?))
 
 
@@ -63,7 +63,7 @@
 (defn row?
   "true if x is a matrix row."
   [x]
-  (s/valid? :meander.matrix.beta/row x))
+  (s/valid? :meander.matrix.gamma/row x))
 
 
 (defn empty?
@@ -93,10 +93,10 @@
 
 
 (s/fdef swap-column
-  :args (s/cat :matrix :meander.matrix.beta/matrix
+  :args (s/cat :matrix :meander.matrix.gamma/matrix
                :i nat-int?
                :j nat-int?)
-  :ret :meander.matrix.beta/matrix)
+  :ret :meander.matrix.gamma/matrix)
 
 
 (defn swap-column
@@ -109,12 +109,12 @@
 
 
 (s/fdef subcols
-  :args (s/or :a2 (s/cat :matrix :meander.matrix.beta/matrix
+  :args (s/or :a2 (s/cat :matrix :meander.matrix.gamma/matrix
                          :i nat-int?)
-              :a3 (s/cat :matrix :meander.matrix.beta/matrix
+              :a3 (s/cat :matrix :meander.matrix.gamma/matrix
                          :i nat-int?
                          :j nat-int?))
-  :ret :meander.matrix.beta/matrix)
+  :ret :meander.matrix.gamma/matrix)
 
 
 (defn subcols
@@ -132,7 +132,7 @@
 
 
 (s/fdef width
-  :args (s/cat :matrix :meander.matrix.beta/matrix)
+  :args (s/cat :matrix :meander.matrix.gamma/matrix)
   :ret nat-int?)
 
 
@@ -142,8 +142,8 @@
 
 
 (s/fdef nth-column
-  :args (s/cat :matrix :meander.matrix.beta/matrix)
-  :ret (s/coll-of :meander.syntax.beta/node))
+  :args (s/cat :matrix :meander.matrix.gamma/matrix)
+  :ret (s/coll-of :meander.syntax.gamma/node))
 
 
 (defn nth-column
@@ -176,8 +176,8 @@
 
 
 (s/fdef drop-column
-  :args (s/cat :matrix :meander.matrix.beta/matrix)
-  :ret :meander.matrix.beta/matrix)
+  :args (s/cat :matrix :meander.matrix.gamma/matrix)
+  :ret :meander.matrix.gamma/matrix)
 
 
 (defn drop-column
@@ -191,11 +191,11 @@
         matrix))
 
 (s/fdef prepend-column
-  :args (s/cat :matrix :meander.matrix.beta/matrix
-               :column (s/coll-of :meander.syntax.beta/node
+  :args (s/cat :matrix :meander.matrix.gamma/matrix
+               :column (s/coll-of :meander.syntax.gamma/node
                                   :kind sequential?
                                   :into []))
-  :ret :meander.matrix.beta/matrix)
+  :ret :meander.matrix.gamma/matrix)
 
 
 (defn prepend-column
@@ -210,11 +210,11 @@
 
 (s/fdef specialize-by
   :args (s/cat :f (s/fspec
-                   :args (s/cat :node :meander.syntax.beta/node)
+                   :args (s/cat :node :meander.syntax.gamma/node)
                    :ret any?)
-               :matrix :meander.matrix.beta/matrix)
-  :ret (s/map-of :meander.syntax.beta.node/tag
-                 :meander.matrix.beta/matrix))
+               :matrix :meander.matrix.gamma/matrix)
+  :ret (s/map-of :meander.syntax.gamma.node/tag
+                 :meander.matrix.gamma/matrix))
 
 
 (defn specialize-by
@@ -244,8 +244,8 @@
 ;; Environment
 
 (s/fdef get-env
-  :args (s/cat :row :meander.matrix.beta/row)
-  :ret :meander.matrix.beta.row/env)
+  :args (s/cat :row :meander.matrix.gamma/row)
+  :ret :meander.matrix.gamma.row/env)
 
 
 (defn get-env
@@ -254,10 +254,10 @@
 
 
 (s/fdef add-var
-  :args (s/cat :row :meander.matrix.beta/row
-               :var (s/or :meander.syntax.beta.node/lvr
-                          :meander.syntax.beta.node/mvr))
-  :ret :meander.matrix.beta/row)
+  :args (s/cat :row :meander.matrix.gamma/row
+               :var (s/or :meander.syntax.gamma.node/lvr
+                          :meander.syntax.gamma.node/mvr))
+  :ret :meander.matrix.gamma/row)
 
 (defn add-var
   "Add var to the environment in row."
@@ -266,12 +266,12 @@
 
 
 (s/fdef get-var
-  :args (s/cat :row :meander.matrix.beta/row
-               :var (s/or :meander.syntax.beta.node/lvr
-                          :meander.syntax.beta.node/mvr))
+  :args (s/cat :row :meander.matrix.gamma/row
+               :var (s/or :meander.syntax.gamma.node/lvr
+                          :meander.syntax.gamma.node/mvr))
   :ret (s/nilable
-        (s/or :meander.syntax.beta.node/lvr
-              :meander.syntax.beta.node/mvr)))
+        (s/or :meander.syntax.gamma.node/lvr
+              :meander.syntax.gamma.node/mvr)))
 
 
 (defn get-var

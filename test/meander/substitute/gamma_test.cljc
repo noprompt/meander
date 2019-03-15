@@ -1,6 +1,6 @@
-(ns meander.substitute.beta-test
+(ns meander.substitute.gamma-test
   (:require [clojure.test :as t]
-            [meander.substitute.beta :as r.substitute :include-macros true]))
+            [meander.substitute.gamma :as r.substitute :include-macros true]))
 
 (t/deftest lvr-test
   (let [?1 1
@@ -58,10 +58,10 @@
 
 (t/deftest prt-test
   (t/is (= [1 2]
-           (r.substitute/substitute [. 1 2])))
+           (r.substitute/substitute [1 . 2])))
 
   (t/is (= [1 2]
-           (r.substitute/substitute [1 . 2])))
+           (r.substitute/substitute [. 1 2])))
 
   (t/is (= [1 2]
            (r.substitute/substitute [1 2 .])))
@@ -72,3 +72,35 @@
     (t/is (= [:X :O :X :O 1 2]
              (r.substitute/substitute [!1s ... 1 2])))))
 
+
+(t/deftest map-test
+  (let [?rest-map {:foo "bar"}]
+    (t/is (= (r.substitute/substitute {:bar "baz" & ?rest-map})
+             {:foo "bar", :bar "baz"}))
+    (t/is (= (r.substitute/substitute {:bar "baz" & ?rest-map :as "quux"})
+             {:foo "bar", :bar "baz", :as "quux"}))
+    (t/is (= (r.substitute/substitute {& ?rest-map})
+             {:foo "bar"}))
+    (t/is (= (r.substitute/substitute {:foo "bar" & [[:bar "foo"] [:quux "frob"]]})
+             {:foo "bar" :bar "foo" :quux "frob"}))
+    (t/is (= (r.substitute/substitute {:foo "bar" & [[:bar "foo"] [:quux "frob"]]})
+             {:foo "bar" :bar "foo" :quux "frob"}))
+    (let [!ks [:foo :bar :baz]
+          !vs [1111 2222 3333]]
+      (t/is (= (r.substitute/substitute {& [[!ks !vs] ...]})
+               {:foo 1111, :bar 2222, :baz 3333})))))
+
+
+(t/deftest ctn-test
+  (let [?context (fn [hole]
+                   [1 hole 2])
+        ?value 3
+        !values [:A :B :C]]
+    (t/is (= (r.substitute/substitute ($ ?context ?value))
+             [1 3 2]))
+    (t/is (= (r.substitute/substitute ($ ?value))
+             3))
+    (t/is (r.substitute/substitute [($ ?context !values) ...])
+          [[1 :A 2]
+           [1 :B 2]
+           [1 :C 2]])))

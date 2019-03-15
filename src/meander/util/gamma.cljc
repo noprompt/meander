@@ -1,4 +1,5 @@
-(ns meander.util.beta)
+(ns meander.util.gamma
+  (:require [clojure.zip :as zip]))
 
 
 (defn cljs-env?
@@ -233,3 +234,30 @@ Examples:
 
     :else
     (throw (ex-info "coll must be a string? or coll?" {:type (type coll)}))))
+
+(defn coll-zip
+  "Return a zipper with a branch? fn of coll?."
+  [root]
+  (zip/zipper coll? seq
+    (fn [coll coll-new]
+      (cond
+        (seq? coll)
+        coll-new
+
+        (map? coll)
+        (into {} coll-new)
+
+        (map-entry? coll)
+        (vec coll-new)
+
+        :else
+        (into (empty coll) coll-new)))
+    root))
+
+(defn zip-next-seq
+  "Given a clojure.zip zipper location loc return a lazy sequence of
+  all clojure.zip/next locations from loc."
+  [loc]
+  (if (zip/end? loc)
+    ()
+    (lazy-seq (cons loc (zip-next-seq (zip/next loc))))))

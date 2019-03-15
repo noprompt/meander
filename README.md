@@ -3,7 +3,7 @@
 Meander is a Clojure/ClojureScript data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting) and [logic programming](https://en.wikipedia.org/wiki/Logic_programming). It does so with extensible syntactic [pattern matching](https://en.wikipedia.org/wiki/Pattern_matching), syntactic [pattern substitution](https://en.wikipedia.org/wiki/Substitution_(logic)), and a suite of combinators known as _strategies_ that run the gamut from purely functional to purely declarative.
 
 
-[![Clojars Project](https://img.shields.io/clojars/v/meander/beta.svg)](https://clojars.org/meander/beta)
+[![Clojars Project](https://img.shields.io/clojars/v/meander/gamma.svg)](https://clojars.org/meander/gamma)
 
 
 ## Contents
@@ -42,7 +42,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
 
 ### Operators
 
-The primary operators for pattern matching and searching are available in `meander.match.beta`.
+The primary operators for pattern matching and searching are available in `meander.match.gamma`.
 
 
 #### `match`
@@ -465,7 +465,7 @@ Example:
 
 Pattern substitution can be thought of as the inverse to pattern matching. While pattern matching binds values by deconstructing an object, pattern substitution uses existing bindings to _construct_ an object.
 
-The `substitute` operator is available from the `meander.substitute.beta` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On it's own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
+The `substitute` operator is available from the `meander.substitute.gamma` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On it's own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
 
 Because rewriting is a central theme it's worthwhile to understand substitution semantics.
 
@@ -608,15 +608,15 @@ But how did we know we were finished? Couldn't we continue to apply the commutat
 
 A _strategy_ is a function of one argument, a term `t`, and returns the term rewritten `t*`. A _strategy combinator_ is a function which accepts, as arguments, one or more _strategies_ and returns a _strategy_.
 
-Meander's strategy combinators can be found in the `meander.strategy.beta` namespace.
+Meander's strategy combinators can be found in the `meander.strategy.gamma` namespace.
 
 ```
-(require '[meander.strategy.beta :as r])
+(require '[meander.strategy.gamma :as r])
 ```
 
 The alias `r` stands for "rewrite" and will be used throughout the following examples.
 
-Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.beta/*fail*` which is printed as `#meander.beta/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.beta/fail?`, however, you should rarely need to reach for this function outside of combinators.
+Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.gamma/*fail*` which is printed as `#meander.gamma/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.gamma/fail?`, however, you should rarely need to reach for this function outside of combinators.
 
 ### Basic Combinators
 
@@ -627,7 +627,7 @@ Strategy which always fails.
 ```clj
 (r/fail 10)
 ;; =>
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
 
 #### `build`
@@ -657,7 +657,7 @@ Strategy combinator which takes two (or more) strategies`p` and `q` and returns 
 (let [s (r/pipe inc fail)]
   (s 10))
 ;; =>
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
 
 Note: `pipe` actually takes zero or more strategies as arguments and has behavior analogous to `and` e.g. `((pipe) t)` and `((pipe s) t)` is the equivalent to `(identity t)` and `(s t)` respectively.
@@ -719,7 +719,7 @@ The `one` combinator is a traversal combinator which applies a strategy `s` to o
       one-s (r/one s)]
   (s ["a" "b" "c"]))
 ;; => 
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
 
 #### `some`
@@ -745,7 +745,7 @@ The `some` combinator is a traversal combinator which applies a strategy `s` to 
       some-s (r/some s)]
   (some-s ["a" "b" "c"]))
 ;; => 
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
 
 #### `all`
@@ -771,14 +771,14 @@ The `all` combinator is a traversal combinator which applies a strategy `s` to e
       all-s (r/all s)]
   (all-s [1 2 "c"]))
 ;; => 
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
 
 ### Matching Combinators
 
 #### `match`
 
-The `match` strategy is built on top of `meander.match.beta/match`. It succeeds whenever some term `t` is successfully matched.
+The `match` strategy is built on top of `meander.match.gamma/match`. It succeeds whenever some term `t` is successfully matched.
 
 ```clj example
 (let [s (r/match
@@ -795,12 +795,12 @@ The `match` strategy is built on top of `meander.match.beta/match`. It succeeds 
           {:bar ?bar, :baz ?baz})]
   (s [:baz 1 2]))
 ;; =>
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
 
 #### `find`
 
-The `find` strategy is built on top of `meander.match.beta/find`. 
+The `find` strategy is built on top of `meander.match.gamma/find`. 
 
 ```clj example
 (let [s (r/find
@@ -814,7 +814,7 @@ The `find` strategy is built on top of `meander.match.beta/find`.
 [b bb bbb]
 ```
 
-Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.beta/*fail*`.
+Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.gamma/*fail*`.
 
 ```clj example
 (let [s (r/find
@@ -840,5 +840,5 @@ nil
        :namespaces {a.core [a aa aaa]
                     b.core [b bb bbb]}}))
 ;; =>
-#meander.beta/fail[]
+#meander.gamma/fail[]
 ```
