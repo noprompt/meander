@@ -1895,6 +1895,14 @@
              {:tag :cnj
               :arguments [as (dissoc x :as)]}
              x))
+
+         (:seq :vec)
+         (if-some [as (:as x)]
+           {:tag :cnj
+            :arguments [as (dissoc x :as)]}
+           x)
+
+         ;; else
          x)
        x))
    node))

@@ -328,6 +328,13 @@
       _
       false)))
 
+(t/deftest seq-as-pattern
+  (let [xs '(1 2 3)]
+    (t/is (r.match/match xs
+            (?x ?y ?z :as ?xs)
+            (= (list ?x ?y ?z) ?xs xs)))))
+
+;; ---------------------------------------------------------------------
 ;; Vectors
 
 (tc.t/defspec vec-unquote-patterns-match
@@ -485,7 +492,13 @@
                ('let [] ?x)
                ?x))))
 
+(t/deftest vec-as-pattern
+  (let [xs [1 2 3]]
+    (t/is (r.match/match xs
+            [?x ?y ?z :as ?xs]
+            (= [?x ?y ?z] ?xs xs)))))
 
+;; ---------------------------------------------------------------------
 ;; Maps
 
 
@@ -574,6 +587,7 @@
 
      ))
 
+;; ---------------------------------------------------------------------
 ;; Sets
 
 (t/deftest set-unq
@@ -617,22 +631,22 @@
           _
           false)))
 
-;; Regex
+;; ---------------------------------------------------------------------
+;; re form
 
-(t/deftest rxt-test
-  (r.match/match "foo"
-    (re #"[fo]{3}")
-    true
-    _
-    false))
+(t/deftest re-test
+  (t/is (r.match/match "foo foo foo"
+          (re #"(?:foo ?)+")
+          true
+          _
+          false))
 
-(t/deftest rxc-test
-  (r.match/match "foo"
-    (re #"f(oo)" [_ ?x])
-    (= ?x "oo")
-
-    _
-    false))
+  (t/is (r.match/match "Harry Hacker"
+          (re #"([^ ]+) *([^ ]+)" [_ ?Harry ?Hacker])
+          (and (= ?Harry "Harry")
+               (= ?Hacker "Hacker"))
+          _
+          false)))
 
 ;; ---------------------------------------------------------------------
 ;; search macro tests
@@ -1206,20 +1220,3 @@
 
          _
          false))))
-
-;; ---------------------------------------------------------------------
-;; re match tests
-
-(t/deftest re-test
-  (t/is (r.match/match "foo foo foo"
-          (re #"(?:foo ?)+")
-          true
-          _
-          false))
-
-  (t/is (r.match/match "Harry Hacker"
-          (re #"([^ ]+) *([^ ]+)" [_ ?Harry ?Hacker])
-          (and (= ?Harry "Harry")
-               (= ?Hacker "Hacker"))
-          _
-          false)))
