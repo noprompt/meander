@@ -235,7 +235,7 @@ _Any variables_ are variables which match anything but do not bind the values th
 
 ### Operators
 
-### `guard`
+#### `guard`
 
 `(guard expr)` matches whenenver `expr` true.
 
@@ -247,7 +247,7 @@ Example:
 ;; => :okay
 ```
 
-### `pred`
+#### `pred`
 
 `(pred pred-fn pat-0 ,,, pat-n)` matches whenenver `pred-fn` applied to the current value being matched returns a truthy value and all of `pat-0` through `pat-n` match.
 
@@ -267,7 +267,7 @@ Example:
 ;; => 42
 ```
 
-### `app`
+#### `app`
 
 `(app fn-expr pat-0 ,,, pat-n)` matches whenever `fn-expr` applied to the current value being matched matches `pat-0` through `pat-n`.
 
@@ -288,7 +288,7 @@ Example:
 {'?x 1, '?xs (2 3)}
 ```
 
-### `let`
+#### `let`
 
 `(let pat expr)` matches when `pat` matches the result of evaluating `expr`. This allows pattern matching on an arbitrary expression.
 
