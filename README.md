@@ -20,6 +20,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
   * [`find`](#find)
 * [Pattern Syntax](#pattern-syntax)
   * [Literals](#literals)
+  * [ClojureScript Literals](#clojurescript-literals)
   * [Variables](#variables)
     * [Logic Variables](#logic-variables)
     * [Memory Variables](#memory-variables)
@@ -157,6 +158,7 @@ expresses the value being matched is a map containing the key `:foo` with value 
 
 expresses the value being matched is a set containing the values `:foo` and `:bar`.
 
+#### ClojureScript Literals
 
 In ClojureScript it is possible to pattern match on JavaScript `Array`s and `Object` using the `#js []` and `#js {}` literal syntaxes respectively.
 
