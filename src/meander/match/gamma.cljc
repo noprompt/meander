@@ -1275,8 +1275,7 @@
 
 
 ;; ---------------------------------------------------------------------
-;; Code emission
-
+;; Code Emission
 
 (defn emit*
   "Rewrite the decision tree as Clojure code without optimizations."
@@ -1423,15 +1422,47 @@
                :fail any?
                :kind #{:find :match :search}))
 
+;; :bind node rewriting
+;; --------------------
 
 (defn rewrite-bind-unused
   "If a binding is never used, remove it."
   {:private true}
-  [[_ [bsym bval] body]]
-  (if (some #{bsym} (tree-seq coll? seq body))
-    [:bind [bsym bval] body]
-    body))
+  [[_ [bsym bval] body :as node]]
+  (if (gensym? bsym)
+    (if (some #{bsym} (tree-seq coll? seq body))
+      node
+      body)
+    node))
 
+
+(defn rewrite-bind-inline
+  "If a binding is never used, remove it."
+  {:private true}
+  [node]
+  (if (s/valid? :meander.match.gamma.tree/bind-node node)
+    (let [[_ [bsym bval] body] node]
+      (if (and
+           (gensym? bsym)
+           (= (bounded-count 2 (filter #{bsym}
+                                       (tree-seq coll? seq body)))
+              1))
+        (loop [loc (r.util/coll-zip body)]
+          (cond
+            (zip/end? loc)
+            (zip/root loc)
+
+            (= (zip/node loc) bsym)
+            (zip/root (zip/edit loc (constantly bval)))
+
+            :else
+            (recur (zip/next loc))))
+        node))
+    node))
+
+
+;; :branch node rewriting
+;; ----------------------
 
 (defn rewrite-branch-shared-bindings
   "If a there are consecutive bindings to the same expression in the
@@ -1447,7 +1478,7 @@
       (if (or (= tag :bind)
               (= tag :search))
         (let [[_ [bsym bval]] node]
-          (if (::gensym? (meta bsym))
+          (if (gensym? bsym) 
             (let [[xs ys] (split-with
                            (fn [[other-tag :as other-node]]
                              (and (= other-tag tag)
@@ -1579,13 +1610,21 @@
                tree)
         tree* (clojure.walk/prewalk
                (fn [x]
-                 (if (s/valid? :meander.match.gamma.tree/branch-node x)
+                 (cond
+                   (s/valid? :meander.match.gamma.tree/branch-node x)
                    (-> x
                        rewrite-branch-splice-branches
                        rewrite-branch-one-fail
                        rewrite-branch-shared-bindings
                        rewrite-branch-equal-bindings
                        rewrite-branch-equal-tests)
+
+                   (s/valid? :meander.match.gamma.tree/bind-node x)
+                   (-> x
+                       rewrite-bind-unused
+                       rewrite-bind-inline)
+
+                   :else
                    x))
                tree*)]
     (if (= tree tree*)
