@@ -261,3 +261,10 @@ Examples:
   (if (zip/end? loc)
     ()
     (lazy-seq (cons loc (zip-next-seq (zip/next loc))))))
+
+
+(defn rank
+  "Returns a sorted sequence of values in xs by frequency of
+  occurence."
+  [xs]
+  (map first (sort-by (comp - val) (frequencies xs))))

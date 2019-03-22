@@ -528,17 +528,9 @@
    (r.matrix/first-column matrix)))
 
 
-(defn rank
-  "Returns a sorted sequence of values in xs by frequency of
-  occurence."
-  {:private true}
-  [xs]
-  (map first (sort-by (comp - val) (frequencies xs))))
-
-
 (defmethod compile-specialized-matrix :jso
   [_ [target & targets*] matrix]
-  (let [ranked-keys (rank (jso-matrix-all-keys matrix))]
+  (let [ranked-keys (r.util/rank (jso-matrix-all-keys matrix))]
     ;; Recompile with object keys aligned. For example if the pattern
     ;; conditions were
     ;;
