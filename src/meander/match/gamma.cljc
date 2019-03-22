@@ -1839,63 +1839,60 @@
 (defn expand-node
   {:private true}
   [node]
-  (walk/prewalk
+  (r.syntax/prewalk
    (fn f [x]
-     (if (r.syntax/node? x)
-       (case (r.syntax/tag x)
-         :cnj
-         (let [arguments (:arguments x)
-               arguments* (mapcat
-                           (fn [x]
-                             (if (= (r.syntax/tag x) :cnj)
-                               (:arguments x)
-                               (list x)))
-                           arguments)]
-           (if (= arguments arguments*)
-             x
-             (f {:tag :cnj
-                 :arguments arguments*})))
+     (case (r.syntax/tag x)
+       :cnj
+       (let [arguments (:arguments x)
+             arguments* (mapcat
+                         (fn [x]
+                           (if (= (r.syntax/tag x) :cnj)
+                             (:arguments x)
+                             (list x)))
+                         arguments)]
+         (if (= arguments arguments*)
+           x
+           (f {:tag :cnj
+               :arguments arguments*})))
 
-         :map
-         (if-some [rest-map (:rest-map x)]
-           (let [lvr-map (into {}
-                               (keep (fn [k-node]
-                                       (if (or (r.syntax/ground? k-node)
-                                               (r.syntax/variable-node? k-node))
-                                         [k-node k-node]
-                                         [k-node {:tag :lvr
-                                                  :symbol (gensym "?v__")}])))
-                               (keys (:map x)))
-                 map* (into {}
-                            (map
-                             (fn [[k-node v-node]]
-                               (let [node (get lvr-map k-node)]
-                                 (if (= node k-node)
-                                   [k-node v-node]
-                                   [{:tag :cnj
-                                     :arguments [k-node node]}
-                                    v-node]))))
-                            (:map x))
-                 x* (dissoc x :rest-map)
-                 x* (assoc x* :map map*)]
-             (f {:tag :cnj
-                 :arguments [x* {:tag :app
-                                 :fn-expr `(fn [m#]
-                                             (dissoc m# ~@(map r.syntax/unparse (vals lvr-map))))
-                                 :arguments [rest-map]}]}))
-           (if-some [as (:as x)]
-             {:tag :cnj
-              :arguments [as (dissoc x :as)]}
-             x))
-
-         (:seq :vec)
+       :map
+       (if-some [rest-map (:rest-map x)]
+         (let [lvr-map (into {}
+                             (keep (fn [k-node]
+                                     (if (or (r.syntax/ground? k-node)
+                                             (r.syntax/variable-node? k-node))
+                                       [k-node k-node]
+                                       [k-node {:tag :lvr
+                                                :symbol (gensym "?v__")}])))
+                             (keys (:map x)))
+               map* (into {}
+                          (map
+                           (fn [[k-node v-node]]
+                             (let [node (get lvr-map k-node)]
+                               (if (= node k-node)
+                                 [k-node v-node]
+                                 [{:tag :cnj
+                                   :arguments [k-node node]}
+                                  v-node]))))
+                          (:map x))
+               x* (dissoc x :rest-map)
+               x* (assoc x* :map map*)]
+           (f {:tag :cnj
+               :arguments [x* {:tag :app
+                               :fn-expr `(fn [m#]
+                                           (dissoc m# ~@(map r.syntax/unparse (vals lvr-map))))
+                               :arguments [rest-map]}]}))
          (if-some [as (:as x)]
-           {:tag :cnj
-            :arguments [as (dissoc x :as)]}
-           x)
+           (f {:tag :cnj
+               :arguments [as (dissoc x :as)]})
+           x))
 
-         ;; else
+       (:seq :vec)
+       (if-some [as (:as x)]
+         (f {:tag :cnj
+             :arguments [as (dissoc x :as)]})
          x)
+       ;; else
        x))
    node))
 
