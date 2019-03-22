@@ -1323,6 +1323,225 @@
 (defmethod search? :vec [node]
   (search? (:prt node)))
 
+;; ---------------------------------------------------------------------
+;; walk
+
+(defmulti walk
+  "Same as clojure.walk/walk but for AST nodes."
+  {:arglists '([inner outer node])}
+  (fn [_ _ node]
+    (tag node))
+  :default ::default)
+
+(defmethod walk ::default
+  [inner outer x]
+  (if (node? x)
+    (outer x)
+    x))
+
+(defn postwalk
+  "Same as clojure.walk/postwalk but for AST nodes."
+  [f node]
+  (walk (partial postwalk f) f node))
+
+(defn prewalk
+  "Same as clojure.walk/prewalk but for AST nodes."
+  [f node]
+  (walk (partial prewalk f) identity (f node)))
+
+(defmethod walk :app [inner outer node]
+  (outer (assoc node :arguments (map inner (:arguments node)))))
+
+(defmethod walk :cat [inner outer node]
+  (outer (assoc node :elements (map inner (:elements node)))))
+
+(defmethod walk :cnj [inner outer node]
+  (outer (assoc node :arguments (map inner (:arguments node)))))
+
+(defmethod walk :ctn [inner outer node]
+  (outer (assoc node :pattern (inner (:pattern node)))))
+
+(defmethod walk :dsj [inner outer node]
+  (outer (assoc node :arguments (map inner (:arguments node)))))
+
+(defmethod walk :jsa [inner outer node]
+  (outer (assoc node :prt (inner (:prt node)))))
+
+(defmethod walk :jso [inner outer node]
+  (outer (assoc node :object (reduce
+                              (fn [m [k-node v-node]]
+                                (assoc m (inner k-node) (inner v-node)))
+                              {}
+                              (:object node)))))
+
+(defmethod walk :let [inner outer node]
+  (outer (assoc node :bindings (map
+                                (fn [binding]
+                                  (assoc binding :binding (outer (inner (:binding binding)))))
+                                (:bindings node)))))
+
+(defmethod walk :map [inner outer node]
+  (outer (assoc node
+                :rest-map (if-some [rest-map (:rest-map node)]
+                            (inner rest-map))
+                :map (reduce
+                      (fn [m [k-node v-node]]
+                        (assoc m (inner k-node) (inner v-node)))
+                      {}
+                      (:map node)))))
+
+(defmethod walk :prd [inner outer node]
+  (outer (assoc node :arguments (map inner (:arguments node)))))
+
+(defmethod walk :prt [inner outer node]
+  (outer (assoc node
+                :left (inner (:left node))
+                :right (inner (:right node)))))
+
+(defmethod walk :rp* [inner outer node]
+  (outer (assoc node :elements (map inner (:elements node)))))
+
+(defmethod walk :rp+ [inner outer node]
+  (outer (assoc node :elements (map inner (:elements node)))))
+
+(defmethod walk :rxc [inner outer node]
+  (outer (assoc node :capture (inner (:capture node)))))
+
+(defmethod walk :set [inner outer node]
+  (outer (assoc node :elements (map inner (:elements node)))))
+
+(defmethod walk :seq [inner outer node]
+  (outer (assoc node :prt (inner (:prt node)))))
+
+(defmethod walk :vec [inner outer node]
+  (outer (assoc node :prt (inner (:prt node)))))
+
+
+;; ---------------------------------------------------------------------
+;; fold
+
+(defmulti fold
+  {:arglists '([f value node])}
+  (fn [_ _ node] (tag node))
+  :default ::default)
+
+(defmethod fold ::default
+  [f result node]
+  (f result node))
+
+(defmethod fold :app [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:arguments node)))
+
+(defmethod fold :cat
+  [f result node]
+  (reduce
+   (fn [result* element]
+     (fold f result* element))
+   (f result node)
+   (:elements node)))
+
+(defmethod fold :cnj [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:arguments node)))
+
+(defmethod fold :ctn [f result node]
+  (let [result (f result node)
+        result (if-some [context (:context node)]
+                 (fold f result context)
+                 result)]
+    (fold f result (:pattern node))))
+
+(defmethod fold :dsj [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:arguments node)))
+
+(defmethod fold :jsa [f result node]
+  (fold f (f result node) (:prt node)))
+
+(defmethod fold :jso [f result node]
+  (reduce
+   (fn [result [k-node v-node]]
+     (fold f (fold f result k-node) v-node))
+   (f result node)
+   (:object node)))
+
+(defmethod fold :let [f result node]
+  (reduce
+   (fn [result binding]
+     (fold f result (:binding binding)))
+   (f result node)
+   (:bindings node)))
+
+(defmethod fold :map
+  [f result node]
+  (let [result (if-some [rest-map (:rest-map node)]
+                 (fold f result rest-map)
+                 result)]
+    (reduce
+     (fn [result [k-node v-node]]
+       (fold f (fold f result k-node) v-node))
+     (f result node)
+     (:map node))))
+
+(defmethod fold :not [f result node]
+  (fold f (f result node) (:argument node)))
+
+(defmethod fold :prd [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:arguments node)))
+
+(defmethod fold :prt
+  [f result node]
+  (fold f (fold f (f result node) (:left node)) (:right node)))
+
+(defmethod fold :rp*
+  [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:elements node)))
+
+(defmethod fold :rp+
+  [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:elements node)))
+
+(defmethod fold :rxc [f result node]
+  (fold f (f result node) (:capture node)))
+
+(defmethod fold :set
+  [f result node]
+  (reduce
+   (fn [result node]
+     (fold f result node))
+   (f result node)
+   (:elements node)))
+
+(defmethod fold :seq
+  [f result node]
+  (fold f (f result node) (:prt node)))
+
+(defmethod fold :vec
+  [f result node]
+  (fold f (f result node) (:prt node)))
+
 
 ;; ---------------------------------------------------------------------
 ;; defsyntax
