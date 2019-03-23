@@ -1,15 +1,17 @@
 (ns meander.syntax.gamma
   #?(:clj
-     (:require [clojure.spec.alpha :as s]
+     (:require [clojure.set :as set]
+               [clojure.spec.alpha :as s]
                [clojure.spec.gen.alpha :as s.gen]
                [clojure.string :as string]
                [cljs.tagged-literals]
-               [meander.util.gamma :as util])
+               [meander.util.gamma :as r.util])
      :cljs
-     (:require [cljs.spec.alpha :as s :include-macros true]
+     (:require [clojure.set :as set]
+               [cljs.spec.alpha :as s :include-macros true]
                [cljs.spec.gen.alpha :as s.gen :include-macros true]
                [clojure.string :as string]
-               [meander.util.gamma :as util]))
+               [meander.util.gamma :as r.util]))
   #?(:cljs
      (:require-macros [meander.syntax.gamma]))
   #?(:clj
@@ -203,9 +205,9 @@
                    :meander.syntax.gamma.node.any/symbol]))
 
 (defn any-node?
+  "true if x is an :any node, false otherwise."
   [x]
   (s/valid? :meander.syntax.gamma.node/any x))
-
 
 (s/fdef logic-variable-form?
   :args (s/cat :x any?)
@@ -216,7 +218,7 @@
   with a name beginning with \\?."
   [x]
   (and (simple-symbol? x)
-       (re-matches? #"\?.+" (name x))))
+       (r.util/re-matches? #"\?.+" (name x))))
 
 (s/def :meander.syntax.gamma/logic-variable
   (s/with-gen
@@ -251,7 +253,7 @@
   with a name beginning with \\!."
   [x]
   (and (simple-symbol? x)
-       (re-matches? #"!.+" (name x))))
+       (r.util/re-matches? #"!.+" (name x))))
 
 (s/def :meander.syntax.gamma/memory-variable
   (s/with-gen
@@ -666,7 +668,7 @@
         ;; else
         ;; Inteneral tag for postfix n or more operator.
         {:tag :dt+
-         :n (util/parse-int $N)}))))
+         :n (r.util/parse-int $N)}))))
 
 (defn parse-js-value
   {:private true}
