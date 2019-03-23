@@ -1053,11 +1053,16 @@
    (:map node)))
 
 (defmethod unparse :map [node]
-  (reduce-kv
-   (fn [m k v]
-     (assoc m (unparse k) (unparse v)))
-   {}
-   (:map node)))
+  (cond-> (reduce-kv
+           (fn [m k v]
+             (assoc m (unparse k) (unparse v)))
+           {}
+           (:map node))
+    (some? (:as node))
+    (assoc :as (:as node))
+
+    (some? (get node '&))
+    (assoc '& (unparse (get node '&)))))
 
 (defmethod search? :map [node]
   (boolean
