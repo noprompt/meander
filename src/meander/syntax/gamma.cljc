@@ -651,9 +651,9 @@
             {:tag :mvr
              :symbol sym}
 
-            (re-find #"\A%." s)
-            {:tag :ref
-             :symbol sym}
+            #_(re-find #"\A%." s)
+            #_{:tag :ref
+               :symbol sym}
 
             :else
             {:tag :lit
