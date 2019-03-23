@@ -672,16 +672,22 @@
      (r.matrix/drop-column matrix))))
 
 
+(defn map-matrix-all-keys
+  "Return a sequence of all :jso keys in matrix."
+  {:private true}
+  [matrix]
+  (mapcat
+   (fn [node]
+     (when (= (r.syntax/tag node) :map)
+       (keys (:map node))))
+   (r.matrix/first-column matrix)))
+
+
 (defmethod compile-specialized-matrix :map
   [_ [target & targets*] matrix]
-  (let [all-keys (mapcat
-                  (fn [node]
-                    (when (= (r.syntax/tag node) :map)
-                      (keys (:map node))))
-                  (r.matrix/first-column matrix))
-        key-sort (sort-by
-                  (comp - (frequencies all-keys))
-                  (distinct all-keys))
+  (let [all-keys (map-matrix-all-keys matrix)
+        key-sort (sort-by (comp - (frequencies all-keys))
+                          (distinct all-keys))
         num-keys (count key-sort)
         matrix* (mapv
                  (fn [node row]
@@ -739,9 +745,9 @@
          :mkv
          (let [[key-node val-node] (:entry node)
                row* (assoc row :cols `[~{:tag :let*
-                                         :binding val-node
-                                         :expr `(get ~target ~(compile-ground key-node))}
-                                       ~@(:cols row)])]
+                                           :binding val-node
+                                           :expr `(get ~target ~(compile-ground key-node))}
+                                         ~@(:cols row)])]
            (compile targets [row*]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
