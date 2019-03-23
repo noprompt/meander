@@ -846,11 +846,11 @@
   false)
 
 (defmethod unparse :cnj [node]
-  `(~'and ~@(sequence (map unparse) (:elements node))))
+  `(~'and ~@(sequence (map unparse) (:arguments node))))
 
 (defmethod search? :cnj
   [node]
-  (boolean (some search? (:elements node))))
+  (boolean (some search? (:arguments node))))
 
 ;; :ctn
 
