@@ -178,7 +178,7 @@
   "true if x is a symbol beginning with _."
   [x]
   (and (simple-symbol? x)
-       (re-matches? #"_.*" (name x))))
+       (r.util/re-matches? #"_.*" (name x))))
 
 (s/def :meander.syntax.gamma/any
   (s/with-gen
