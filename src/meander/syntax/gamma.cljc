@@ -1565,10 +1565,10 @@
 
 (s/def :meander.syntax.gamma/defsyntax-args
   (s/cat :name simple-symbol?
-    :docstring (s/? string?)
-    :meta (s/? map?)
-    :arglist (s/coll-of simple-symbol? :kind vector?)
-    :body (s/* any?)))
+         :docstring (s/? string?)
+         :meta (s/? map?)
+         :arglist (s/coll-of simple-symbol? :kind vector?)
+         :body (s/* any?)))
 
 (defmacro defsyntax
   "EXPERIMENTAL Like defn but for defining new pattern syntax by
