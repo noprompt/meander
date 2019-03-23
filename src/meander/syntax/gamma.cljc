@@ -1349,20 +1349,29 @@
   [f node]
   (walk (partial prewalk f) identity (f node)))
 
+(defn prewalk-replace
+  "Same as clojure.walk/prewalk-replace but for AST nodes."
+  [smap form]
+  (prewalk (fn [x] (if (contains? smap x) (smap x) x)) form))
+
+(defn postwalk-replace
+  "Same as clojure.walk/postwal-replace but for AST nodes."
+  [smap form] (postwalk (fn [x] (if (contains? smap x) (smap x) x)) form))
+
 (defmethod walk :app [inner outer node]
-  (outer (assoc node :arguments (map inner (:arguments node)))))
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
 
 (defmethod walk :cat [inner outer node]
-  (outer (assoc node :elements (map inner (:elements node)))))
+  (outer (assoc node :elements (mapv inner (:elements node)))))
 
 (defmethod walk :cnj [inner outer node]
-  (outer (assoc node :arguments (map inner (:arguments node)))))
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
 
 (defmethod walk :ctn [inner outer node]
   (outer (assoc node :pattern (inner (:pattern node)))))
 
 (defmethod walk :dsj [inner outer node]
-  (outer (assoc node :arguments (map inner (:arguments node)))))
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
 
 (defmethod walk :jsa [inner outer node]
   (outer (assoc node :prt (inner (:prt node)))))
@@ -1375,9 +1384,9 @@
                               (:object node)))))
 
 (defmethod walk :let [inner outer node]
-  (outer (assoc node :bindings (map
+  (outer (assoc node :bindings (mapv
                                 (fn [binding]
-                                  (assoc binding :binding (outer (inner (:binding binding)))))
+                                  (assoc binding :binding (inner (:binding binding))))
                                 (:bindings node)))))
 
 (defmethod walk :map [inner outer node]
@@ -1391,7 +1400,7 @@
                       (:map node)))))
 
 (defmethod walk :prd [inner outer node]
-  (outer (assoc node :arguments (map inner (:arguments node)))))
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
 
 (defmethod walk :prt [inner outer node]
   (outer (assoc node
@@ -1439,8 +1448,8 @@
 (defmethod fold :cat
   [f result node]
   (reduce
-   (fn [result* element]
-     (fold f result* element))
+   (fn [result element]
+     (fold f result element))
    (f result node)
    (:elements node)))
 
