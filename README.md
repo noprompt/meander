@@ -362,6 +362,14 @@ Example:
 ```
 
 ```clj
+(match [:E :A :E :B :E :C :E :D]
+  [:E !xs ...]
+  !xs)
+;; =>
+[:A :B :C :D]
+```
+
+```clj
 (match [:A :A :A :B :A :C :A :D]
   [:A !xs ...]
   !xs)
