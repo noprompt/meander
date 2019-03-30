@@ -32,6 +32,8 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [`guard`](#guard)
     * [`app`](#app)
     * [`let`](#let)
+    * [`scan`](#scan)
+    * [`$`](#$)
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
     * [N or More](#n-or-more)
@@ -341,6 +343,47 @@ Example:
 ;; {:pat (or [?x ?y] [?x ?y ?z]),
 ;;  :env #{},
 ;;  :problems [{:pat [?x ?y], :absent #{?z}}]}
+```
+
+#### `scan`
+
+`(scan pat)` searches a sequence for elements that match `pat`.
+
+```clj
+(search [1 2 3]
+  (scan ?x)
+  ?x)
+;; => (1 2 3)
+```
+
+```clj
+(search {:x 1 :y 2 :z 3}
+  (scan [?a ?b])
+  {?b ?a})
+;; => ({1 :x} {2 :y} {3 :z})
+```
+
+#### `$`
+
+`($ pat)` recursively searches all nested sequences for elements that match
+`pat`
+
+```clj
+(search [[1] 2 [[3 4] 5]]
+  ($ [?a ?b])
+  [?a ?b])
+;; => ([[3 4] 5] [3 4])
+```
+
+Additionally, you can optionally specify a `context` variable that, when called
+with an argument, returns the toplevel collection with all matched variables
+replaced with the argument.
+
+```clj
+(search [[1] 2 [[3 4] 5]]
+  ($ ?context [?a ?b])
+  (?c [9])
+;; => ([[1] 2 [9]] [[1] 2 [[9] 5]])
 ```
 
 ### Subsequences
