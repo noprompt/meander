@@ -46,10 +46,10 @@
 (defn dt-zip [dt]
   (zip/zipper branch? children make-node dt))
 
-;; ---------------------------------------------------------------------
-;; ???
 
-(defn height [dt]
+(defn height
+  "Return the height of dt."
+  [dt]
   (if-some [dts (children dt)]
     (transduce (comp (map height)
                      (map inc))
@@ -58,7 +58,9 @@
                dts)
     1))
 
-(defn nodes [dt]
+(defn nodes
+  "Return all nodes in dt."
+  [dt]
   (tree-seq branch? children dt))
 
 ;; ---------------------------------------------------------------------
