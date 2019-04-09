@@ -13,9 +13,6 @@
 ;; TODO: (TC) create :resolve node for symbols 
 ;; TODO: (TC) replace :eval with :resolve where possible
 
-;; ---------------------------------------------------------------------
-;; Zipper
-
 (defn child-keys [dt]
   (keep
    (fn [[k v]]
