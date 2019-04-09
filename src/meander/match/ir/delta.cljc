@@ -10,7 +10,6 @@
 ;; TODO: (TR) Inline bindings used once
 ;; TODO: (TR) Remove bindings never used
 ;; TODO: (TC) take and drop have :then
-;; TODO: (TC) rename :bind :body field to :then
 ;; TODO: (TC) create :resolve node for symbols 
 ;; TODO: (TC) replace :eval with :resolve where possible
 
@@ -75,7 +74,7 @@
                     params)
                  :op ~op))))
 
-(defop op-bind :bind [symbol value body])
+(defop op-bind :bind [symbol value then])
 
 (defop op-branch :branch [arms])
 
@@ -224,7 +223,7 @@
          dt dt]
     (if (= (:op dt) :bind)
       (recur (conj bindings (:symbol dt) (emit* (:value dt) fail kind))
-             (:body dt))
+             (:then dt))
       `(let ~bindings
          ~(emit* dt fail kind)))))
 
@@ -587,9 +586,9 @@
   (if (= (:target a)
          (:target b))
     [(assoc a
-            :body (op-bind (:symbol b) (op-eval (:symbol a))
-                    (op-branch [(:body a)
-                                (:body b)])))]
+            :then (op-bind (:symbol b) (op-eval (:symbol a))
+                    (op-branch [(:then a)
+                                (:then b)])))]
     [a b]))
 
 (defmethod branch-merge-checks* :check-bounds
