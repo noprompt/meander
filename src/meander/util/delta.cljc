@@ -1,4 +1,4 @@
-(ns meander.util.gamma
+(ns meander.util.delta
   (:require [clojure.zip :as zip]))
 
 
@@ -261,7 +261,6 @@ Examples:
   (if (zip/end? loc)
     ()
     (lazy-seq (cons loc (zip-next-seq (zip/next loc))))))
-
 
 (defn rank
   "Returns a sorted sequence of values in xs by frequency of

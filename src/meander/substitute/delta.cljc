@@ -1,8 +1,8 @@
-(ns meander.substitute.gamma
-  #?(:cljs (:require-macros [meander.substitute.gamma]))
+(ns meander.substitute.delta
+  #?(:cljs (:require-macros [meander.substitute.delta]))
   (:require [clojure.spec.alpha :as s]
-            [meander.syntax.gamma :as r.syntax]
-            [meander.util.gamma :as r.util]))
+            [meander.syntax.delta :as r.syntax]
+            [meander.util.delta :as r.util]))
 
 
 (defn make-env

@@ -1,11 +1,11 @@
-(ns meander.match.gamma-test
+(ns meander.match.delta-test
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.test :as t]
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.match.gamma :as r.match :include-macros true]
-            [meander.syntax.gamma :as r.syntax :include-macros true]))
+            [meander.match.delta :as r.match :include-macros true]
+            [meander.syntax.delta :as r.syntax :include-macros true]))
 
 (def gen-scalar
   (tc.gen/one-of [tc.gen/int
@@ -145,7 +145,7 @@
 #?(:clj
    (t/deftest or-compilation-fails
      (t/is (try
-             (macroexpand '(meander.match.gamma/match 1 (or ?x ?y ?z) false))
+             (macroexpand '(meander.match.delta/match 1 (or ?x ?y ?z) false))
              false
              (catch clojure.lang.ExceptionInfo _
                true)))))
@@ -570,22 +570,21 @@
 
 
 (t/deftest map-rest-map
-  (= [2 {:_1 1, :_3 3}]
-     (r.match/match {:_1 1, :_2 2, :_3 3}
-       {:_2 ?2 & ?rest-map}
-       [?2 ?rest-map]))
+  (t/is (= [2 {:_1 1, :_3 3}]
+           (r.match/match {:_1 1, :_2 2, :_3 3}
+             {:_2 ?2 & ?rest-map}
+             [?2 ?rest-map])))
 
-  (= [2 3 {:_1 1}]
-     (r.match/match {:_1 1, :_2 2, :_3 3}
-       {:_2 ?2 & {:_3 ?3 & ?rest-map}}
-       [?2 ?3 ?rest-map]))
+  (t/is (= [2 3 {:_1 1}]
+           (r.match/match {:_1 1, :_2 2, :_3 3}
+             {:_2 ?2 & {:_3 ?3 & ?rest-map}}
+             [?2 ?3 ?rest-map])))
 
-  (= '([2 :_1 1] [2 :_3 3])
-     (r.match/search {:_1 1, :_2 2, :_3 3}
-       {:_2 ?2 & (vscan [?k ?v])}
-       [?2 ?k ?v])
+  (t/is (= '([2 :_1 1] [2 :_3 3])
+           (r.match/search {:_1 1, :_2 2, :_3 3}
+             {:_2 ?2 & (vscan [?k ?v])}
+             [?2 ?k ?v]))))
 
-     ))
 
 ;; ---------------------------------------------------------------------
 ;; Sets
@@ -689,7 +688,6 @@
            #{{:?x 1, :?y 2, :!zs [1 2 1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))
-
 
 (t/deftest vscan-test
   (t/is (= '([:_1 "_1"] [:_2 "_2"] [:_3 "_3"] [:_4 "_4"])
@@ -875,6 +873,7 @@
             [{:baz "foo"}]}
           true)))
 
+#_
 (tc.t/defspec find-results-are-elements-of-search-results
   (tc.prop/for-all [v (tc.gen/vector tc.gen/nat 3 5)]
     (contains? (set (r.match/search v
@@ -886,46 +885,39 @@
 
 (t/deftest find-mvrs-are-collected-properly
   (let [data [{:name "George"
-               :species "Parakeet"
-               :age 3
                :owners ["Frege" "Peirce"]}
               {:name "Francis"
-               :species "Dog"
-               :age 8
                :owners ["De Morgan"]}
               {:name "Bob"
-               :species "Goldfish"
-               :age 1
                :owners ["Peirce"]}]
-
-        expected-search-results
-        #{["Peirce" ["George" "Bob"]]
-          ["Peirce" ["Bob"]]
-          ["Peirce" ["George"]]
-          ["Frege" ["George"]]
-          ["De Morgan" ["Francis"]]}]
-    (t/is (= expected-search-results
+        expected-results #{{:owner "Frege", :names ["George"]}
+                           {:owner "Peirce", :names ["George" "Bob"]}
+                           {:owner "De Morgan", :names ["Francis"]}
+                           {:owner "Peirce", :names ["Bob"]}}]
+    (t/is (= expected-results
              (set (r.match/search data
                     [_ ...
                      {:name !names
                       :owners [_ ... ?owner . _ ...]}
                      .
-                     (or (and {:name !names
-                               :owners [_ ... ?owner . _ ...]})
+                     (or {:name !names
+                          :owners [_ ... ?owner . _ ...]}
                          _)
                      ...]
-                    [?owner !names]))))
-    (t/is (contains? expected-search-results
+                    {:owner ?owner
+                     :names !names}))))
+    (t/is (contains? expected-results
                      (r.match/find data
                        [_ ...
                         {:name !names
                          :owners [_ ... ?owner . _ ...]}
                         .
-                        (or (and {:name !names
-                                  :owners [_ ... ?owner . _ ...]})
+                        (or {:name !names
+                             :owners [_ ... ?owner . _ ...]}
                             _)
                         ...]
-                       [?owner !names])))))
+                       {:owner ?owner
+                        :names !names})))))
 
 (t/deftest find-separated-items 
   (t/is (= [:a :v '[[:any _] [:lvr ?a] [:lit "Bill"]]]

@@ -1,4 +1,4 @@
-(ns meander.protocols.gamma)
+(ns meander.protocols.delta)
 
 
 (defprotocol IAll

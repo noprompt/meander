@@ -1,15 +1,16 @@
-(ns meander.match.gamma
+(ns meander.match.delta
   (:refer-clojure :exclude [compile find])
-  #?(:cljs (:require-macros [meander.match.gamma]))
+  #?(:cljs (:require-macros [meander.match.delta]))
   (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]
             [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
-            [meander.matrix.gamma :as r.matrix]
-            [meander.syntax.gamma :as r.syntax]
-            [meander.util.gamma :as r.util])
+            [meander.match.ir.delta :as r.ir]
+            [meander.matrix.delta :as r.matrix]
+            [meander.syntax.delta :as r.syntax]
+            [meander.util.delta :as r.util])
   #?(:clj
      (:import (cljs.tagged_literals JSValue))
      :cljs
@@ -93,9 +94,9 @@
   match compiler."
   {:private true}
   ([]
-   (with-meta (gensym) {::gensym? true}))
+   (with-meta (gensym) {:meander/gensym? true}))
   ([prefix-string]
-   (with-meta (gensym prefix-string) {::gensym? true})))
+   (with-meta (gensym prefix-string) {:meander/gensym? true})))
 
 
 (defn gensym?
@@ -105,91 +106,77 @@
    (and (symbol? x) (::gensym? (meta x)))))
 
 
+(defn make-ref-map
+  "If node is a node repesenting a with pattern, return a map from
+  reference to pattern node derived from it's bindings, otherwise
+  return an empty map."
+  {:private true}
+  [node]
+  (if (r.syntax/with-node? node)
+    (into {} (map (juxt :ref :pattern)) (:bindings node))
+    {}))
+
+(defn substitute-refs
+  ([node]
+   (substitute-refs node {}))
+  ([node ref-map]
+   (r.syntax/prewalk
+    (fn f [node]
+      (cond
+        (r.syntax/ref-node? node)
+        (reduced
+         (if-some [other-node (get ref-map node)]
+           (substitute-refs other-node (dissoc ref-map node))
+           node))
+
+        (r.syntax/with-node? node)
+        (reduced
+         (if-some [body (:body node)]
+           (let [ref-map (reduce
+                          (fn [ref-map [k v]]
+                            (if (contains? ref-map k)
+                              ref-map
+                              (assoc ref-map k v)))
+                          (make-ref-map node)
+                          ref-map)]
+             (substitute-refs body ref-map))
+           node))
+
+        :else
+        node))
+    node)))
+
+(defn substitute-refs-shallow
+  ([node]
+   (substitute-refs-shallow node {}))
+  ([node ref-map]
+   (r.syntax/prewalk
+    (fn f [node]
+      (cond
+        (r.syntax/ref-node? node)
+        (reduced
+         (if-some [other-node (get ref-map node)]
+           other-node
+           node))
+
+        (r.syntax/with-node? node)
+        (reduced
+         (if-some [body (:body node)]
+           (let [ref-map (reduce
+                          (fn [ref-map [k v]]
+                            (if (contains? ref-map k)
+                              ref-map
+                              (assoc ref-map k v)))
+                          (make-ref-map node)
+                          ref-map)]
+             (substitute-refs-shallow body ref-map))
+           node))
+
+        :else
+        node))
+    node)))
+
 (declare compile)
-
-
-(s/def :meander.match.gamma.tree/action-node
-  (s/tuple #{:action} any?))
-
-
-(s/def :meander.match.gamma.tree/bind-node
-  (s/tuple #{:bind} vector? :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma.tree/branch-node
-  (s/tuple #{:branch}
-           (s/coll-of :meander.match.gamma/tree
-                      :kind vector?
-                      :into [])))
-
-
-(s/def :meander.match.gamma.tree/fail-node
-  (s/tuple #{:fail}))
-
-
-(s/def :meander.match.gamma.tree/identitifer
-  simple-symbol?)
-
-
-(s/def :meander.match.gamma.tree/loop-node
-  (s/tuple #{:loop}
-           :meander.match.gamma.tree/identitifer
-           (s/coll-of simple-symbol? :kind vector? :into [])
-           :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma.tree/save-node
-  (s/tuple #{:save}
-           :meander.match.gamma.tree/identitifer
-           :meander.match.gamma/tree
-           :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma.tree/load-node
-  (s/tuple #{:load}
-           :meander.match.gamma.tree/identitifer))
-
-
-(s/def :meander.match.gamma.tree/pass-node
-  (s/tuple #{:pass} :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma.tree/recur-node
-  (s/tuple #{:recur}
-           :meander.match.gamma.tree/identitifer
-           (s/coll-of simple-symbol? :kind vector? :into [])))
-
-
-(s/def :meander.match.gamma.tree/test-node
-  (s/tuple #{:test} any? :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma.tree/search-node
-  (s/tuple #{:search}
-           (s/tuple simple-symbol? any?)
-           :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma.tree/find-node
-  (s/tuple #{:find}
-           (s/tuple simple-symbol? any?)
-           :meander.match.gamma/tree))
-
-
-(s/def :meander.match.gamma/tree
-  (s/or :action :meander.match.gamma.tree/action-node
-        :bind :meander.match.gamma.tree/bind-node
-        :branch :meander.match.gamma.tree/branch-node
-        :fail :meander.match.gamma.tree/fail-node
-        :find :meander.match.gamma.tree/find-node
-        :pass :meander.match.gamma.tree/pass-node
-        :load :meander.match.gamma.tree/load-node
-        :loop :meander.match.gamma.tree/loop-node
-        :recur :meander.match.gamma.tree/recur-node
-        :save :meander.match.gamma.tree/save-node
-        :search :meander.match.gamma.tree/search-node
-        :test :meander.match.gamma.tree/test-node))
-
 
 (defn literal?
   "true if node is ground and does not contain :map or :set subnodes,
@@ -264,26 +251,10 @@
     (into #{} (map compile-ground (:elements node)))))
 
 
-(defn compile-with-memory-variables-initialized
+(defn compile-pass
   {:private true}
   [targets matrix]
-  (let [last-row (last matrix)]
-    (reduce
-     (fn [[matrix* all-mvrs] row]
-       (let [mvrs (r.syntax/memory-variables (first (:cols row)))
-             row* (assoc row :env mvrs)
-             all-mvrs* (set/union all-mvrs mvrs)
-             matrix** (conj matrix* row*)]
-         (if (= row last-row)
-           (reduce
-            (fn [tree mvr-node]
-              [:bind [(:symbol mvr-node) []]
-               tree])
-            (compile targets matrix**)
-            all-mvrs*)
-           [matrix** all-mvrs*])))
-     [[] #{}]
-     matrix)))
+  (r.ir/op-pass (compile targets matrix)))
 
 
 (defn specialize-matrix
@@ -310,8 +281,9 @@
 (s/fdef compile-specialized-matrix
   :args (s/cat :tag keyword?
                :targets (s/coll-of simple-symbol? :kind vector? :into [])
-               :matrix :meander.matrix.gamma/matrix)
-  :ret (s/coll-of :meander.match.gamma/tree))
+               :matrix :meander.matrix.delta/matrix)
+  :ret (s/coll-of :meander.match.delta/tree))
+
 
 (defmethod compile-specialized-matrix :app
   [_ [target & targets*] matrix]
@@ -320,14 +292,15 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :app
-         [:bind [app-target `(~(:fn-expr node) ~target)]
-          (compile `[~app-target ~@targets*]
-                   [(assoc row :cols `[~{:tag :cnj
-                                         :arguments (:arguments node)}
-                                       ~@(:cols row)])])]))
+         ;; TODO: (r.ir/op-apply ,,,)
+         (r.ir/op-bind app-target (r.ir/op-eval `(~(:fn-expr node) ~target))
+           (compile `[~app-target ~@targets*]
+                    [(assoc row :cols `[~{:tag :cnj
+                                          :arguments (:arguments node)}
+                                        ~@(:cols row)])]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -350,26 +323,31 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :cat
          (if (literal? node)
-           [:test (if (js-array-context?)
-                    (js-array-equals-form target (compile-ground
-                                                  {:tag :jsa
-                                                   :prt {:tag :prt
-                                                         :left node
-                                                         :right {:tag :cat
-                                                                 :elements []}}}))
-                    `(= ~target ~(vec (compile-ground node))))
-            (compile targets* [row])]
+           (if (js-array-context?)
+             (r.ir/op-check-array-equals
+              (r.ir/op-eval target)
+              (r.ir/op-eval (compile-ground
+                             {:tag :jsa
+                              :prt {:tag :prt
+                                    :left node
+                                    :right {:tag :cat
+                                            :elements []}}}))
+              (compile targets* [row]))
+             (r.ir/op-check-equal
+               (r.ir/op-eval target)
+               (r.ir/op-eval (vec (compile-ground node)))
+               (compile targets* [row])))
            (let [elements (:elements node)
                  nth-syms (take (count elements) nth-syms)
                  targets* `[~@nth-syms ~@targets*]]
              (reduce
               (fn [tree [i nth-sym]]
-                [:bind [nth-sym `(nth ~target ~i)]
-                 tree])
+                (r.ir/op-bind nth-sym (r.ir/op-nth (r.ir/op-eval target) i)
+                  tree))
               (compile targets* [(assoc row :cols `[~@elements ~@(:cols row)])])
               (reverse (map-indexed vector nth-syms)))))))
      (r.matrix/first-column matrix)
@@ -409,7 +387,7 @@
    (fn [node row]
      (case (r.syntax/tag node)
        :any
-       [:pass (compile targets* [row])]
+       (compile-pass targets* [row])
 
        :ctn
        (let [context (:context node)
@@ -436,11 +414,11 @@
                           (conj %targets loc-sym))
                         (into %targets targets*))]
          (if (some? context)
-           [:search [loc-sym `(r.util/zip-next-seq (r.util/coll-zip ~target))]
-            [:bind [node-sym `(zip/node ~loc-sym)]
-             (compile targets* matrix*)]]
-           [:search [node-sym `(tree-seq coll? seq ~target)]
-            (compile targets* matrix*)]))))
+           (r.ir/op-search loc-sym (r.ir/op-eval `(r.util/zip-next-seq (r.util/coll-zip ~target)))
+             (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
+               (compile targets* matrix*)))
+           (r.ir/op-search node-sym (r.ir/op-eval `(tree-seq coll? seq ~target))
+             (compile targets* matrix*))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
@@ -449,7 +427,7 @@
   [_ [target & targets*] matrix]
   [(compile (vec targets*) (r.matrix/drop-column matrix))])
 
-
+#_
 (defmethod compile-specialized-matrix :dsj
   [_ targets matrix]
   (let [matrix* (into []
@@ -468,6 +446,30 @@
                        (r.matrix/drop-column matrix)))]
     [(compile targets matrix*)]))
 
+(defmethod compile-specialized-matrix :dsj
+  [_ targets matrix]
+  (let [targets* (vec (rest targets))]
+    (mapv
+     (fn [node row]
+       (case (r.syntax/tag node)
+         :any
+         (compile-pass targets [row])
+
+         :dsj
+         (let [unbound-mvrs (r.matrix/unbound-mvrs row node)
+               row* (r.matrix/add-vars row unbound-mvrs)]
+           (reduce
+            (fn [dt mvr]
+              (r.ir/op-mvr-init (:symbol mvr)
+                dt))
+            (compile targets (mapv
+                              (fn [node]
+                                (first (r.matrix/prepend-column [row*] [node])))
+                              (:arguments node)))
+            unbound-mvrs))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :grd
   [_ [target & targets*] matrix]
@@ -476,12 +478,13 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass
-          (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :grd
-         [:test (:expr node)
-          (compile targets* [row])]))
+         (r.ir/op-check
+          (r.ir/op-eval (:expr node))
+          (r.ir/op-eval target)
+          (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -492,13 +495,15 @@
    (fn [node row]
      (case (r.syntax/tag node)
        :any
-       [:pass (compile targets [row])]
+       (compile-pass targets [row])
 
        :jsa
        (if (literal? node)
-         [:test (js-array-equals-form target (compile-ground node))
-          (compile targets* [row])]
-         [:test `(cljs.core/array? ~target)
+         (r.ir/op-check-array-equals
+          (r.ir/op-eval target)
+          (r.ir/op-eval (compile-ground node))
+          (compile targets* [row]))
+         (r.ir/op-check-array (r.ir/op-eval target)
           (let [;; prt needs to be compiled within a :js-array
                 ;; collection-context separately from the targets*
                 ;; to the right. The targets* on the right need to
@@ -510,7 +515,7 @@
                 rhs* (compile targets* [rhs*-row])
                 row* (assoc row :cols [prt] :rhs rhs*)]
             (binding [*collection-context* :js-array]
-              (compile [target] [row*])))])))
+              (compile [target] [row*])))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
@@ -543,26 +548,27 @@
     ;;   [:x ?1] [:z ?3] [:y ?2] [:w __]
     ;;   [:x ?1] [:z __] [:y __] [:w __]
     ;;   [:x __] [:z ?3] [:y __] [:w ?2]
-    [[:test `(some? ~target) ;; This may be a bit liberal.
-      (compile `[~@(repeat (count ranked-keys) target) ~@targets*]
-               (mapv
-                (fn [row]
-                  (let [[node & rest-nodes] (get row :cols)]
-                    (case (r.syntax/tag node)
-                      :jso
-                      (let [object (:object node)
-                            prefix (mapv
-                                    (fn [key-node]
-                                      (if-some [entry (clojure/find object key-node)]
-                                        {:tag :okv
-                                         :entry entry}
-                                        {:tag :okv
-                                         :entry [key-node {:tag :any
-                                                           :symbol '_}]}))
-                                    ranked-keys)]
-                        (assoc row :cols `[~@prefix ~@rest-nodes]))
-                      row)))
-                matrix))]]))
+    [(r.ir/op-check-boolean
+       (r.ir/op-eval `(some? ~target)) ;; This may be a bit liberal.
+       (compile `[~@(repeat (count ranked-keys) target) ~@targets*]
+                (mapv
+                 (fn [row]
+                   (let [[node & rest-nodes] (get row :cols)]
+                     (case (r.syntax/tag node)
+                       :jso
+                       (let [object (:object node)
+                             prefix (mapv
+                                     (fn [key-node]
+                                       (if-some [entry (clojure/find object key-node)]
+                                         {:tag :okv
+                                          :entry entry}
+                                         {:tag :okv
+                                          :entry [key-node {:tag :any
+                                                            :symbol '_}]}))
+                                     ranked-keys)]
+                         (assoc row :cols `[~@prefix ~@rest-nodes]))
+                       row)))
+                 matrix)))]))
 
 
 (defmethod compile-specialized-matrix :okv
@@ -572,28 +578,29 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :okv
          (let [entry (:entry node)
                [key-node val-node] entry]
            (if (r.syntax/ground? key-node)
-             (let [row* (assoc row :cols `[~{:tag :let*
-                                             :binding val-node
-                                             :expr (list 'js* "(~{}[~{}])" target (compile-ground key-node))}
-                                           ~@(:cols row)])]
-               (compile targets [row*]))
+             (let [node* {:tag :let*
+                          :binding val-node
+                          :expr (list 'js* "(~{}[~{}])" target (compile-ground key-node))}
+                   matrix* (r.matrix/prepend-column [row] [node*])]
+               (compile targets matrix*))
              ;; The #js {} reader only allows keys that are strings or
              ;; unqualified keywords. Without and alternative notation
              ;; this branch should never be entered.
-             (let [row* (assoc row :cols `[~{:tag :cat
-                                             :elements [key-node val-node]}
-                                           ~@(:cols row)])
+             (let [node* {:tag :cat
+                          :elements [key-node val-node]}
+                   matrix* (r.matrix/prepend-column [row] [node*])
                    search-target (gensym* "okv__")]
-               [:search [search-target `(map (fn [k#]
-                                               [k# (goog.object/get ~target k#)])
-                                             (goog.object/getKeys ~target))]
-                (compile `[~search-target ~@targets*] [row*])])))))
+               (r.ir/op-search search-target (r.ir/op-eval
+                                              `(map (fn [k#]
+                                                      [k# (goog.object/get ~target k#)])
+                                                    (goog.object/getKeys ~target)))
+                 (compile `[~search-target ~@targets*] matrix*)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -605,14 +612,14 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets [row])
 
          :let*
          (let [xsym (gensym* "x__")
                targets* `[~xsym ~@targets*]
-               matrix* [(assoc row :cols `[~(:binding node) ~@(:cols row)])]]
-           [:bind [xsym (:expr node)]
-            (compile targets* matrix*)])))
+               matrix* (r.matrix/prepend-column [row] [(:binding node)])]
+           (r.ir/op-bind xsym (r.ir/op-eval (:expr node))
+             (compile targets* matrix*)))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -644,11 +651,13 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (r.ir/op-pass (compile targets* [row]))
 
          :lit
-         [:test `(= ~target ~(r.syntax/unparse node))
-          (compile targets* [row])]))
+         (r.ir/op-check-equal
+           (r.ir/op-eval target)
+           (r.ir/op-eval (r.syntax/unparse node))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -660,14 +669,14 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (r.ir/op-pass (compile targets* [row]))
 
          :lvr
          (if (r.matrix/get-var row node)
-           [:test `(= ~target ~(:symbol node))
-            (compile targets* [row])]
-           [:bind [(:symbol node) target]
-            (compile targets* [(r.matrix/add-var row node)])])))
+           (r.ir/op-lvr-check (:symbol node) (r.ir/op-eval target)
+             (compile targets* [(r.matrix/add-var row node)]))
+           (r.ir/op-lvr-bind (:symbol node) (r.ir/op-eval target)
+             (compile targets* [(r.matrix/add-var row node)])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -729,9 +738,8 @@
                            (assoc row :cols `[~@new-cols ~@(:cols row)]))))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))]
-    [[:test `(map? ~target)
-      (compile `[~@(repeat num-keys target) ~@targets*] matrix*)]]))
-
+    [(r.ir/op-check-map (r.ir/op-eval target)
+       (compile `[~@(repeat num-keys target) ~@targets*] matrix*))]))
 
 (defmethod compile-specialized-matrix :mkv
   [_ [target & targets* :as targets] matrix]
@@ -740,18 +748,17 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :mkv
          (let [[key-node val-node] (:entry node)
                row* (assoc row :cols `[~{:tag :let*
-                                           :binding val-node
-                                           :expr `(get ~target ~(compile-ground key-node))}
-                                         ~@(:cols row)])]
+                                         :binding val-node
+                                         :expr `(get ~target ~(compile-ground key-node))}
+                                       ~@(:cols row)])]
            (compile targets [row*]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
-
 
 (defmethod compile-specialized-matrix :mvr
   [_ [target & targets*] matrix]
@@ -760,24 +767,24 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :mvr
          (let [sym (:symbol node)]
            (if (r.matrix/get-var row node)
-             (let [save-id (gensym "save__")]
-               ;; :save/:load is necessary here since it is possible
+             (let [save-id (gensym* "save__")]
+               ;; save/load is necessary here since it is possible
                ;; for the state of a memory variable to persist
                ;; even after a match failure.
-               [:save save-id
-                [:bind [sym `(conj ~sym ~target)]
-                 (compile targets* [row])]
-                [:load save-id]])
-             [:bind [sym [target]]
-              (compile targets* [(r.matrix/add-var row node)])]))))
+               (r.ir/op-save save-id
+                 (r.ir/op-mvr-append sym (r.ir/op-eval target)
+                   (compile targets* [row]))
+                 (r.ir/op-load save-id)))
+             (r.ir/op-mvr-init sym
+               (r.ir/op-mvr-append sym (r.ir/op-eval target)
+                 (compile targets* [(r.matrix/add-var row node)])))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
-
 
 (defmethod compile-specialized-matrix :not
   [_ [target & targets*] matrix]
@@ -786,17 +793,17 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :not
          (let [save-id (gensym "save__")
                not-matrix [{:cols [(:argument node)]
                             :env (:env row),
-                            :rhs [:load save-id]}]]
-           [:save save-id
-            (binding [*negating* true]
-              (compile [target] not-matrix))
-            (compile targets* [row])])))
+                            :rhs (r.ir/op-load save-id)}]]
+           (r.ir/op-save save-id
+             (binding [*negating* true]
+               (compile [target] not-matrix))
+             (compile targets* [row])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -808,14 +815,10 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :prt
          (let [{:keys [left right]} node
-               right (if (some? right)
-                       right
-                       {:tag :cat
-                        :elements []})
                ;; Left tree symbol
                lsym (gensym* "l__")
                ;; Left min length
@@ -834,57 +837,63 @@
              (cond
                (and (zero? llen)
                     (zero? rlen))
-               [:test `(not (seq ~target))
-                (compile targets [row])]
-
+               (r.ir/op-check-empty
+                 (r.ir/op-eval target)
+                 (compile targets [row]))
+               
                (zero? llen)
-               [:test `(= (bounded-count ~(inc rlen) ~target) ~rlen)
-                (compile targets [(assoc row :cols `[~right ~@(:cols row)])])]
-
+               (r.ir/op-check-bounds (r.ir/op-eval target) rlen *collection-context*
+                 (compile targets [(assoc row :cols `[~right ~@(:cols row)])]))
+               
                (zero? rlen)
-               [:test `(= (bounded-count ~(inc llen) ~target) ~llen)
-                (compile targets [(assoc row :cols `[~left ~@(:cols row)])])]
-
+               (r.ir/op-check-bounds (r.ir/op-eval target) llen *collection-context*
+                 (compile targets [(assoc row :cols `[~left ~@(:cols row)])]))
+               
                :else
-               [:bind [lsym (take-form llen target)]
-                [:test `(= (count ~lsym) ~llen)
-                 [:bind [rsym (drop-form llen target)]
-                  [:test `(= (count ~rsym) ~rlen)
-                   (compile `[~lsym ~rsym ~@targets*]
-                            [(assoc row :cols `[~left ~right ~@(:cols row)])])]]]])
+               (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
+                 (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
+                   (r.ir/op-bind rsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
+                     (r.ir/op-check-bounds (r.ir/op-eval rsym) llen *collection-context*
+                       (compile `[~lsym ~rsym ~@targets*]
+                                [(assoc row :cols `[~left ~right ~@(:cols row)])]))))))
 
              ;; Variable length on the right.
              [false true]
-             [:bind [lsym (take-form llen target)]
-              [:test (if (zero? llen)
-                       `(not (seq ~lsym))
-                       `(= (count ~lsym) ~llen))
-               [:bind [rsym (drop-form llen target)]
-                (compile `[~lsym ~rsym ~@targets*]
-                         [(assoc row :cols `[~left ~right ~@(:cols row)])])]]]
+             (let [op-body (r.ir/op-bind rsym (r.ir/op-drop (r.ir/op-eval target) llen *collection-context*)
+                             (compile `[~lsym ~rsym ~@targets*]
+                                      [(assoc row :cols `[~left ~right ~@(:cols row)])]))]
+               (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
+                 (if (zero? llen)
+                   (r.ir/op-check-empty (r.ir/op-eval lsym)
+                     op-body)
+                   (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
+                     op-body))))
 
              ;; Variable length on the left.
              [true false]
              (if (zero? rlen)
                (compile targets [(assoc row :cols `[~left ~@(:cols row)])])
-               [:bind [nsym `(count ~target)]
-                [:bind [msym `(max 0 (- ~nsym ~rlen))]
-                 [:bind [lsym (take-form msym target)]
-                  [:bind [rsym (drop-form msym target)]
-                   [:test (if (zero? rlen)
-                            `(not (seq ~rsym))
-                            `(= (count ~rsym) ~rlen))
-                    (compile `[~lsym ~rsym ~@targets*]
-                             [(assoc row :cols `[~left ~right ~@(:cols row)])])]]]]])
+               (let [op-target (r.ir/op-eval target)
+                     op-body (compile `[~lsym ~rsym ~@targets*]
+                                      [(assoc row :cols `[~left ~right ~@(:cols row)])])]
+                 (r.ir/op-bind nsym (r.ir/op-eval `(count ~target))
+                   (r.ir/op-bind msym (r.ir/op-eval `(max 0 (- ~nsym ~rlen)))
+                     (r.ir/op-bind lsym (r.ir/op-take op-target msym *collection-context*)
+                       (r.ir/op-bind rsym (r.ir/op-drop op-target msym *collection-context*)
+                         (if (zero? rlen)
+                           (r.ir/op-check-empty (r.ir/op-eval rsym)
+                             op-body)
+                           (r.ir/op-check-bounds (r.ir/op-eval rsym) rlen *collection-context*
+                             op-body))))))))
 
              ;; Variable length on both sides.
              [true true]
              (let [parts-sym (gensym* "parts__")]
-               [:search [parts-sym `(r.util/partitions 2 ~target)]
-                [:bind [lsym `(nth ~parts-sym 0)]
-                 [:bind [rsym `(nth ~parts-sym 1)]
-                  (compile `[~lsym ~rsym ~@targets*]
-                           [(assoc row :cols `[~left ~right ~@(:cols row)])])]]])))))
+               (r.ir/op-search parts-sym (r.ir/op-eval `(r.util/partitions 2 ~target))
+                 (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                   (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
+                     (compile `[~lsym ~rsym ~@targets*]
+                              [(assoc row :cols `[~left ~right ~@(:cols row)])])))))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -896,16 +905,17 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :prd
          (let [arguments (:arguments node)]
-           [:test `(~(:form node) ~target)
-            (if (seq arguments)
-              (compile targets [(assoc row :cols `[~{:tag :cnj
-                                                     :arguments arguments}
-                                                   ~@(:cols row)])])
-              (compile targets* [row]))])))
+           (r.ir/op-check-boolean (r.ir/op-eval `(~(:form node) ~target))
+             (if (seq arguments)
+               (compile targets
+                        [(assoc row :cols `[~{:tag :cnj
+                                              :arguments arguments}
+                                            ~@(:cols row)])])
+               (compile targets* [row]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -917,11 +927,11 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :quo
-         [:test `(= ~target ~(r.syntax/unparse node))
-          (compile targets* [row])]))
+         (r.ir/op-check-equal (r.ir/op-eval target) (r.ir/op-eval (r.syntax/unparse node))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -933,12 +943,12 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :rxt
-         [:test `(string? ~target)
-          [:test `(re-matches ~(:regex node) ~target)
-           (compile targets* [row])]]))
+         (r.ir/op-check-boolean (r.ir/op-eval `(string? ~target))
+           (r.ir/op-check-boolean (r.ir/op-eval `(re-matches ~(:regex node) ~target))
+             (compile targets* [row])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -950,16 +960,69 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :rxc
          (let [ret-sym (gensym* "ret__")
                cols* `[~(:capture node) ~@(:cols row)]
                row* (assoc row :cols cols*)]
-           [:test `(string? ~target)
-            [:bind [ret-sym `(re-matches ~(:regex node) ~target)]
-             [:test `(some? ~ret-sym) 
-              (compile `[~ret-sym ~@targets*] [row*])]]])))
+           (r.ir/op-check-boolean (r.ir/op-eval `(string? ~target))
+             (r.ir/op-bind ret-sym (r.ir/op-eval `(re-matches ~(:regex node) ~target))
+               (r.ir/op-check-boolean (r.ir/op-eval `(some? ~ret-sym))
+                 (compile `[~ret-sym ~@targets*] [row*])))))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
+(defmethod compile-specialized-matrix :ref
+  [_ targets matrix]
+  (let [target (nth targets 0)
+        targets* (vec (rest targets))]
+    (mapv
+     (fn [node row]
+       (case (r.syntax/tag node)
+         :any
+         (compile-pass targets [row])
+
+         :ref
+         (let [ref-map (:refs row)]
+           (if-some [other-node (get ref-map node)]
+             (let [;; Using substitute-refs-shallow will produce less
+                   ;; code but yields potentially "incorrect"
+                   ;; bindings.
+                   node* (substitute-refs other-node ref-map)
+                   reqs (:env row)
+                   rets (r.syntax/variables node*)
+                   req-syms (mapv r.syntax/unparse reqs)
+                   ret-syms (mapv r.syntax/unparse rets)
+                   key-path [:defs [node req-syms ret-syms]]]
+               (if-some [data (get-in row key-path)]
+                 (let [env* (into (:env row) rets)
+                       row* (assoc row :env env*)]
+                   {:op :call
+                    :symbol (:def-symbol data)
+                    :target (r.ir/op-eval target)
+                    :req-syms req-syms
+                    :ret-syms ret-syms
+                    :then (compile targets* [row*])})
+                 (let [target-arg (gensym* "arg__")
+                       def-symbol (gensym* "def__")
+                       data {:def-symbol def-symbol
+                             :reqs reqs
+                             :rets rets}
+                       row* (assoc-in row key-path data)]
+                   {:op :def
+                    :symbol def-symbol
+                    :target-arg target-arg
+                    :req-syms req-syms
+                    :ret-syms ret-syms
+                    :body (compile
+                           [target-arg]
+                           [(assoc row*
+                                   :cols [node*]
+                                   :rhs (r.ir/op-eval ret-syms))])
+                    :then (compile targets (r.matrix/prepend-column [row*] [node]))})))
+             (throw (ex-info "Unbound reference" {:rest-row row, :col node}))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -971,57 +1034,45 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :rp*
+         ;; TODO: Compile the :cat then compile then loop.
          (let [elements (:elements node)
                n (count elements)
-               ;; Symbol which is bound to the first n elements of
-               ;; target at the top of each loop.
-               init (gensym* "init__")
-               ;; Gaurd pattern to check the length of the initial
-               ;; slice at the top of each loop.
-               init-grd {:tag :grd
-                         :expr `(= (count ~init) ~n)}
                ;; The sequence to match.
-               init-cat {:tag :cat
+               cat-node {:tag :cat
                          :elements elements}
                ;; Unbound memory variables must be bound before loop
                ;; execution and added to the compilation environment
                ;; for the internal loop body.
                init-mvrs (keep
                           (fn [node]
-                            (when (and (= (r.syntax/tag node) :mvr)
+                            (when (and (r.syntax/mvr-node? node)
                                        (not (r.matrix/get-var row node)))
                               node))
-                          (r.syntax/variables init-cat))
+                          (r.syntax/variables (substitute-refs cat-node (:refs row))))
                env* (into (:env row) init-mvrs)
                row* (assoc row :env env*)
-               loop-id (gensym "loop__")
-               loop-targets (into [target] (keep
-                                            (fn [node]
-                                              (when (= (r.syntax/tag node) :mvr)
-                                                (:symbol node))))
-                                  env*)
-               loop-tree [:loop loop-id loop-targets
-                          [:bind [init (take-form n target)]
-                           [:branch
-                            [(compile [init init]
-                                      [(assoc row*
-                                              :cols [init-grd init-cat]
-                                              :rhs [:bind [target (drop-form n target)]
-                                                    [:recur loop-id loop-targets]])])
-                             [:test `(not (seq ~target))
-                              (compile targets* [row*])]]]]]]
+               mvr-syms (map :symbol (r.matrix/bound-mvrs row*))]
            (reduce
-            (fn [tree [_ sym]]
-              [:bind [sym []] tree])
-            loop-tree
+            (fn [op-tree mvr-node]
+              (r.ir/op-mvr-init (:symbol mvr-node)
+                op-tree))
+            (r.ir/op-star (r.ir/op-eval target) n *collection-context*
+              ;; Symbols to bind
+              mvr-syms
+              ;; Result of this is accumulated.
+              (fn [input-symbol dt-return]
+                (compile [input-symbol]
+                         [(assoc row* :cols [cat-node] :rhs dt-return)]))
+              (compile targets* [row*]))
             init-mvrs))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
 
+#_
 (defmethod compile-specialized-matrix :rp+
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
@@ -1029,7 +1080,7 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :rp+
          (let [elements (:elements node)
@@ -1094,16 +1145,16 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :rst
          (let [mvr (:mvr node)
                sym (:symbol mvr)]
            (if (r.matrix/get-var row mvr)
-             [:bind [sym `(into ~sym ~target)]
-              (compile targets* [(r.matrix/add-var row mvr)])]
-             [:bind [sym `(vec ~target)]
-              (compile targets* [(r.matrix/add-var row mvr)])]))))
+             (r.ir/op-bind sym (r.ir/op-eval `(into ~sym ~target))
+               (compile targets* [(r.matrix/add-var row mvr)]))
+             (r.ir/op-bind sym (r.ir/op-eval `(vec ~target))
+               (compile targets* [(r.matrix/add-var row mvr)]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1115,49 +1166,44 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :set
          (cond
            (r.syntax/search? node)
            (let [elements (:elements node)
                  n (count elements)
-                 ;; Symbol for the size of target.
-                 m-sym (gensym* "m__")
                  ;; Symbol for each permutation of target.
                  perm-sym (gensym* "perm__")
                  targets** `[~perm-sym ~@targets*]
                  matrix*  [(assoc row :cols `[~{:tag :cat
                                                 :elements (vec elements)}
                                               ~@(:cols row)])]]
-             [:test `(set? ~target)
-              [:bind [m-sym `(count ~target)]
-               [:test `(<= ~n ~m-sym)
-                (if (negating?)
-                  [:find [perm-sym `(r.util/k-combinations ~target ~n)]
-                   (compile targets** matrix*)]
-                  [:search [perm-sym `(r.util/k-combinations ~target ~n)]
-                   (compile targets** matrix*)])]]])
+             (r.ir/op-check-set (r.ir/op-eval target)
+               (r.ir/op-check-bounds (r.ir/op-eval target) n :set
+                 (if (negating?)
+                   (r.ir/op-find perm-sym (r.ir/op-eval `(r.util/k-combinations ~target ~n))
+                     (compile targets** matrix*))
+                   (r.ir/op-search perm-sym (r.ir/op-eval `(r.util/k-combinations ~target ~n))
+                     (compile targets** matrix*))))))
 
-           (some (comp #{:map :set} r.syntax/tag) (r.syntax/subnodes node))
+           (some (comp #{:map :set} r.syntax/tag)
+                 (r.syntax/proper-subnodes node))
            (let [elements (:elements node)
                  n (count elements)
-                 ;; Symbol for the size of target.
-                 m-sym (gensym* "m__")
                  ;; Symbol for each permutation of target.
                  perm-sym (gensym* "perm__")]
-             [:test `(set? ~target)
-              [:bind [m-sym `(count ~target)]
-               [:test `(<= ~n ~m-sym)
-                [:find [perm-sym `(r.util/k-combinations ~target ~n)]
-                 (compile `[~perm-sym ~@targets*]
-                          [(assoc row :cols `[~{:tag :cat
-                                                :elements (vec elements)}
-                                              ~@(:cols row)])])]]]])
+             (r.ir/op-check-set (r.ir/op-eval target)
+               (r.ir/op-check-bounds (r.ir/op-eval target) n :set
+                 (r.ir/op-find perm-sym (r.ir/op-eval `(r.util/k-combinations ~target ~n))
+                   (compile `[~perm-sym ~@targets*]
+                            [(assoc row :cols `[~{:tag :cat
+                                                  :elements (vec elements)}
+                                                ~@(:cols row)])])))))
 
            :else
-           [:test `(set/subset? ~(compile-ground node) ~target)
-            (compile targets* [row])])))
+           (r.ir/op-check-boolean (r.ir/op-eval `(set/subset? ~(compile-ground node) ~target))
+             (compile targets* [row])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1168,12 +1214,12 @@
    (fn [node row]
      (case (r.syntax/tag node)
        :any
-       [:pass (compile targets [row])]
+       (compile-pass targets [row])
 
        :seq
-       [:test `(seq? ~target)
-        (binding [*collection-context* :seq]
-          (compile targets [(assoc row :cols `[~(:prt node) ~@(:cols row)])]))]))
+       (r.ir/op-check-seq (r.ir/op-eval target)
+         (binding [*collection-context* :seq]
+           (compile targets [(assoc row :cols `[~(:prt node) ~@(:cols row)])])))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
@@ -1185,13 +1231,14 @@
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         [:pass (compile targets* [row])]
+         (compile-pass targets* [row])
 
          :unq
-         [:test `(= ~target ~(:expr node))
-          (compile targets* [row])]))
+         (r.ir/op-check-equal (r.ir/op-eval target) (r.ir/op-eval (:expr node))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :vec
   [_ [target & targets* :as targets] matrix]
@@ -1199,43 +1246,86 @@
    (fn [node row]
      (case (r.syntax/tag node)
        :any
-       [:pass (compile targets [row])]
+       (compile-pass targets [row])
 
        :vec
        (if (literal? node)
-         [:test `(= ~target ~(compile-ground node))
-          (compile targets* [row])]
-         [:test `(vector? ~target)
-          (let [;; prt needs to be compiled within a :vector
-                ;; collection-context separately from the targets*
-                ;; to the right. The targets* on the right need to
-                ;; be compiled in an environment including variables
-                ;; bound by compiling prt.
-                prt (:prt node)
-                rhs*-env (into (get row :env) (r.syntax/variables prt))
-                rhs*-row (assoc row :env rhs*-env)
-                rhs* (compile targets* [rhs*-row])
-                row* (assoc row :cols [prt] :rhs rhs*)]
-            (binding [*collection-context* :vector]
-              (compile [target] [row*])))])))
+         (r.ir/op-check-equal (r.ir/op-eval target) (r.ir/op-eval (compile-ground node))
+           (compile targets* [row]))
+         (r.ir/op-check-vector (r.ir/op-eval target)  
+           (let [;; prt needs to be compiled within a :vector
+                 ;; collection-context separately from the targets*
+                 ;; to the right. The targets* on the right need to
+                 ;; be compiled in an environment including variables
+                 ;; bound by compiling prt.
+                 prt (:prt node)
+                 rhs*-env (into (get row :env) (r.syntax/variables prt))
+                 rhs*-row (assoc row :env rhs*-env)
+                 rhs* (compile targets* [rhs*-row])
+                 row* (assoc row :cols [prt] :rhs rhs*)]
+             (binding [*collection-context* :vector]
+               (compile [target] [row*])))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
+
+
+(defn compile-wth-matrix [targets matrix]
+  (let [target (nth targets 0)
+        targets* (vec (rest targets))]
+    (mapv
+     (fn [node row]
+       (case (r.syntax/tag node)
+         :any
+         (compile-pass targets* [row])
+
+         :wth
+         (if-some [body (:body node)]
+           (let [ref-map (make-ref-map node)
+                 refs* (merge (:refs row) ref-map)
+                 bound-mvrs (r.matrix/bound-mvrs row)
+                 unbound-mvrs (into #{}
+                                    (mapcat
+                                     (fn [[_ node]]
+                                       (set/difference
+                                        (r.syntax/memory-variables
+                                         (substitute-refs node refs*))
+                                        bound-mvrs)))
+                                    ref-map)
+                 matrix* (r.matrix/prepend-column 
+                          [(r.matrix/add-vars (assoc row :refs refs*) unbound-mvrs)]
+                          [body])]
+             ;; Initialize memory variables to prevent an explosion of
+             ;; data brought on by potentially differing memory
+             ;; variable sets in each pattern.
+             (reduce
+              (fn [dt node]
+                (r.ir/op-mvr-init (:symbol node)
+                  dt))
+              (compile targets matrix*)
+              unbound-mvrs))
+           (compile-pass targets* [row]))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
+(defmethod compile-specialized-matrix :wth
+  [_ targets matrix]
+  (compile-wth-matrix targets matrix))
 
 
 (defn debug-compile
   {:private true}
   [targets matrix]
-  ;; This doesn't print the state accurately.
   (pprint/print-table
-   (mapv
+   (mapcat
     (fn [row]
-      (reduce merge
-              (mapv
-               (fn [target node]
-                 {target (r.syntax/unparse node)
-                  :node node})
-               targets
-               (:cols row))))
+      (map
+       (fn [target node]
+         {:target target
+          :pattern (r.syntax/unparse node)
+          :node node})
+       targets
+       (:cols row)))
     matrix)))
 
 
@@ -1245,7 +1335,7 @@
   [targets matrix]
   (cond
     (= (count matrix) 0)
-    [:fail]
+    (r.ir/op-fail)
 
     (every? r.syntax/any-node? (mapcat identity (r.matrix/columns (take 1 matrix))))
     (r.matrix/action (first matrix))
@@ -1266,398 +1356,89 @@
                                (let [s-matrix (specialize-matrix tag matrix)]
                                  (compile-specialized-matrix tag targets s-matrix))))
                          tags)
-              arms (if (and (some (fn [[tag]]
-                                    (= tag :test))
+              arms (if (and (some (fn [op]
+                                    (= (:type op) :test))
                                   arms)
-                            (not (some (fn [[tag _]]
-                                         (= tag :pass))
+                            (not (some (fn [op]
+                                         (= (:op op) :pass))
                                        arms)))
-                     (conj arms [:fail])
+                     (conj arms (r.ir/op-fail))
                      arms)]
-          [:branch arms])
+          (r.ir/op-branch arms))
         (let [targets* (r.matrix/swap targets 0 i)
               matrix* (r.matrix/swap-column matrix 0 i)]
           (compile targets* matrix*))))))
 
 
 ;; ---------------------------------------------------------------------
-;; Code Emission
-
-(defn emit*
-  "Rewrite the decision tree as Clojure code without optimizations."
-  [tree fail kind]
-  (let [[tag :as node] tree]
-    (case tag
-      :action
-      (let [[_ expr] node]
-        expr)
-
-      :bind
-      (let [[_ bindings body] node]
-        ;; This isn't necessary but makes the resulting code easier to
-        ;; read.
-        (loop [bindings bindings
-               body body]
-          (let [[tag] body]
-            (if (= tag :bind)
-              (let [[_ bindings* body*] body]
-                (recur (into bindings bindings*) body*))
-              `(let ~bindings
-                 ~(emit* body fail kind))))))
-
-      :branch
-      (case kind
-        :search
-        (let [[_ arms] node
-              arms (remove #{[:fail]} arms)]
-          (case (count arms)
-            0
-            fail
-
-            1
-            (emit* (first arms) fail kind)
-
-            ;;else
-            `(concat
-              ~@(map
-                 (fn [arm]
-                   (emit* arm fail kind))
-                 arms))))
-
-        (:find :match)
-        (let [[_ arms] node
-              arms (if (= kind :find)
-                     (remove #{[:fail]} arms)
-                     arms)]
-          (case (count arms)
-            0
-            fail
-
-            1
-            (emit* (first arms) fail kind)
-
-            2
-            (emit* (first arms)
-                   (emit* (second arms) fail kind)
-                   kind)
-
-            ;; else
-            (let [fsyms (mapv
-                         (fn [_]
-                           (gensym "backtrack__"))
-                         arms)]
-              `(letfn [~@(map
-                           (fn [fsym fail arm]
-                             `(~fsym []
-                               ~(emit* arm fail kind)))
-                           fsyms
-                           (conj (mapv
-                                  (fn [fsym]
-                                    `(~fsym))
-                                  (rest fsyms))
-                                 fail)
-                           arms)]
-                 (~(first fsyms)))))))
-
-      :fail
-      fail
-
-      :loop
-      (let [[_ ident syms body] node]
-        `(letfn [(~ident ~syms
-                  ~(emit* body fail kind))]
-           (~ident ~@syms)))
-
-      :load
-      (let [[_ ident] node]
-        `(~ident))
-
-      :pass
-      (let [[_ body] node]
-        (emit* body fail kind))
-
-      :save
-      (let [[_ ident body1 body2] node
-            f-sym (gensym "f__")]
-        `(letfn [(~ident [] ~fail)
-                 (~f-sym [] ~(emit* body2 fail kind))]
-           ~(emit* body1 `(~f-sym) kind)))
-
-      :search
-      (let [[_ [sym seq-expr] body] node]
-        (case kind
-          (:find :match)
-          (recur [:find [sym seq-expr] body] fail kind)
-
-          ;; Assumes action node evaluates to a singleton list.
-          :search
-          `(mapcat
-            (fn [~sym]
-              ~(emit* body fail kind))
-            ~seq-expr)))
-
-      :find
-      (let [[_ [sym seq-expr] body] node
-            result-sym (gensym "result__")
-            test-fail-sym (gensym "fail__")]
-        `(let [~test-fail-sym (reify)
-               ~result-sym (reduce
-                            (fn [~test-fail-sym ~sym]
-                              (let [~result-sym ~(emit* body test-fail-sym kind)]
-                                (if (identical? ~result-sym ~test-fail-sym)
-                                  ~test-fail-sym
-                                  (reduced ~result-sym))))
-                            ~test-fail-sym
-                            ~seq-expr)]
-           (if (identical? ~result-sym ~test-fail-sym)
-             ~fail
-             ~result-sym)))
-
-      :recur
-      (let [[_ ident syms] node]
-        `(~ident ~@syms))
-
-      :test
-      (let [[_ test body] node]
-        `(if ~test
-           ~(emit* body fail kind)
-           ~fail)))))
-
-(s/fdef emit*
-  :args (s/cat :tree :meander.match.gamma/tree
-               :fail any?
-               :kind #{:find :match :search}))
-
-;; :bind node rewriting
-;; --------------------
-
-(defn rewrite-bind-unused
-  "If a binding is never used, remove it."
-  {:private true}
-  [[_ [bsym bval] body :as node]]
-  (if (gensym? bsym)
-    (if (some #{bsym} (tree-seq coll? seq body))
-      node
-      body)
-    node))
-
-
-(defn rewrite-bind-inline
-  "If a binding is never used, remove it."
-  {:private true}
-  [node]
-  (if (s/valid? :meander.match.gamma.tree/bind-node node)
-    (let [[_ [bsym bval] body] node]
-      (if (and
-           (gensym? bsym)
-           (= (bounded-count 2 (filter #{bsym}
-                                       (tree-seq coll? seq body)))
-              1))
-        (loop [loc (r.util/coll-zip body)]
-          (cond
-            (zip/end? loc)
-            (zip/root loc)
-
-            (= (zip/node loc) bsym)
-            (zip/root (zip/edit loc (constantly bval)))
-
-            :else
-            (recur (zip/next loc))))
-        node))
-    node))
-
-
-;; :branch node rewriting
-;; ----------------------
-
-(defn rewrite-branch-shared-bindings
-  "If a there are consecutive bindings to the same expression in the
-  arms of a branch, create a new branch arm with a shared binding and
-  move those arms beneath it."
-  {:private true}
-  [[_ nodes]]
-  (loop [;; Queue
-         q-nodes nodes
-         ;; Stack
-         s-nodes []]
-    (if-some [[tag :as node] (first q-nodes)]
-      (if (or (= tag :bind)
-              (= tag :search))
-        (let [[_ [bsym bval]] node]
-          (if (gensym? bsym) 
-            (let [[xs ys] (split-with
-                           (fn [[other-tag :as other-node]]
-                             (and (= other-tag tag)
-                                  (let [[_ [_ other-bval]] other-node]
-                                    (= other-bval bval))))
-                           q-nodes)
-                  q-nodes ys
-                  s-nodes (conj s-nodes
-                                (if (= xs [node])
-                                  node
-                                  (let [bsym* (gensym "x__")]
-                                    [tag [bsym* bval]
-                                     [:branch
-                                      (mapv
-                                       (fn [[_ [bsym _] body]]
-                                         ;; This should be safe since
-                                         ;; we're only renaming
-                                         ;; symbols we've generated.
-                                         (walk/postwalk-replace {bsym bsym*} body))
-                                       xs)]])))]
-              (recur q-nodes s-nodes))
-            (let [q-nodes (rest q-nodes)
-                  s-nodes (conj s-nodes node)]
-              (recur q-nodes s-nodes))))
-        (let [q-nodes (rest q-nodes)
-              s-nodes (conj s-nodes node)]
-          (recur q-nodes s-nodes)))
-      [:branch s-nodes])))
-
-
-(defn rewrite-branch-equal-bindings
-  {:private true}
-  [[_ nodes]]
-  (loop [q-nodes nodes
-         s-nodes []]
-    (if-some [[tag :as node] (first q-nodes)]
-      (if (= tag :bind)
-        (let [[_ bindings] node
-              [xs ys] (split-with
-                       (fn [[other-tag :as other-node]]
-                         (and (= other-tag :bind)
-                              (let [[_ other-bindings] other-node]
-                                (= other-bindings bindings))))
-                       q-nodes)
-              q-nodes ys
-              s-nodes (conj s-nodes
-                            (if (= xs [node])
-                              node
-                              [:bind bindings
-                               [:branch (mapv (fn [[_ _ body]] body) xs)]]))]
-          (recur q-nodes s-nodes))
-        (let [q-nodes (rest q-nodes)
-              s-nodes (conj s-nodes node)]
-          (recur q-nodes s-nodes)))
-      [:branch s-nodes])))
-
-
-(defn rewrite-branch-equal-tests
-  {:private true}
-  [[_ nodes]]
-  (loop [q-nodes nodes
-         s-nodes []]
-    (if-some [[tag :as node] (first q-nodes)]
-      (if (= tag :test)
-        (let [[_ test-expr] node
-              [xs ys] (split-with
-                       (fn [[other-tag :as other-node]]
-                         (and (= other-tag :test)
-                              (let [[_ other-test-expr] other-node]
-                                (= other-test-expr test-expr))))
-                       q-nodes)
-              q-nodes ys
-              s-nodes (conj s-nodes
-                            (if (= xs [node])
-                              node
-                              [:test test-expr
-                               [:branch (mapv (fn [[_ _ body]] body) xs)]]))]
-          (recur q-nodes s-nodes))
-        (let [q-nodes (rest q-nodes)
-              s-nodes (conj s-nodes node)]
-          (recur q-nodes s-nodes)))
-      [:branch s-nodes])))
-
-
-(defn rewrite-branch-splice-branches
-  {:private true}
-  [[_ nodes]]
-  [:branch
-   (into []
-         (mapcat
-          (fn [[tag :as node]]
-            (if (= tag :branch)
-              (let [[_ inner-nodes] node]
-                inner-nodes)
-              (list node))))
-         nodes)])
-
-
-(defn rewrite-branch-one-fail
-  {:private true}
-  [[_ nodes]]
-  (if-some [fail-node (some
-                       (fn [node]
-                         (when (s/valid? :meander.match.gamma.tree/fail-node node)
-                           node))
-                       nodes)]
-    [:branch
-     (conj (into [] (remove #{fail-node}) nodes) fail-node)]
-    [:branch
-     nodes]))
-
-
-(defn rewrite-branch-one-case
-  {:private true}
-  [[_ nodes]]
-  (if (= (count nodes) 1)
-    (first nodes)
-    [:branch nodes]))
-
-
-(defn rewrite-tree
-  {:private true}
-  [tree]
-  (let [tree* (clojure.walk/prewalk
-               (fn [x]
-                 (if (s/valid? :meander.match.gamma.tree/branch-node x)
-                   (rewrite-branch-one-case x)
-                   x))
-               tree)
-        tree* (clojure.walk/prewalk
-               (fn [x]
-                 (cond
-                   (s/valid? :meander.match.gamma.tree/branch-node x)
-                   (-> x
-                       rewrite-branch-splice-branches
-                       rewrite-branch-one-fail
-                       rewrite-branch-shared-bindings
-                       rewrite-branch-equal-bindings
-                       rewrite-branch-equal-tests)
-
-                   (s/valid? :meander.match.gamma.tree/bind-node x)
-                   (-> x
-                       rewrite-bind-unused
-                       rewrite-bind-inline)
-
-                   :else
-                   x))
-               tree*)]
-    (if (= tree tree*)
-      tree
-      (recur tree*))))
-
-
-(defn emit
-  "Rewrite the decision tree as Clojure code with optimizations."
-  [tree fail kind]
-  (let [tree* (rewrite-tree tree)]
-    (emit* tree* fail kind)))
-
-(s/fdef emit
-  :args (s/cat :tree :meander.match.gamma/tree
-               :fail any?
-               :kind #{:find :match :search}))
-
-;; ---------------------------------------------------------------------
 ;; match pattern checking
+
+(s/def :meander.match.delta.check-env/lvrs
+  (s/coll-of :meander.syntax.delta.node/lvr :kind set?))
+
+(s/def :meander.match.delta.check-env/mvrs
+  (s/coll-of :meander.syntax.delta.node/mvr :kind set?))
+
+(s/def :meander.match.delta.check-env/ref-map
+  (s/keys :req-un [:meander.syntax.delta/node
+                   :meander.syntax.delta.node/with]))
+
+(s/def :meander.match.delta.check-env/refs
+  (s/map-of :meander.syntax.delta.node/ref
+            :meander.match.delta.check-env/ref-map))
+
+(s/def :meander.match.delta/check-env
+  (s/keys :req-un [:meander.match.delta.check-env/lvrs
+                   :meander.match.delta.check-env/mvrs
+                   :meander.match.delta.check-env/refs]))
+
+(def empty-check-env
+  {:lvrs #{}
+   :mvrs #{}
+   :refs {}
+   :path []})
+
+
+(defn unparse-check-env
+  "Unparse all AST nodes in check-env."
+  {:private true}
+  [check-env]
+  {:lvrs (into #{} (map r.syntax/unparse) (:lvrs check-env))
+   :mvrs (into #{} (map r.syntax/unparse) (:mvrs check-env))
+   :refs (into {} (map
+                   (fn [[k v]]
+                     [(r.syntax/unparse k)
+                      {:node (r.syntax/unparse (:node v)) 
+                       :with (r.syntax/unparse (:with v))}]))
+               (:refs check-env))
+   :path (into []
+               (comp (keep
+                      (fn [node]
+                        (case (r.syntax/tag node)
+                          (:prt :cat)
+                          nil
+
+                          node)))
+                     (map r.syntax/unparse))
+               (:path check-env))})
+
+(defn add-refs
+  {:private true}
+  [check-env node]
+  (if (r.syntax/with-node? node)
+    (update check-env :refs merge (into {} (map
+                                            (fn [binding]
+                                              [(:ref binding)
+                                               {:node (:pattern binding)
+                                                :with node}]))
+                                        (:bindings node)))
+    check-env))
+
 
 (defmulti check-node
   "Validates the semantics of node returning
-
   [:error [{:message string, :ex-data map?}]
     whenever validation fails.
-
   [:okay child-nodes new-env]
     whenever validation succeeds. child-nodes are the child nodes of
     node. new-env is env extended with variables that would be bound
@@ -1673,33 +1454,103 @@
   [:okay (r.syntax/children node) env])
 
 
+(defn check-error?
+  {:private true}
+  [[tag _]]
+  (= tag :error))
+
+
+(defn check-okay?
+  {:private true}
+  [[tag _]]
+  (= tag :okay))
+
+
+(defn check*
+  "Checks if node is semantically valid with respect to env. Returns
+
+  [:error [{:message string?, :ex-data map?} & syntax-trace]
+    whenever an error is detected. syntax-trace is a sequence forms
+    which represent the path to the invalid pattern from the leaf
+    to the root.
+
+
+  [:okay exit-env]
+    whenever the semantics of node are valid. exit-env is a set of all
+    logic and memory variables which would be bound by a successful
+    pattern match; equivalent to (meander.syntax.delta/variables node)."
+  [node env search?]
+  (let [[tag :as result] (check-node node env search?)]
+    (case tag
+      :error
+      (let [[_ trace] result]
+        [:error (conj trace node)])
+
+      :okay
+      (let [[_ children env] result]
+        (reduce
+         (fn [[_ env] child]
+           (let [[tag :as result] (check* child env search?)]
+             (case tag
+               :error
+               (let [[_ trace] result]
+                 (reduced [:error (conj trace node)]))
+
+               :okay
+               result)))
+         [:okay (update env :path conj node)]
+         children)))))
+
+
+(defn check
+  "Checks if node is semantically valid. Returns an instance of
+  clojure.lang.Exception if an error can be found and nil otherwise."
+  [node search?]
+  (let [[tag :as result] (check* node empty-check-env search?)]
+    (case tag
+      :error
+      (let [[_ [{:keys [message ex-data]} & trace]] result
+            syntax-trace (into [] (comp (remove (comp #{:cat :prt} r.syntax/tag))
+                                        (map r.syntax/unparse))
+                               trace)]
+        (ex-info message (assoc ex-data :syntax-trace syntax-trace)))
+
+      :okay
+      nil)))
+
+
 (defmethod check-node :dsj
-  [node env _]
+  [node env search?]
   (let [arguments (:arguments node)
-        env* (into #{} (remove r.syntax/mvr-node?) env)
-        term-vars (sequence
-                   (map
-                    (fn [term]
-                      ;; We don't need to account for bound variables.
-                      (set/difference (r.syntax/logic-variables term) env*)))
-                   arguments)
-        all-vars (reduce set/union #{} term-vars)
+        bound-lvrs (:lvrs env)
+        ref-map (into {}
+                      (map
+                       (fn [[k v]]
+                         [k (:node v)]))
+                      (:refs env))
+        argument-lvrs (map
+                       (fn [node]
+                         (let [node* (substitute-refs node ref-map)]
+                           (set/difference (r.syntax/logic-variables node*)
+                                           bound-lvrs)))
+                       arguments)
+        all-lvrs (reduce set/union #{} argument-lvrs)
         problems (sequence
                   (comp (map vector)
                         (keep
-                         (fn [[term term-vars]]
-                           (let [absent-vars (set/difference all-vars term-vars)]
-                             (when (seq absent-vars)
-                               [term (into #{} (map r.syntax/unparse) absent-vars)])))))
+                         (fn [[term argument-lvrs]]
+                           (let [absent-lvrs (set/difference all-lvrs argument-lvrs)]
+                             (when (seq absent-lvrs)
+                               [term absent-lvrs])))))
                   arguments
-                  term-vars)]
+                  argument-lvrs)]
     (if (seq problems)
       [:error [{:message "Every pattern of an or pattern must have references to the same unbound logic variables."
-                :ex-data {:env (into #{} (map r.syntax/unparse) env)
+                :ex-data {:env (unparse-check-env env)
                           :problems (mapv
                                      (fn [[pat absent-vars]]
                                        {:pattern (r.syntax/unparse pat)
-                                        :absent absent-vars})
+                                        :absent (into #{} (map r.syntax/unparse) absent-vars)})
                                      problems)}}]]
       [:okay (r.syntax/children node) env])))
 
@@ -1709,10 +1560,8 @@
   (let [elements (:elements node)
         init-cat {:tag :cat
                   :elements elements}
-        init-vars (r.syntax/variables init-cat)
-        unbound-lvrs (into #{} (comp (filter r.syntax/lvr-node?)
-                                     (remove env))
-                           init-vars)]
+        init-lvrs (r.syntax/logic-variables init-cat)
+        unbound-lvrs (into #{} (remove (:lvrs env)) init-lvrs)]
     (cond
       (seq unbound-lvrs)
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
@@ -1744,7 +1593,7 @@
 
 (defmethod check-node :lvr
   [node env _]
-  [:okay [] (conj env node)])
+  [:okay [] (update env :lvrs conj node)])
 
 
 (defmethod check-node :map
@@ -1761,7 +1610,7 @@
 
 (defmethod check-node :mvr
   [node env _]
-  [:okay [] (conj env node)])
+  [:okay [] (update env :mvrs conj node)])
 
 
 (defmethod check-node :prt
@@ -1769,12 +1618,26 @@
   (if search?
     [:okay (r.syntax/children node) env]
     (let [{left :left, right :right} node]
-      (if (and (some? right)
-               (r.syntax/variable-length? left)
+      (if (and (r.syntax/variable-length? left)
                (r.syntax/variable-length? right))
         [:error [{:message "A variable length subsequence pattern may not be followed by another variable length subsequence pattern."
                   :ex-data {}}]]
         [:okay (r.syntax/children node) env]))))
+
+
+(defmethod check-node :ref
+  [node env search?]
+  (if-some [entry (get (:refs env) node)]
+    (let [other-node (:node entry)]
+      (if (some
+           (fn [prev-node]
+             (identical? prev-node other-node))
+           (:path env))
+        [:okay [] env]
+        [:okay [other-node] env]))
+    [:error [{:message (str "Unbound reference " (r.syntax/unparse node))
+              :ex-data {:env (unparse-check-env env)
+                        :reference (r.syntax/unparse node)}}]]))
 
 
 (defmethod check-node :set
@@ -1787,98 +1650,64 @@
                 :ex-data {}}]])))
 
 
-(defn check*
-  "Checks if node is semantically valid with respect to env. Returns
-
-  [:error [{:message string?, :ex-data map?} & syntax-trace]
-    whenever an error is detected. syntax-trace is a sequence forms
-    which represent the path to the invalid pattern from the leaf
-    to the root.
-
-
-  [:okay exit-env]
-    whenever the semantics of node are valid. exit-env is a set of all
-    logic and memory variables which would be bound by a succesful
-    pattern match; equivalent to (meander.syntax.gamma/variables node)."
+(defmethod check-node :wth
   [node env search?]
-  (let [[tag :as result] (check-node node env search?)]
-    (case tag
-      :error
-      (let [[_ trace] result]
-        [:error (conj trace node)])
+  (if-some [body (:body node)]
+    (let [bindings (:bindings node)
+          ref-freqs (into {} (filter
+                              (fn [[_ n]]
+                                (< 1 n)))
+                          (frequencies (map :ref bindings)))]
+      (if (seq ref-freqs)
+        [:error [{:message "with patterns must have distict references"
+                  :ex-data {:env (unparse-check-env env)
+                            :offending-bindings (into #{} (map r.syntax/unparse) (keys ref-freqs))}}]]
+        (let [check-env (add-refs env node)]
+          (check* body check-env search?))))
+    ;; Nothing to check.
+    [:okay [] env]))
 
-      :okay
-      (let [[_ children env] result]
-        (reduce
-         (fn [[_ env] child]
-           (let [[tag :as result] (check* child env search?)]
-             (case tag
-               :error
-               (let [[_ trace] result]
-                 (reduced [:error (conj trace node)]))
-
-               :okay
-               result)))
-         [:okay env]
-         children)))))
-
-
-(defn check
-  "Checks if node is semantically valid. Returns an instance of
-  clojure.lang.Exception if an error can be found and nil otherwise."
-  [node search?]
-  (let [[tag :as result] (check* node #{} search?)]
-    (case tag
-      :error
-      (let [[_ [{:keys [message ex-data]} & trace]] result
-            syntax-trace (into [] (comp (remove (comp #{:cat :prt} r.syntax/tag))
-                                        (map r.syntax/unparse))
-                               trace)]
-        (ex-info message (assoc ex-data :syntax-trace syntax-trace)))
-
-      :okay
-      nil)))
 
 ;; ---------------------------------------------------------------------
 ;; match macro
 
 
-(s/def :meander.match.gamma/expr
+(s/def :meander.match.delta/expr
   any?)
 
 
-(s/def :meander.match.gamma/pattern
+(s/def :meander.match.delta/pattern
   any?)
 
 
-(s/def :meander.match.gamma/clause
-  (s/cat :pat :meander.match.gamma/pattern
-         :rhs :meander.match.gamma/expr))
+(s/def :meander.match.delta/clause
+  (s/cat :pat :meander.match.delta/pattern
+         :rhs :meander.match.delta/expr))
 
 
-(s/def :meander.match.gamma.match/clauses
-  (s/* (s/cat :pat :meander.match.gamma/pattern
-              :rhs :meander.match.gamma/expr)))
+(s/def :meander.match.delta.match/clauses
+  (s/* (s/cat :pat :meander.match.delta/pattern
+              :rhs :meander.match.delta/expr)))
 
 
-(s/def :meander.match.gamma.match/args
-  (s/cat :expr :meander.match.gamma/expr
-         :clauses (s/* :meander.match.gamma/clause)))
+(s/def :meander.match.delta.match/args
+  (s/cat :expr :meander.match.delta/expr
+         :clauses (s/* :meander.match.delta/clause)))
 
 
-(s/def :meander.match.gamma.match/data
-  (s/keys :req-un [:meander.match.gamma/expr
-                   :meander.matrix.gamma/matrix
-                   :meander.matrix.gamma.data/final-clause]))
+(s/def :meander.match.delta.match/data
+  (s/keys :req-un [:meander.match.delta/expr
+                   :meander.matrix.delta/matrix
+                   :meander.matrix.delta.data/final-clause]))
 
 
-(s/def :meander.match.gamma.match.data/final-clause
+(s/def :meander.match.delta.match.data/final-clause
   (s/nilable :meander.matrix.alpha/row))
 
 
 (s/fdef analyze-match-args
-  :args (s/cat :match-args :meander.match.gamma.match/args)
-  :ret :meander.match.gamma.match/data)
+  :args (s/cat :match-args :meander.match.delta.match/args)
+  :ret :meander.match.delta.match/data)
 
 
 (defn expand-node
@@ -1939,7 +1768,8 @@
          x)
        ;; else
        x))
-   node))
+   (r.syntax/rename-refs node)))
+
 
 (defn parse-expand
   {:private true}
@@ -1971,10 +1801,10 @@
   ([match-args]
    (analyze-match-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.gamma.match/args match-args)]
+   (let [data (s/conform :meander.match.delta.match/args match-args)]
      (if (identical? data ::s/invalid)
        (throw (ex-info "Invalid match-args"
-                       (s/explain-data :meander.match.gamma.match/args match-args)))
+                       (s/explain-data :meander.match.delta.match/args match-args)))
        (let [clauses (map
                       (fn [{:keys [pat rhs]}]
                         {:pat (r.syntax/parse pat env)
@@ -1986,10 +1816,10 @@
                              (check pat false)))
                           clauses)
              matrix (mapv
-                     (fn [{:keys [pat rhs]}]
-                       {:cols [(expand-node pat)]
-                        :env #{}
-                        :rhs [:action rhs]})
+                     (fn [clause]
+                       (r.matrix/make-row
+                        [(expand-node (:pat clause))]
+                        (r.ir/op-eval (:rhs clause))))
                      clauses)
              final-clause (some
                            (fn [row]
@@ -2012,7 +1842,7 @@
 
 (s/fdef match
   :args (s/cat :expr any?
-               :clauses :meander.match.gamma.match/clauses)
+               :clauses :meander.match.delta.match/clauses)
   :ret any?)
 
 
@@ -2031,14 +1861,14 @@
             fail (gensym "fail__")]
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
-            (emit (compile [expr] [final-clause]) nil :match)
+            (r.ir/emit (compile [expr] [final-clause]) nil :match)
             `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
           `(let [~target ~expr
                  ~fail (fn []
                          ~(if (some? final-clause)
-                            (emit (compile [target] [final-clause]) nil :match)
+                            (r.ir/emit (compile [target] [final-clause]) nil :match)
                             `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
-             ~(emit (compile-with-memory-variables-initialized [target] matrix) `(~fail) :match)))))))
+             ~(r.ir/emit (compile [target] matrix) `(~fail) :match)))))))
 
 
 (defn analyze-search-args
@@ -2058,10 +1888,10 @@
   ([match-args]
    (analyze-search-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.gamma.match/args match-args)]
+   (let [data (s/conform :meander.match.delta.match/args match-args)]
      (if (identical? data ::s/invalid)
        (throw (ex-info "Invalid search args"
-                       (s/explain-data :meander.match.gamma.match/args match-args)))
+                       (s/explain-data :meander.match.delta.match/args match-args)))
        (let [clauses (mapv
                       (fn [{:keys [pat rhs]}]
                         {:pat (r.syntax/parse pat env)
@@ -2072,10 +1902,10 @@
                                 (check pat true)))
                           clauses)
              matrix (mapv
-                     (fn [{:keys [pat rhs]}]
-                       {:cols [(expand-node pat)]
-                        :env #{}
-                        :rhs [:action `(list ~rhs)]})
+                     (fn [clause]
+                       (r.matrix/make-row
+                        [(expand-node (:pat clause))]
+                        (r.ir/op-eval `(list ~(:rhs clause)))))
                      clauses)]
          {:errors errors
           :expr (:expr data)
@@ -2111,12 +1941,12 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(emit (compile-with-memory-variables-initialized [target] matrix) nil :search)))))))
+             ~(r.ir/emit (compile [target] matrix) nil :search)))))))
 
 
 (s/fdef search
   :args (s/cat :expr any?
-               :clauses :meander.match.gamma.match/clauses)
+               :clauses :meander.match.delta.match/clauses)
   :ret (s/coll-of any? :kind sequential?))
 
 
@@ -2137,10 +1967,10 @@
   ([match-args]
    (analyze-find-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.gamma.match/args match-args)]
+   (let [data (s/conform :meander.match.delta.match/args match-args)]
      (if (identical? data ::s/invalid)
        (throw (ex-info "Invalid match args"
-                       (s/explain-data :meander.match.gamma.match/args match-args)))
+                       (s/explain-data :meander.match.delta.match/args match-args)))
        (let [clauses (mapv
                       (fn [{:keys [pat rhs]}]
                         {:pat (r.syntax/parse pat env)
@@ -2151,10 +1981,10 @@
                                 (check pat true)))
                           clauses)
              matrix (mapv
-                     (fn [{:keys [pat rhs]}]
-                       {:cols [(expand-node pat)]
-                        :env #{}
-                        :rhs [:action rhs]})
+                     (fn [clause]
+                       (r.matrix/make-row
+                        [(expand-node (:pat clause))]
+                        (r.ir/op-eval (:rhs clause))))
                      clauses)]
          {:errors errors
           :expr (:expr data)
@@ -2176,10 +2006,31 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(emit (compile-with-memory-variables-initialized [target] matrix) nil :find)))))))
+             ~(r.ir/emit (compile [target] matrix) nil :find)))))))
 
 
 (s/fdef find
   :args (s/cat :expr any?
-               :clauses :meander.match.gamma.match/clauses)
+               :clauses :meander.match.delta.match/clauses)
   :ret any?)
+
+;; ---------------------------------------------------------------------
+;; Scratch
+
+#_
+(find [:p {"bar" "foo"}
+        [:b "Foo"]
+        [:b {"quux" "foo"} "Baz"]
+        [:h1 {"lol" 32}
+         "Beef" "Lamb" "Chicken"]]
+   (with [%1 [!tags (pred map? !attrs) . %R ...]
+          %2 [!tags . %R ...]
+          %3 !xs
+          %R (or %1 %2 %3)]
+     %R)
+   [!tags !attrs !xs])
+
+#_
+(defn search-ir [search-args]
+  (compile [(gensym* "target__")]
+           (:matrix (analyze-search-args search-args))))

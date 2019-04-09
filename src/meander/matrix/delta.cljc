@@ -1,13 +1,14 @@
-(ns meander.matrix.gamma
+(ns meander.matrix.delta
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
   (:require [clojure.spec.alpha :as s]
+            [clojure.set :as set]
             [clojure.spec.gen.alpha :as s.gen]
-            [meander.syntax.gamma :as r.syntax]))
+            [meander.syntax.delta :as r.syntax]))
 
 
-(s/def :meander.matrix.gamma/matrix
-  (s/coll-of :meander.matrix.gamma/row
+(s/def :meander.matrix.delta/matrix
+  (s/coll-of :meander.matrix.delta/row
              :kind sequential?
              :into []
              :gen (fn []
@@ -21,49 +22,69 @@
                                   (update row :cols subvec 0 i)))
                                rows)))
                      (s.gen/vector
-                      (s/gen :meander.matrix.gamma/row))))))
+                      (s/gen :meander.matrix.delta/row))))))
+
+(s/def :meander.matrix.delta.row/path
+  (s/coll-of :meander.syntax.delta/node
+             :kind sequential?
+             :into []))
+
+(s/def :meander.matrix.delta.row/refs
+  (s/map-of :meander.syntax.delta.node/ref
+            :meander.matrix.delta/ref-map))
 
 
-(s/def :meander.matrix.gamma/row
-  (s/keys :req-un [:meander.matrix.gamma.row/cols
-                   :meander.matrix.gamma.row/rhs]
-          :opt-un [:meander.matrix.gamma.row/env]))
+(s/def :meander.matrix.delta/row
+  (s/keys :req-un [:meander.matrix.delta.row/cols
+                   :meander.matrix.delta.row/rhs]
+          :opt-un [:meander.matrix.delta.row/env
+                   :meander.matrix.delta.row/refs
+                   :meander.matrix.delta.row/path]))
 
 
-(s/def :meander.matrix.gamma.row/cols
-  (s/coll-of :meander.syntax.gamma/node
+(s/def :meander.matrix.delta.row/cols
+  (s/coll-of :meander.syntax.delta/node
              :kind sequential?
              :into []))
 
 
-(s/def :meander.matrix.gamma.row/rhs
+(s/def :meander.matrix.delta.row/rhs
   any?)
 
 
-(s/def :meander.matrix.gamma.row/env
-  (s/coll-of (s/or :lvr :meander.syntax.gamma/logic-variable
-                   :mvr :meander.syntax.gamma/memory-variable)
+(s/def :meander.matrix.delta.row/env
+  (s/coll-of (s/or :lvr :meander.syntax.delta/logic-variable
+                   :mvr :meander.syntax.delta/memory-variable)
              :kind set?
              :into #{}))
 
 
-(s/def :meander.matrix.gamma/object
-  (s/or :matrix :meander.matrix.gamma/matrix
-        :row :meander.matrix.gamma/row
+(s/def :meander.matrix.delta/object
+  (s/or :matrix :meander.matrix.delta/matrix
+        :row :meander.matrix.delta/row
         :unknown any?))
 
 
 ;; ---------------------------------------------------------------------
 ;; Matrix
 
+(def empty-row
+  {:cols []
+   :rhs nil
+   :env #{}
+   :refs {}})
+
+(defn make-row
+  [cols rhs]
+  (assoc empty-row :cols cols :rhs rhs))
+
 (defn action [row]
   (:rhs row))
-
 
 (defn row?
   "true if x is a matrix row."
   [x]
-  (s/valid? :meander.matrix.gamma/row x))
+  (s/valid? :meander.matrix.delta/row x))
 
 
 (defn empty?
@@ -93,10 +114,10 @@
 
 
 (s/fdef swap-column
-  :args (s/cat :matrix :meander.matrix.gamma/matrix
+  :args (s/cat :matrix :meander.matrix.delta/matrix
                :i nat-int?
                :j nat-int?)
-  :ret :meander.matrix.gamma/matrix)
+  :ret :meander.matrix.delta/matrix)
 
 
 (defn swap-column
@@ -109,12 +130,12 @@
 
 
 (s/fdef subcols
-  :args (s/or :a2 (s/cat :matrix :meander.matrix.gamma/matrix
+  :args (s/or :a2 (s/cat :matrix :meander.matrix.delta/matrix
                          :i nat-int?)
-              :a3 (s/cat :matrix :meander.matrix.gamma/matrix
+              :a3 (s/cat :matrix :meander.matrix.delta/matrix
                          :i nat-int?
                          :j nat-int?))
-  :ret :meander.matrix.gamma/matrix)
+  :ret :meander.matrix.delta/matrix)
 
 
 (defn subcols
@@ -132,7 +153,7 @@
 
 
 (s/fdef width
-  :args (s/cat :matrix :meander.matrix.gamma/matrix)
+  :args (s/cat :matrix :meander.matrix.delta/matrix)
   :ret nat-int?)
 
 
@@ -142,8 +163,8 @@
 
 
 (s/fdef nth-column
-  :args (s/cat :matrix :meander.matrix.gamma/matrix)
-  :ret (s/coll-of :meander.syntax.gamma/node))
+  :args (s/cat :matrix :meander.matrix.delta/matrix)
+  :ret (s/coll-of :meander.syntax.delta/node))
 
 
 (defn nth-column
@@ -176,8 +197,8 @@
 
 
 (s/fdef drop-column
-  :args (s/cat :matrix :meander.matrix.gamma/matrix)
-  :ret :meander.matrix.gamma/matrix)
+  :args (s/cat :matrix :meander.matrix.delta/matrix)
+  :ret :meander.matrix.delta/matrix)
 
 
 (defn drop-column
@@ -191,11 +212,11 @@
         matrix))
 
 (s/fdef prepend-column
-  :args (s/cat :matrix :meander.matrix.gamma/matrix
-               :column (s/coll-of :meander.syntax.gamma/node
+  :args (s/cat :matrix :meander.matrix.delta/matrix
+               :column (s/coll-of :meander.syntax.delta/node
                                   :kind sequential?
                                   :into []))
-  :ret :meander.matrix.gamma/matrix)
+  :ret :meander.matrix.delta/matrix)
 
 
 (defn prepend-column
@@ -210,11 +231,11 @@
 
 (s/fdef specialize-by
   :args (s/cat :f (s/fspec
-                   :args (s/cat :node :meander.syntax.gamma/node)
+                   :args (s/cat :node :meander.syntax.delta/node)
                    :ret any?)
-               :matrix :meander.matrix.gamma/matrix)
-  :ret (s/map-of :meander.syntax.gamma.node/tag
-                 :meander.matrix.gamma/matrix))
+               :matrix :meander.matrix.delta/matrix)
+  :ret (s/map-of :meander.syntax.delta.node/tag
+                 :meander.matrix.delta/matrix))
 
 
 (defn specialize-by
@@ -244,8 +265,8 @@
 ;; Environment
 
 (s/fdef get-env
-  :args (s/cat :row :meander.matrix.gamma/row)
-  :ret :meander.matrix.gamma.row/env)
+  :args (s/cat :row :meander.matrix.delta/row)
+  :ret :meander.matrix.delta.row/env)
 
 
 (defn get-env
@@ -254,27 +275,61 @@
 
 
 (s/fdef add-var
-  :args (s/cat :row :meander.matrix.gamma/row
-               :var (s/or :meander.syntax.gamma.node/lvr
-                          :meander.syntax.gamma.node/mvr))
-  :ret :meander.matrix.gamma/row)
+  :args (s/cat :row :meander.matrix.delta/row
+               :var (s/or :meander.syntax.delta.node/lvr
+                          :meander.syntax.delta.node/mvr))
+  :ret :meander.matrix.delta/row)
 
 (defn add-var
   "Add var to the environment in row."
   [row var]
   (update row :env (fnil conj #{}) var))
 
+(s/fdef add-vars
+  :args (s/cat :row :meander.matrix.delta/row
+               :vars (s/coll-of (s/or :meander.syntax.delta.node/lvr
+                                      :meander.syntax.delta.node/mvr)
+                                :kind sequential?
+                                :into #{}))
+  :ret :meander.matrix.delta/row)
+
+
+(defn add-vars
+  "Add vars to the environment in row."
+  [row vars]
+  (update row :env (fnil into #{}) vars))
+
 
 (s/fdef get-var
-  :args (s/cat :row :meander.matrix.gamma/row
-               :var (s/or :meander.syntax.gamma.node/lvr
-                          :meander.syntax.gamma.node/mvr))
+  :args (s/cat :row :meander.matrix.delta/row
+               :var (s/or :meander.syntax.delta.node/lvr
+                          :meander.syntax.delta.node/mvr))
   :ret (s/nilable
-        (s/or :meander.syntax.gamma.node/lvr
-              :meander.syntax.gamma.node/mvr)))
+        (s/or :meander.syntax.delta.node/lvr
+              :meander.syntax.delta.node/mvr)))
 
 
 (defn get-var
   "Get var from the environment in row."
   [row var]
   (get (:env row) var))
+
+;; TODO: Make mvrs it's own part of the map.
+(defn bound-mvrs
+  "Return the set of currently bound memory variables in row."
+  [row]
+  (into #{} (filter r.syntax/mvr-node?) (:env row)))
+
+;; TODO: Make lvrs it's own part of the map.
+(defn bound-lvrs
+  "Return the set of currently bound logic variables in row."
+  [row]
+  (into #{} (filter r.syntax/lvr-node?) (:env row)))
+
+(defn unbound-mvrs
+  "Return the set of unbound memory variables in node with respect to
+  row."
+  [row node]
+  (set/difference
+   (r.syntax/memory-variables (r.syntax/substitute-refs node (:refs row)))
+   (bound-mvrs row)))

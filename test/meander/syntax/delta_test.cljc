@@ -1,8 +1,8 @@
-(ns meander.syntax.gamma-test
+(ns meander.syntax.delta-test
   (:require
    [clojure.test :as t]
-   [meander.match.gamma :as r.match]
-   [meander.syntax.gamma :as r.syntax :include-macros true]))
+   [meander.match.delta :as r.match]
+   [meander.syntax.delta :as r.syntax :include-macros true]))
 
 (r.syntax/defsyntax $cons [?head ?tail]
   `(~'pred clojure.core/seq?
@@ -19,7 +19,7 @@
   ;; Test fully qualified symbol resolution.
   (t/is (= [1 '(2 3)]
            (r.match/find '(1 2 3)
-             (meander.syntax.gamma-test/$cons ?first ?rest)
+             (meander.syntax.delta-test/$cons ?first ?rest)
              [?first ?rest])))
 
   (t/is (= 1

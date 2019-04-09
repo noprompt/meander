@@ -2,9 +2,9 @@
   (:require
    [clojure.java.shell :as shell]
    [clojure.string :as string]
-   [meander.match.gamma :as r.match :include-macros true]
-   [meander.strategy.gamma :as r]
-   [meander.syntax.gamma :as r.syntax :include-macros true]))
+   [meander.match.delta :as r.match :include-macros true]
+   [meander.strategy.delta :as r]
+   [meander.syntax.delta :as r.syntax :include-macros true]))
 
 
 (defn git-branch-name
@@ -24,7 +24,7 @@
   []
   (r.match/match (git-branch-name)
     [:okay ?branch-name]
-    (r.match/match (shell/sh "git" "rev-list" (str ?branch-name "...origin/beta") "--count")
+    (r.match/match (shell/sh "git" "rev-list" (str ?branch-name "...origin/gamma") "--count")
       {:exit 0, :out ?out}
       [:okay (string/trim ?out)]
 
@@ -72,7 +72,7 @@
 
 (comment
   (-main)
-  ;; => Writes
+  ;; => Writes something like
   (defproject meander/beta "0.0.496"
     :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
     :url "https://github.com/noprompt/meander"

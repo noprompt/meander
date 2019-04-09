@@ -1,6 +1,6 @@
-(ns meander.substitute.gamma-test
+(ns meander.substitute.delta-test
   (:require [clojure.test :as t]
-            [meander.substitute.gamma :as r.substitute :include-macros true]))
+            [meander.substitute.delta :as r.substitute :include-macros true]))
 
 (t/deftest lvr-test
   (let [?1 1

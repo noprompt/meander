@@ -1,53 +1,235 @@
-(ns meander.syntax.gamma
+(ns meander.syntax.delta
   #?(:clj
      (:require [clojure.set :as set]
                [clojure.spec.alpha :as s]
                [clojure.spec.gen.alpha :as s.gen]
                [clojure.string :as string]
                [cljs.tagged-literals]
-               [meander.util.gamma :as r.util])
+               [meander.util.delta :as r.util])
      :cljs
      (:require [clojure.set :as set]
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.spec.gen.alpha :as s.gen :include-macros true]
                [clojure.string :as string]
-               [meander.util.gamma :as r.util]))
+               [meander.util.delta :as r.util]))
   #?(:cljs
-     (:require-macros [meander.syntax.gamma]))
+     (:require-macros [meander.syntax.delta]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(s/def :meander.syntax.gamma/tag
+;; ---------------------------------------------------------------------
+;; AST specs and predicates
+
+(s/def :meander.syntax.delta/tag
   keyword?)
 
-(s/def :meander.syntax.gamma/node
-  (s/keys :req-un [:meander.syntax.gamma/tag]))
+(s/def :meander.syntax.delta/node
+  (s/keys :req-un [:meander.syntax.delta/tag]))
 
-;; ---------------------------------------------------------------------
-;; AST API
+(defn any-form?
+  "true if x is a symbol beginning with _."
+  [x]
+  (and (simple-symbol? x)
+       (r.util/re-matches? #"_.*" (name x))))
+
+(s/def :meander.syntax.delta/any
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (any-form? x)
+         x
+         ::s/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [sym]
+         (symbol (str "_" (name sym))))
+       (s.gen/symbol)))))
+
+(s/def :meander.syntax.delta.node.any/tag
+  #{:any})
+
+(s/def :meander.syntax.delta.node.any/symbol
+  :meander.syntax.delta/any)
+
+(s/def :meander.syntax.delta.node/any
+  (s/keys :req-un [:meander.syntax.delta.node.any/tag
+                   :meander.syntax.delta.node.any/symbol]))
+
+(defn any-node?
+  "true if x is an :any node, false otherwise."
+  [x]
+  (s/valid? :meander.syntax.delta.node/any x))
+
+(s/fdef logic-variable-form?
+  :args (s/cat :x any?)
+  :ret boolean?)
+
+(defn logic-variable-form?
+  "true if x is in the form of a logic variable i.e. a simple symbol
+  with a name beginning with \\?."
+  [x]
+  (and (simple-symbol? x)
+       (r.util/re-matches? #"\?.+" (name x))))
+
+(s/def :meander.syntax.delta/logic-variable
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (logic-variable-form? x)
+         x
+         ::s/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (symbol (str \? (name x))))
+       (s/gen simple-symbol?)))))
+
+(s/def :meander.syntax.delta.node.lvr/tag
+  #{:lvr})
+
+(s/def :meander.syntax.delta.node.lvr/symbol
+  :meander.syntax.delta/logic-variable)
+
+(s/def :meander.syntax.delta.node/lvr
+  (s/keys :req-un [:meander.syntax.delta.node.lvr/tag
+                   :meander.syntax.delta.node.lvr/symbol]))
+
+(defn lvr-node?
+  [x]
+  (s/valid? :meander.syntax.delta.node/lvr x))
+
+(defn memory-variable-form?
+  "true if x is in the form of a memory variable i.e. a simple symbol
+  with a name beginning with \\!."
+  [x]
+  (and (simple-symbol? x)
+       (r.util/re-matches? #"!.+" (name x))))
+
+(s/def :meander.syntax.delta/memory-variable
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (memory-variable-form? x)
+         x
+         ::s/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (symbol (str \! (name x))))
+       (s/gen simple-symbol?)))))
+
+(s/def :meander.syntax.delta.node.mvr/tag
+  #{:mvr})
+
+(s/def :meander.syntax.delta.node.mvr/symbol
+  :meander.syntax.delta/memory-variable)
+
+(s/def :meander.syntax.delta.node/mvr
+  (s/keys :req-un [:meander.syntax.delta.node.mvr/tag
+                   :meander.syntax.delta.node.mvr/symbol]))
+
+(defn mvr-node?
+  [x]
+  (s/valid? :meander.syntax.delta.node/mvr x))
+
+(defn variable-node?
+  [x]
+  (or (mvr-node? x)
+      (lvr-node? x)))
+
+(defn ref-sym?
+  [x]
+  (and (simple-symbol? x)
+       (boolean (re-matches #"%.+" (name x)))))
+
+(s/def :meander.syntax.delta/reference
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (ref-sym? x)
+         x
+         ::s/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (symbol (str \% (name x))))
+       (s/gen simple-symbol?)))))
+
+(s/def :meander.syntax.delta.node.ref/tag
+  #{:ref})
+
+(s/def :meander.syntax.delta.node.ref/symbol
+  :meander.syntax.delta/reference)
+
+(s/def :meander.syntax.delta.node/ref
+  (s/keys :req-un [:meander.syntax.delta.node.ref/symbol
+                   :meander.syntax.delta.node.ref/tag]))
+
+(defn ref-node?
+  "true if x is a :ref node, false otherwise."
+  [x]
+  (s/valid? :meander.syntax.delta.node/ref x))
+
+(s/def :meander.syntax.delta.node.with/tag
+  #{:wth})
+
+(s/def :meander.syntax.delta.node.with.binding/ref
+  :meander.syntax.delta.node/ref)
+
+(s/def :meander.syntax.delta.node.with.binding/pattern
+  :meander.syntax.delta/node)
+
+(s/def :meander.syntax.delta.node.with/binding
+  (s/keys :req-un [:meander.syntax.delta.node.with.binding/pattern
+                   :meander.syntax.delta.node.with.binding/ref]))
+
+(s/def :meander.syntax.delta.node.with/bindings
+  (s/coll-of :meander.syntax.delta.node.with/binding
+             :kind sequential?))
+
+(s/def :meander.syntax.delta.node.with/body
+  (s/nilable :meander.syntax.delta/node))
+
+(s/def :meander.syntax.delta.node/with
+  (s/keys :req-un [:meander.syntax.delta.node.with/tag
+                   :meander.syntax.delta.node.with/bindings]
+          :opt-un [:meander.syntax.delta.node.with/body]))
+
+(defn with-node? [x]
+  (s/valid? :meander.syntax.delta.node/with x))
 
 (defn node?
   "true if x is an AST node."
   [x]
-  (s/valid? :meander.syntax.gamma/node x))
+  (s/valid? :meander.syntax.delta/node x))
 
-(defn children-dispatch
-  {:private true}
+;; ---------------------------------------------------------------------
+;; AST API
+
+(defn tag
+  "Return the tag of node."
   [node]
-  (s/assert :meander.syntax.gamma/node node)
+  (s/assert :meander.syntax.delta/node node)
   (:tag node))
 
+;; children
+;; --------
+
 (s/fdef children
-  :args (s/cat :node :meander.syntax.gamma/node)
-  :ret (s/coll-of :meander.syntax.gamma/node
+  :args (s/cat :node :meander.syntax.delta/node)
+  :ret (s/coll-of :meander.syntax.delta/node
                   :kind sequential?))
 
 (defmulti children
   "Return a sequential? of all children of node."
   {:arglists '([node])}
-  #'children-dispatch)
+  #'tag)
 
 (defmethod children :default
   [node]
@@ -64,255 +246,125 @@
   (rest (subnodes node)))
 
 (s/fdef max-length
-  :args (s/cat :node :meander.syntax.gamma/node)
+  :args (s/cat :node :meander.syntax.delta/node)
   :ret (s/or :nat nat-int?
              :inf #{##Inf}))
 
-(defn max-length-dispatch
-  {:private true}
-  [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (:tag node))
-
 (defmulti max-length
-  "The maximum possible length the pattern described by node can be."
+  "The maximum possible length the pattern described by node can
+  be. Note, this mutlimethod will throw an error wheneven node does
+  not have a method to handle it. This behavior is intentional as the
+  implementations should only exist for things which have can have
+  length."
   {:arglists '([node])}
-  #'max-length-dispatch)
-
-(defn min-length-dispatch
-  {:private true}
-  [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (:tag node))
+  #'tag)
 
 (defmulti min-length
-  "The maximum possible length the pattern described by node can be."
+  "The maximum possible length the pattern described by node can be.
+  Note, this mutlimethod will throw an error wheneven node does not
+  have a method to handle it. This behavior is intentional as the
+  implementations should only exist for things which have can have
+  length."
   {:arglists '([node])}
-  #'min-length-dispatch)
+  #'tag)
 
 (s/fdef variable-length?
-  :args (s/cat :node :meander.syntax.gamma/node)
+  :args (s/cat :node :meander.syntax.delta/node)
   :ret boolean?)
 
 (defn variable-length?
-  "true if node may have a variable length."
+  "true if node may have a variable length, false otherwise. Note this
+  function will throw an error if node does not implement methods for
+  both min-length and max-length."
   [node]
   (not (= (min-length node) (max-length node))))
-
-(defn ground?-dispatch
-  {:private true}
-  [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (:tag node))
 
 (defmulti ground?
   "true if node is ground i.e. it contains no variables or is not a
   match operator."
   {:arglists '([node])}
-  #'ground?-dispatch)
+  #'tag)
 
 (s/fdef search?
-  :args (s/cat :node :meander.syntax.gamma/node)
+  :args (s/cat :node :meander.syntax.delta/node)
   :ret boolean?)
-
-(defn search?-dispatch
-  {:private true}
-  [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (:tag node))
 
 (defmulti search?
   "true if node represents a search, false otherwise."
   {:arglists '([node])}
-  #'search?-dispatch)
-
-(defn unparse-dispatch
-  {:private true}
-  [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (:tag node))
+  #'tag)
 
 (defmulti unparse
   "In pre-order fashion rewrite a node into a Clojure form."
   {:arglists '([node])}
-  #'unparse-dispatch)
+  #'tag)
 
-(defn tag
-  "Return the tag of node."
+(defn fold
+  "Same as clojure.core/reduce but specifically for ASTs. f must be a
+  binary (arity 2) function and will receive as arguments the current
+  accumulated value and an AST node. fold is eager and will visit each
+  subnode in node."
+  [f value node]
+  (reduce f value (subnodes node)))
+
+(defn variables*
+  {:private true}
   [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (:tag node))
+  (fold
+   (fn [vars node]
+     (let [tag (tag node)]
+       (case tag
+         (:lvr :mvr :ref)
+         (update vars tag conj node)
+
+         :wth
+         (transduce (comp (map :pattern)
+                          (map variables*))
+                    (fn
+                      ([a] a)
+                      ([a b]
+                       (merge-with set/union a b)))
+                    vars
+                    (:bindings node))
+         
+         ;;
+         vars)))
+   {:lvr #{}
+    :mvr #{}
+    :ref #{}}
+   node))
 
 (defn variables
   "Return all :lvr and :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (into #{}
-    (filter (comp #{:lvr :mvr} tag))
-    (subnodes node)))
+  (s/assert :meander.syntax.delta/node node)
+  (let [vars (variables* node)]
+    (set/union (:lvr vars) (:mvr vars))))
 
 (defn memory-variables
   "Return all :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (into #{}
-        (filter (comp #{:mvr} tag))
-        (subnodes node)))
+  (s/assert :meander.syntax.delta/node node)
+  (:mvr (variables* node)))
 
 (defn logic-variables
   "Return all :lvr nodes in node."
   [node]
-  (s/assert :meander.syntax.gamma/node node)
-  (into #{}
-        (filter (comp #{:lvr} tag))
-        (subnodes node)))
+  (s/assert :meander.syntax.delta/node node)
+  (:lvr (variables* node)))
 
-#?(:clj
-   (defn re-matches? [ re s]
-     (.matches (re-matcher re s)))
-   :cljs
-   (defn re-matches? [re s]
-     (.test re s)))
+(defn references
+  [node]
+  (:ref (variables* node)))
 
-(defn any-form?
-  "true if x is a symbol beginning with _."
-  [x]
-  (and (simple-symbol? x)
-       (r.util/re-matches? #"_.*" (name x))))
+(defn top-level
+  [node]
+  (case (tag node)
+    (:cnj :dsj :wth)
+    (mapcat top-level (children node))
+    ;; else
+    [node]))
 
-(s/def :meander.syntax.gamma/any
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (any-form? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [sym]
-         (symbol (str "_" (name sym))))
-       (s.gen/symbol)))))
-
-(s/def :meander.syntax.gamma.node.any/tag
-  #{:any})
-
-(s/def :meander.syntax.gamma.node.any/symbol
-  :meander.syntax.gamma/any)
-
-(s/def :meander.syntax.gamma.node/any
-  (s/keys :req-un [:meander.syntax.gamma.node.any/tag
-                   :meander.syntax.gamma.node.any/symbol]))
-
-(defn any-node?
-  "true if x is an :any node, false otherwise."
-  [x]
-  (s/valid? :meander.syntax.gamma.node/any x))
-
-(s/fdef logic-variable-form?
-  :args (s/cat :x any?)
-  :ret boolean?)
-
-(defn logic-variable-form?
-  "true if x is in the form of a logic variable i.e. a simple symbol
-  with a name beginning with \\?."
-  [x]
-  (and (simple-symbol? x)
-       (r.util/re-matches? #"\?.+" (name x))))
-
-(s/def :meander.syntax.gamma/logic-variable
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (logic-variable-form? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [x]
-         (symbol (str \? (name x))))
-       (s/gen simple-symbol?)))))
-
-(s/def :meander.syntax.gamma.node.lvr/tag
-  #{:lvr})
-
-(s/def :meander.syntax.gamma.node.lvr/symbol
-  :meander.syntax.gamma/logic-variable)
-
-(s/def :meander.syntax.gamma.node/lvr
-  (s/keys :req-un [:meander.syntax.gamma.node.lvr/tag
-                   :meander.syntax.gamma.node.lvr/symbol]))
-
-(defn lvr-node?
-  [x]
-  (s/valid? :meander.syntax.gamma.node/lvr x))
-
-(defn memory-variable-form?
-  "true if x is in the form of a memory variable i.e. a simple symbol
-  with a name beginning with \\!."
-  [x]
-  (and (simple-symbol? x)
-       (r.util/re-matches? #"!.+" (name x))))
-
-(s/def :meander.syntax.gamma/memory-variable
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (memory-variable-form? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [x]
-         (symbol (str \! (name x))))
-       (s/gen simple-symbol?)))))
-
-(s/def :meander.syntax.gamma.node.mvr/tag
-  #{:mvr})
-
-(s/def :meander.syntax.gamma.node.mvr/symbol
-  :meander.syntax.gamma/memory-variable)
-
-(s/def :meander.syntax.gamma.node/mvr
-  (s/keys :req-un [:meander.syntax.gamma.node.mvr/tag
-                   :meander.syntax.gamma.node.mvr/symbol]))
-
-(defn mvr-node?
-  [x]
-  (s/valid? :meander.syntax.gamma.node/mvr x))
-
-(defn variable-node?
-  [x]
-  (or (mvr-node? x)
-      (lvr-node? x)))
-
-(defn ref-sym?
-  [x]
-  (and (simple-symbol? x)
-       (boolean (re-matches #"%.+" (name x)))))
-
-(s/def :meander.syntax.gamma/reference
-  (s/with-gen
-    (s/conformer
-      (fn [x]
-        (if (ref-sym? x)
-          x
-          ::s/invalid))
-      identity)
-    (fn []
-      (s.gen/fmap
-        (fn [x]
-          (symbol (str \% (name x))))
-        (s/gen simple-symbol?)))))
-
-(s/def :meander.syntax.gamma.node/ref
-  (s/tuple #{:ref} :meander.syntax.gamma/reference))
-
-(defn ref-node?
-  [x]
-  (s/valid? :meander.syntax.gamma.node/reference x))
 
 ;; ---------------------------------------------------------------------
 ;; Parse implementation
@@ -478,6 +530,31 @@
                        :meta (meta xs)})))
     (parse xs env)))
 
+(defn parse-with
+  {:private true}
+  [xs env]
+  (if (and (seq? xs) (= 'with (first xs)))
+    (let [bindings (nth xs 1)]
+      (if (and (vector? bindings)
+               (even? (count bindings))
+               (every? ref-sym? (take-nth 2 bindings)))
+        {:tag :wth
+         :bindings (map
+                    (fn [[ref-sym x]]
+                      {:ref {:tag :ref
+                             :symbol ref-sym}
+                       :pattern (parse x env)})
+                    (partition 2 bindings))
+         :body (let [nothing (gensym)
+                     x (nth xs 2 nothing)]
+                 (if (identical? x nothing)
+                   nil
+                   (parse x env)))}
+        (ex-info "second argument to with must be vector of the form [%ref-name pattern ...]"
+                 {:form xs
+                  :meta (meta xs)})))
+    (parse xs env)))
+
 (defn parse-seq-no-head
   {:private true}
   [xs env]
@@ -501,7 +578,7 @@
        :prt (expand-prt (parse-all xs env))})))
 
 (defn parse-seq
-  "Parses a seq? into a :meander.syntax.gamma/node.
+  "Parses a seq? into a :meander.syntax.delta/node.
 
   seqs? of the following form are handled specially, all other seqs
   are parsed as :seq nodes.
@@ -600,6 +677,9 @@
         vscan
         (parse-vscan xs env)
 
+        with
+        (parse-with xs env)
+
         clojure.core/unquote
         {:tag :unq
          :expr (second xs)}
@@ -653,9 +733,9 @@
             {:tag :mvr
              :symbol sym}
 
-            #_(re-find #"\A%." s)
-            #_{:tag :ref
-               :symbol sym}
+            (re-find #"\A%." s)
+            {:tag :ref
+             :symbol sym}
 
             :else
             {:tag :lit
@@ -744,7 +824,7 @@
 (s/fdef parse
   :args (s/alt :a1 (s/cat :x any?)
                :a2 (s/cat :x any? :env map?))
-  :ret :meander.syntax.gamma/node)
+  :ret :meander.syntax.delta/node)
 
 (defn parse
   "Parse `x` into an abstract syntax tree (AST) optionally with
@@ -764,31 +844,34 @@
   ([x]
    (parse x {}))
   ([x env]
-   (cond
-     (seq? x)
-     (parse-seq x env)
-     
-     (vector? x)
-     (parse-vector x env) 
+   (let [node (cond
+                (seq? x)
+                (parse-seq x env)
+                
+                (vector? x)
+                (parse-vector x env) 
 
-     (and (map? x)
-          (not (record? x)))
-     (parse-map x env)
-     
+                (and (map? x)
+                     (not (record? x)))
+                (parse-map x env)
+                
 
-     (set? x)
-     {:tag :set
-      :elements (parse-all x env)}
+                (set? x)
+                {:tag :set
+                 :elements (parse-all x env)}
 
-     (symbol? x)
-     (parse-symbol x)
+                (symbol? x)
+                (parse-symbol x)
 
-     #?@(:clj [(instance? JSValue x)
-               (parse-js-value x env)])
+                #?@(:clj [(instance? JSValue x)
+                          (parse-js-value x env)])
 
-     :else
-     {:tag :lit
-      :value x})))
+                :else
+                {:tag :lit
+                 :value x})]
+     (if-some [meta (meta x)]
+       (assoc node :meta meta)
+       node))))
 
 
 ;; ---------------------------------------------------------------------
@@ -1164,10 +1247,25 @@
 (defmethod search? :quo [_]
   false)
 
+;; :ref
+
+(defmethod children :ref [node]
+  [])
+
+(defmethod ground? :ref [_]
+  false)
+
+(defmethod unparse :ref [node]
+  (:symbol node))
+
+(defmethod search? :ref [_]
+  false)
+
 ;; :rp*
 
 (defmethod children :rp* [node]
   (:elements node))
+
 (defmethod ground? :rp* [_]
   false)
 
@@ -1330,6 +1428,27 @@
 (defmethod search? :vec [node]
   (search? (:prt node)))
 
+;; wth
+
+(defmethod children :wth [node]
+  [(:body node)])
+
+(defmethod ground? :wth [node]
+  (ground? (:body node)))
+
+(defmethod unparse :wth [node]
+  `(~'with [~@(mapcat
+               (juxt
+                (comp unparse :ref)
+                (comp unparse :pattern))
+               (:bindings node))]
+    ~@(when-some [body (:body node)]
+        [(unparse body)])))
+
+(defmethod search? :wth [node]
+  ;; Come back to to this.
+  true)
+
 ;; ---------------------------------------------------------------------
 ;; walk
 
@@ -1347,14 +1466,21 @@
     x))
 
 (defn postwalk
-  "Same as clojure.walk/postwalk but for AST nodes."
   [f node]
-  (walk (partial postwalk f) f node))
+  (walk (fn [x]
+          (let [y (f x)]
+            (if (reduced? y)
+              (deref y)
+              (postwalk f y))))
+        f
+        node))
 
 (defn prewalk
-  "Same as clojure.walk/prewalk but for AST nodes."
   [f node]
-  (walk (partial prewalk f) identity (f node)))
+  (let [x (f node)]
+    (if (reduced? x)
+      (deref x)
+      (walk (partial prewalk f) identity x))))
 
 (defn prewalk-replace
   "Same as clojure.walk/prewalk-replace but for AST nodes."
@@ -1432,138 +1558,19 @@
 (defmethod walk :vec [inner outer node]
   (outer (assoc node :prt (inner (:prt node)))))
 
-
-;; ---------------------------------------------------------------------
-;; fold
-
-(defmulti fold
-  {:arglists '([f value node])}
-  (fn [_ _ node] (tag node))
-  :default ::default)
-
-(defmethod fold ::default
-  [f result node]
-  (f result node))
-
-(defmethod fold :app [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:arguments node)))
-
-(defmethod fold :cat
-  [f result node]
-  (reduce
-   (fn [result element]
-     (fold f result element))
-   (f result node)
-   (:elements node)))
-
-(defmethod fold :cnj [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:arguments node)))
-
-(defmethod fold :ctn [f result node]
-  (let [result (f result node)
-        result (if-some [context (:context node)]
-                 (fold f result context)
-                 result)]
-    (fold f result (:pattern node))))
-
-(defmethod fold :dsj [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:arguments node)))
-
-(defmethod fold :jsa [f result node]
-  (fold f (f result node) (:prt node)))
-
-(defmethod fold :jso [f result node]
-  (reduce
-   (fn [result [k-node v-node]]
-     (fold f (fold f result k-node) v-node))
-   (f result node)
-   (:object node)))
-
-(defmethod fold :let [f result node]
-  (reduce
-   (fn [result binding]
-     (fold f result (:binding binding)))
-   (f result node)
-   (:bindings node)))
-
-(defmethod fold :map
-  [f result node]
-  (let [result (if-some [rest-map (:rest-map node)]
-                 (fold f result rest-map)
-                 result)]
-    (reduce
-     (fn [result [k-node v-node]]
-       (fold f (fold f result k-node) v-node))
-     (f result node)
-     (:map node))))
-
-(defmethod fold :not [f result node]
-  (fold f (f result node) (:argument node)))
-
-(defmethod fold :prd [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:arguments node)))
-
-(defmethod fold :prt
-  [f result node]
-  (fold f (fold f (f result node) (:left node)) (:right node)))
-
-(defmethod fold :rp*
-  [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:elements node)))
-
-(defmethod fold :rp+
-  [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:elements node)))
-
-(defmethod fold :rxc [f result node]
-  (fold f (f result node) (:capture node)))
-
-(defmethod fold :set
-  [f result node]
-  (reduce
-   (fn [result node]
-     (fold f result node))
-   (f result node)
-   (:elements node)))
-
-(defmethod fold :seq
-  [f result node]
-  (fold f (f result node) (:prt node)))
-
-(defmethod fold :vec
-  [f result node]
-  (fold f (f result node) (:prt node)))
-
+(defmethod walk :wth [inner outer node]
+  (outer (assoc node
+                :bindings (mapv
+                           (fn [binding]
+                             (assoc binding :pattern (inner (:pattern binding))))
+                           (:bindings node))
+                :body (inner (:body node)))))
 
 ;; ---------------------------------------------------------------------
 ;; defsyntax
 
 
-(s/def :meander.syntax.gamma/defsyntax-args
+(s/def :meander.syntax.delta/defsyntax-args
   (s/cat :name simple-symbol?
          :docstring (s/? string?)
          :meta (s/? map?)
@@ -1584,7 +1591,7 @@
         (and (string? s#)
              (re-matches ~regex s#)))))
 
-  (require '[meander.match.gamma :as r.match])
+  (require '[meander.match.delta :as r.match])
 
   (r.match/match \"elf\"
     (re #\"[a-z]+\")
@@ -1593,7 +1600,7 @@
   "
   {:arglists '([name docstring? meta? arglist & body])}
   [& args]
-  (let [data (s/conform :meander.syntax.gamma/defsyntax-args args)]
+  (let [data (s/conform :meander.syntax.delta/defsyntax-args args)]
     (if (identical? data ::s/invalid)
       nil
       (let [sym (get data :name)
@@ -1605,7 +1612,7 @@
         ;; When defining new syntax in ClojureScript it is also
         ;; necessary to define the methods which parse and expand the
         ;; syntax in Clojure. This is because the match, search, and
-        ;; find macros (in meander.match.gamma) are expanded in
+        ;; find macros (in meander.match.delta) are expanded in
         ;; Clojure which, in turn, rely on these methods.
         #?(:clj
            (when-some [cljs-ns (:ns &env)]
@@ -1630,9 +1637,9 @@
                    ~arglist
                    ~@body)
 
-                 (defmethod meander.syntax.gamma/expand-seq '~q-sym [[_# ~@arglist] _#]
+                 (defmethod meander.syntax.delta/expand-seq '~q-sym [[_# ~@arglist] _#]
                    (~sym ~@arglist))))
-             (in-ns 'meander.syntax.gamma)))
+             (in-ns 'meander.syntax.delta)))
         `(do
            (defn ~sym
              ~@(when-some [docstring (get data :docstring)]
@@ -1646,3 +1653,105 @@
              (~sym ~@arglist))
 
            (var ~q-sym))))))
+
+(defn genref
+  {:private true}
+  []
+  {:tag :ref
+   :symbol (gensym "%r__")})
+
+(defn ref-smap
+  {:private true}
+  [with-node]
+  (into {} (map
+            (fn [binding]
+              [(:ref binding) (genref)]))
+        (:bindings with-node)))
+
+(defn rename-refs
+  "Give all distinct :ref nodes a unique :symbol."
+  [node]
+  (postwalk
+   (fn [node]
+     (if (with-node? node)
+       (let [ref-smap (ref-smap node)]
+         (assoc node
+                :bindings (map
+                           (fn [binding]
+                             {:ref (get ref-smap (:ref binding))
+                              :pattern (postwalk-replace ref-smap (:pattern binding))})
+                           (:bindings node))
+                :body (postwalk-replace ref-smap (:body node))))
+       node))
+   node))
+
+(defn consolidate-with
+  "Collapse all :wth nodes into a single :wth node."
+  [node]
+  (let [state (volatile! [])
+        node (prewalk
+              (fn f [node]
+                (if (with-node? node)
+                  (do (vswap! state into (:bindings node))
+                      (:body node))
+                  node))
+              node)]
+    {:tag :wth
+     :bindings (deref state)
+     :body node}))
+
+
+(s/def :meander.syntax.delta/ref-map
+  (s/map-of :meander.syntax.delta.node/ref
+            :meander.syntax.delta/node))
+
+(s/fdef make-ref-map
+  :args (s/cat :node :meander.syntax.delta/node)
+  :ret :meander.syntax.delta/ref-map)
+
+(defn make-ref-map
+  "If node is a node repesenting a with pattern, return a map from
+  reference to pattern node derived from it's bindings, otherwise
+  return an empty map."
+  {:private true}
+  [node]
+  (if (with-node? node)
+    (into {} (map (juxt :ref :pattern)) (:bindings node))
+    {}))
+
+(s/fdef substitute-refs
+  :args (s/alt :a1 (s/cat :node :meander.syntax.delta/node)
+               :a2 (s/cat :node :meander.syntax.delta/node
+                          :ref-map :meander.syntax.delta/ref-map))
+  :ret :meander.syntax.delta/node)
+
+(defn substitute-refs
+  "Given node and an optional ref-map "
+  ([node]
+   (substitute-refs node {}))
+  ([node ref-map]
+   (prewalk
+    (fn f [node]
+      (cond
+        (ref-node? node)
+        (reduced
+         (if-some [other-node (get ref-map node)]
+           (substitute-refs other-node (dissoc ref-map node))
+           node))
+
+        (with-node? node)
+        (reduced
+         (if-some [body (:body node)]
+           (let [ref-map (reduce
+                          (fn [ref-map [k v]]
+                            (if (contains? ref-map k)
+                              ref-map
+                              (assoc ref-map k v)))
+                          (make-ref-map node)
+                          ref-map)]
+             (substitute-refs body ref-map))
+           node))
+
+        :else
+        node))
+    node)))
