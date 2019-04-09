@@ -72,7 +72,8 @@
   {:cols []
    :rhs nil
    :env #{}
-   :refs {}})
+   :refs {}
+   :ref-specs {}})
 
 (defn make-row
   [cols rhs]

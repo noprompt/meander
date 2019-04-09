@@ -75,6 +75,7 @@
     {}))
 
 (defn substitute-refs
+  {:private true}
   ([node]
    (substitute-refs node {}))
   ([node ref-map]
@@ -104,7 +105,9 @@
         node))
     node)))
 
+;; May no longer be needed.
 (defn substitute-refs-shallow
+  {:private true}
   ([node]
    (substitute-refs-shallow node {}))
   ([node ref-map]
@@ -133,6 +136,36 @@
         :else
         node))
     node)))
+
+(defn get-spec-map
+  {:private true}
+  [ref-spec-map ref-node env]
+  (if-some [[_ ref-specs] (clojure/find ref-spec-map ref-node)]
+    (apply max-key
+           (fn [ref-spec]
+             (count (set/intersection env (:vars ref-spec))))
+           ref-specs)
+    nil))
+
+(defn make-ref-spec-map
+  {:private true}
+  [ref-map]
+  (into {} (map
+            (fn [[ref node]]
+              (let [vars (r.syntax/variables (substitute-refs node ref-map))
+                    rets (vec vars)
+                    ret-syms (mapv :symbol rets)]
+                [ref (map
+                      (fn [reqs]
+                        {:symbol (gensym* "def__")
+                         :vars (set reqs)
+                         :reqs reqs
+                         :rets rets
+                         :node node})
+                      (take (inc (count vars))
+                            (iterate pop rets)))])))
+        ref-map))
+
 
 (declare compile)
 
@@ -943,44 +976,14 @@
          (compile-pass targets [row])
 
          :ref
-         (let [ref-map (:refs row)]
-           (if-some [other-node (get ref-map node)]
-             (let [;; Using substitute-refs-shallow will produce less
-                   ;; code but yields potentially "incorrect"
-                   ;; bindings.
-                   node* (substitute-refs other-node ref-map)
-                   reqs (:env row)
-                   rets (r.syntax/variables node*)
-                   req-syms (mapv r.syntax/unparse reqs)
-                   ret-syms (mapv r.syntax/unparse rets)
-                   key-path [:defs [node req-syms ret-syms]]]
-               (if-some [data (get-in row key-path)]
-                 (let [env* (into (:env row) rets)
-                       row* (assoc row :env env*)]
-                   {:op :call
-                    :symbol (:def-symbol data)
-                    :target (r.ir/op-eval target)
-                    :req-syms req-syms
-                    :ret-syms ret-syms
-                    :then (compile targets* [row*])})
-                 (let [target-arg (gensym* "arg__")
-                       def-symbol (gensym* "def__")
-                       data {:def-symbol def-symbol
-                             :reqs reqs
-                             :rets rets}
-                       row* (assoc-in row key-path data)]
-                   {:op :def
-                    :symbol def-symbol
-                    :target-arg target-arg
-                    :req-syms req-syms
-                    :ret-syms ret-syms
-                    :body (compile
-                           [target-arg]
-                           [(assoc row*
-                                   :cols [node*]
-                                   :rhs (r.ir/op-eval ret-syms))])
-                    :then (compile targets (r.matrix/prepend-column [row*] [node]))})))
-             (throw (ex-info "Unbound reference" {:rest-row row, :col node}))))))
+         (if-some [ref-spec (get-spec-map (:ref-specs row) node (:env row))]
+           {:op :call
+            :symbol (:symbol ref-spec)
+            :target (r.ir/op-eval target)
+            :req-syms (mapv :symbol (:reqs ref-spec))
+            :ret-syms (mapv :symbol (:rets ref-spec))
+            :then (compile targets* [(r.matrix/add-vars row (:rets ref-spec))])}
+           (throw (ex-info "Unbound reference" {:rest-row row, :col node})))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1237,6 +1240,8 @@
          (if-some [body (:body node)]
            (let [ref-map (make-ref-map node)
                  refs* (merge (:refs row) ref-map)
+                 ref-spec-map (make-ref-spec-map refs*)
+                 ref-spec-map* (merge (:ref-specs row) ref-spec-map)
                  bound-mvrs (r.matrix/bound-mvrs row)
                  unbound-mvrs (into #{}
                                     (mapcat
@@ -1246,9 +1251,9 @@
                                          (substitute-refs node refs*))
                                         bound-mvrs)))
                                     ref-map)
-                 matrix* (r.matrix/prepend-column 
-                          [(r.matrix/add-vars (assoc row :refs refs*) unbound-mvrs)]
-                          [body])]
+                 row* (assoc row :refs refs* :ref-specs ref-spec-map*)
+                 row* (r.matrix/add-vars row* unbound-mvrs)
+                 matrix* (r.matrix/prepend-column [row*] [body])]
              ;; Initialize memory variables to prevent an explosion of
              ;; data brought on by potentially differing memory
              ;; variable sets in each pattern.
@@ -1256,7 +1261,23 @@
               (fn [dt node]
                 (r.ir/op-mvr-init (:symbol node)
                   dt))
-              (compile targets matrix*)
+              ;; Compile nodes for all possible defs.
+              (reduce 
+               (fn [dt spec-map]
+                 (let [target-arg (gensym* "arg__")
+                       ret-syms (mapv :symbol (:rets spec-map))]
+                   {:op :def
+                    :symbol (:symbol spec-map)
+                    :target-arg target-arg
+                    :req-syms (mapv :symbol (:reqs spec-map))
+                    :ret-syms ret-syms
+                    :body (compile [target-arg]
+                                   [(assoc (r.matrix/add-vars row* (:reqs spec-map))
+                                           :cols [(:node spec-map)]
+                                           :rhs (r.ir/op-eval ret-syms))])
+                    :then dt}))
+               (compile targets matrix*)
+               (mapcat identity (vals ref-spec-map)))
               unbound-mvrs))
            (compile-pass targets* [row]))))
      (r.matrix/first-column matrix)
@@ -1346,6 +1367,7 @@
   (s/keys :req-un [:meander.match.delta.check-env/lvrs
                    :meander.match.delta.check-env/mvrs
                    :meander.match.delta.check-env/refs]))
+
 
 (def empty-check-env
   {:lvrs #{}
@@ -1726,8 +1748,10 @@
 
 (defn parse-expand
   {:private true}
-  [x env]
-  (expand-node (r.syntax/parse x env)))
+  ([x]
+   (parse-expand x {}))
+  ([x env]
+   (expand-node (r.syntax/parse x env))))
 
 
 ;; TODO: Include useless clause analysis.
@@ -1971,19 +1995,31 @@
 ;; Scratch
 
 #_
-(find [:p {"bar" "foo"}
-        [:b "Foo"]
-        [:b {"quux" "foo"} "Baz"]
-        [:h1 {"lol" 32}
-         "Beef" "Lamb" "Chicken"]]
-   (with [%1 [!tags (pred map? !attrs) . %R ...]
-          %2 [!tags . %R ...]
-          %3 !xs
-          %R (or %1 %2 %3)]
-     %R)
-   [!tags !attrs !xs])
-
-#_
 (defn search-ir [search-args]
-  (compile [(gensym* "target__")]
-           (:matrix (analyze-search-args search-args))))
+  (compile [(gensym* "target__")] (:matrix (analyze-search-args search-args))))
+
+(comment
+  (defn with-demo [target]
+    (find target
+      (with [%h1 [!tags {:as !attrs} . %hiccup ...]
+             %h2 [!tags . %hiccup ...]
+             %h3 !xs
+             %hiccup (or %h1 %h2 %h3)]
+        %hiccup)
+      [!tags !attrs !xs]))
+
+  (with-demo
+    '[:div
+      [:p {"foo" "bar"}
+       [:strong "Foo"]
+       [:em {"baz" "quux"} "Bar"
+        [:u "Baz"]]]
+      [:ul
+       [:li "Beef"]
+       [:li "Lamb"]
+       [:li "Pork"]
+       [:li "Chicken"]]])
+  ;; =>
+  [[:div :p :strong :em :u :ul :li :li :li]
+   [{"foo" "bar"} {"baz" "quux"}]
+   ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]])

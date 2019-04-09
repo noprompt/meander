@@ -147,6 +147,11 @@
 ;; ---------------------------------------------------------------------
 ;; Code generation
 
+(def FAIL
+  "Special value returned by compiled :def nodes signaling a match
+  failure. Compiled :call nodes check for this value."
+  (reify))
+
 (defn seq-bites [n coll]
   (if (seq coll)
     (lazy-seq (cons [(take n coll) (drop n coll)]
@@ -268,8 +273,11 @@
 
 (defmethod emit* :call
   [dt fail kind]
-  `(let [[~@(:ret-syms dt)] (~(:symbol dt) ~(emit* (:target dt) fail kind) ~@(:req-syms dt))]
-     ~(emit* (:then dt) fail kind)))
+  `(let [x# (~(:symbol dt) ~(emit* (:target dt) fail kind) ~@(:req-syms dt))]
+     (if (identical? x# FAIL)
+       ~fail
+       (let [[~@(:ret-syms dt)] x#]
+         ~(emit* (:then dt) fail kind)))))
 
 (defmethod emit* :check-array
   [dt fail kind]
@@ -356,9 +364,15 @@
 
 (defmethod emit* :def
   [dt fail kind]
-  `(letfn [(~(:symbol dt) [~(:target-arg dt) ~@(:req-syms dt)]
-            ~(emit* (:body dt) fail kind))]
-     ~(emit* (:then dt) fail kind)))
+  (loop [bindings []
+         dt dt]
+    (if (= (:op dt) :def)
+      (recur (conj bindings
+                   `(~(:symbol dt) [~(:target-arg dt) ~@(:req-syms dt)]
+                     ~(emit* (:body dt) `FAIL kind)))
+             (:then dt))
+      `(letfn ~bindings
+         ~(emit* dt fail kind)))))
 
 (defmethod emit* :eval
   [dt fail kind]
@@ -504,6 +518,31 @@
 
 ;; ---------------------------------------------------------------------
 ;; Tree rewriting
+
+;; :def rewriting
+
+(defn def-remove-unused [dt]
+  (let [call-symbols (into #{}
+                           (comp (filter (comp #{:call} :op))
+                                 (map :symbol))
+                           (nodes dt))]
+    (loop [loc (dt-zip dt)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (let [node (zip/node loc)]
+          (recur
+           (case (:op node)
+             :def
+             (if (contains? call-symbols (:symbol node))
+               (zip/next loc)
+               (zip/replace loc (:then node)))
+             
+             ;; else
+             (zip/next loc))))))))
+
+(defn rewrite-def [dt]
+  (-> dt
+      def-remove-unused))
 
 ;; :mvr rewriting
 
@@ -654,13 +693,13 @@
       dt)
     dt))
 
-(defn rewrite-branch [dt]
+(defn rewrite-branch* [dt]
   (-> dt
       branch-flatten
       branch-merge-checks
       branch-one-arm))
 
-(defn rewrite [dt]
+(defn rewrite-branch [dt]
   (let [dt* (loop [loc (dt-zip dt)]
               (if (zip/end? loc)
                 (zip/root loc)
@@ -676,13 +715,18 @@
                         (recur (zip/replace loc (first arms)))
 
                         ;; else
-                        (recur (zip/next (zip/edit loc rewrite-branch)))))
+                        (recur (zip/next (zip/edit loc rewrite-branch*)))))
 
                     ;; else
                     (recur (zip/next loc))))))]
     (if (= dt dt*)
       dt
       (recur dt*))))
+
+(defn rewrite [dt]
+  (-> dt
+      rewrite-def
+      rewrite-branch))
 
 (defn emit [dt fail kind]
   (emit* (rewrite dt) fail kind))
