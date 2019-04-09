@@ -1,11 +1,11 @@
-(ns meander.match.ir.gamma
+(ns meander.match.ir.delta
   "Functions for working with the Meander's match compiler
   intermediate representation (IR)."
-  #?(:cljs (:require-macros [meander.match.ir.gamma :refer [defop]]))
+  #?(:cljs (:require-macros [meander.match.ir.delta :refer [defop]]))
   (:require
    [clojure.zip :as zip]
-   [meander.util.gamma :as r.util]
-   [meander.syntax.gamma :as r.syntax]))
+   [meander.util.delta :as r.util]
+   [meander.syntax.delta :as r.syntax]))
 
 ;; TODO: (TR) Inline bindings used once
 ;; TODO: (TR) Remove bindings never used
