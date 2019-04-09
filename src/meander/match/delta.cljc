@@ -47,48 +47,6 @@
   []
   (= *collection-context* :js-array))
 
-
-(defn take-form
-  "Form for taking n elements from target with respect to the current
-  value of *collection-context*."
-  [n target]
-  (cond
-    (vector-context?)
-    `(subvec ~target 0 (min (count ~target) ~n))
-
-    (js-array-context?)
-    `(.slice ~target 0 (min (.-length ~target) ~n))
-
-    :else
-    `(take ~n ~target)))
-
-
-(defn drop-form
-  "Form for dropping n elements from target with respect to the
-  current value of *collection-context*."
-  [n target]
-  (cond
-    (vector-context?)
-    `(subvec ~target (min (count ~target) ~n))
-
-    (js-array-context?)
-    `(.slice ~target (min (.-length ~target) ~n))
-
-    :else
-    `(drop ~n ~target)))
-
-
-(defn js-array-equals-form
-  "Form used to test if two arrays a and b are equal in
-  ClojureScript."
-  [a b]
-  `(goog.array/equals ~a ~b
-                      (fn f# [a# b#]
-                        (if (cljs.core/array? a#)
-                          (goog.array/equals a# b# f#)
-                          (= a# b#)))))
-
-
 (defn gensym*
   "Like gensym but adds additional meta data which can be used by the
   match compiler."
