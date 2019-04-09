@@ -147,20 +147,6 @@
 ;; ---------------------------------------------------------------------
 ;; Code generation
 
-(defn v-partition-form [n v]
-  `(let [i# (count ~v)]
-     (map
-      (fn [j#]
-        (subvec ~v j# (min (+ j# ~n) i#)))
-      (range 0 i# ~n))))
-
-(defn v-partition [n v]
-  (let [i (count v)]
-    (map
-     (fn [j]
-       (subvec v j (min (+ j n) i)))
-     (range 0 i n))))
-
 (defn seq-bites [n coll]
   (if (seq coll)
     (lazy-seq (cons [(take n coll) (drop n coll)]
