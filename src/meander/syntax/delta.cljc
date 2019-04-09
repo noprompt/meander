@@ -406,11 +406,13 @@
 
                      :else
                      {:tag :rp*
-                      :elements l}))
+                      :cat {:tag :cat
+                            :elements l}}))
 
                  :dt+
                  {:tag :rp+
-                  :elements l
+                  :cat {:tag :cat
+                        :elements l}
                   :n (:n node)}
 
                  (nil :dot)
@@ -423,11 +425,13 @@
            :left (case (:tag node)
                    :dt*
                    {:tag :rp*
-                    :elements l}
+                    :cat {:tag :cat
+                          :elements l}}
 
                    :dt+
                    {:tag :rp+
-                    :elements l
+                    :cat {:tag :cat
+                          :elements l}
                     :n (:n node)}
 
                    (nil :dot)
@@ -1264,7 +1268,7 @@
 ;; :rp*
 
 (defmethod children :rp* [node]
-  (:elements node))
+  [(:cat node)])
 
 (defmethod ground? :rp* [_]
   false)
@@ -1276,7 +1280,7 @@
   ##Inf)
 
 (defmethod unparse :rp* [node]
-  `(~@(sequence (map unparse) (:elements node)) ~'...))
+  `(~@(unparse (:cat node)) ~'...))
 
 (defmethod search? :rp* [_]
   false)
@@ -1284,7 +1288,7 @@
 ;; :rp+
 
 (defmethod children :rp+ [node]
-  (:elements node))
+  [(:cat node)])
 
 (defmethod ground? :rp+ [_]
   false)
@@ -1292,7 +1296,7 @@
 (defmethod min-length :rp+ [node]
   (let [n (:n node)]
     (if (integer? n)
-      (* n (count (:elements node)))
+      (* n (min-length (:cat node)))
       0)))
 
 (defmethod max-length :rp+ [_]
@@ -1302,7 +1306,7 @@
   (let [dots (if-some [n (:n node)]
                (symbol (str ".." n))
                '..)]
-    `(~@(sequence (map unparse) (:elements node)) ~dots)))
+    `(~@(unparse (:cat node)) ~dots)))
 
 (defmethod search? :rp+ [_]
   false)
@@ -1541,10 +1545,10 @@
                 :right (inner (:right node)))))
 
 (defmethod walk :rp* [inner outer node]
-  (outer (assoc node :elements (map inner (:elements node)))))
+  (outer (assoc node :cat (inner (:cat node)))))
 
 (defmethod walk :rp+ [inner outer node]
-  (outer (assoc node :elements (map inner (:elements node)))))
+  (outer (assoc node :cat (inner (:cat node)))))
 
 (defmethod walk :rxc [inner outer node]
   (outer (assoc node :capture (inner (:capture node)))))

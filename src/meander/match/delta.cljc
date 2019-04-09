@@ -996,11 +996,8 @@
 
          :rp*
          ;; TODO: Compile the :cat then compile then loop.
-         (let [elements (:elements node)
-               n (count elements)
-               ;; The sequence to match.
-               cat-node {:tag :cat
-                         :elements elements}
+         (let [cat-node (:cat node)
+               n (count (:elements cat-node))
                ;; Unbound memory variables must be bound before loop
                ;; execution and added to the compilation environment
                ;; for the internal loop body.
@@ -1515,17 +1512,15 @@
 
 (defmethod check-node :rp*
   [node env _]
-  (let [elements (:elements node)
-        init-cat {:tag :cat
-                  :elements elements}
-        init-lvrs (r.syntax/logic-variables init-cat)
+  (let [cat-node (:cat node)
+        init-lvrs (r.syntax/logic-variables cat-node)
         unbound-lvrs (into #{} (remove (:lvrs env)) init-lvrs)]
     (cond
       (seq unbound-lvrs)
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
                 :ex-data {:unbound (into #{} (map r.syntax/unparse) unbound-lvrs)}}]]
 
-      (empty? elements)
+      (empty? (:elements cat-node))
       (let [dots '...]
         [:error
          [{:message (str "Zero or more (" dots ") is a postfix operator. It must have some value in front of it. (i.e. [1 " dots " ?x])")}]])
@@ -1536,7 +1531,7 @@
 
 (defmethod check-node :rp+
   [node env _]
-  (let [elements (:elements node)
+  (let [elements (:elements (:cat node))
         n (:n node)]
     (cond
       (nil? n)
