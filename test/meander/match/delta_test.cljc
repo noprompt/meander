@@ -1212,3 +1212,28 @@
 
          _
          false))))
+
+;; ---------------------------------------------------------------------
+;; with tests
+
+(t/deftest with-form-test
+  (let [hiccup [:div
+                [:p {"foo" "bar"}
+                 [:strong "Foo"]
+                 [:em {"baz" "quux"} "Bar"
+                  [:u "Baz"]]]
+                [:ul
+                 [:li "Beef"]
+                 [:li "Lamb"]
+                 [:li "Pork"]
+                 [:li "Chicken"]]]]
+    (t/is (= (r.match/find hiccup
+               (with [%h1 [!tags {:as !attrs} . %hiccup ...]
+                      %h2 [!tags . %hiccup ...]
+                      %h3 !xs
+                      %hiccup (or %h1 %h2 %h3)]
+                 %hiccup)
+               [!tags !attrs !xs])
+             [[:div :p :strong :em :u :ul :li :li :li :li]
+              [{"foo" "bar"} {"baz" "quux"}]
+              ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]]))))

@@ -246,9 +246,30 @@
   [node env]
   `(vec ~(compile-substitute (:prt node) env)))
 
+(defmethod compile-substitute :ref
+  [node env]
+  `(~(:symbol node)))
+
+(defmethod compile-substitute :wth
+  [node env]
+  (let [refs (into (r.syntax/references node)
+                   (comp (map :pattern)
+                         (mapcat r.syntax/references))
+                   (:bindings node))
+        bindings (filter
+                  (fn [binding]
+                    (contains? refs (:ref binding)))
+                  (:bindings node))]
+    `(letfn [~@(map
+                 (fn [binding]
+                   `(~(:symbol (:ref binding)) []
+                     ~(compile-substitute (:pattern binding) env)))
+                 bindings)]
+       ~(compile-substitute (:body node) env))))
 
 (defmacro substitute [x]
-  (let [node (r.syntax/parse x &env)
+  (let [node (r.syntax/rename-refs
+              (r.syntax/parse x &env))
         env (make-env node)]
     `(let [~@(mapcat
               (fn [[mvr-node ref-sym]]
@@ -259,3 +280,14 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
+
+(comment
+  (let [!xs [11 12 14]
+        ?y 12
+        ?z 13]
+    (substitute
+     (with [%foo [%bar ..3]
+            %bar [!xs ?z]]
+       %foo)))
+  ;; =>
+  [[11 13] [12 13] [14 13]])

@@ -353,7 +353,15 @@
   (s/assert :meander.syntax.delta/node node)
   (:lvr (variables* node)))
 
+
+(s/fdef references
+  :args (s/cat :node :meander.syntax.delta/node)
+  :ret (s/coll-of :meander.syntax.delta.node/ref
+                  :kind set?
+                  :into #{}))
+
 (defn references
+  "Return all :ref nodes in node."
   [node]
   (:ref (variables* node)))
 

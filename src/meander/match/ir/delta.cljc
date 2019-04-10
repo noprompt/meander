@@ -206,9 +206,6 @@
 
 (defmethod emit* :bind
   [dt fail kind]
-  #_
-  `(let [~(:symbol dt) ~(emit* (:value dt) fail kind)]
-     ~(emit* (:body dt) fail kind))
   (loop [bindings []
          dt dt]
     (if (= (:op dt) :bind)
@@ -256,7 +253,7 @@
         ;; else
         (let [fsyms (mapv
                      (fn [_]
-                       (gensym "backtrack__"))
+                       (gensym "state__"))
                      arms)]
           `(letfn [~@(map
                        (fn [fsym fail arm]
