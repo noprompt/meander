@@ -184,8 +184,7 @@
 
 (defmethod compile-substitute :rp* [node env]
   (let [elements (:elements node)
-        cat-node {:tag :cat
-                  :elements elements}
+        cat-node (:cat node)
         mvrs (r.syntax/memory-variables node)]
     (if (seq mvrs)
       ;; If there are mem-vars, loop until one of them is
@@ -209,8 +208,7 @@
 (defmethod compile-substitute :rp+ [node env]
   (let [elements (:elements node)
         n (:n node)
-        cat-node {:tag :cat
-                  :elements elements}]
+        cat-node (:cat node)]
     ;; Yield n substitutions.
     `(into []
            (mapcat identity)
@@ -220,7 +218,8 @@
 (defmethod compile-substitute :rst [node env]
   (compile-substitute
    {:tag :rp*
-    :elements [(:mvr node)]}
+    :cat {:tag :cat
+          :elements [(:mvr node)]}}
    env))
 
 
@@ -250,9 +249,30 @@
   [node env]
   `(vec ~(compile-substitute (:prt node) env)))
 
+(defmethod compile-substitute :ref
+  [node env]
+  `(~(:symbol node)))
+
+(defmethod compile-substitute :wth
+  [node env]
+  (let [refs (into (r.syntax/references node)
+                   (comp (map :pattern)
+                         (mapcat r.syntax/references))
+                   (:bindings node))
+        bindings (filter
+                  (fn [binding]
+                    (contains? refs (:ref binding)))
+                  (:bindings node))]
+    `(letfn [~@(map
+                 (fn [binding]
+                   `(~(:symbol (:ref binding)) []
+                     ~(compile-substitute (:pattern binding) env)))
+                 bindings)]
+       ~(compile-substitute (:body node) env))))
 
 (defmacro substitute [x]
-  (let [node (r.syntax/parse x &env)
+  (let [node (r.syntax/rename-refs
+              (r.syntax/parse x &env))
         env (make-env node)]
     `(let [~@(mapcat
               (fn [[mvr-node ref-sym]]
@@ -263,3 +283,14 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
+
+(comment
+  (let [!xs [11 12 14]
+        ?y 12
+        ?z 13]
+    (substitute
+     (with [%foo [%bar ..3]
+            %bar [!xs ?z]]
+       %foo)))
+  ;; =>
+  [[11 13] [12 13] [14 13]])
