@@ -183,9 +183,7 @@
 
 
 (defmethod compile-substitute :rp* [node env]
-  (let [elements (:elements node)
-        cat-node {:tag :cat
-                  :elements elements}
+  (let [cat-node (:cat node)
         mvrs (r.syntax/memory-variables node)]
     (if (seq mvrs)
       ;; If there are mem-vars, loop until one of them is
@@ -200,17 +198,14 @@
                (run! (fn [x#] (conj! ret# x#)) ~(compile-substitute cat-node env))
                (recur))
              (persistent! ret#))))
-      ;; If there are no mem-vars, loop forever. This case should
-      ;; either warn or throw!
-      `(sequence (mapcat identity)
-                 (repeatedly (fn [] ~(compile-substitute cat-node env)))))))
+      (throw (ex-info "No memory variables found for operator (...)"
+                      {:node node
+                       :env env})))))
 
 
 (defmethod compile-substitute :rp+ [node env]
-  (let [elements (:elements node)
-        n (:n node)
-        cat-node {:tag :cat
-                  :elements elements}]
+  (let [n (:n node)
+        cat-node (:cat node)]
     ;; Yield n substitutions.
     `(into []
            (mapcat identity)
@@ -220,7 +215,8 @@
 (defmethod compile-substitute :rst [node env]
   (compile-substitute
    {:tag :rp*
-    :elements [(:mvr node)]}
+    :cat {:tag :cat
+          :elements [(:mvr node)]}}
    env))
 
 
