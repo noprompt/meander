@@ -64,79 +64,6 @@
    (and (symbol? x) (::gensym? (meta x)))))
 
 
-(defn make-ref-map
-  "If node is a node repesenting a with pattern, return a map from
-  reference to pattern node derived from it's bindings, otherwise
-  return an empty map."
-  {:private true}
-  [node]
-  (if (r.syntax/with-node? node)
-    (into {} (map (juxt :ref :pattern)) (:bindings node))
-    {}))
-
-(defn substitute-refs
-  {:private true}
-  ([node]
-   (substitute-refs node {}))
-  ([node ref-map]
-   (r.syntax/prewalk
-    (fn f [node]
-      (cond
-        (r.syntax/ref-node? node)
-        (reduced
-         (if-some [other-node (get ref-map node)]
-           (substitute-refs other-node (dissoc ref-map node))
-           node))
-
-        (r.syntax/with-node? node)
-        (reduced
-         (if-some [body (:body node)]
-           (let [ref-map (reduce
-                          (fn [ref-map [k v]]
-                            (if (contains? ref-map k)
-                              ref-map
-                              (assoc ref-map k v)))
-                          (make-ref-map node)
-                          ref-map)]
-             (substitute-refs body ref-map))
-           node))
-
-        :else
-        node))
-    node)))
-
-;; May no longer be needed.
-(defn substitute-refs-shallow
-  {:private true}
-  ([node]
-   (substitute-refs-shallow node {}))
-  ([node ref-map]
-   (r.syntax/prewalk
-    (fn f [node]
-      (cond
-        (r.syntax/ref-node? node)
-        (reduced
-         (if-some [other-node (get ref-map node)]
-           other-node
-           node))
-
-        (r.syntax/with-node? node)
-        (reduced
-         (if-some [body (:body node)]
-           (let [ref-map (reduce
-                          (fn [ref-map [k v]]
-                            (if (contains? ref-map k)
-                              ref-map
-                              (assoc ref-map k v)))
-                          (make-ref-map node)
-                          ref-map)]
-             (substitute-refs-shallow body ref-map))
-           node))
-
-        :else
-        node))
-    node)))
-
 (defn get-spec-map
   {:private true}
   [ref-spec-map ref-node env]
@@ -152,7 +79,7 @@
   [ref-map]
   (into {} (map
             (fn [[ref node]]
-              (let [vars (r.syntax/variables (substitute-refs node ref-map))
+              (let [vars (r.syntax/variables (r.syntax/substitute-refs node ref-map))
                     rets (vec vars)
                     ret-syms (mapv :symbol rets)]
                 [ref (map
@@ -1009,7 +936,8 @@
                             (when (and (r.syntax/mvr-node? node)
                                        (not (r.matrix/get-var row node)))
                               node))
-                          (r.syntax/variables (substitute-refs cat-node (:refs row))))
+                          (r.syntax/variables
+                           (r.syntax/substitute-refs cat-node (:refs row))))
                env* (into (:env row) init-mvrs)
                row* (assoc row :env env*)
                mvr-syms (map :symbol (r.matrix/bound-mvrs row*))]
@@ -1238,7 +1166,7 @@
 
          :wth
          (if-some [body (:body node)]
-           (let [ref-map (make-ref-map node)
+           (let [ref-map (r.syntax/make-ref-map node)
                  refs* (merge (:refs row) ref-map)
                  ref-spec-map (make-ref-spec-map refs*)
                  ref-spec-map* (merge (:ref-specs row) ref-spec-map)
@@ -1248,7 +1176,7 @@
                                      (fn [[_ node]]
                                        (set/difference
                                         (r.syntax/memory-variables
-                                         (substitute-refs node refs*))
+                                         (r.syntax/substitute-refs node refs*))
                                         bound-mvrs)))
                                     ref-map)
                  row* (assoc row :refs refs* :ref-specs ref-spec-map*)
@@ -1507,7 +1435,7 @@
                       (:refs env))
         argument-lvrs (map
                        (fn [node]
-                         (let [node* (substitute-refs node ref-map)]
+                         (let [node* (r.syntax/substitute-refs node ref-map)]
                            (set/difference (r.syntax/logic-variables node*)
                                            bound-lvrs)))
                        arguments)

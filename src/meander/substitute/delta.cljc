@@ -11,10 +11,11 @@
   varable symbol with the suffix _ref__<digits> e.g. !xs_ref__234."
   {:private true}
   [pat]
-  (into {} (map
-            (fn [mvr-node]
-              [mvr-node (gensym (str (:symbol mvr-node) "_ref__"))]))
-        (r.syntax/memory-variables pat)))
+  {:wth-refs {}
+   :mvr-refs (into {} (map
+                       (fn [mvr-node]
+                         [mvr-node (gensym (str (:symbol mvr-node) "_ref__"))]))
+                   (r.syntax/memory-variables pat))})
 
 
 (defn get-mvr-ref-sym
@@ -22,12 +23,28 @@
   the symbol is not found (sanity check)."
   {:private true}
   [env mvr-node]
-  (if-some [[_ mvr-ref-sym] (find env mvr-node)]
+  (if-some [[_ mvr-ref-sym] (find (:mvr-refs env) mvr-node)]
     mvr-ref-sym
     (throw
      (ex-info (str "No state symbol found for memory variable " (:symbol mvr-node))
               {:env env
                :mvr mvr-node}))))
+
+(defn get-wth-refs
+  {:private true}
+  [env]
+  (get env :wth-refs))
+
+(defn get-wth-ref-pattern
+  {:private true}
+  [env ref-node]
+  (get-in env [:wth-refs ref-node]))
+
+
+(defn add-wth-refs
+  {:private true}
+  [env ref-map]
+  (update env :wth-refs merge ref-map))
 
 
 (defn compile-ground
@@ -184,7 +201,8 @@
 
 (defmethod compile-substitute :rp* [node env]
   (let [cat-node (:cat node)
-        mvrs (r.syntax/memory-variables node)]
+        mvrs (r.syntax/memory-variables
+              (r.syntax/substitute-refs node (get-wth-refs env)))]
     (if (seq mvrs)
       ;; If there are mem-vars, loop until one of them is
       ;; exhausted.
@@ -252,7 +270,9 @@
 
 (defmethod compile-substitute :wth
   [node env]
-  (let [refs (into (r.syntax/references node)
+  (let [ref-map (r.syntax/make-ref-map node)
+        env* (add-wth-refs env ref-map) 
+        refs (into (r.syntax/references node)
                    (comp (map :pattern)
                          (mapcat r.syntax/references))
                    (:bindings node))
@@ -263,25 +283,34 @@
     `(letfn [~@(map
                  (fn [binding]
                    `(~(:symbol (:ref binding)) []
-                     ~(compile-substitute (:pattern binding) env)))
+                     ~(compile-substitute (:pattern binding) env*)))
                  bindings)]
-       ~(compile-substitute (:body node) env))))
+       ~(compile-substitute (:body node) env*))))
 
 (defmacro substitute [x]
-  (let [node (r.syntax/rename-refs
-              (r.syntax/parse x &env))
+  (let [node (r.syntax/rename-refs (r.syntax/parse x &env))
         env (make-env node)]
     `(let [~@(mapcat
               (fn [[mvr-node ref-sym]]
                 [ref-sym `(volatile! ~(:symbol mvr-node))])
-              env)]
+              (:mvr-refs env))]
        ~(compile-substitute node env))))
 
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
 
+#_
 (comment
+  (let [!tags [1 2 3]]
+    (substitute
+     (with [%h1 [!tags . %h1 ...]]
+       %h1)))
+  (let [node (r.syntax/rename-refs
+              (r.syntax/parse
+               '(with [%h1 [!tags . %h1 ...]]
+                  %h1)))]
+    (compile-substitute node (make-env node)))
   (let [!xs [11 12 14]
         ?y 12
         ?z 13]

@@ -1725,7 +1725,6 @@
   "If node is a node repesenting a with pattern, return a map from
   reference to pattern node derived from it's bindings, otherwise
   return an empty map."
-  {:private true}
   [node]
   (if (with-node? node)
     (into {} (map (juxt :ref :pattern)) (:bindings node))
