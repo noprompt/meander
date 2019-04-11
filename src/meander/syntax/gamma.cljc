@@ -641,21 +641,17 @@
 
           nil
           (cond
-            (re-find #"\A_" s)
+            (r.util/re-matches? #"^_.*" s)
             {:tag :any
              :symbol sym}
 
-            (re-find #"\A\?." s)
+            (r.util/re-matches? #"^\?.+" s)
             {:tag :lvr
              :symbol sym}
 
-            (re-find #"\A!." s)
+            (r.util/re-matches? #"^!.+" s)
             {:tag :mvr
              :symbol sym}
-
-            #_(re-find #"\A%." s)
-            #_{:tag :ref
-               :symbol sym}
 
             :else
             {:tag :lit
