@@ -162,20 +162,43 @@
 
 ;; ---------------------------------------------------------------------
 ;; Code generation
+;;
+;; TODO: Move all vars intended to be used by compiled code to a
+;; meander.runtime.<greek-letter> namespace.
 
 (def FAIL
-  "Special value returned by compiled :def nodes signaling a match
-  failure. Compiled :call nodes check for this value."
+  "Special value signaling a match failure. Generated code will often
+  utilize this value as for control flow purposes."
   (reify))
 
-(defn seq-bites [n coll]
+(defn seq-bites
+  "Internal function used by compiled :star nodes to successively
+  split coll into a sequence of
+
+    ([(take n coll) (drop n coll)]
+     [(take n (drop n coll)) (drop (* 2 n) coll)]
+     [(take n (drop (* 2 n) coll)) (drop (* 3 n) coll)]
+     ,,,
+     [(take n (drop (* (- m 1) n) coll)) (drop (* m n) coll)])
+
+  Example:
+
+    (seq-bites 3 '(a b c d e f g))
+    ;; =>
+    ([(a b c) (d e f g)]
+     [(d e f) (g)]
+     [(g) ()])"
+  [n coll]
   (if (seq coll)
     (lazy-seq
      (cons [(take n coll) (drop n coll)]
-           (seq-bites n (drop n coll))))
+           (if (seq (drop n coll))
+             (seq-bites n (drop n coll)))))
     (list [() ()])))
 
 (defn seq-bites-indexed
+  "Internal function used by compiled :star nodes. Like seq-bites but
+  includes the index of each sequence member as a third element."
   ([n coll]
    (seq-bites-indexed n coll 0))
   ([n coll i]
@@ -186,6 +209,16 @@
      (list [() () 0]))))
 
 (defn vec-bites
+  "Internal function used by compiled :star nodes. Like seq-bites but
+  specifically designed for vectors.
+
+  Example:
+
+  (vec-bites 3 '[a b c d e f g])
+  ;; =>
+  ([[a b c] [d e f g]]
+   [[d e f] [g]]
+   [[g] []])"
   [n coll]
   (if (seq coll)
     (map
@@ -197,6 +230,9 @@
     (list [[] []])))
 
 (defn vec-bites-indexed
+  "Internal function used by compiled :star nodes. Like
+  vec-bites-indexed but includes the index of each sequence member as
+  a third element."
   [n coll]
   (if (seq coll)
     (map-indexed
