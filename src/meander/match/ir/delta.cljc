@@ -129,7 +129,7 @@
 
 (defn op-star
   {:style/indent :defn}
-  [ input n kind return-symbols body-fn then]
+  [input n kind return-symbols body-fn then]
   (let [input-symbol (gensym "input__")]
     {:op :star
      :input-symbol input-symbol
@@ -138,6 +138,20 @@
      :then then
      :kind kind
      :n n
+     :return-symbols (vec return-symbols)}))
+
+(defn op-plus
+  {:style/indent :defn}
+  [input n m kind return-symbols body-fn then]
+  (let [input-symbol (gensym "input__")]
+    {:op :plus
+     :input-symbol input-symbol
+     :input input
+     :body (body-fn input-symbol (op-eval (vec return-symbols)))
+     :then then
+     :kind kind
+     :n n
+     :m m
      :return-symbols (vec return-symbols)}))
 
 (defop op-take :take [target n kind])
@@ -154,11 +168,23 @@
 
 (defn seq-bites [n coll]
   (if (seq coll)
-    (lazy-seq (cons [(take n coll) (drop n coll)]
-                    (seq-bites n (drop n coll))))
-    (list () ())))
+    (lazy-seq
+     (cons [(take n coll) (drop n coll)]
+           (seq-bites n (drop n coll))))
+    (list [() ()])))
 
-(defn vec-bites [n coll]
+(defn seq-bites-indexed
+  ([n coll]
+   (seq-bites-indexed n coll 0))
+  ([n coll i]
+   (if (seq coll)
+     (lazy-seq
+      (cons [(take n coll) (drop n coll) i]
+            (seq-bites-indexed n (drop n coll) (inc i))))
+     (list [() () 0]))))
+
+(defn vec-bites
+  [n coll]
   (if (seq coll)
     (map
      (fn [[a b]]
@@ -166,24 +192,18 @@
          [(subvec coll a b) (subvec coll b)]
          [(subvec coll a) []]))
      (partition-all 2 1 (range 0 (count coll) n)))
-    [[] []]))
+    (list [[] []])))
 
-(defn seq-bites-form [n coll]
-  `(if (seq ~coll)
-     (lazy-seq (cons [(take ~n ~coll) (drop ~n ~coll)]
-                     (seq-bites ~n (drop ~n ~coll))))
-     (list () ())))
-
-(defn vec-bites-form [n coll]
-  `(if (seq ~coll)
-     (map
-      (fn [[a# b#]]
-        (if b#
-          [(subvec ~coll a# b#) (subvec ~coll b#)]
-          [(subvec ~coll a#) []]))
-      (partition-all 2 1 (range 0 (count ~coll) ~n)))
-     [[] []]))
-
+(defn vec-bites-indexed
+  [n coll]
+  (if (seq coll)
+    (map-indexed
+     (fn [i [a b]]
+       (if b
+         [(subvec coll a b) (subvec coll b) i]
+         [(subvec coll a) [] i]))
+     (partition-all 2 1 (range 0 (count coll) n)))
+    (list [[] [] 0])))
 
 (defn js-array-equals-form
   "Form used to test if two arrays a and b are equal in
@@ -430,6 +450,48 @@
   [dt fail kind]
   (emit* (:then dt) fail kind))
 
+(defmethod emit* :plus
+  [dt fail kind]
+  (let [input-sym (:input-symbol dt)
+        return-syms (:return-symbols dt)
+        minimum (:m dt)
+        fail-sym (gensym "fail__")
+        then-sym (gensym "then__")
+        then-form (emit* (:then dt) fail kind)]
+    `(let [~input-sym ~(emit* (:input dt) fail kind)
+           ~fail-sym (reify)
+           ~then-sym (fn [~return-syms] ~then-form)]
+       (reduce
+        (fn [~return-syms [~input-sym tail# i#]]
+          (if (= (count ~input-sym) ~(:n dt))
+            (let [result# ~(emit* (:body dt) fail-sym (case kind
+                                                        :search :find
+                                                        kind))]
+              (if (identical? result# ~fail-sym)
+                (reduced ~fail)
+                (if (seq tail#)
+                  result#
+                  ;; Because we've successfully consumed and i will
+                  ;; increment at the top of the next iteration, we
+                  ;; need to use inc to check if we met the minimum.
+                  (if (<= ~minimum (inc i#))
+                    (reduced (~then-sym result#))
+                    ~fail))))
+            ;; Failed to consume
+            (reduced
+             (if (or (seq ~input-sym)
+                     (seq tail#)
+                     (< i# ~minimum))
+               ~fail
+               (~then-sym ~return-syms)))))
+        ~(:return-symbols dt)
+        ~(case (:kind dt)
+           :seq
+           `(seq-bites-indexed ~(:n dt) ~input-sym)
+
+           :vector
+           `(vec-bites-indexed ~(:n dt) ~input-sym))))))
+
 (defmethod emit* :save
   [dt fail kind]
   (let [id (:id dt)
@@ -486,13 +548,9 @@
         ~(case (:kind dt)
            :seq
            `(seq-bites ~(:n dt) ~input-sym)
-           #_
-           (seq-bites-form (:n dt) input-sym)
 
            :vector
-           `(vec-bites ~(:n dt) ~input-sym)
-           #_
-           (vec-bites-form (:n dt) input-sym))))))
+           `(vec-bites ~(:n dt) ~input-sym))))))
 
 (defmethod emit* :take
   [dt fail kind]

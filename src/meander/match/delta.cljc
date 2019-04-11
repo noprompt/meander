@@ -925,21 +925,16 @@
          (compile-pass targets* [row])
 
          :rp*
-         ;; TODO: Compile the :cat then compile then loop.
          (let [cat-node (:cat node)
                n (count (:elements cat-node))
                ;; Unbound memory variables must be bound before loop
                ;; execution and added to the compilation environment
                ;; for the internal loop body.
-               init-mvrs (keep
-                          (fn [node]
-                            (when (and (r.syntax/mvr-node? node)
-                                       (not (r.matrix/get-var row node)))
-                              node))
-                          (r.syntax/variables
-                           (r.syntax/substitute-refs cat-node (:refs row))))
-               env* (into (:env row) init-mvrs)
-               row* (assoc row :env env*)
+               unbound-mvrs (set/difference
+                             (r.syntax/memory-variables
+                              (r.syntax/substitute-refs cat-node (:refs row)))
+                             (r.matrix/bound-mvrs row))
+               row* (r.matrix/add-vars row unbound-mvrs)
                mvr-syms (map :symbol (r.matrix/bound-mvrs row*))]
            (reduce
             (fn [op-tree mvr-node]
@@ -953,12 +948,11 @@
                 (compile [input-symbol]
                          [(assoc row* :cols [cat-node] :rhs dt-return)]))
               (compile targets* [row*]))
-            init-mvrs))))
+            unbound-mvrs))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
 
-#_
 (defmethod compile-specialized-matrix :rp+
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
@@ -969,57 +963,29 @@
          (compile-pass targets* [row])
 
          :rp+
-         (let [elements (:elements node)
-               times (:n node)
-               n (count elements)
-               ;; The minimum number of times the loop must execute.
-               ;; Symbol which tracks the number of successful iterations.
-               iter (gensym* "iter__")
-               ;; Symbol which is bound to the first n elements of
-               ;; target at the top of each loop.
-               init (gensym* "init__")
-               ;; Gaurd pattern to check the length of the initial
-               ;; slice at the top of each loop.
-               init-grd {:tag :grd
-                         :expr `(= (count ~init) ~n)}
-               ;; The sequence to match.
-               init-cat {:tag :cat
-                         :elements elements}
-               init-vars (r.syntax/variables init-cat)
-               ;; Memory variables must be tracked during loop
-               ;; execution and added to the compilation environment
-               ;; for the internal loop body.
-               init-mvrs (keep
-                          (fn [node]
-                            (when (= (r.syntax/tag node) :mvr)
-                              node))
-                          init-vars)
-               env* (into (:env row) init-vars)
-               row* (assoc row :env env*)
-               loop-id (gensym "loop__")
-               loop-targets (into [target iter]
-                                  (map (fn [node]
-                                         (:symbol node)))
-                                  init-mvrs)
-               loop-tree [:loop loop-id loop-targets
-                          [:bind [init (take-form n target)]
-                           [:branch
-                            [(compile [init init]
-                                      [(assoc row*
-                                              :cols [init-grd init-cat]
-                                              :rhs [:bind [target (drop-form n target)]
-                                                    [:bind [iter `(inc ~iter)]
-                                                     [:recur loop-id loop-targets]]])])
-                             [:test `(<= ~times ~iter)
-                              [:test `(not (seq ~target))
-                               (compile targets* [row*])]]]]]]]
-           [:bind [init (take-form n target)]
-            (compile [init init]
-                     [(assoc row
-                             :cols [init-grd init-cat]
-                             :rhs [:bind [target (drop-form n target)]
-                                   [:bind [iter 1]
-                                    loop-tree]])])])))
+         (let [cat-node (:cat node)
+               n (count (:elements cat-node))
+               ;; Minimum number of times subsequence must match.
+               m (:n node)
+               unbound-mvrs (set/difference
+                             (r.syntax/memory-variables
+                              (r.syntax/substitute-refs cat-node (:refs row)))
+                             (r.matrix/bound-mvrs row))
+               row* (r.matrix/add-vars row unbound-mvrs)
+               mvr-syms (map :symbol (r.matrix/bound-mvrs row*))]
+           (reduce
+            (fn [op-tree mvr-node]
+              (r.ir/op-mvr-init (:symbol mvr-node)
+                op-tree))
+            (r.ir/op-plus (r.ir/op-eval target) n m *collection-context*
+              ;; Symbols to bind
+              mvr-syms
+              ;; Result of this is accumulated.
+              (fn [input-symbol dt-return]
+                (compile [input-symbol]
+                         [(assoc row* :cols [cat-node] :rhs dt-return)]))
+              (compile targets* [row*]))
+            unbound-mvrs))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1918,36 +1884,3 @@
   :args (s/cat :expr any?
                :clauses :meander.match.delta.match/clauses)
   :ret any?)
-
-;; ---------------------------------------------------------------------
-;; Scratch
-
-#_
-(defn search-ir [search-args]
-  (compile [(gensym* "target__")] (:matrix (analyze-search-args search-args))))
-
-(comment
-  (defn with-demo [target]
-    (find target
-      (with [%h1 [!tags {:as !attrs} . %hiccup ...]
-             %h2 [!tags . %hiccup ...]
-             %h3 !xs
-             %hiccup (or %h1 %h2 %h3)]
-        %hiccup)
-      [!tags !attrs !xs]))
-
-  (with-demo
-    '[:div
-      [:p {"foo" "bar"}
-       [:strong "Foo"]
-       [:em {"baz" "quux"} "Bar"
-        [:u "Baz"]]]
-      [:ul
-       [:li "Beef"]
-       [:li "Lamb"]
-       [:li "Pork"]
-       [:li "Chicken"]]])
-  ;; =>
-  [[:div :p :strong :em :u :ul :li :li :li]
-   [{"foo" "bar"} {"baz" "quux"}]
-   ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]])

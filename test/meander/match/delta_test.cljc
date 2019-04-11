@@ -873,7 +873,6 @@
             [{:baz "foo"}]}
           true)))
 
-#_
 (tc.t/defspec find-results-are-elements-of-search-results
   (tc.prop/for-all [v (tc.gen/vector tc.gen/nat 3 5)]
     (contains? (set (r.match/search v
