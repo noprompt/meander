@@ -273,22 +273,11 @@
                kind)
 
         ;; else
-        (let [fsyms (mapv
-                     (fn [_]
-                       (gensym "state__"))
-                     arms)]
-          `(letfn [~@(map
-                       (fn [fsym fail arm]
-                         `(~fsym []
-                           ~(emit* arm fail kind)))
-                       fsyms
-                       (conj (mapv
-                              (fn [fsym]
-                                `(~fsym))
-                              (rest fsyms))
-                             fail)
-                       arms)]
-             (~(first fsyms))))))))
+        (reduce
+         (fn [fail arm]
+           (emit* arm fail kind))
+         fail
+         (reverse arms))))))
 
 (defmethod emit* :call
   [dt fail kind]
