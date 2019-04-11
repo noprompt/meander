@@ -400,17 +400,16 @@
 (defmethod emit* :find
   [dt fail kind]
   (let [result-sym (gensym "result__")
-        test-fail-sym (gensym "fail__")]
-    `(let [~test-fail-sym (reify)
-           ~result-sym (reduce
-                        (fn [~test-fail-sym ~(:symbol dt)]
-                          (let [~result-sym ~(emit* (:body dt) test-fail-sym kind)]
-                            (if (identical? ~result-sym ~test-fail-sym)
-                              ~test-fail-sym
+        fail-sym (gensym "fail__")]
+    `(let [~result-sym (reduce
+                        (fn [~fail-sym ~(:symbol dt)]
+                          (let [~result-sym ~(emit* (:body dt) `FAIL kind)]
+                            (if (identical? ~result-sym ~fail-sym)
+                              ~fail-sym
                               (reduced ~result-sym))))
-                        ~test-fail-sym
+                        FAIL
                         ~(emit* (:value dt) fail kind))]
-       (if (identical? ~result-sym ~test-fail-sym)
+       (if (identical? ~result-sym FAIL)
          ~fail
          ~result-sym))))
 
@@ -453,19 +452,17 @@
   (let [input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
         minimum (:m dt)
-        fail-sym (gensym "fail__")
         then-sym (gensym "then__")
         then-form (emit* (:then dt) fail kind)]
     `(let [~input-sym ~(emit* (:input dt) fail kind)
-           ~fail-sym (reify)
            ~then-sym (fn [~return-syms] ~then-form)]
        (reduce
         (fn [~return-syms [~input-sym tail# i#]]
           (if (= (count ~input-sym) ~(:n dt))
-            (let [result# ~(emit* (:body dt) fail-sym (case kind
-                                                        :search :find
-                                                        kind))]
-              (if (identical? result# ~fail-sym)
+            (let [result# ~(emit* (:body dt) `FAIL (case kind
+                                                     :search :find
+                                                     kind))]
+              (if (identical? result# FAIL)
                 (reduced ~fail)
                 (if (seq tail#)
                   result#
@@ -520,19 +517,17 @@
   [dt fail kind]
   (let [input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
-        fail-sym (gensym "fail__")
         then-sym (gensym "then__")
         then-form (emit* (:then dt) fail kind)]
     `(let [~input-sym ~(emit* (:input dt) fail kind)
-           ~fail-sym (reify)
            ~then-sym (fn [~return-syms] ~then-form)]
        (reduce
         (fn [~return-syms [~input-sym tail#]]
           (if (= (count ~input-sym) ~(:n dt))
-            (let [result# ~(emit* (:body dt) fail-sym (case kind
-                                                        :search :find
-                                                        kind))]
-              (if (identical? result# ~fail-sym)
+            (let [result# ~(emit* (:body dt) `FAIL (case kind
+                                                     :search :find
+                                                     kind))]
+              (if (identical? result# FAIL)
                 (reduced ~fail)
                 (if (seq tail#)
                   result#
