@@ -327,7 +327,7 @@
                     vars
                     (:bindings node))
          
-         ;;
+         ;; else
          vars)))
    {:lvr #{}
     :mvr #{}
@@ -733,19 +733,19 @@
 
           nil
           (cond
-            (re-find #"\A_" s)
+            (r.util/re-matches? #"^_.*" s)
             {:tag :any
              :symbol sym}
 
-            (re-find #"\A\?." s)
+            (r.util/re-matches? #"^\?.+" s)
             {:tag :lvr
              :symbol sym}
 
-            (re-find #"\A!." s)
+            (r.util/re-matches? #"^!.+" s)
             {:tag :mvr
              :symbol sym}
 
-            (re-find #"\A%." s)
+            (r.util/re-matches? #"^%.+" s)
             {:tag :ref
              :symbol sym}
 
