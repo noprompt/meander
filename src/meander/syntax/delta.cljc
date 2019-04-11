@@ -1080,7 +1080,7 @@
   false)
 
 (defmethod unparse :let [node]
-  `(~'let ~@(mapcat (juxt :binding :expr) (:bindings node))))
+  `(~'let ~@(sequence (mapcat (juxt (comp unparse :binding) :expr)) (:bindings node))))
 
 (defmethod search? :let [_]
   false)
