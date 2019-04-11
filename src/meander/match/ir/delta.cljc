@@ -93,21 +93,13 @@
 
 (defop op-check-boolean :check-boolean [test then])
 
-(defop op-lvr-check :lvr-check [symbol target then])
-
-(defop op-lvr-bind :lvr-bind [symbol target then])
-
-(defop op-mvr-append :mvr-append [symbol target then])
-
-(defop op-mvr-bind :mvr-bind [symbol target then])
-
-(defop op-mvr-init :mvr-init [symbol then])
-
 (defop op-check-bounds :check-bounds [target length kind then])
 
 (defop op-check-empty :check-empty [target then])
 
 (defop op-check-equal :check-equal [target-1 target-2 then])
+
+(defop op-check-lit :check-lit [target value then])
 
 (defop op-check-map :check-map [target then])
 
@@ -121,6 +113,16 @@
 (defop op-find :find [symbol value body])
 
 (defop op-load :load [id])
+
+(defop op-lvr-check :lvr-check [symbol target then])
+
+(defop op-lvr-bind :lvr-bind [symbol target then])
+
+(defop op-mvr-append :mvr-append [symbol target then])
+
+(defop op-mvr-bind :mvr-bind [symbol target then])
+
+(defop op-mvr-init :mvr-init [symbol then])
 
 (defop op-save :save [id body-1 body-2])
 
@@ -344,6 +346,13 @@
 (defmethod emit* :check-empty
   [dt fail kind]
   `(if (not (seq ~(emit* (:target dt) fail kind)))
+     ~(emit* (:then dt) fail kind)
+     ~fail))
+
+(defmethod emit* :check-lit
+  [dt fail kind]
+  `(if (= ~(emit* (:target dt) fail kind)
+          ~(emit* (:value dt) fail kind))
      ~(emit* (:then dt) fail kind)
      ~fail))
 
@@ -693,6 +702,15 @@
     [a b]))
 
 (defmethod branch-merge-checks* :check-map
+  [[a b]]
+  (if (= (:target a)
+         (:target b))
+    [(assoc a
+            :then (op-branch [(:then a)
+                              (:then b)]))]
+    [a b]))
+
+(defmethod branch-merge-checks* :check-lit
   [[a b]]
   (if (= (:target a)
          (:target b))

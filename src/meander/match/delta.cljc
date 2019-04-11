@@ -572,7 +572,7 @@
          (r.ir/op-pass (compile targets* [row]))
 
          :lit
-         (r.ir/op-check-equal
+         (r.ir/op-check-lit
            (r.ir/op-eval target)
            (r.ir/op-eval (r.syntax/unparse node))
            (compile targets* [row]))))
