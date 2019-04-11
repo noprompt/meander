@@ -882,7 +882,7 @@
                 {:tag :lit
                  :value x})]
      (if-some [meta (meta x)]
-       (assoc node :meta meta)
+       (with-meta node meta)
        node))))
 
 

@@ -1,6 +1,7 @@
 (ns meander.match.ir.delta
   "Functions for working with the Meander's match compiler
   intermediate representation (IR)."
+  (:refer-clojure :exclude [compile])
   #?(:cljs (:require-macros [meander.match.ir.delta :refer [defop]]))
   (:require
    [clojure.zip :as zip]
@@ -243,6 +244,34 @@
      (partition-all 2 1 (range 0 (count coll) n)))
     (list [[] [] 0])))
 
+(defn js-array-bites
+ "Internal function used by compiled :star nodes. Like seq-bites but
+  specifically designed for JavaScript Array."
+  [n coll]
+  #?(:cljs
+     (if (seq coll)
+       (map
+        (fn [[a b]]
+          (if b
+            [(.slice coll a b) (.slice coll b)]
+            [(.slice coll a) #js []]))
+        (partition-all 2 1 (range 0 (.-length coll) n)))
+       (list [#js [] #js []]))))
+
+(defn js-array-bites-indexed
+ "Internal function used by compiled :star nodes. Like seq-bites but
+  specifically designed for JavaScript Array."
+  [n coll]
+  #?(:cljs
+     (if (seq coll)
+       (map-indexed
+        (fn [i [a b]]
+          (if b
+            [(.slice coll a b) (.slice coll b) i]
+            [(.slice coll a) #js [] i]))
+        (partition-all 2 1 (range 0 (.-length coll) n)))
+       (list [#js [] #js []]))))
+
 (defn js-array-equals-form
   "Form used to test if two arrays a and b are equal in
   ClojureScript."
@@ -258,21 +287,21 @@
   [dt]
   (= (:op dt) :fail))
 
-(defmulti emit*
+(defmulti compile*
   (fn [dt fail kind]
     (:op dt)))
 
-(defmethod emit* :bind
+(defmethod compile* :bind
   [dt fail kind]
   (loop [bindings []
          dt dt]
     (if (= (:op dt) :bind)
-      (recur (conj bindings (:symbol dt) (emit* (:value dt) fail kind))
+      (recur (conj bindings (:symbol dt) (compile* (:value dt) fail kind))
              (:then dt))
       `(let ~bindings
-         ~(emit* dt fail kind)))))
+         ~(compile* dt fail kind)))))
 
-(defmethod emit* :branch
+(defmethod compile* :branch
   [dt fail kind]
   (case kind
     :search
@@ -282,13 +311,13 @@
         fail
 
         1
-        (emit* (first arms) fail kind)
+        (compile* (first arms) fail kind)
 
         ;; else
         `(concat
           ~@(map
              (fn [dt]
-               (emit* dt fail kind))
+               (compile* dt fail kind))
              arms))))
 
     (:find :match)
@@ -301,53 +330,56 @@
         fail
 
         1
-        (emit* (first arms) fail kind)
+        (compile* (first arms) fail kind)
 
         2
-        (emit* (first arms)
-               (emit* (second arms) fail kind)
+        (compile* (first arms)
+               (compile* (second arms) fail kind)
                kind)
 
         ;; else
         (reduce
          (fn [fail arm]
-           (emit* arm fail kind))
+           (compile* arm fail kind))
          fail
          (reverse arms))))))
 
-(defmethod emit* :call
+(defmethod compile* :call
   [dt fail kind]
-  `(let [x# (~(:symbol dt) ~(emit* (:target dt) fail kind) ~@(:req-syms dt))]
+  `(let [x# (~(:symbol dt) ~(compile* (:target dt) fail kind) ~@(:req-syms dt))]
      (if (identical? x# FAIL)
        ~fail
        (let [[~@(:ret-syms dt)] x#]
-         ~(emit* (:then dt) fail kind)))))
+         ~(compile* (:then dt) fail kind)))))
 
-(defmethod emit* :check-array
+(defmethod compile* :check-array
   [dt fail kind]
-  `(if (cljs.core/array? ~(emit* (:target dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (cljs.core/array? ~(compile* (:target dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-array-equals
+(defmethod compile* :check-array-equals
   [dt fail kind]
   `(if ~(js-array-equals-form
-         (emit* (:target-1 dt) fail kind)
-         (emit* (:target-2 dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+         (compile* (:target-1 dt) fail kind)
+         (compile* (:target-2 dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-boolean
+(defmethod compile* :check-boolean
   [dt fail kind]
-  `(if ~(emit* (:test dt) fail kind)
-     ~(emit* (:then dt) fail kind)
+  `(if ~(compile* (:test dt) fail kind)
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-bounds
+(defmethod compile* :check-bounds
   [dt fail kind]
   (let [length (:length dt)
-        target (emit* (:target dt) fail kind)
+        target (compile* (:target dt) fail kind)
         test (case (:kind dt)
+               :js-array
+               `(= (.-length ~target) ~length)
+
                (:map :set)
                `(<= ~length (count ~target))
 
@@ -358,144 +390,151 @@
                :vector
                `(= (count ~target) ~length))]
     `(if ~test
-       ~(emit* (:then dt) fail kind)
+       ~(compile* (:then dt) fail kind)
        ~fail)))
 
-(defmethod emit* :check-equal
+(defmethod compile* :check-equal
   [dt fail kind]
-  `(if (= ~(emit* (:target-1 dt) fail kind)
-          ~(emit* (:target-2 dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (= ~(compile* (:target-1 dt) fail kind)
+          ~(compile* (:target-2 dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-empty
+(defmethod compile* :check-empty
   [dt fail kind]
-  `(if (not (seq ~(emit* (:target dt) fail kind)))
-     ~(emit* (:then dt) fail kind)
+  `(if (not (seq ~(compile* (:target dt) fail kind)))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-lit
+(defmethod compile* :check-lit
   [dt fail kind]
-  `(if (= ~(emit* (:target dt) fail kind)
-          ~(emit* (:value dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (= ~(compile* (:target dt) fail kind)
+          ~(compile* (:value dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-map
+(defmethod compile* :check-map
   [dt fail kind]
-  `(if (map? ~(emit* (:target dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (map? ~(compile* (:target dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-seq
+(defmethod compile* :check-seq
   [dt fail kind]
-  `(if (seq? ~(emit* (:target dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (seq? ~(compile* (:target dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-set
+(defmethod compile* :check-set
   [dt fail kind]
-  `(if (set? ~(emit* (:target dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (set? ~(compile* (:target dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :check-vector
+(defmethod compile* :check-vector
   [dt fail kind]
-  `(if (vector? ~(emit* (:target dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (vector? ~(compile* (:target dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :drop
+(defmethod compile* :drop
   [dt fail kind]
-  (if (= (:kind dt) :vector)
-    `(subvec ~(emit* (:target dt) fail kind)
+  (case (:kind dt)
+    :js-array
+    `(.slice ~(compile* (:target dt) fail kind)
              ~(:n dt))
-    `(drop ~(:n dt)
-           ~(emit* (:target dt) fail kind))))
+    
+    :vector
+    `(subvec ~(compile* (:target dt) fail kind)
+             ~(:n dt))
 
-(defmethod emit* :def
+    :seq
+    `(drop ~(:n dt)
+           ~(compile* (:target dt) fail kind))))
+
+(defmethod compile* :def
   [dt fail kind]
   (loop [bindings []
          dt dt]
     (if (= (:op dt) :def)
       (recur (conj bindings
                    `(~(:symbol dt) [~(:target-arg dt) ~@(:req-syms dt)]
-                     ~(emit* (:body dt) `FAIL kind)))
+                     ~(compile* (:body dt) `FAIL kind)))
              (:then dt))
       `(letfn ~bindings
-         ~(emit* dt fail kind)))))
+         ~(compile* dt fail kind)))))
 
-(defmethod emit* :eval
+(defmethod compile* :eval
   [dt fail kind]
   (:form dt))
 
-(defmethod emit* :fail
+(defmethod compile* :fail
   [dt fail kind]
   fail)
 
-(defmethod emit* :find
+(defmethod compile* :find
   [dt fail kind]
   (let [result-sym (gensym "result__")
         fail-sym (gensym "fail__")]
     `(let [~result-sym (reduce
                         (fn [~fail-sym ~(:symbol dt)]
-                          (let [~result-sym ~(emit* (:body dt) `FAIL kind)]
+                          (let [~result-sym ~(compile* (:body dt) `FAIL kind)]
                             (if (identical? ~result-sym ~fail-sym)
                               ~fail-sym
                               (reduced ~result-sym))))
                         FAIL
-                        ~(emit* (:value dt) fail kind))]
+                        ~(compile* (:value dt) fail kind))]
        (if (identical? ~result-sym FAIL)
          ~fail
          ~result-sym))))
 
-(defmethod emit* :load
+(defmethod compile* :load
   [dt fail kind]
   `(~(:id dt)))
 
-(defmethod emit* :lvr-bind
+(defmethod compile* :lvr-bind
   [dt fail kind]
-  `(let [~(:symbol dt) ~(emit* (:target dt) fail kind)]
-     ~(emit* (:then dt) fail kind)))
+  `(let [~(:symbol dt) ~(compile* (:target dt) fail kind)]
+     ~(compile* (:then dt) fail kind)))
 
-(defmethod emit* :lvr-check
+(defmethod compile* :lvr-check
   [dt fail kind]
-  `(if (= ~(:symbol dt) ~(emit* (:target dt) fail kind))
-     ~(emit* (:then dt) fail kind)
+  `(if (= ~(:symbol dt) ~(compile* (:target dt) fail kind))
+     ~(compile* (:then dt) fail kind)
      ~fail))
 
-(defmethod emit* :nth
+(defmethod compile* :nth
   [dt fail kind]
-  `(nth ~(emit* (:target dt) fail kind) ~(:index dt)))
+  `(nth ~(compile* (:target dt) fail kind) ~(:index dt)))
 
-(defmethod emit* :mvr-append
+(defmethod compile* :mvr-append
   [dt fail kind]
   (let [!symbol (:symbol dt)]
-    `(let [~!symbol (conj ~!symbol ~(emit* (:target dt) fail kind))]
-       ~(emit* (:then dt) fail kind))))
+    `(let [~!symbol (conj ~!symbol ~(compile* (:target dt) fail kind))]
+       ~(compile* (:then dt) fail kind))))
 
-(defmethod emit* :mvr-init
+(defmethod compile* :mvr-init
   [dt fail kind]
   `(let [~(:symbol dt) []]
-     ~(emit* (:then dt) fail kind)))
+     ~(compile* (:then dt) fail kind)))
 
-(defmethod emit* :pass
+(defmethod compile* :pass
   [dt fail kind]
-  (emit* (:then dt) fail kind))
+  (compile* (:then dt) fail kind))
 
-(defmethod emit* :plus
+(defmethod compile* :plus
   [dt fail kind]
   (let [input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
         minimum (:m dt)
         then-sym (gensym "then__")
-        then-form (emit* (:then dt) fail kind)]
-    `(let [~input-sym ~(emit* (:input dt) fail kind)
+        then-form (compile* (:then dt) fail kind)]
+    `(let [~input-sym ~(compile* (:input dt) fail kind)
            ~then-sym (fn [~return-syms] ~then-form)]
        (reduce
         (fn [~return-syms [~input-sym tail# i#]]
           (if (= (count ~input-sym) ~(:n dt))
-            (let [result# ~(emit* (:body dt) `FAIL (case kind
+            (let [result# ~(compile* (:body dt) `FAIL (case kind
                                                      :search :find
                                                      kind))]
               (if (identical? result# FAIL)
@@ -517,13 +556,16 @@
                (~then-sym ~return-syms)))))
         ~(:return-symbols dt)
         ~(case (:kind dt)
+           :js-array
+           `(js-array-bites-indexed ~(:n dt) ~input-sym)
+
            :seq
            `(seq-bites-indexed ~(:n dt) ~input-sym)
 
            :vector
            `(vec-bites-indexed ~(:n dt) ~input-sym))))))
 
-(defmethod emit* :save
+(defmethod compile* :save
   [dt fail kind]
   (let [id (:id dt)
         body-1 (:body-1 dt)
@@ -531,36 +573,36 @@
     (if (and (= (:op body-2) :load)
              (= (:id body-2 id)))
       `(letfn [(~id [] ~fail)]
-         ~(emit* body-1 `(~id) kind))
+         ~(compile* body-1 `(~id) kind))
       (let [f-sym (gensym "f__")]
         `(letfn [(~id [] ~fail)
-                 (~f-sym [] ~(emit* body-2 fail kind))]
-           ~(emit* body-1 `(~f-sym) kind))))))
+                 (~f-sym [] ~(compile* body-2 fail kind))]
+           ~(compile* body-1 `(~f-sym) kind))))))
 
-(defmethod emit* :search
+(defmethod compile* :search
   [dt fail kind]
   (case kind
     (:find :match)
-    (emit* (assoc dt :op :find) fail kind)
+    (compile* (assoc dt :op :find) fail kind)
     
     :search
     `(mapcat
       (fn [~(:symbol dt)]
-        ~(emit* (:body dt) fail kind))
-      ~(emit* (:value dt) fail kind))))
+        ~(compile* (:body dt) fail kind))
+      ~(compile* (:value dt) fail kind))))
 
-(defmethod emit* :star
+(defmethod compile* :star
   [dt fail kind]
   (let [input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
         then-sym (gensym "then__")
-        then-form (emit* (:then dt) fail kind)]
-    `(let [~input-sym ~(emit* (:input dt) fail kind)
+        then-form (compile* (:then dt) fail kind)]
+    `(let [~input-sym ~(compile* (:input dt) fail kind)
            ~then-sym (fn [~return-syms] ~then-form)]
        (reduce
         (fn [~return-syms [~input-sym tail#]]
           (if (= (count ~input-sym) ~(:n dt))
-            (let [result# ~(emit* (:body dt) `FAIL (case kind
+            (let [result# ~(compile* (:body dt) `FAIL (case kind
                                                      :search :find
                                                      kind))]
               (if (identical? result# FAIL)
@@ -575,15 +617,18 @@
                (~then-sym ~return-syms)))))
         ~(:return-symbols dt)
         ~(case (:kind dt)
+           :js-array
+           `(js-array-bites ~(:n dt) ~input-sym)
+
            :seq
            `(seq-bites ~(:n dt) ~input-sym)
 
            :vector
            `(vec-bites ~(:n dt) ~input-sym))))))
 
-(defmethod emit* :take
+(defmethod compile* :take
   [dt fail kind]
-  (let [target-code (emit* (:target dt) fail kind)
+  (let [target-code (compile* (:target dt) fail kind)
         n (:n dt)]
     (case (:kind dt)
       :vector
@@ -596,7 +641,7 @@
       `(take ~n ~target-code))))
 
 
-(defmethod emit* :default
+(defmethod compile* :default
   [dt fail kind]
   dt)
 
@@ -821,5 +866,5 @@
       rewrite-def
       rewrite-branch))
 
-(defn emit [dt fail kind]
-  (emit* (rewrite dt) fail kind))
+(defn compile [dt fail kind]
+  (compile* (rewrite dt) fail kind))

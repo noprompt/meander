@@ -1428,15 +1428,13 @@
 
 (defmethod check-node :rp*
   [node env _]
-  (let [cat-node (:cat node)
-        init-lvrs (r.syntax/logic-variables cat-node)
-        unbound-lvrs (into #{} (remove (:lvrs env)) init-lvrs)]
+  (let [unbound-lvrs (into #{} (remove (:lvrs env)) (r.syntax/logic-variables node))]
     (cond
       (seq unbound-lvrs)
       [:error [{:message "Zero or more patterns may not have references to unbound logic variables."
                 :ex-data {:unbound (into #{} (map r.syntax/unparse) unbound-lvrs)}}]]
 
-      (empty? (:elements cat-node))
+      (empty? (:elements (:cat node)))
       (let [dots '...]
         [:error
          [{:message (str "Zero or more (" dots ") is a postfix operator. It must have some value in front of it. (i.e. [1 " dots " ?x])")}]])
@@ -1732,14 +1730,14 @@
             fail (gensym "fail__")]
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
-            (r.ir/emit (compile [expr] [final-clause]) nil :match)
+            (r.ir/compile (compile [expr] [final-clause]) nil :match)
             `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
           `(let [~target ~expr
                  ~fail (fn []
                          ~(if (some? final-clause)
-                            (r.ir/emit (compile [target] [final-clause]) nil :match)
+                            (r.ir/compile (compile [target] [final-clause]) nil :match)
                             `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
-             ~(r.ir/emit (compile [target] matrix) `(~fail) :match)))))))
+             ~(r.ir/compile (compile [target] matrix) `(~fail) :match)))))))
 
 
 (defn analyze-search-args
@@ -1812,7 +1810,7 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(r.ir/emit (compile [target] matrix) nil :search)))))))
+             ~(r.ir/compile (compile [target] matrix) nil :search)))))))
 
 
 (s/fdef search
@@ -1877,8 +1875,7 @@
         (if (r.matrix/empty? matrix)
           nil
           `(let [~target ~expr]
-             ~(r.ir/emit (compile [target] matrix) nil :find)))))))
-
+             ~(r.ir/compile (compile [target] matrix) nil :find)))))))
 
 (s/fdef find
   :args (s/cat :expr any?
