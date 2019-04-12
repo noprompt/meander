@@ -11,7 +11,8 @@
   varable symbol with the suffix _ref__<digits> e.g. !xs_ref__234."
   {:private true}
   [pat]
-  {:wth-refs {}
+  {:collection-context nil
+   :wth-refs {}
    :mvr-refs (into {} (map
                        (fn [mvr-node]
                          [mvr-node (gensym (str (:symbol mvr-node) "_ref__"))]))
@@ -40,12 +41,10 @@
   [env ref-node]
   (get-in env [:wth-refs ref-node]))
 
-
 (defn add-wth-refs
   {:private true}
   [env ref-map]
   (update env :wth-refs merge ref-map))
-
 
 (defn compile-ground
   {:private true}
@@ -217,9 +216,8 @@
                (recur))
              (persistent! ret#))))
       (throw (ex-info "No memory variables found for operator (...)"
-                      {:node node
+                      {:node (r.syntax/unparse node)
                        :env env})))))
-
 
 (defmethod compile-substitute :rp+ [node env]
   (let [n (:n node)
@@ -247,7 +245,8 @@
 
 (defmethod compile-substitute :seq
   [node env]
-  `(seq ~(compile-substitute (:prt node) env)))
+  `(seq ~(compile-substitute (:prt node)
+                             (assoc env :collection-context :seq))))
 
 
 (defmethod compile-substitute :unq
@@ -262,7 +261,8 @@
 
 (defmethod compile-substitute :vec
   [node env]
-  `(vec ~(compile-substitute (:prt node) env)))
+  `(vec ~(compile-substitute (:prt node)
+                             (assoc env :collection-context :vector))))
 
 (defmethod compile-substitute :ref
   [node env]
