@@ -6,9 +6,15 @@
 
 
 (defn make-env
-  "Derives a map of {mvr ref-sym} from the pattern node where
-  mvr is a memory variable node [:mvr !xs], and ref-sym is a memory
-  varable symbol with the suffix _ref__<digits> e.g. !xs_ref__234."
+  "Derives a map of
+
+  {:collection-context nil
+   :mvr-refs {mvr mvr-ref-sym}
+   :wth-refs {ref pattern}}
+
+  from the pattern node where mvr is a memory variable node, and
+  mvr-ref-sym is a memory varable symbol with the suffix
+  _ref__<digits> e.g. !xs_ref__234."
   {:private true}
   [pat]
   {:collection-context nil
