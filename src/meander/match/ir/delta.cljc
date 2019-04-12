@@ -13,41 +13,41 @@
 ;; TODO: (TC) create :resolve node for symbols
 ;; TODO: (TC) replace :eval with :resolve where possible
 
-(defn child-keys [dt]
+(defn child-keys [ir]
   (keep
    (fn [[k v]]
      (when (some? (:op v))
        k))
-   dt))
+   ir))
 
-(defn children [dt]
-  (if (map? dt)
-    (case (:op dt)
+(defn children [ir]
+  (if (map? ir)
+    (case (:op ir)
       :branch
-      (:arms dt)
+      (:arms ir)
 
       ;; else
-      (map dt (child-keys dt)))))
+      (map ir (child-keys ir)))))
 
-(defn branch? [dt]
-  (some? (seq (children dt))))
+(defn branch? [ir]
+  (some? (seq (children ir))))
 
-(defn make-node [dt new-children]
-  (case (:op dt)
+(defn make-node [ir new-children]
+  (case (:op ir)
     :branch
-    (assoc dt :arms new-children)
+    (assoc ir :arms new-children)
 
     ;; else
-    (into dt (map vector (child-keys dt) new-children))))
+    (into ir (map vector (child-keys ir) new-children))))
 
-(defn dt-zip [dt]
-  (zip/zipper branch? children make-node dt))
+(defn ir-zip [ir]
+  (zip/zipper branch? children make-node ir))
 
 
 (defn height
-  "Return the height of dt."
-  [dt]
-  (if-some [dts (children dt)]
+  "Return the height of ir."
+  [ir]
+  (if-some [dts (children ir)]
     (transduce (comp (map height)
                      (map inc))
                max
@@ -56,9 +56,9 @@
     1))
 
 (defn nodes
-  "Return all nodes in dt."
-  [dt]
-  (tree-seq branch? children dt))
+  "Return all nodes in ir."
+  [ir]
+  (tree-seq branch? children ir))
 
 ;; ---------------------------------------------------------------------
 ;; Tree nodes
@@ -303,14 +303,14 @@
     :seq
     `(drop ~n ~target-form)))
 
-(defn dt-fail?
+(defn ir-fail?
   {:private true}
-  [dt]
-  (= (:op dt) :fail))
+  [ir]
+  (= (:op ir) :fail))
 
-(defn dt-check?
-  [dt]
-  (case (:op dt)
+(defn ir-check?
+  [ir]
+  (case (:op ir)
     (:check
      :check-array
      :check-array-equals
@@ -329,24 +329,24 @@
     false))
 
 (defmulti compile*
-  (fn [dt fail kind]
-    (:op dt)))
+  (fn [ir fail kind]
+    (:op ir)))
 
 (defmethod compile* :bind
-  [dt fail kind]
+  [ir fail kind]
   (loop [bindings []
-         dt dt]
-    (if (= (:op dt) :bind)
-      (recur (conj bindings (:symbol dt) (compile* (:value dt) fail kind))
-             (:then dt))
+         ir ir]
+    (if (= (:op ir) :bind)
+      (recur (conj bindings (:symbol ir) (compile* (:value ir) fail kind))
+             (:then ir))
       `(let ~bindings
-         ~(compile* dt fail kind)))))
+         ~(compile* ir fail kind)))))
 
 (defmethod compile* :branch
-  [dt fail kind]
+  [ir fail kind]
   (case kind
     :search
-    (let [arms (remove dt-fail? (:arms dt))]
+    (let [arms (remove ir-fail? (:arms ir))]
       (case (count arms)
         0
         fail
@@ -357,14 +357,14 @@
         ;; else
         `(concat
           ~@(map
-             (fn [dt]
-               (compile* dt fail kind))
+             (fn [ir]
+               (compile* ir fail kind))
              arms))))
 
     (:find :match)
-    (let [arms (:arms dt)
+    (let [arms (:arms ir)
           arms (if (= kind :find)
-                 (remove dt-fail? arms)
+                 (remove ir-fail? arms)
                  arms)]
       (case (count arms)
         0
@@ -386,38 +386,38 @@
          (reverse arms))))))
 
 (defmethod compile* :call
-  [dt fail kind]
-  `(let [x# (~(:symbol dt) ~(compile* (:target dt) fail kind) ~@(:req-syms dt))]
+  [ir fail kind]
+  `(let [x# (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))]
      (if (identical? x# FAIL)
        ~fail
-       (let [[~@(:ret-syms dt)] x#]
-         ~(compile* (:then dt) fail kind)))))
+       (let [[~@(:ret-syms ir)] x#]
+         ~(compile* (:then ir) fail kind)))))
 
 (defmethod compile* :check-array
-  [dt fail kind]
-  `(if (cljs.core/array? ~(compile* (:target dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (cljs.core/array? ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-array-equals
-  [dt fail kind]
+  [ir fail kind]
   `(if ~(js-array-equals-form
-         (compile* (:target-1 dt) fail kind)
-         (compile* (:target-2 dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+         (compile* (:target-1 ir) fail kind)
+         (compile* (:target-2 ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-boolean
-  [dt fail kind]
-  `(if ~(compile* (:test dt) fail kind)
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if ~(compile* (:test ir) fail kind)
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-bounds
-  [dt fail kind]
-  (let [length (:length dt)
-        target (compile* (:target dt) fail kind)
-        test (case (:kind dt)
+  [ir fail kind]
+  (let [length (:length ir)
+        target (compile* (:target ir) fail kind)
+        test (case (:kind ir)
                :js-array
                `(= (.-length ~target) ~length)
 
@@ -431,147 +431,147 @@
                :vector
                `(= (count ~target) ~length))]
     `(if ~test
-       ~(compile* (:then dt) fail kind)
+       ~(compile* (:then ir) fail kind)
        ~fail)))
 
 (defmethod compile* :check-equal
-  [dt fail kind]
-  `(if (= ~(compile* (:target-1 dt) fail kind)
-          ~(compile* (:target-2 dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (= ~(compile* (:target-1 ir) fail kind)
+          ~(compile* (:target-2 ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-empty
-  [dt fail kind]
-  `(if (not (seq ~(compile* (:target dt) fail kind)))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (not (seq ~(compile* (:target ir) fail kind)))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-lit
-  [dt fail kind]
-  `(if (= ~(compile* (:target dt) fail kind)
-          ~(compile* (:value dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (= ~(compile* (:target ir) fail kind)
+          ~(compile* (:value ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-map
-  [dt fail kind]
-  `(if (map? ~(compile* (:target dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (map? ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-seq
-  [dt fail kind]
-  `(if (seq? ~(compile* (:target dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (seq? ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-set
-  [dt fail kind]
-  `(if (set? ~(compile* (:target dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (set? ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :check-vector
-  [dt fail kind]
-  `(if (vector? ~(compile* (:target dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (vector? ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :drop
-  [dt fail kind]
-  (drop-form (:n dt)
-             (compile* (:target dt) fail kind)
-             (:kind dt)))
+  [ir fail kind]
+  (drop-form (:n ir)
+             (compile* (:target ir) fail kind)
+             (:kind ir)))
 
 (defmethod compile* :def
-  [dt fail kind]
+  [ir fail kind]
   (loop [bindings []
-         dt dt]
-    (if (= (:op dt) :def)
+         ir ir]
+    (if (= (:op ir) :def)
       (recur (conj bindings
-                   `(~(:symbol dt) [~(:target-arg dt) ~@(:req-syms dt)]
-                     ~(compile* (:body dt) `FAIL kind)))
-             (:then dt))
+                   `(~(:symbol ir) [~(:target-arg ir) ~@(:req-syms ir)]
+                     ~(compile* (:body ir) `FAIL kind)))
+             (:then ir))
       `(letfn ~bindings
-         ~(compile* dt fail kind)))))
+         ~(compile* ir fail kind)))))
 
 (defmethod compile* :eval
-  [dt fail kind]
-  (:form dt))
+  [ir fail kind]
+  (:form ir))
 
 (defmethod compile* :fail
-  [dt fail kind]
+  [ir fail kind]
   fail)
 
 (defmethod compile* :find
-  [dt fail kind]
+  [ir fail kind]
   (let [result-sym (gensym "result__")
         fail-sym (gensym "fail__")]
     `(let [~result-sym (reduce
-                        (fn [~fail-sym ~(:symbol dt)]
-                          (let [~result-sym ~(compile* (:body dt) `FAIL kind)]
+                        (fn [~fail-sym ~(:symbol ir)]
+                          (let [~result-sym ~(compile* (:body ir) `FAIL kind)]
                             (if (identical? ~result-sym ~fail-sym)
                               ~fail-sym
                               (reduced ~result-sym))))
                         FAIL
-                        ~(compile* (:value dt) fail kind))]
+                        ~(compile* (:value ir) fail kind))]
        (if (identical? ~result-sym FAIL)
          ~fail
          ~result-sym))))
 
 (defmethod compile* :load
-  [dt fail kind]
-  `(~(:id dt)))
+  [ir fail kind]
+  `(~(:id ir)))
 
 (defmethod compile* :lvr-bind
-  [dt fail kind]
-  `(let [~(:symbol dt) ~(compile* (:target dt) fail kind)]
-     ~(compile* (:then dt) fail kind)))
+  [ir fail kind]
+  `(let [~(:symbol ir) ~(compile* (:target ir) fail kind)]
+     ~(compile* (:then ir) fail kind)))
 
 (defmethod compile* :lvr-check
-  [dt fail kind]
-  `(if (= ~(:symbol dt) ~(compile* (:target dt) fail kind))
-     ~(compile* (:then dt) fail kind)
+  [ir fail kind]
+  `(if (= ~(:symbol ir) ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
      ~fail))
 
 (defmethod compile* :nth
-  [dt fail kind]
-  `(nth ~(compile* (:target dt) fail kind) ~(:index dt)))
+  [ir fail kind]
+  `(nth ~(compile* (:target ir) fail kind) ~(:index ir)))
 
 (defmethod compile* :mvr-append
-  [dt fail kind]
-  (let [!symbol (:symbol dt)]
-    `(let [~!symbol (conj ~!symbol ~(compile* (:target dt) fail kind))]
-       ~(compile* (:then dt) fail kind))))
+  [ir fail kind]
+  (let [!symbol (:symbol ir)]
+    `(let [~!symbol (conj ~!symbol ~(compile* (:target ir) fail kind))]
+       ~(compile* (:then ir) fail kind))))
 
 (defmethod compile* :mvr-init
-  [dt fail kind]
-  `(let [~(:symbol dt) []]
-     ~(compile* (:then dt) fail kind)))
+  [ir fail kind]
+  `(let [~(:symbol ir) []]
+     ~(compile* (:then ir) fail kind)))
 
 (defmethod compile* :pass
-  [dt fail kind]
-  (compile* (:then dt) fail kind))
+  [ir fail kind]
+  (compile* (:then ir) fail kind))
 
 (defmethod compile* :plus
-  [dt fail kind]
+  [ir fail kind]
   (let [coll-sym (gensym "coll__")
-        input-sym (:input-symbol dt)
-        return-syms (:return-symbols dt)
-        n (:n dt)
-        m (:m dt)
-        body-form (compile* (:body dt) `FAIL (case kind :search :find kind))
-        then-form (compile* (:then dt) fail kind)]
+        input-sym (:input-symbol ir)
+        return-syms (:return-symbols ir)
+        n (:n ir)
+        m (:m ir)
+        body-form (compile* (:body ir) `FAIL (case kind :search :find kind))
+        then-form (compile* (:then ir) fail kind)]
     `(loop [i# 0
-            ~coll-sym ~(compile* (:input dt) fail kind)
-            ~return-syms ~(:return-symbols dt)]
-       (let [~input-sym ~(take-form n coll-sym (:kind dt))]
+            ~coll-sym ~(compile* (:input ir) fail kind)
+            ~return-syms ~(:return-symbols ir)]
+       (let [~input-sym ~(take-form n coll-sym (:kind ir))]
          (if (= (count ~input-sym) ~n)
            (let [result# ~body-form]
              (if (identical? result# FAIL)
                ~fail
-               (recur (inc i#) ~(drop-form n coll-sym (:kind dt)) result#)))
+               (recur (inc i#) ~(drop-form n coll-sym (:kind ir)) result#)))
            ;; Failed to consume
            (if (or (seq ~coll-sym)
                    (< i# ~m))
@@ -579,10 +579,10 @@
              ~then-form))))))
 
 (defmethod compile* :save
-  [dt fail kind]
-  (let [id (:id dt)
-        body-1 (:body-1 dt)
-        body-2 (:body-2 dt)]
+  [ir fail kind]
+  (let [id (:id ir)
+        body-1 (:body-1 ir)
+        body-2 (:body-2 ir)]
     (if (and (= (:op body-2) :load)
              (= (:id body-2 id)))
       `(letfn [(~id [] ~fail)]
@@ -593,47 +593,47 @@
            ~(compile* body-1 `(~f-sym) kind))))))
 
 (defmethod compile* :search
-  [dt fail kind]
+  [ir fail kind]
   (case kind
     (:find :match)
-    (compile* (assoc dt :op :find) fail kind)
+    (compile* (assoc ir :op :find) fail kind)
 
     :search
     `(mapcat
-      (fn [~(:symbol dt)]
-        ~(compile* (:body dt) fail kind))
-      ~(compile* (:value dt) fail kind))))
+      (fn [~(:symbol ir)]
+        ~(compile* (:body ir) fail kind))
+      ~(compile* (:value ir) fail kind))))
 
 (defmethod compile* :star
-  [dt fail kind]
+  [ir fail kind]
   (let [coll-sym (gensym "coll__")
-        input-sym (:input-symbol dt)
-        return-syms (:return-symbols dt)
-        n (:n dt)
-        body-form (compile* (:body dt) `FAIL (case kind :search :find kind))
-        then-form (compile* (:then dt) fail kind)]
-    `(loop [~coll-sym ~(compile* (:input dt) fail kind)
-            ~return-syms ~(:return-symbols dt)]
-      (let [~input-sym ~(take-form n coll-sym (:kind dt))]
+        input-sym (:input-symbol ir)
+        return-syms (:return-symbols ir)
+        n (:n ir)
+        body-form (compile* (:body ir) `FAIL (case kind :search :find kind))
+        then-form (compile* (:then ir) fail kind)]
+    `(loop [~coll-sym ~(compile* (:input ir) fail kind)
+            ~return-syms ~(:return-symbols ir)]
+      (let [~input-sym ~(take-form n coll-sym (:kind ir))]
         (if (= (count ~input-sym) ~n)
           (let [result# ~body-form]
             (if (identical? result# FAIL)
               ~fail
-              (recur ~(drop-form n coll-sym (:kind dt)) result#)))
+              (recur ~(drop-form n coll-sym (:kind ir)) result#)))
           ;; Failed to consume
           (if (seq ~coll-sym)
             ~fail
             ~then-form))))))
 
 (defmethod compile* :take
-  [dt fail kind]
-  (take-form (:n dt)
-             (compile* (:target dt) fail kind)
-             (:kind dt)))
+  [ir fail kind]
+  (take-form (:n ir)
+             (compile* (:target ir) fail kind)
+             (:kind ir)))
 
 (defmethod compile* :default
-  [dt fail kind]
-  dt)
+  [ir fail kind]
+  ir)
 
 ;; ---------------------------------------------------------------------
 ;; Tree rewriting
@@ -641,12 +641,12 @@
 ;; :def rewriting
 
 (defn def-remove-unused
-  [dt]
+  [ir]
   (let [call-symbols (into #{}
                            (comp (filter (comp #{:call} :op))
                                  (map :symbol))
-                           (nodes dt))]
-    (loop [loc (dt-zip dt)]
+                           (nodes ir))]
+    (loop [loc (ir-zip ir)]
       (if (zip/end? loc)
         (zip/root loc)
         (let [node (zip/node loc)]
@@ -660,24 +660,24 @@
              ;; else
              (zip/next loc))))))))
 
-(defn rewrite-def [dt]
-  (-> dt
+(defn rewrite-def [ir]
+  (-> ir
       def-remove-unused))
 
 ;; :mvr rewriting
 
-(defn rewrite-move-mvr-init-to-top-level [dt]
+(defn rewrite-move-mvr-init-to-top-level [ir]
   (reduce
    (fn [_ loc]
      (let [node (zip/node loc)]
        (case (:op node)
          :mvr-init
-         (let [dt* (zip/root (zip/edit loc :then))]
-           (reduced (assoc node :then (rewrite-move-mvr-init-to-top-level dt*))))
+         (let [ir* (zip/root (zip/edit loc :then))]
+           (reduced (assoc node :then (rewrite-move-mvr-init-to-top-level ir*))))
          ;; else
-         dt)))
-   dt
-   (r.util/zip-next-seq (dt-zip dt))))
+         ir)))
+   ir
+   (r.util/zip-next-seq (ir-zip ir))))
 
 ;; :branch rewriting
 
@@ -696,21 +696,21 @@
      {:op :branch
       :arms [!arms ... {:op :fail}]})"
   {:private true}
-  [dt]
-  (case (:op dt)
+  [ir]
+  (case (:op ir)
     :branch
     (let [arms* (into [] (mapcat
                           (fn f [node]
                             (if (= (:op node) :branch)
                               (mapcat f (:arms node))
                               (list node))))
-                      (:arms dt))
-          arms* (if (some dt-fail? arms*)
-                  (conj (into [] (remove dt-fail?) arms*)
+                      (:arms ir))
+          arms* (if (some ir-fail? arms*)
+                  (conj (into [] (remove ir-fail?) arms*)
                         (op-fail))
                   arms*)]
-      (assoc dt :arms arms*))
-    dt))
+      (assoc ir :arms arms*))
+    ir))
 
 (defmulti branch-merge-checks*
   (fn [[a b]]
@@ -794,14 +794,14 @@
     [a b]))
 
 (defn branch-merge-checks
-  [dt]
-  (case (:op dt)
+  [ir]
+  (case (:op ir)
     :branch
-    (loop [arms (:arms dt)
+    (loop [arms (:arms ir)
            arms* []]
       (case (count arms)
         (0 1)
-        (assoc dt :arms (into arms* arms))
+        (assoc ir :arms (into arms* arms))
         ;; else
         (let [[a b] (take 2 arms)
               [a* b*] (branch-merge-checks* [a b])]
@@ -811,25 +811,25 @@
             ;; Could merge, drop b, push a*.
             (recur (cons a* (drop 2 arms)) arms*)))))
     ;; else
-    dt))
+    ir))
 
 
 (defn branch-one-arm
-  [dt]
-  (if (= (:op dt) :branch)
-    (if (= (count (:arms dt)) 1)
-      (recur (first (:arms dt)))
-      dt)
-    dt))
+  [ir]
+  (if (= (:op ir) :branch)
+    (if (= (count (:arms ir)) 1)
+      (recur (first (:arms ir)))
+      ir)
+    ir))
 
-(defn rewrite-branch* [dt]
-  (-> dt
+(defn rewrite-branch* [ir]
+  (-> ir
       branch-flatten
       branch-merge-checks
       branch-one-arm))
 
-(defn rewrite-branch [dt]
-  (let [dt* (loop [loc (dt-zip dt)]
+(defn rewrite-branch [ir]
+  (let [ir* (loop [loc (ir-zip ir)]
               (if (zip/end? loc)
                 (zip/root loc)
                 (let [node (zip/node loc)]
@@ -848,35 +848,35 @@
 
                     ;; else
                     (recur (zip/next loc))))))]
-    (if (= dt dt*)
-      dt
-      (recur dt*))))
+    (if (= ir ir*)
+      ir
+      (recur ir*))))
 
 (defn rewrite-save
-  "Remove useless save nodes from dt."
-  [dt]
-  (let [dt* (loop [loc (dt-zip dt)]
+  "Remove useless save nodes from ir."
+  [ir]
+  (let [ir* (loop [loc (ir-zip ir)]
               (if (zip/end? loc)
                 (zip/root loc)
                 (let [node (zip/node loc)]
                   (case (:op node)
                     :save
                     (let [body-1 (:body-1 node)]
-                      (if (some dt-check? (nodes body-1))
+                      (if (some ir-check? (nodes body-1))
                         (recur (zip/next loc))
                         (recur (zip/replace loc body-1))))
 
                     ;; else
                     (recur (zip/next loc))))))]
-    (if (= dt dt*)
-      dt
-      (recur dt*))))
+    (if (= ir ir*)
+      ir
+      (recur ir*))))
 
-(defn rewrite [dt]
-  (-> dt
+(defn rewrite [ir]
+  (-> ir
       rewrite-def
       rewrite-branch
       rewrite-save))
 
-(defn compile [dt fail kind]
-  (compile* (rewrite dt) fail kind))
+(defn compile [ir fail kind]
+  (compile* (rewrite ir) fail kind))
