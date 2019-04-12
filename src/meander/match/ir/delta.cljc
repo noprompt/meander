@@ -10,8 +10,7 @@
 
 ;; TODO: (TR) Inline bindings used once
 ;; TODO: (TR) Remove bindings never used
-;; TODO: (TC) take and drop have :then
-;; TODO: (TC) create :resolve node for symbols 
+;; TODO: (TC) create :resolve node for symbols
 ;; TODO: (TC) replace :eval with :resolve where possible
 
 (defn child-keys [dt]
@@ -282,10 +281,52 @@
                           (goog.array/equals a# b# f#)
                           (= a# b#)))))
 
+(defn take-form [n target-form kind]
+  (case kind
+    :js-array
+    `(.slice ~target-form 0 (min (.-length ~target-form) ~n))
+
+    :vector
+    `(subvec ~target-form 0 (min (count ~target-form) ~n))
+
+    ;; else
+    `(take ~n ~target-form)))
+
+(defn drop-form [n target-form kind]
+  (case kind
+    :js-array
+    `(.slice ~target-form ~n)
+
+    :vector
+    `(subvec ~target-form ~n)
+
+    :seq
+    `(drop ~n ~target-form)))
+
 (defn dt-fail?
   {:private true}
   [dt]
   (= (:op dt) :fail))
+
+(defn dt-check?
+  [dt]
+  (case (:op dt)
+    (:check
+     :check-array
+     :check-array-equals
+     :check-boolean
+     :check-bounds
+     :check-empty
+     :check-equal
+     :check-map
+     :check-seq
+     :check-set
+     :check-vector
+     :lvr-check)
+    true
+
+    ;; else
+    false))
 
 (defmulti compile*
   (fn [dt fail kind]
@@ -443,7 +484,7 @@
     :js-array
     `(.slice ~(compile* (:target dt) fail kind)
              ~(:n dt))
-    
+
     :vector
     `(subvec ~(compile* (:target dt) fail kind)
              ~(:n dt))
@@ -584,7 +625,7 @@
   (case kind
     (:find :match)
     (compile* (assoc dt :op :find) fail kind)
-    
+
     :search
     `(mapcat
       (fn [~(:symbol dt)]
@@ -593,38 +634,25 @@
 
 (defmethod compile* :star
   [dt fail kind]
-  (let [input-sym (:input-symbol dt)
+  (let [coll-sym (gensym "coll__")
+        input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
+        n (:n dt)
         then-sym (gensym "then__")
+        body-form (compile* (:body dt) `FAIL (case kind :search :find kind))
         then-form (compile* (:then dt) fail kind)]
-    `(let [~input-sym ~(compile* (:input dt) fail kind)
-           ~then-sym (fn [~return-syms] ~then-form)]
-       (reduce
-        (fn [~return-syms [~input-sym tail#]]
-          (if (= (count ~input-sym) ~(:n dt))
-            (let [result# ~(compile* (:body dt) `FAIL (case kind
-                                                     :search :find
-                                                     kind))]
-              (if (identical? result# FAIL)
-                (reduced ~fail)
-                (if (seq tail#)
-                  result#
-                  (reduced (~then-sym result#)))))
-            ;; Failed to consume
-            (reduced
-             (if (or (seq ~input-sym) (seq tail#))
-               ~fail
-               (~then-sym ~return-syms)))))
-        ~(:return-symbols dt)
-        ~(case (:kind dt)
-           :js-array
-           `(js-array-bites ~(:n dt) ~input-sym)
-
-           :seq
-           `(seq-bites ~(:n dt) ~input-sym)
-
-           :vector
-           `(vec-bites ~(:n dt) ~input-sym))))))
+    `(loop [~coll-sym ~(compile* (:input dt) fail kind)
+            ~return-syms ~(:return-symbols dt)]
+      (let [~input-sym ~(take-form n coll-sym (:kind dt))]
+        (if (= (count ~input-sym) ~n)
+          (let [result# ~body-form]
+            (if (identical? result# FAIL)
+              ~fail
+              (recur ~(drop-form n coll-sym (:kind dt)) result#)))
+          ;; Failed to consume
+          (if (seq ~coll-sym)
+            ~fail
+            ~then-form))))))
 
 (defmethod compile* :take
   [dt fail kind]
@@ -665,7 +693,7 @@
              (if (contains? call-symbols (:symbol node))
                (zip/next loc)
                (zip/replace loc (:then node)))
-             
+
              ;; else
              (zip/next loc))))))))
 
@@ -712,7 +740,7 @@
                           (fn f [node]
                             (if (= (:op node) :branch)
                               (mapcat f (:arms node))
-                              (list node))))                                
+                              (list node))))
                       (:arms dt))
           arms* (if (some dt-fail? arms*)
                   (conj (into [] (remove dt-fail?) arms*)
@@ -861,10 +889,31 @@
       dt
       (recur dt*))))
 
+(defn rewrite-save
+  "Remove useless save nodes from dt."
+  [dt]
+  (let [dt* (loop [loc (dt-zip dt)]
+              (if (zip/end? loc)
+                (zip/root loc)
+                (let [node (zip/node loc)]
+                  (case (:op node)
+                    :save
+                    (let [body-1 (:body-1 node)]
+                      (if (some dt-check? (nodes body-1))
+                        (recur (zip/next loc))
+                        (recur (zip/replace loc body-1))))
+
+                    ;; else
+                    (recur (zip/next loc))))))]
+    (if (= dt dt*)
+      dt
+      (recur dt*))))
+
 (defn rewrite [dt]
   (-> dt
       rewrite-def
-      rewrite-branch))
+      rewrite-branch
+      rewrite-save))
 
 (defn compile [dt fail kind]
   (compile* (rewrite dt) fail kind))
