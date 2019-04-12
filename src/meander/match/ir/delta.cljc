@@ -565,46 +565,27 @@
 
 (defmethod compile* :plus
   [dt fail kind]
-  (let [input-sym (:input-symbol dt)
+  (let [coll-sym (gensym "coll__")
+        input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
-        minimum (:m dt)
-        then-sym (gensym "then__")
+        n (:n dt)
+        m (:m dt)
+        body-form (compile* (:body dt) `FAIL (case kind :search :find kind))
         then-form (compile* (:then dt) fail kind)]
-    `(let [~input-sym ~(compile* (:input dt) fail kind)
-           ~then-sym (fn [~return-syms] ~then-form)]
-       (reduce
-        (fn [~return-syms [~input-sym tail# i#]]
-          (if (= (count ~input-sym) ~(:n dt))
-            (let [result# ~(compile* (:body dt) `FAIL (case kind
-                                                     :search :find
-                                                     kind))]
-              (if (identical? result# FAIL)
-                (reduced ~fail)
-                (if (seq tail#)
-                  result#
-                  ;; Because we've successfully consumed and i will
-                  ;; increment at the top of the next iteration, we
-                  ;; need to use inc to check if we met the minimum.
-                  (if (<= ~minimum (inc i#))
-                    (reduced (~then-sym result#))
-                    ~fail))))
-            ;; Failed to consume
-            (reduced
-             (if (or (seq ~input-sym)
-                     (seq tail#)
-                     (< i# ~minimum))
+    `(loop [i# 0
+            ~coll-sym ~(compile* (:input dt) fail kind)
+            ~return-syms ~(:return-symbols dt)]
+       (let [~input-sym ~(take-form n coll-sym (:kind dt))]
+         (if (= (count ~input-sym) ~n)
+           (let [result# ~body-form]
+             (if (identical? result# FAIL)
                ~fail
-               (~then-sym ~return-syms)))))
-        ~(:return-symbols dt)
-        ~(case (:kind dt)
-           :js-array
-           `(js-array-bites-indexed ~(:n dt) ~input-sym)
-
-           :seq
-           `(seq-bites-indexed ~(:n dt) ~input-sym)
-
-           :vector
-           `(vec-bites-indexed ~(:n dt) ~input-sym))))))
+               (recur (inc i#) ~(drop-form n coll-sym (:kind dt)) result#)))
+           ;; Failed to consume
+           (if (or (seq ~coll-sym)
+                   (< i# ~m))
+             ~fail
+             ~then-form))))))
 
 (defmethod compile* :save
   [dt fail kind]
@@ -638,7 +619,6 @@
         input-sym (:input-symbol dt)
         return-syms (:return-symbols dt)
         n (:n dt)
-        then-sym (gensym "then__")
         body-form (compile* (:body dt) `FAIL (case kind :search :find kind))
         then-form (compile* (:then dt) fail kind)]
     `(loop [~coll-sym ~(compile* (:input dt) fail kind)
@@ -678,7 +658,8 @@
 
 ;; :def rewriting
 
-(defn def-remove-unused [dt]
+(defn def-remove-unused
+  [dt]
   (let [call-symbols (into #{}
                            (comp (filter (comp #{:call} :op))
                                  (map :symbol))
