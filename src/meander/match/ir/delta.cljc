@@ -8,10 +8,10 @@
    [meander.util.delta :as r.util]
    [meander.syntax.delta :as r.syntax]))
 
-;; TODO: (TR) Inline bindings used once
-;; TODO: (TR) Remove bindings never used
-;; TODO: (TC) create :resolve node for symbols
-;; TODO: (TC) replace :eval with :resolve where possible
+;; TODO: create :resolve node for symbols
+;; TODO: replace :eval with :resolve where possible
+;; TODO: Inline bindings used once
+;; TODO: Remove bindings never used
 
 (defn child-keys [ir]
   (keep
