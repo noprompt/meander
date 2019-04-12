@@ -480,18 +480,9 @@
 
 (defmethod compile* :drop
   [dt fail kind]
-  (case (:kind dt)
-    :js-array
-    `(.slice ~(compile* (:target dt) fail kind)
-             ~(:n dt))
-
-    :vector
-    `(subvec ~(compile* (:target dt) fail kind)
-             ~(:n dt))
-
-    :seq
-    `(drop ~(:n dt)
-           ~(compile* (:target dt) fail kind))))
+  (drop-form (:n dt)
+             (compile* (:target dt) fail kind)
+             (:kind dt)))
 
 (defmethod compile* :def
   [dt fail kind]
@@ -636,18 +627,9 @@
 
 (defmethod compile* :take
   [dt fail kind]
-  (let [target-code (compile* (:target dt) fail kind)
-        n (:n dt)]
-    (case (:kind dt)
-      :vector
-      `(subvec ~target-code 0 (min (count ~target-code) ~n))
-
-      :js-array
-      `(.slice ~target-code 0 (min (.-length ~target-code) ~n))
-
-      ;; else
-      `(take ~n ~target-code))))
-
+  (take-form (:n dt)
+             (compile* (:target dt) fail kind)
+             (:kind dt)))
 
 (defmethod compile* :default
   [dt fail kind]
