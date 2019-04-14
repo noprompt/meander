@@ -1168,7 +1168,7 @@
                     :body (compile [target-arg]
                                    [(assoc (r.matrix/add-vars row* (:reqs spec-map))
                                            :cols [(:node spec-map)]
-                                           :rhs (r.ir/op-eval ret-syms))])
+                                           :rhs (r.ir/op-return ret-syms))])
                     :then dt}))
                (compile targets matrix*)
                (mapcat identity (vals ref-spec-map)))
@@ -1688,7 +1688,7 @@
                      (fn [clause]
                        (r.matrix/make-row
                         [(expand-node (:pat clause))]
-                        (r.ir/op-eval (:rhs clause))))
+                        (r.ir/op-return (:rhs clause))))
                      clauses)
              final-clause (some
                            (fn [row]
@@ -1774,7 +1774,7 @@
                      (fn [clause]
                        (r.matrix/make-row
                         [(expand-node (:pat clause))]
-                        (r.ir/op-eval `(list ~(:rhs clause)))))
+                        (r.ir/op-return (:rhs clause))))
                      clauses)]
          {:errors errors
           :expr (:expr data)
@@ -1853,7 +1853,7 @@
                      (fn [clause]
                        (r.matrix/make-row
                         [(expand-node (:pat clause))]
-                        (r.ir/op-eval (:rhs clause))))
+                        (r.ir/op-return (:rhs clause))))
                      clauses)]
          {:errors errors
           :expr (:expr data)

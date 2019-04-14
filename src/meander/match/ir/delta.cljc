@@ -123,6 +123,8 @@
 
 (defop op-mvr-init :mvr-init [symbol then])
 
+(defop op-return :return [value])
+
 (defop op-save :save [id body-1 body-2])
 
 ;; TODO: No need for :symbol.
@@ -476,6 +478,15 @@
                    (< i# ~m))
              ~fail
              ~then-form))))))
+
+(defmethod compile* :return
+  [ir fail kind]
+  (case kind
+    (:find :match)
+    (:value ir)
+
+    :search
+    `(list ~(:value ir))))
 
 (defmethod compile* :save
   [ir fail kind]
