@@ -9,12 +9,10 @@
             [clojure.zip :as zip]
             [meander.matrix.gamma :as r.matrix]
             [meander.syntax.gamma :as r.syntax]
-            [meander.util.gamma :as r.util])
+            [meander.util.gamma :as r.util]
+            #?(:cljs [goog.object]))
   #?(:clj
-     (:import (cljs.tagged_literals JSValue))
-     :cljs
-     (:import (goog.object))))
-
+     (:import (cljs.tagged_literals JSValue))))
 
 (def
   ^{:dynamic true
