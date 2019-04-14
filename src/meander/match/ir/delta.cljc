@@ -172,6 +172,18 @@
   utilize this value as for control flow purposes."
   (reify))
 
+(defn fail-form
+  "Returns `(list FAIL) if kind is :search, `FAIL otherwise. This is
+  used when compiling :def nodes to ensure the correct type of data is
+  returned to code compiled for :call nodes."
+  [kind]
+  (case kind
+    (:match :find)
+    `FAIL
+
+    :search
+    `(list FAIL)))
+
 (defn js-array-equals-form
   "Form used to test if two arrays a and b are equal in
   ClojureScript."
@@ -288,11 +300,22 @@
 
 (defmethod compile* :call
   [ir fail kind]
-  `(let [x# (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))]
-     (if (identical? x# FAIL)
-       ~fail
-       (let [[~@(:ret-syms ir)] x#]
-         ~(compile* (:then ir) fail kind)))))
+  (case kind
+    (:find :match)
+    `(let [x# (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))]
+       (if (identical? x# FAIL)
+         ~fail
+         (let [[~@(:ret-syms ir)] x#]
+           ~(compile* (:then ir) fail kind))))
+
+    :search
+    `(mapcat
+      (fn [x#]
+        (if (identical? x# FAIL)
+          ~fail
+          (let [[~@(:ret-syms ir)] x#]
+            ~(compile* (:then ir) fail kind))))
+      (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir)))))
 
 (defmethod compile* :check-array
   [ir fail kind]
@@ -392,7 +415,7 @@
     (if (= (:op ir) :def)
       (recur (conj bindings
                    `(~(:symbol ir) [~(:target-arg ir) ~@(:req-syms ir)]
-                     ~(compile* (:body ir) `FAIL kind)))
+                     ~(compile* (:body ir) (fail-form kind) kind)))
              (:then ir))
       `(letfn ~bindings
          ~(compile* ir fail kind)))))
