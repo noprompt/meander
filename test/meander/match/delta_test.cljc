@@ -147,7 +147,7 @@
      (t/is (try
              (macroexpand '(meander.match.delta/match 1 (or ?x ?y ?z) false))
              false
-             (catch clojure.lang.ExceptionInfo _
+             (catch Exception _
                true)))))
  
 (tc.t/defspec let-succeeds
