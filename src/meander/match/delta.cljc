@@ -10,11 +10,10 @@
             [meander.match.ir.delta :as r.ir]
             [meander.matrix.delta :as r.matrix]
             [meander.syntax.delta :as r.syntax]
-            [meander.util.delta :as r.util])
+            [meander.util.delta :as r.util]
+            #?(:cljs [goog.object :as gobj]))
   #?(:clj
-     (:import (cljs.tagged_literals JSValue))
-     :cljs
-     (:import (goog.object))))
+     (:import (cljs.tagged_literals JSValue))))
 
 
 (def
@@ -516,8 +515,8 @@
                    search-target (gensym* "okv__")]
                (r.ir/op-search search-target (r.ir/op-eval
                                               `(map (fn [k#]
-                                                      [k# (goog.object/get ~target k#)])
-                                                    (goog.object/getKeys ~target)))
+                                                      [k# (gobj/get ~target k#)])
+                                                    (gobj/getKeys ~target)))
                  (compile `[~search-target ~@targets*] matrix*)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
