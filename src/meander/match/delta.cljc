@@ -1629,6 +1629,12 @@
                :arguments [as (dissoc x :as)]})
            x))
 
+       :not
+       (let [argument (:argument x)]
+         (if (= (r.syntax/tag argument) :not)
+           (f (:argument argument))
+           x))
+
        (:seq :vec)
        (if-some [as (:as x)]
          (f {:tag :cnj

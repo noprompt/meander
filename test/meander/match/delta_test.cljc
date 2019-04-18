@@ -969,6 +969,12 @@
           _n
           true)))
 
+(t/deftest not-not-test
+  (let [x 1]
+    (t/is (= x (r.match/find 1
+                 (not (not ?x))
+                 ?x)))))
+
 ;; ---------------------------------------------------------------------
 ;; JS Array match tests
 
