@@ -715,9 +715,9 @@
 
          :not
          (let [save-id (gensym "save__")
-               not-matrix [{:cols [(:argument node)]
-                            :env (:env row),
-                            :rhs (r.ir/op-load save-id)}]]
+               not-matrix [(assoc row
+                                  :cols [(:argument node)]
+                                  :rhs (r.ir/op-load save-id))]]
            (r.ir/op-save save-id
              (binding [*negating* true]
                (compile [target] not-matrix))
@@ -1165,10 +1165,11 @@
                     :target-arg target-arg
                     :req-syms (mapv :symbol (:reqs spec-map))
                     :ret-syms ret-syms
-                    :body (compile [target-arg]
-                                   [(assoc (r.matrix/add-vars row* (:reqs spec-map))
-                                           :cols [(:node spec-map)]
-                                           :rhs (r.ir/op-return ret-syms))])
+                    :body (binding [*negating* false]
+                            (compile [target-arg]
+                                     [(assoc (r.matrix/add-vars row* (:reqs spec-map))
+                                             :cols [(:node spec-map)]
+                                             :rhs (r.ir/op-return ret-syms))]))
                     :then dt}))
                (compile targets matrix*)
                (mapcat identity (vals ref-spec-map)))

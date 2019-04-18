@@ -434,7 +434,7 @@
         fail-sym (gensym "fail__")]
     `(let [~result-sym (reduce
                         (fn [~fail-sym ~(:symbol ir)]
-                          (let [~result-sym ~(compile* (:body ir) `FAIL kind)]
+                          (let [~result-sym ~(compile* (:body ir) `FAIL :find)]
                             (if (identical? ~result-sym ~fail-sym)
                               ~fail-sym
                               (reduced ~result-sym))))
@@ -809,7 +809,7 @@
   (-> ir
       rewrite-def
       rewrite-branch
-      rewrite-save))
+      #_rewrite-save))
 
 (defn compile [ir fail kind]
   (compile* (rewrite ir) fail kind))

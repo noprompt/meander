@@ -1235,4 +1235,14 @@
                [!tags !attrs !xs])
              [[:div :p :strong :em :u :ul :li :li :li :li]
               [{"foo" "bar"} {"baz" "quux"}]
-              ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]]))))
+              ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]])))
+
+  (t/is (= (set
+            (r.match/search '[#{{:tag :lvr, :symbol ?y}
+                                {:tag :lvr, :symbol ?x}
+                                {:tag :lvr, :symbol ?z}}
+                              #{{:tag :lvr, :symbol ?x}}]
+              (with [%lvr {:tag :lvr, :symbol ?symbol}]
+                [#{%lvr} #{(not %lvr)}])
+              ?symbol))
+           '#{?y ?z})))

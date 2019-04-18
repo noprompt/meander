@@ -1544,6 +1544,9 @@
                       {}
                       (:map node)))))
 
+(defmethod walk :not [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))
+
 (defmethod walk :prd [inner outer node]
   (outer (assoc node :arguments (mapv inner (:arguments node)))))
 
