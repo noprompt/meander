@@ -1027,10 +1027,11 @@
             rhs-node (r.syntax/parse rhs)
             lhs-vars (r.syntax/variables lhs-node)
             rhs-vars (r.syntax/variables rhs-node)]
-        {:lhs lhs-node
-         :rhs rhs-node})))
-   (partition 2 (rest args))))
-
+        {:lhs {:pattern lhs-node
+               :vars lhs-vars}
+         :rhs {:pattern rhs-node
+               :vars rhs-vars}})))
+   (partition 2 args)))
 
 (defmacro rewrite
   "Returns strategy which symbolically transforms t in to t' via
