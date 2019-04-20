@@ -1,86 +1,156 @@
 (ns meander.match.ir.delta
   "Functions for working with the Meander's match compiler
   intermediate representation (IR)."
-  (:refer-clojure :exclude [compile])
+  (:refer-clojure :exclude [compile merge])
   #?(:cljs (:require-macros [meander.match.ir.delta :refer [defop]]))
   (:require
+   [clojure.core :as clj]
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as s.gen]
+   [clojure.walk :as walk]
    [clojure.zip :as zip]
    [meander.util.delta :as r.util]
    [meander.syntax.delta :as r.syntax]))
 
-;; TODO: create :resolve node for symbols
-;; TODO: replace :eval with :resolve where possible
-;; TODO: Inline bindings used once
-;; TODO: Remove bindings never used
+;; ---------------------------------------------------------------------
+;; AST API
 
-(defn child-keys [ir]
+;; A node is only required to have and :op key.
+(s/def ::node
+  (s/keys :req-un [::op]))
+
+(s/def ::op
+  keyword?)
+
+(defn node?
+  "true if x is a ::node, false otherwise."
+  [x]
+  (and (map? x) (contains? x :op)))
+
+(s/fdef node?
+  :args (s/or :node ::node
+              :any any?)
+  :ret boolean?)
+
+(def
+  ^{:arglists '([node])
+    :doc "Return the ::op of node."}
+  op :op)
+
+(s/fdef op
+  :args ::node
+  :ret ::op)
+
+(defn child-keys
+  "Return the keys of node which have a value that is a ::node."
+  {:private true}
+  [node]
   (keep
    (fn [[k v]]
      (when (some? (:op v))
        k))
-   ir))
+   node))
 
-(defn children [ir]
-  (if (map? ir)
-    (case (:op ir)
-      :branch
-      (:arms ir)
+(s/fdef child-keys
+  :args (s/cat :node ::node)
+  :ret (s/coll-of any? :kind sequential? :into []))
 
-      ;; else
-      (map ir (child-keys ir)))))
-
-(defn branch? [ir]
-  (some? (seq (children ir))))
-
-(defn make-node [ir new-children]
-  (case (:op ir)
+(defn children
+  "Return the child nodes of node, a sequence of ::node."
+  [node]
+  (case (op node)
     :branch
-    (assoc ir :arms new-children)
+    (:arms node)
 
     ;; else
-    (into ir (map vector (child-keys ir) new-children))))
+    (map node (child-keys node))))
 
-(defn ir-zip [ir]
-  (zip/zipper branch? children make-node ir))
+(defn branch?
+  "true if node has any children, false otherwise."
+  [node]
+  (some? (seq (children node))))
+
+(defn nodes
+  "Return all subnodes of node, a sequence of ::node."
+  [node]
+  (tree-seq branch? children node))
 
 (defn height
-  "Return the height of ir."
-  [ir]
-  (if-some [dts (children ir)]
+  "Return the height of node."
+  [node]
+  (if-some [nodes (children node)]
     (transduce (comp (map height)
                      (map inc))
                max
                1
-               dts)
+               nodes)
     1))
 
-(defn nodes
-  "Return all nodes in ir."
-  [ir]
-  (tree-seq branch? children ir))
+(defn make-node [node new-children]
+  (case (op node)
+    :branch
+    (assoc node :arms new-children)
+
+    ;; else
+    (into node (map vector (child-keys node) new-children))))
+
+(defn zipper [node]
+  (zip/zipper branch? children make-node node))
+
+(defn walk [inner outer node]
+  (case (:op node)
+    :branch
+    (outer (assoc node :arms (doall (map inner (:arms node)))))
+
+    ;; else
+    (outer
+     (reduce
+      (fn [node* k]
+        (assoc node* k (inner (get node k))))
+      node
+      (child-keys node)))))
+
+(defn postwalk
+  [f node]
+  (walk (fn [x]
+          (let [y (f x)]
+            (if (reduced? y)
+              (deref y)
+              (postwalk f y))))
+        f
+        node))
+
+(defn prewalk
+  [f node]
+  (let [x (f node)]
+    (if (reduced? x)
+      (deref x)
+      (walk (partial prewalk f) identity x))))
 
 ;; ---------------------------------------------------------------------
-;; Tree nodes
+;; AST constructors 
+;;
+;; TODO: create :resolve node for symbols
+;; TODO: replace :eval with :resolve where possible
 
-(defmacro defop [symbol op params]
-  (let [meta {:arglists `'(~params)
-              :style/indent :defn} ]
-    `(defn ~(vary-meta symbol merge meta) ~params
-       (hash-map ~@(mapcat
-                    (fn [param]
-                      [(keyword (name param)) param])
-                    params)
-                 :op ~op))))
+(defmacro defop [symbol op params & body]
+  (let [symbol (vary-meta symbol assoc
+                          :arglists `'(~params)
+                          :style/indent :defn)]
+    `(defn ~symbol ~params
+       ~(if (seq body)
+          `(assoc (do ~@body) :op ~op)
+          `(hash-map ~@(mapcat
+                        (fn [param]
+                          [(keyword (name param)) param])
+                        params)
+                     :op ~op)))))
 
 (defop op-bind :bind [symbol value then])
 
 (defop op-branch :branch [arms])
 
 (defop op-drop :drop [target n kind])
-
-(defop op-nth :nth [target index])
-
-(defop op-pass :pass [then])
 
 (defop op-eval :eval [form])
 
@@ -113,6 +183,8 @@
 
 (defop op-load :load [id])
 
+(defop op-lookup :lookup [target key])
+
 (defop op-lvr-check :lvr-check [symbol target then])
 
 (defop op-lvr-bind :lvr-bind [symbol target then])
@@ -123,6 +195,10 @@
 
 (defop op-mvr-init :mvr-init [symbol then])
 
+(defop op-nth :nth [target index])
+
+(defop op-pass :pass [then])
+
 (defop op-return :return [value])
 
 (defop op-save :save [id body-1 body-2])
@@ -130,12 +206,9 @@
 ;; TODO: No need for :symbol.
 (defop op-search :search [symbol value body])
 
-(defn op-star
-  {:style/indent :defn}
-  [input n kind return-symbols body-fn then]
+(defop op-star :star [input n kind return-symbols body-fn then]
   (let [input-symbol (gensym "input__")]
-    {:op :star
-     :input-symbol input-symbol
+    {:input-symbol input-symbol
      :input input
      :body (body-fn input-symbol (op-eval (vec return-symbols)))
      :then then
@@ -143,12 +216,9 @@
      :n n
      :return-symbols (vec return-symbols)}))
 
-(defn op-plus
-  {:style/indent :defn}
-  [input n m kind return-symbols body-fn then]
+(defop op-plus :plus [input n m kind return-symbols body-fn then]
   (let [input-symbol (gensym "input__")]
-    {:op :plus
-     :input-symbol input-symbol
+    {:input-symbol input-symbol
      :input input
      :body (body-fn input-symbol (op-eval (vec return-symbols)))
      :then then
@@ -160,6 +230,250 @@
 (defop op-take :take [target n kind])
 
 (defop op-fail :fail [])
+
+(defn op=
+  {:arglists '([node op])}
+  [x k]
+  (and (node? x) (= (op x) k)))
+
+(defn op-fail? [x]
+  (op= x :fail))
+
+;; ---------------------------------------------------------------------
+;; AST Rewriting
+
+(defmulti merge
+  "Attempt to merge node-a and node-b. Returns the result of the merge
+  if the merge succeeds. Returns a :branch node with :arms node-a and
+  node-b if not."
+  {:arglists '([node-a node-b])}
+  (fn [a b]
+    (if (= (op a) (op b))
+      (op a)
+      ::default))
+  :default ::default)
+
+(defmethod merge ::default
+  [a b]
+  (if (= a b)
+    a
+    (op-branch [a b])))
+
+(defmethod merge :bind
+  [a b]
+  (if (= (:value a)
+         (:value b))
+    (let [a-symbol (:symbol a)
+          b-symbol (:symbol b)]
+      (assoc a
+             :then
+             (merge (:then a)
+                    ;; Substitute b-symbol with a-symbol.
+                    (walk/postwalk-replace {b-symbol a-symbol}
+                                           (:then b)))))
+    (op-branch [a b])))
+
+(defn merge-check-coll
+  {:private true}
+  [a b]
+  (if (= (:target a)
+         (:target b))
+    (assoc a :then (merge (:then a) (:then b)))
+    (op-branch [a b])))
+
+(defmethod merge :check-array
+  [a b]
+  (merge-check-coll a b))
+
+(defmethod merge :check-lit
+  [a b]
+  (if (and (= (:target a)
+              (:target b))
+           (= (:value a)
+              (:value b)))
+    (assoc a :then (merge (:then a) (:then b)))
+    (op-branch [a b])))
+
+(defmethod merge :check-map
+  [a b]
+  (merge-check-coll a b))
+
+(defmethod merge :check-seq
+  [a b]
+  (merge-check-coll a b))
+
+(defmethod merge :check-set
+  [a b]
+  (merge-check-coll a b))
+
+(defmethod merge :check-vector
+  [a b]
+  (merge-check-coll a b))
+
+(defmethod merge :check-bounds
+  [a b]
+  (if (and (= (:target a)
+              (:target b))
+           (= (:kind a)
+              (:kind b))
+           (= (:length a)
+              (:length b)))
+    (assoc a :then (merge (:then a) (:then b)))
+    (op-branch [a b])))
+
+(defmethod merge :lvr-bind
+  [a b]
+  (if (and (= (:symbol a)
+              (:symbol b))
+           (= (:target a)
+              (:target b)))
+    (assoc a :then (merge (:then a) (:then b)))
+    (op-branch [a b])))
+
+;; :branch rewriting
+;; -----------------
+
+(defn rewrite-branch-one-case
+  {:private true}
+  [node]
+  (if (op= node :branch)
+    (if (= 1 (count (:arms node)))
+      (first (:arms node))
+      node)
+    node))
+
+(defn rewrite-branch-splice-branches
+  {:private true}
+  [node]
+  (if (op= node :branch)
+    (assoc node :arms (mapcat
+                       (fn [node]
+                         (if (op= node :branch)
+                           (:arms node)
+                           (list node)))
+                       (:arms node)))
+    node))
+
+(defn rewrite-branch-one-fail
+  {:private true}
+  [node]
+  (if (op= node :branch)
+    (if (some op-fail? (:arms node))
+      (assoc node :arms (conj (into [] (remove op-fail?) (:arms node))
+                              (op-fail)))
+      node)
+    node))
+
+(defn rewrite-branch-merge
+  {:private true}
+  [node]
+  (if (op= node :branch)
+    (let [arms (:arms node)]
+      (case (count arms)
+        0
+        node ;; fail?
+
+        1
+        (first arms)
+
+        2
+        (let [[a b] arms]
+          (merge a b))
+
+        ;; else
+        (let [[a b & rest-arms] arms]
+          (merge (merge a b)
+                 (op-branch rest-arms)))))
+    node))
+
+;; :def rewriting
+;; --------------
+
+(defn def-remove-unused
+  [ir]
+  (let [call-symbols (into #{}
+                           (comp (filter (comp #{:call} op))
+                                 (map :symbol))
+                           (nodes ir))]
+    (loop [loc (zipper ir)]
+      (if (zip/end? loc)
+        (zip/root loc)
+        (let [node (zip/node loc)]
+          (recur
+           (case (op node)
+             :def
+             (if (contains? call-symbols (:symbol node))
+               (zip/next loc)
+               (zip/replace loc (:then node)))
+
+             ;; else
+             (zip/next loc))))))))
+
+;; :mvr rewriting
+;; --------------
+
+(defn rewrite-move-mvr-init-to-top-level [ir]
+  (reduce
+   (fn [_ loc]
+     (let [node (zip/node loc)]
+       (case (:op node)
+         :mvr-init
+         (let [ir* (zip/root (zip/edit loc :then))]
+           (reduced (assoc node :then (rewrite-move-mvr-init-to-top-level ir*))))
+         ;; else
+         ir)))
+   ir
+   (r.util/zip-next-seq (zipper ir))))
+
+#_
+(defn rewrite-save
+  "Remove useless save nodes from ir."
+  [ir]
+  (let [ir* (loop [loc (ir-zip ir)]
+              (if (zip/end? loc)
+                (zip/root loc)
+                (let [node (zip/node loc)]
+                  (case (:op node)
+                    :save
+                    (let [body-1 (:body-1 node)]
+                      (if (some ir-check? (nodes body-1))
+                        (recur (zip/next loc))
+                        (recur (zip/replace loc body-1))))
+
+                    ;; else
+                    (recur (zip/next loc))))))]
+    (if (= ir ir*)
+      ir
+      (recur ir*))))
+
+
+(defn rewrite*
+  [node]
+  (prewalk
+   (comp
+    (fn f [node]
+      (case (op node)
+        :branch
+        (rewrite-branch-one-case node)
+        ;; else
+        node))
+    (fn g [node]
+      (case (op node)
+        :branch
+        (-> node
+            rewrite-branch-one-fail
+            rewrite-branch-merge
+            rewrite-branch-splice-branches)
+        ;; else
+        node)))
+   node))
+
+(defn rewrite [node]
+  (loop [node (def-remove-unused node)]
+    (let [node* (rewrite* node)]
+      (if (= node* node)
+        node
+        (recur node*)))))
 
 ;; ---------------------------------------------------------------------
 ;; Code generation
@@ -217,7 +531,6 @@
     `(drop ~n ~target-form)))
 
 (defn ir-fail?
-  {:private true}
   [ir]
   (= (:op ir) :fail))
 
@@ -249,9 +562,15 @@
   [ir fail kind]
   (loop [bindings []
          ir ir]
-    (if (= (:op ir) :bind)
+    (case (:op ir)
+      :bind
       (recur (conj bindings (:symbol ir) (compile* (:value ir) fail kind))
              (:then ir))
+
+      :lvr-bind
+      (recur (conj bindings (:symbol ir) (compile* (:target ir) fail kind))
+             (:then ir))
+      ;; else
       `(let ~bindings
          ~(compile* ir fail kind)))))
 
@@ -288,10 +607,27 @@
 
         2
         (compile* (first arms)
-               (compile* (second arms) fail kind)
-               kind)
+                  (compile* (second arms) fail kind)
+                  kind)
 
         ;; else
+        (let [fsyms (mapv
+                     (fn [_]
+                       (gensym "state__"))
+                     arms)]
+          `(letfn [~@(map
+                       (fn [fsym fail arm]
+                         `(~fsym []
+                           ~(compile* arm fail kind)))
+                       fsyms
+                       (conj (mapv
+                              (fn [fsym]
+                                `(~fsym))
+                              (rest fsyms))
+                             fail)
+                       arms)]
+             (~(first fsyms))))
+        #_
         (reduce
          (fn [fail arm]
            (compile* arm fail kind))
@@ -448,6 +784,12 @@
   [ir fail kind]
   `(~(:id ir)))
 
+(defmethod compile* :lookup
+  [ir fail kind]
+  `(get ~(compile* (:target ir) fail kind)
+        ~(compile* (:key ir) fail kind)))
+
+
 (defmethod compile* :lvr-bind
   [ir fail kind]
   `(let [~(:symbol ir) ~(compile* (:target ir) fail kind)]
@@ -567,249 +909,6 @@
 (defmethod compile* :default
   [ir fail kind]
   ir)
-
-;; ---------------------------------------------------------------------
-;; Tree rewriting
-
-;; :def rewriting
-
-(defn def-remove-unused
-  [ir]
-  (let [call-symbols (into #{}
-                           (comp (filter (comp #{:call} :op))
-                                 (map :symbol))
-                           (nodes ir))]
-    (loop [loc (ir-zip ir)]
-      (if (zip/end? loc)
-        (zip/root loc)
-        (let [node (zip/node loc)]
-          (recur
-           (case (:op node)
-             :def
-             (if (contains? call-symbols (:symbol node))
-               (zip/next loc)
-               (zip/replace loc (:then node)))
-
-             ;; else
-             (zip/next loc))))))))
-
-(defn rewrite-def [ir]
-  (-> ir
-      def-remove-unused))
-
-;; :mvr rewriting
-
-(defn rewrite-move-mvr-init-to-top-level [ir]
-  (reduce
-   (fn [_ loc]
-     (let [node (zip/node loc)]
-       (case (:op node)
-         :mvr-init
-         (let [ir* (zip/root (zip/edit loc :then))]
-           (reduced (assoc node :then (rewrite-move-mvr-init-to-top-level ir*))))
-         ;; else
-         ir)))
-   ir
-   (r.util/zip-next-seq (ir-zip ir))))
-
-;; :branch rewriting
-
-(defn branch-flatten
-  "Equivalent to the rewrite rule
-
-    (rewrite
-     (with [%arms [(or {:op :branch
-                        :arms %arms}
-                       {:op :fail}
-                       !arms)
-                   ...]]
-       {:op :branch
-        :arms %arms})
-     ;; =>
-     {:op :branch
-      :arms [!arms ... {:op :fail}]})"
-  {:private true}
-  [ir]
-  (case (:op ir)
-    :branch
-    (let [arms* (into [] (mapcat
-                          (fn f [node]
-                            (if (= (:op node) :branch)
-                              (mapcat f (:arms node))
-                              (list node))))
-                      (:arms ir))
-          arms* (if (some ir-fail? arms*)
-                  (conj (into [] (remove ir-fail?) arms*)
-                        (op-fail))
-                  arms*)]
-      (assoc ir :arms arms*))
-    ir))
-
-(defmulti branch-merge-checks*
-  (fn [[a b]]
-    (let [op-a (:op a)
-          op-b (:op b)]
-      (if (= op-a op-b)
-        op-a
-        ::default)))
-  :default ::default)
-
-(defmethod branch-merge-checks* ::default
-  [[a b]]
-  [a b])
-
-(defmethod branch-merge-checks* :bind
-  [[a b]]
-  (if (= (:target a)
-         (:target b))
-    [(assoc a
-            :then (op-bind (:symbol b) (op-eval (:symbol a))
-                    (op-branch [(:then a)
-                                (:then b)])))]
-    [a b]))
-
-(defmethod branch-merge-checks* :check-bounds
-  [[a b]]
-  (if (and (= (:target a)
-              (:target b))
-           (= (:length a)
-              (:length b))
-           (= (:kind a)
-              (:kind b)))
-    [(assoc a
-            :then (op-branch [(:then a)
-                              (:then b)]))]
-    [a b]))
-
-(defmethod branch-merge-checks* :check-array
-  [[a b]]
-  (if (= (:target a)
-         (:target b))
-    [(assoc a
-            :then (op-branch [(:then a)
-                              (:then b)]))]
-    [a b]))
-
-(defmethod branch-merge-checks* :check-map
-  [[a b]]
-  (if (= (:target a)
-         (:target b))
-    [(assoc a
-            :then (op-branch [(:then a)
-                              (:then b)]))]
-    [a b]))
-
-(defmethod branch-merge-checks* :check-lit
-  [[a b]]
-  (if (= (:target a)
-         (:target b))
-    [(assoc a
-            :then (op-branch [(:then a)
-                              (:then b)]))]
-    [a b]))
-
-(defmethod branch-merge-checks* :check-seq
-  [[a b]]
-  (if (= (:target a)
-         (:target b))
-    [(assoc a
-            :then (op-branch [(:then a)
-                              (:then b)]))]
-    [a b]))
-
-(defmethod branch-merge-checks* :check-vector
-  [[a b]]
-  (if (= (:target a)
-         (:target b))
-    [(assoc a
-            :then (op-branch [(:then a)
-                              (:then b)]))]
-    [a b]))
-
-(defn branch-merge-checks
-  [ir]
-  (case (:op ir)
-    :branch
-    (loop [arms (:arms ir)
-           arms* []]
-      (case (count arms)
-        (0 1)
-        (assoc ir :arms (into arms* arms))
-        ;; else
-        (let [[a b] (take 2 arms)
-              [a* b*] (branch-merge-checks* [a b])]
-          (if (some? b*)
-            ;; Couldn't merge, consume a.
-            (recur (drop 1 arms) (conj arms* a))
-            ;; Could merge, drop b, push a*.
-            (recur (cons a* (drop 2 arms)) arms*)))))
-    ;; else
-    ir))
-
-
-(defn branch-one-arm
-  [ir]
-  (if (= (:op ir) :branch)
-    (if (= (count (:arms ir)) 1)
-      (recur (first (:arms ir)))
-      ir)
-    ir))
-
-(defn rewrite-branch* [ir]
-  (-> ir
-      branch-flatten
-      branch-merge-checks
-      branch-one-arm))
-
-(defn rewrite-branch [ir]
-  (let [ir* (loop [loc (ir-zip ir)]
-              (if (zip/end? loc)
-                (zip/root loc)
-                (let [node (zip/node loc)]
-                  (case (:op node)
-                    :branch
-                    (let [arms (:arms node)]
-                      (case (count arms)
-                        0
-                        (recur (zip/next loc))
-
-                        1
-                        (recur (zip/replace loc (first arms)))
-
-                        ;; else
-                        (recur (zip/next (zip/edit loc rewrite-branch*)))))
-
-                    ;; else
-                    (recur (zip/next loc))))))]
-    (if (= ir ir*)
-      ir
-      (recur ir*))))
-
-(defn rewrite-save
-  "Remove useless save nodes from ir."
-  [ir]
-  (let [ir* (loop [loc (ir-zip ir)]
-              (if (zip/end? loc)
-                (zip/root loc)
-                (let [node (zip/node loc)]
-                  (case (:op node)
-                    :save
-                    (let [body-1 (:body-1 node)]
-                      (if (some ir-check? (nodes body-1))
-                        (recur (zip/next loc))
-                        (recur (zip/replace loc body-1))))
-
-                    ;; else
-                    (recur (zip/next loc))))))]
-    (if (= ir ir*)
-      ir
-      (recur ir*))))
-
-(defn rewrite [ir]
-  (-> ir
-      rewrite-def
-      rewrite-branch
-      #_rewrite-save))
 
 (defn compile [ir fail kind]
   (compile* (rewrite ir) fail kind))

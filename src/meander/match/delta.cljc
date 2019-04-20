@@ -670,11 +670,9 @@
 
          :mkv
          (let [[key-node val-node] (:entry node)
-               row* (assoc row :cols `[~{:tag :let*
-                                         :binding val-node
-                                         :expr `(get ~target ~(compile-ground key-node))}
-                                       ~@(:cols row)])]
-           (compile targets [row*]))))
+               val-target (gensym* "val__")]
+           (r.ir/op-bind val-target (r.ir/op-lookup (r.ir/op-eval target) (r.ir/op-eval (compile-ground key-node)))
+             (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
