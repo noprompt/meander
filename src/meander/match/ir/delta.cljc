@@ -411,12 +411,12 @@
 ;; --------------
 
 (defn def-remove-unused
-  [ir]
+  [node]
   (let [call-symbols (into #{}
                            (comp (filter (comp #{:call} op))
                                  (map :symbol))
-                           (nodes ir))]
-    (loop [loc (zipper ir)]
+                           (nodes node))]
+    (loop [loc (zipper node)]
       (if (zip/end? loc)
         (zip/root loc)
         (let [node (zip/node loc)]
@@ -433,18 +433,19 @@
 ;; :mvr rewriting
 ;; --------------
 
-(defn rewrite-move-mvr-init-to-top-level [ir]
+(defn rewrite-move-mvr-init-to-top-level
+  [node]
   (reduce
    (fn [_ loc]
      (let [node (zip/node loc)]
        (case (:op node)
          :mvr-init
-         (let [ir* (zip/root (zip/edit loc :then))]
-           (reduced (assoc node :then (rewrite-move-mvr-init-to-top-level ir*))))
+         (let [node* (zip/root (zip/edit loc :then))]
+           (reduced (assoc node :then (rewrite-move-mvr-init-to-top-level node*))))
          ;; else
-         ir)))
-   ir
-   (r.util/zip-next-seq (zipper ir))))
+         node)))
+   node
+   (r.util/zip-next-seq (zipper node))))
 
 #_
 (defn rewrite-save
