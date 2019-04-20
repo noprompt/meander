@@ -239,6 +239,27 @@
 (defn op-fail? [x]
   (op= x :fail))
 
+(defn check?
+  [x]
+  (and (node? x)
+       (case (op x)
+         (:check
+          :check-array
+          :check-array-equals
+          :check-boolean
+          :check-bounds
+          :check-empty
+          :check-equal
+          :check-map
+          :check-seq
+          :check-set
+          :check-vector
+          :lvr-check)
+         true
+
+         ;; else
+         false)))
+
 ;; ---------------------------------------------------------------------
 ;; AST Rewriting
 
@@ -436,7 +457,7 @@
                   (case (:op node)
                     :save
                     (let [body-1 (:body-1 node)]
-                      (if (some ir-check? (nodes body-1))
+                      (if (some check? (nodes body-1))
                         (recur (zip/next loc))
                         (recur (zip/replace loc body-1))))
 
@@ -530,30 +551,6 @@
     :seq
     `(drop ~n ~target-form)))
 
-(defn ir-fail?
-  [ir]
-  (= (:op ir) :fail))
-
-(defn ir-check?
-  [ir]
-  (case (:op ir)
-    (:check
-     :check-array
-     :check-array-equals
-     :check-boolean
-     :check-bounds
-     :check-empty
-     :check-equal
-     :check-map
-     :check-seq
-     :check-set
-     :check-vector
-     :lvr-check)
-    true
-
-    ;; else
-    false))
-
 (defmulti compile*
   (fn [ir fail kind]
     (:op ir)))
@@ -578,7 +575,7 @@
   [ir fail kind]
   (case kind
     :search
-    (let [arms (remove ir-fail? (:arms ir))]
+    (let [arms (remove op-fail? (:arms ir))]
       (case (count arms)
         0
         fail
@@ -596,7 +593,7 @@
     (:find :match)
     (let [arms (:arms ir)
           arms (if (= kind :find)
-                 (remove ir-fail? arms)
+                 (remove op-fail? arms)
                  arms)]
       (case (count arms)
         0
