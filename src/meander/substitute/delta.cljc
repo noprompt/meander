@@ -251,8 +251,9 @@
 
 (defmethod compile-substitute :seq
   [node env]
-  `(seq ~(compile-substitute (:prt node)
-                             (assoc env :collection-context :seq))))
+  `(or (seq ~(compile-substitute (:prt node)
+                                 (assoc env :collection-context :seq)))
+       (list)))
 
 
 (defmethod compile-substitute :unq
