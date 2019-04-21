@@ -1,6 +1,7 @@
 (ns meander.substitute.delta
   #?(:cljs (:require-macros [meander.substitute.delta]))
   (:require [clojure.spec.alpha :as s]
+            [clojure.set :as set]
             [meander.syntax.delta :as r.syntax]
             [meander.util.delta :as r.util]))
 
@@ -243,10 +244,16 @@
 
 
 (defmethod compile-substitute :set [node env]
-  `(hash-set ~@(map
-                (fn [x]
-                  (compile-substitute x env))
-                (:set node))))
+  `(set/union
+    (hash-set
+     ~@(map
+        (fn [x]
+          (compile-substitute x env))
+        (:elements node)))
+    ~@(if-some [as (:as node)]
+       [(compile-substitute as env)])
+    ~@(if-some [rest (:rest node)]
+        [(compile-substitute rest env)])))
 
 
 (defmethod compile-substitute :seq

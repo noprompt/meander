@@ -104,3 +104,14 @@
           [[1 :A 2]
            [1 :B 2]
            [1 :C 2]])))
+
+(t/deftest set-test
+  (let [?rest-set #{2 3}]
+    (t/is (= #{1 2 3}
+             (r.substitute/substitute
+              #{1 ^& ?rest-set}))))
+  (let [?a-set #{1 4} 
+        ?b-set #{2 3}]
+    (t/is (= #{1 2 3 4}
+             (r.substitute/substitute
+              #{^:as ?a-set ^& ?b-set})))))
