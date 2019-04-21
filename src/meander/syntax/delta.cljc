@@ -833,6 +833,33 @@
                   m)})
     (parse m env)))
 
+(defn parse-set [s env]
+  (if (set? s)
+    (let [as-form (some
+                   (fn [x]
+                     (when (= (:as (meta x)) true)
+                       x))
+                   s)
+          s (if (some? as-form)
+              (disj s as-form)
+              s)
+          rest-form (some
+                     (fn [x]
+                       (when (= (:tag (meta x)) '&)
+                         x))
+                     s)
+          s (if (some? rest-form)
+              (disj s rest-form)
+              s)]
+      {:tag :set
+       :as (if (some? as-form)
+             (parse as-form env))
+       :rest (if (some? rest-form)
+               (parse rest-form env))
+       :elements (parse-all s env)})
+    (parse s env)))
+
+
 (s/fdef parse
   :args (s/alt :a1 (s/cat :x any?)
                :a2 (s/cat :x any? :env map?))
@@ -867,10 +894,8 @@
                      (not (record? x)))
                 (parse-map x env)
                 
-
                 (set? x)
-                {:tag :set
-                 :elements (parse-all x env)}
+                (parse-set x env) 
 
                 (symbol? x)
                 (parse-symbol x)
@@ -1364,13 +1389,20 @@
 ;; :set
 
 (defmethod children :set [node]
-  (:elements node))
+  (if-some [rest-node (:rest node)]
+    (concat (:elements node) (list (:rest node)))
+    (:elements node)))
 
 (defmethod ground? :set [node]
   (every? ground? (:elements node)))
 
 (defmethod unparse :set [node]
-  (set (map unparse (:elements node))))
+  (cond-> (set (map unparse (:elements node)))
+    (some? (:as node))
+    (conj (vary-meta (unparse (:as node)) assoc :as true))
+
+    (some? (:rest node))
+    (conj (vary-meta (unparse (:as node)) assoc :tag '&))))
 
 (defmethod search? :set [node]
   (not (ground? node)))

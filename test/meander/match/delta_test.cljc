@@ -597,6 +597,24 @@
       true)))
 
 
+(t/deftest set-&-as
+  (t/is (= #{[#{1 3 2} #{3 2} #{2}]
+             [#{1 3 2} #{3 2} #{3}]
+             [#{1 3 2} #{1 2} #{2}]
+             [#{1 3 2} #{1 2} #{1}]
+             [#{1 3 2} #{1 3} #{3}]
+             [#{1 3 2} #{1 3} #{1}]}
+           (set
+            ;; Find subsets S1, S2, and S3 of S such that
+            ;;
+            ;;   S1 = S
+            ;;   S2 = S1 - #{Ei}
+            ;;   S3 = S2 - #{Ej}
+            (r.match/search #{1 2 3}
+              #{_ ^& #{_ ^& ?s3 ^:as ?s2} ^:as ?s1}
+              [?s1 ?s2 ?s3])))))
+
+
 #_
 ;; TODO: This should pass because ?x in the nested map can be bound
 ;; previously.

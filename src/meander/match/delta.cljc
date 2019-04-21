@@ -1632,6 +1632,65 @@
            (f (:argument argument))
            x))
 
+       :set
+       (if-some [rest-set (:rest x)]
+         (let [;; In order to disj properly, each element in the set
+               ;; pattern S must be also bound to a unique logic
+               ;; variable. So
+               ;;
+               ;;    P_n => (and P_n ?v_n)
+               ;;
+               ;; for all P_n in S.
+               ;;
+               ;; This is needed because some patterns do not have a
+               ;; concrete value which could be disjoined. The pattern
+               ;;
+               ;;  (pred even?)
+               ;;
+               ;; is such an example.
+               ;;
+               ;; By rewriting each pattern in S as described, we can
+               ;; get around this limitation thanks to a property of
+               ;; distinct logic variables: they will always bind.
+               ;; Thus, when matching S succeeds, each logic variable
+               ;; will have been bound. The values of the bound logic
+               ;; variables can then be disj from S.
+               ;;
+               ;; Technically speaking, logic variables and ground
+               ;; values do not need to be rewritten since both will
+               ;; have values that will be known after S matches
+               ;; successfully.
+               elements (:elements x)
+               lvr-map (into {}
+                             (map
+                              (fn [node]
+                                (if (or (r.syntax/ground? node)
+                                        (r.syntax/lvr-node? node))
+                                  [node node]
+                                  [node {:tag :lvr
+                                         :symbol (gensym "?v__")}])))
+                             elements)
+               elements* (map
+                          (fn [node]
+                            (let [[n1 n2] (clojure/find lvr-map node)]
+                              (if (= n1 n2)
+                                n1
+                                {:tag :cnj
+                                 :arguments [n1 n2]})))
+                          elements)
+               x* (assoc x :elements elements*)
+               x* (dissoc x* :rest)]
+           (f {:tag :cnj
+               :arguments [x* {:tag :app
+                               :fn-expr `(fn [s#]
+                                           (disj s# ~@(map r.syntax/unparse (vals lvr-map))))
+                               :arguments [rest-set]}]}))
+         (if-some [as (:as x)]
+           (let [x* (dissoc x :as)]
+             (f {:tag :cnj
+                 :arguments [as x*]}))
+           x))
+
        (:seq :vec)
        (if-some [as (:as x)]
          (f {:tag :cnj
