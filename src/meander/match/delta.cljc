@@ -1305,7 +1305,7 @@
 
 
 (defmulti check-node
-  "Validates the semantics of node returning
+  "Validates node returning
   [:error [{:message string, :ex-data map?}]
     whenever validation fails.
   [:okay child-nodes new-env]
@@ -1336,7 +1336,7 @@
 
 
 (defn check*
-  "Checks if node is semantically valid with respect to env. Returns
+  "Checks if node is valid with respect to env. Returns
 
   [:error [{:message string?, :ex-data map?} & syntax-trace]
     whenever an error is detected. syntax-trace is a sequence forms
@@ -1345,7 +1345,7 @@
 
 
   [:okay exit-env]
-    whenever the semantics of node are valid. exit-env is a set of all
+    whenever the node is valid. exit-env is a set of all
     logic and memory variables which would be bound by a successful
     pattern match; equivalent to (meander.syntax.delta/variables node)."
   [node env search?]
@@ -1372,7 +1372,7 @@
 
 
 (defn check
-  "Checks if node is semantically valid. Returns an instance of
+  "Checks if node is valid. Returns an instance of
   clojure.lang.Exception if an error can be found and nil otherwise."
   [node search?]
   (let [[tag :as result] (check* node empty-check-env search?)]
@@ -1717,7 +1717,7 @@
 
   Returns a map containing the following keys:
 
-  :errors A sequence of semantic errors. These are instances of
+  :errors A sequence of errors. These are instances of
     clojure.lang.Exception and are derived by applying check to the
     pattern of each clause.
   :expr The expression which is the target of pattern matching, the
@@ -1810,7 +1810,7 @@
 
   Returns a map containing the following keys:
 
-  :errors A sequence of semantic errors. These are instances of
+  :errors A sequence of errors. These are instances of
     clojure.lang.Exception and are derived by applying check to the
     pattern of each clause.
   :expr The expression which is the target of pattern matching, the
@@ -1889,7 +1889,7 @@
 
   Returns a map containing the following keys:
 
-  :errors A sequence of semantic errors. These are instances of
+  :errors A sequence of errors. These are instances of
     clojure.lang.Exception and are derived by applying check to the
     pattern of each clause.
   :expr The expression which is the target of pattern matching, the
