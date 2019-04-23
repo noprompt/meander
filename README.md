@@ -382,7 +382,7 @@ replaced with the argument.
 ```clj
 (search [[1] 2 [[3 4] 5]]
   ($ ?context [?a ?b])
-  (?c [9])
+  (?context [9])
 ;; => ([[1] 2 [9]] [[1] 2 [[9] 5]])
 ```
 
