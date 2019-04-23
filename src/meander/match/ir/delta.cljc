@@ -603,11 +603,6 @@
         1
         (compile* (first arms) fail kind)
 
-        2
-        (compile* (first arms)
-                  (compile* (second arms) fail kind)
-                  kind)
-
         ;; else
         (let [fsyms (mapv
                      (fn [_]

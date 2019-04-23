@@ -1270,3 +1270,19 @@
                 [#{%lvr} #{(not %lvr)}])
               ?symbol))
            '#{?y ?z})))
+
+
+(t/deftest gh-33
+  (t/is (= 1 (r.match/find [1 2]
+               [?a ?b]
+               ?a
+
+               (?a ?b)
+               ?a)))
+
+  (t/is (= 1 (r.match/find '(1 2)
+               [?a ?b]
+               ?a
+
+               (?a ?b)
+               ?a))))

@@ -1917,9 +1917,22 @@
                        (r.matrix/make-row
                         [(expand-node (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
-                     clauses)]
+                     clauses)
+             final-clause (some
+                           (fn [row]
+                             (let [node (first (:cols row))]
+                               (case (r.syntax/tag node)
+                                 (:any :lvr :mvr)
+                                 row
+                                 ;; else
+                                 nil)))
+                           matrix)
+             matrix (if final-clause
+                      (vec (take-while (partial not= final-clause) matrix))
+                      matrix)]
          {:errors errors
           :expr (:expr data)
+          :final-clause final-clause
           :matrix matrix})))))
 
 
@@ -1931,13 +1944,25 @@
   (let [match-data (analyze-find-args match-args &env)
         expr (:expr match-data)
         matrix (:matrix match-data)
-        errors (:errors match-data)]
+        errors (:errors match-data)
+        final-clause (:final-clause match-data)
+        fail (gensym "fail__")]
     (if-some [error (first errors)]
       (throw error)
       (let [target (gensym "target__")]
         (if (r.matrix/empty? matrix)
-          nil
-          `(let [~target ~expr]
+          (if (some? final-clause)
+            (r.ir/compile
+             (r.ir/op-bind target (r.ir/op-eval expr)
+               (compile [target] [final-clause])) nil :find)
+            nil)
+          `(let [~target ~expr
+                 ~fail (fn []
+                         ~(if (some? final-clause)
+                            (r.ir/compile
+                             (r.ir/op-bind target (r.ir/op-eval expr)
+                               (compile [target] [final-clause])) nil :find)
+                            nil))]
              ~(r.ir/compile (compile [target] matrix) nil :find)))))))
 
 (s/fdef find
