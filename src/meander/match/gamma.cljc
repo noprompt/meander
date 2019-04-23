@@ -1336,11 +1336,6 @@
             1
             (emit* (first arms) fail kind)
 
-            2
-            (emit* (first arms)
-                   (emit* (second arms) fail kind)
-                   kind)
-
             ;; else
             (let [fsyms (mapv
                          (fn [_]
@@ -2155,9 +2150,22 @@
                        {:cols [(expand-node pat)]
                         :env #{}
                         :rhs [:action rhs]})
-                     clauses)]
+                     clauses)
+             final-clause (some
+                           (fn [row]
+                             (let [node (first (:cols row))]
+                               (case (r.syntax/tag node)
+                                 (:any :lvr :mvr)
+                                 row
+                                 ;; else
+                                 nil)))
+                           matrix)
+             matrix (if final-clause
+                      (vec (take-while (partial not= final-clause) matrix))
+                      matrix)]
          {:errors errors
           :expr (:expr data)
+          :final-clause final-clause
           :matrix matrix})))))
 
 
@@ -2169,14 +2177,24 @@
   (let [match-data (analyze-find-args match-args &env)
         expr (:expr match-data)
         matrix (:matrix match-data)
-        errors (:errors match-data)]
+        errors (:errors match-data)
+        final-clause (:final-clause match-data)]
     (if-some [error (first errors)]
       (throw error)
-      (let [target (gensym "target__")]
+      (let [target (gensym "target__")
+            fail (gensym "fail__")]
         (if (r.matrix/empty? matrix)
-          nil
-          `(let [~target ~expr]
-             ~(emit (compile-with-memory-variables-initialized [target] matrix) nil :find)))))))
+          (if (some? final-clause)
+            `(let [~target ~expr]
+               ~(emit (compile-with-memory-variables-initialized [target] [final-clause]) nil :find))
+            nil)
+          `(let [~target ~expr
+                 ~fail (fn []
+                         ~(if (some? final-clause)
+                            `(let [~target ~expr]
+                               ~(emit (compile-with-memory-variables-initialized [target] [final-clause]) nil :find))
+                            nil))]
+             ~(emit (compile-with-memory-variables-initialized [target] matrix) `(~fail) :find)))))))
 
 
 (s/fdef find
