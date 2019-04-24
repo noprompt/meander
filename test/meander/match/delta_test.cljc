@@ -1269,7 +1269,14 @@
               (with [%lvr {:tag :lvr, :symbol ?symbol}]
                 [#{%lvr} #{(not %lvr)}])
               ?symbol))
-           '#{?y ?z})))
+           '#{?y ?z}))
+
+
+  (t/is (= [#{:foo :baz} #{"bar" "quux"}]
+           (r.match/find {:foo "bar", :baz "quux"}
+             (with [%kvs {!k !v & (or %kvs {})}]
+               %kvs)
+             [(set !k) (set !v)]))))
 
 
 (t/deftest gh-33

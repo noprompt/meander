@@ -69,10 +69,14 @@
   (if-some [[_ ref-specs] (clojure/find ref-spec-map ref-node)]
     (apply max-key
            (fn [ref-spec]
-             (count (set/intersection env (:vars ref-spec))))
-           ref-specs)
+             (count (:vars ref-spec)))
+           (filter
+            (fn [ref-spec]
+              (every? env (:vars ref-spec)))
+            ref-specs))
     nil))
 
+;; TODO: Document
 (defn make-ref-spec-map
   {:private true}
   [ref-map]
@@ -81,17 +85,26 @@
               (let [vars (r.syntax/variables (r.syntax/substitute-refs node ref-map))
                     rets (vec vars)
                     ret-syms (mapv :symbol rets)]
-                [ref (map
-                      (fn [reqs]
-                        {:symbol (gensym* "def__")
-                         :vars (set reqs)
-                         :reqs reqs
-                         :rets rets
-                         :node node})
-                      (take (inc (count vars))
-                            (iterate pop rets)))])))
+                [ref (into [{:symbol (gensym* "def__")
+                             :vars #{}
+                             :reqs []
+                             :rets rets
+                             :node node}]
+                           (comp
+                       (mapcat
+                        (fn [i]
+                          (r.util/k-combinations vars i)))
+                       (map set)
+                       (distinct)
+                       (map vec)
+                       (map (fn [reqs]
+                              {:symbol (gensym* "def__")
+                               :vars (set reqs)
+                               :reqs reqs
+                               :rets rets
+                               :node node})))
+                      (range 1 (inc (count vars))))])))
         ref-map))
-
 
 (declare compile)
 
@@ -589,7 +602,8 @@
          (r.ir/op-pass (compile targets* [row]))
 
          :lvr
-         (if (r.matrix/get-var row node)
+         (if (and (not (:mutable? node))
+                  (r.matrix/get-var row node))
            (r.ir/op-lvr-check (:symbol node) (r.ir/op-eval target)
              (compile targets* [(r.matrix/add-var row node)]))
            (r.ir/op-lvr-bind (:symbol node) (r.ir/op-eval target)
@@ -623,8 +637,7 @@
 
                      :map
                      (let [the-map (:map node)]
-                       (if (and (r.syntax/search? node)
-                                (some r.syntax/variable-node? (keys the-map)))
+                       (if (r.syntax/search? node)
                          (let [set-node {:tag :set
                                          :elements (map
                                                     (fn [[k-node v-node]]
@@ -674,6 +687,7 @@
              (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :mvr
   [_ [target & targets*] matrix]
@@ -1574,7 +1588,6 @@
   :args (s/cat :match-args :meander.match.delta.match/args)
   :ret :meander.match.delta.match/data)
 
-
 (defn expand-node
   {:private true}
   [node]
@@ -1599,9 +1612,11 @@
          (let [lvr-map (into {}
                              (keep (fn [k-node]
                                      (if (or (r.syntax/ground? k-node)
-                                             (r.syntax/variable-node? k-node))
+                                             (r.syntax/lvr-node? k-node))
                                        [k-node k-node]
                                        [k-node {:tag :lvr
+                                                ;; Temporary hack.
+                                                :mutable? true
                                                 :symbol (gensym "?v__")}])))
                              (keys (:map x)))
                map* (into {}
@@ -1668,6 +1683,8 @@
                                         (r.syntax/lvr-node? node))
                                   [node node]
                                   [node {:tag :lvr
+                                         ;; Temporary hack.
+                                         :mutable? true
                                          :symbol (gensym "?v__")}])))
                              elements)
                elements* (map
