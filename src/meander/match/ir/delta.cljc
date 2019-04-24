@@ -553,6 +553,7 @@
     `(drop ~n ~target-form)))
 
 (defmulti compile*
+  {:arglists '([ir fail kind])}
   (fn [ir fail kind]
     (:op ir)))
 
