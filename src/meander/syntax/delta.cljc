@@ -1597,7 +1597,10 @@
   (outer (assoc node :capture (inner (:capture node)))))
 
 (defmethod walk :set [inner outer node]
-  (outer (assoc node :elements (map inner (:elements node)))))
+  (outer (assoc node
+                :rest (if-some [rest-set (:rest node)]
+                        (inner rest-set))
+                :elements (mapv inner (:elements node)))))
 
 (defmethod walk :seq [inner outer node]
   (outer (assoc node :prt (inner (:prt node)))))
