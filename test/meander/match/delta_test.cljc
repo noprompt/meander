@@ -1272,11 +1272,19 @@
            '#{?y ?z}))
 
 
-  (t/is (= [#{:foo :baz} #{"bar" "quux"}]
-           (r.match/find {:foo "bar", :baz "quux"}
-             (with [%kvs {!k !v & (or %kvs {})}]
-               %kvs)
-             [(set !k) (set !v)]))))
+  (t/testing "recursive key/val collection"
+    (t/is (= [#{:foo :baz} #{"bar" "quux"}]
+             (r.match/find {:foo "bar", :baz "quux"}
+               (with [%kvs {!k !v & (or %kvs {})}]
+                 %kvs)
+               [(set !k) (set !v)]))))
+
+  (t/testing "recursive element collection"
+    (t/is (= #{"bar" :baz :foo "quux"}
+             (r.match/find #{:foo "bar", :baz "quux"}
+               (with [%elems #{!x ^& (or %elems #{})}]
+                 %elems)
+               (set !x))))))
 
 
 (t/deftest gh-33
