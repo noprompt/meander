@@ -1980,7 +1980,7 @@
                              (r.ir/op-bind target (r.ir/op-eval expr)
                                (compile [target] [final-clause])) nil :find)
                             nil))]
-             ~(r.ir/compile (compile [target] matrix) nil :find)))))))
+             ~(r.ir/compile (compile [target] matrix) `(~fail) :find)))))))
 
 (s/fdef find
   :args (s/cat :expr any?
