@@ -602,8 +602,7 @@
          (r.ir/op-pass (compile targets* [row]))
 
          :lvr
-         (if (and (not (:mutable? node))
-                  (r.matrix/get-var row node))
+         (if (r.matrix/get-var row node)
            (r.ir/op-lvr-check (:symbol node) (r.ir/op-eval target)
              (compile targets* [(r.matrix/add-var row node)]))
            (r.ir/op-lvr-bind (:symbol node) (r.ir/op-eval target)
@@ -685,6 +684,22 @@
                val-target (gensym* "val__")]
            (r.ir/op-bind val-target (r.ir/op-lookup (r.ir/op-eval target) (r.ir/op-eval (compile-ground key-node)))
              (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
+
+(defmethod compile-specialized-matrix :mut
+  [_ [target & targets*] matrix]
+  (let [targets* (vec targets*)]
+    (mapv
+     (fn [node row]
+       (case (r.syntax/tag node)
+         :any
+         (compile-pass targets* [row])
+
+         :mut
+         (r.ir/op-mut-bind (:symbol node) (r.ir/op-eval target)
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1609,20 +1624,18 @@
 
        :map
        (if-some [rest-map (:rest-map x)]
-         (let [lvr-map (into {}
+         (let [key-map (into {}
                              (keep (fn [k-node]
                                      (if (or (r.syntax/ground? k-node)
                                              (r.syntax/lvr-node? k-node))
                                        [k-node k-node]
-                                       [k-node {:tag :lvr
-                                                ;; Temporary hack.
-                                                :mutable? true
-                                                :symbol (gensym "?v__")}])))
+                                       [k-node {:tag :mut
+                                                :symbol (gensym "*m__")}])))
                              (keys (:map x)))
                map* (into {}
                           (map
                            (fn [[k-node v-node]]
-                             (let [node (get lvr-map k-node)]
+                             (let [node (get key-map k-node)]
                                (if (= node k-node)
                                  [k-node v-node]
                                  [{:tag :cnj
@@ -1634,11 +1647,11 @@
            (f {:tag :cnj
                :arguments [x* {:tag :app
                                :fn-expr `(fn [m#]
-                                           (dissoc m# ~@(map r.syntax/unparse (vals lvr-map))))
+                                           (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
                                :arguments [rest-map]}]}))
          (if-some [as (:as x)]
            (f {:tag :cnj
-               :arguments [as (dissoc x :as)]})
+               :arguments [(dissoc x :as) as]})
            x))
 
        :not
@@ -1649,47 +1662,19 @@
 
        :set
        (if-some [rest-set (:rest x)]
-         (let [;; In order to disj properly, each element in the set
-               ;; pattern S must be also bound to a unique logic
-               ;; variable. So
-               ;;
-               ;;    P_n => (and P_n ?v_n)
-               ;;
-               ;; for all P_n in S.
-               ;;
-               ;; This is needed because some patterns do not have a
-               ;; concrete value which could be disjoined. The pattern
-               ;;
-               ;;  (pred even?)
-               ;;
-               ;; is such an example.
-               ;;
-               ;; By rewriting each pattern in S as described, we can
-               ;; get around this limitation thanks to a property of
-               ;; distinct logic variables: they will always bind.
-               ;; Thus, when matching S succeeds, each logic variable
-               ;; will have been bound. The values of the bound logic
-               ;; variables can then be disj from S.
-               ;;
-               ;; Technically speaking, logic variables and ground
-               ;; values do not need to be rewritten since both will
-               ;; have values that will be known after S matches
-               ;; successfully.
-               elements (:elements x)
-               lvr-map (into {}
-                             (map
-                              (fn [node]
-                                (if (or (r.syntax/ground? node)
-                                        (r.syntax/lvr-node? node))
-                                  [node node]
-                                  [node {:tag :lvr
-                                         ;; Temporary hack.
-                                         :mutable? true
-                                         :symbol (gensym "?v__")}])))
-                             elements)
+         (let [elements (:elements x)
+               elem-map (into {}
+                              (map
+                               (fn [node]
+                                 (if (or (r.syntax/ground? node)
+                                         (r.syntax/lvr-node? node))
+                                   [node node]
+                                   [node {:tag :mut
+                                          :symbol (gensym "*m__")}])))
+                              elements)
                elements* (map
                           (fn [node]
-                            (let [[n1 n2] (clojure/find lvr-map node)]
+                            (let [[n1 n2] (clojure/find elem-map node)]
                               (if (= n1 n2)
                                 n1
                                 {:tag :cnj
@@ -1700,12 +1685,12 @@
            (f {:tag :cnj
                :arguments [x* {:tag :app
                                :fn-expr `(fn [s#]
-                                           (disj s# ~@(map r.syntax/unparse (vals lvr-map))))
+                                           (disj s# ~@(map r.syntax/unparse (vals elem-map))))
                                :arguments [rest-set]}]}))
          (if-some [as (:as x)]
            (let [x* (dissoc x :as)]
              (f {:tag :cnj
-                 :arguments [as x*]}))
+                 :arguments [x* as]}))
            x))
 
        (:seq :vec)

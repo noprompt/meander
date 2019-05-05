@@ -189,6 +189,8 @@
 
 (defop op-lvr-bind :lvr-bind [symbol target then])
 
+(defop op-mut-bind :mut-bind [symbol target then])
+
 (defop op-mvr-append :mvr-append [symbol target then])
 
 (defop op-mvr-bind :mvr-bind [symbol target then])
@@ -798,6 +800,12 @@
 (defmethod compile* :nth
   [ir fail kind]
   `(nth ~(compile* (:target ir) fail kind) ~(:index ir)))
+
+(defmethod compile* :mut-bind
+  [ir fail kind]
+  (let [*symbol (:symbol ir)]
+    `(let [~*symbol ~(compile* (:target ir) fail kind)]
+        ~(compile* (:then ir) fail kind))))
 
 (defmethod compile* :mvr-append
   [ir fail kind]

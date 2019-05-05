@@ -314,7 +314,7 @@
    (fn [vars node]
      (let [tag (tag node)]
        (case tag
-         (:lvr :mvr :ref)
+         (:lvr :mut :mvr :ref)
          (update vars tag conj node)
 
          :wth
@@ -330,6 +330,7 @@
          ;; else
          vars)))
    {:lvr #{}
+    :mut #{}
     :mvr #{}
     :ref #{}}
    node))
@@ -747,6 +748,10 @@
 
             (r.util/re-matches? #"^%.+" s)
             {:tag :ref
+             :symbol sym}
+
+            (r.util/re-matches? #"^\*.+" s)
+            {:tag :mut
              :symbol sym}
 
             :else
@@ -1194,6 +1199,17 @@
           (search? k)
           (search? v)))
     (:map node))))
+
+;; :mut
+
+(defmethod ground? :mut [_]
+  false)
+
+(defmethod unparse :mut [node]
+  (:symbol node))
+
+(defmethod search? :mut [_]
+  false)
 
 ;; :mvr
 
