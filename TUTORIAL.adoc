@@ -1,0 +1,468 @@
+= Meander Tutorial
+:external-libs: meander[https://raw.githubusercontent.com/no-prompt/meander/delta/src]
+:preamble: (ns meander.examples (:require [meander.delta.strategy :as m]))
+:repl: true
+:program: true
+:output: true
+:js: false
+:background_image: image:http://ladyprestige.club/wp-content/uploads//2019/01/patterns-in-math-a-new-coloring-book-highlights-the-visual-beauty-of-mathematics-patterns-math-4th-grade.jpg[fractal pattern]
+
+image:http://ladyprestige.club/wp-content/uploads//2019/01/patterns-in-math-a-new-coloring-book-highlights-the-visual-beauty-of-mathematics-patterns-math-4th-grade.jpg[fractal pattern]
+
+
+== Welcome to Meander
+
+Meander is a term rewriting language embedded inside of Clojure for expressing declarative transforms.
+A language where transformations are pictures; patterns of logical matches and substitution,
+instead of linguistic descriptions built up from function composition.
+The purpose of this tutorial is to explore what programming looks like when we convert between data representations declaratively.
+
+If you just want to try Meander out, hide this tutorial with the `^` button.
+For a guided tour, press the `&gt;` button.
+
+
+== Diving in the deep end
+
+Meander contains a bunch of neat stuff.
+So much so that it may appear confusing as to where to start.
+The link:README.md[readme] starts with the fundamental building blocks and their operation.
+In contrast, this is a top down tutorial.
+We will start at the apex of Meander's power; term rewriting with the `rewrite` macro.
+
+Instead of describing an end to end translation, we will be creating small steps.
+We will write patterns and control how these patterns are applied and reapplied using combinators.
+We will cover the operators available to us inside `rewrite` expressions.
+Finally we shall look at some common situations where we can employ meander to express structural solutions,
+where otherwise we might have used linguistic approaches.
+
+The `rewrite` construct exists in the `strategy` namespace.
+The `strategy` namespace also contains the mechanisms for combining rewrite steps.
+For now it is the only namespace we need concern ourselves with.
+Pretty much anything we could do with the other namespaces, we can achieve with a `rewrite`.
+
+[source,clojure]
+----
+(ns meander.examples
+  (:require [meander.delta.strategy :as m]))
+----
+
+
+== Our first rewrite
+
+[source,clojure]
+----
+((m/rewrite
+  ?x
+  "foo")
+ "bar")
+;=> "foo"
+----
+
+Rewrite takes a match pattern and and a substitution pattern.
+In this case the match pattern is `?x` and the substitution pattern is `"foo"`.
+`?x` is a logic variable. In this pattern it will match with anything, as it stands alone.
+
+Meander's `rewrite` is a macro that constructs a function.
+Meander is compiling an efficient rewrite function for us to use with arbitrary inputs.
+Here we immediately invoke our rewriting function on the input `"bar"`.
+The result of calling the rewrite function on `"bar"` is `"foo"`.
+
+Using the rewrite immediately like this is a convenient way to try our rewrite expressions as we go.
+
+
+== Reusing rewrite
+
+Once we are happy with a transformation, it makes sense to give it a name.
+
+[source,clojure]
+----
+(def foo-bar
+  (m/rewrite
+    ?x
+    "foo"))
+
+(foo-bar "bar")
+;=> "foo"
+(foo-bar "baz")
+;=> "baz"
+----
+
+Meander compiles a function that takes some input, and rewrites it to a new output.
+
+
+== Structural pattern matching
+
+Unlike Clojure's pervasive sequence abstraction that applies to all collections,
+Meander matches structure explicitly.
+
+[source,clojure]
+----
+(def g
+  (m/rewrite
+    [?a ?b ?c ?d]
+    {?a ?c ?b ?d}))
+
+(g [1 2 3 4])
+;=> {1 3, 2 4}
+(g '(1 2 3 4))
+;=> *fail*
+----
+
+If we look for a vector, we will only match with a vector.
+When there is a match, the output is explicitly of the type that the pattern specifies.
+
+
+== Example
+
+[source,clojure]
+----
+(def not-not
+  (m/rewrite
+    (not (not ?x))
+    ?x))
+
+(not-not
+  (not (not 1)))
+;=> 1
+----
+
+
+== Combining steps
+
+Here's where things get really interesting.
+Meander has a `bottom-up` combinator which allows us to rewrite terms anywhere in an expression.
+The idea is that the expression is treated as a tree, and Meander will explore that tree for us until it finds a pattern match.
+There is also an `until` combinator that keeps applying the same transform.
+We'll put these combinators into a handy macro, as we'll be using it in a few places.
+
+[source,clojure]
+----
+(defmacro bup [& body]
+  `(m/until = (m/bottom-up (m/rewrite ~@body))))
+----
+
+Combinators allow us to control how rewriting should occur.
+In this case we have specified that `bup` expressions should be applied bottom up until the expression stabilizes.
+Our `bup` expects patterns just like `rewrite`, and will produce a function, just like `rewrite`.
+
+[source,clojure]
+----
+(def nn
+  (bup
+    (not (not ?x))
+    ?x))
+
+(nn (and (not (not (or 1 2)) (or 3 (not (not 4))))
+;=> (and (or 1 2) (or 3 4))
+----
+
+Notice that Meander rewrote the subexpressions regardless of how they were nested.
+We have created a mini logic simplifier.
+
+
+== Unification
+
+[source,clojure]
+----
+(def a
+  (m/rewrite
+    [?x ?x]
+    true))
+
+(a [1 1])
+;=> true
+(a [1 2])
+;=> *fail*
+----
+
+Unification is a fancy way of saying that variable assignment must be consistent.
+
+
+== Multiple patterns
+
+In the previous example we received a `*fail*` when there was no match.
+If we instead want `false` instead we can add a catch all pattern.
+
+[source,clojure]
+----
+(def a
+  (m/rewrite
+    [?x ?x]
+    true
+    _
+    false))
+
+(a [1 1])
+;=> true
+(a [1 2])
+;=> false
+----
+
+Rewrite will accept multiple pattern pairs.
+
+`_` is a special match anything variable.
+
+
+== Sequences
+
+[source,clojure]
+----
+(def i
+  (m/rewrite
+    [!x ...]
+    [!x ...]))
+----
+
+`?x` means one, `!x` means many.
+`!x` is a memory variable.
+A memory variable means that there can be more than one value associated with it.
+An array of values will be collected instead of a single value.
+
+`...` means match 0 or more occurrences.
+We can think of `...` as being similar to the regex `*` operator.
+If we want 3 or more occurences we can use `..3` to specify a minimum number of matches.
+
+This is our first peek into an important principle in Meander; symmetry.
+When we use a pattern as both the match pattern and the substitution pattern our rewrite function will do nothing.
+The input is returned unchanged.
+This seemingly mundane properties has profound implications.
+We use exactly the same pattern language for matching and for substitution.
+There is a single unified way to sketch the shape of consumption and construction.
+
+
+== Multi-part sequences
+
+[source,clojure]
+----
+(def j
+  (m/rewrite
+    [!a !b ...]
+    [!a ... !b ...]))
+
+(j [1 2 3 4 5 6])
+;=> [1 3 5 2 4 6]
+----
+
+Notice that we do not need to think about the types of collections we will be producing.
+It is obvious that the collection is preserved.
+
+
+== Splitting sequences
+
+[source,clojure]
+----
+(def j
+  (m/rewrite
+    [?a . !b ...]
+    [!b ... ?a]))
+
+(j [1 2 3 4 5 6])
+;=> [2 3 4 5 6 1]
+----
+
+The `.` operator serves as a break to indicate how parts of the sequence should be grouped.
+
+
+== Rearranging an expression
+
+
+
+
+
+== Map nil punning
+
+[source,clojure]
+----
+(def h
+  (m/rewrite
+    {:foo ?v & ?rest-map}
+    [?v ?rest-map]))
+
+(h {:foo "bar" :baz "booz"})
+;=> ["bar" {:baz "booz"}]
+
+(h {:baz "booz"})
+;=> [nil {:baz "booz"}]
+----
+
+Notice that any map will match, even if the key is missing.
+See https://github.com/noprompt/meander/issues/15[further explanation].
+
+
+== Structural assoc
+
+[source,clojure]
+----
+(def i
+  (m/rewrite
+    ?m
+    {:foo "bar" & ?m))
+----
+
+
+== Structural dissoc
+
+[source,clojure]
+----
+(def j
+  (m/rewrite
+    {:foo _ & ?m}
+    ?m))
+
+(j {:foo "bar" :baz "booz"})
+;=> {:baz "booz"}
+----
+
+
+== Sets
+
+[source,clojure]
+----
+((r/rewrite
+  #{1 ^& ?rest-set}
+  #{2 ^& ?rest-set})
+ #{1 3 5})
+;; =>
+#{3 2 5}
+----
+
+
+== Unquote
+
+We can make use of `~` to perform execution.
+
+[source,clojure]
+----
+(def q
+  (m/rewrite
+    ?x
+    ~(str ?x)))
+----
+
+
+== Unquote splicing
+
+To insert many items, use `~@`.
+
+[source,clojure]
+----
+(def r
+  (m/rewrite
+    ?x
+    [1 2 ~@?x]))
+
+(r [3 4 5])
+;=> [1 2 3 4 5]
+----
+
+
+== Operators
+
+Meander has special operators which you can combine.
+
+pred
+guard
+and
+or
+let
+$
+
+
+== Predicates
+
+[source,clojure]
+----
+(def g
+  (m/rewrite
+    (pred string? ?x)
+    "bar"))
+
+(g "foo")
+;=> "bar"
+(g 1)
+;=> *fail*
+----
+
+A match only occurs when `?x` passes the `string?` predicate.
+
+
+== Guards
+
+
+== And or
+
+== Let
+
+== $
+
+== Quoting
+
+What if you want to match operators?
+Perhaps we want to match `and` as a symbol?
+We can do this by quoting operators with `'`.
+
+[source,clojure]
+----
+(def h
+  (m/rewrite
+    ('and ?x ?y)
+    (AND ?x ?y)))
+
+(h (and 1 2))
+;=> (AND 1 2)
+----
+
+
+== Example
+
+[source,clojure]
+----
+(defn wrap-defn
+  "Returns a function that will parse a form according to `defn` semantics.
+  Takes a function which will convert fn-spec forms."
+  [rewrite-fn-spec]
+  (m/rewrite (and ((pred simple-symbol? ?name) .
+                    (pred string? !?docstring) ...
+                    (pred map? !?attr-map) ...
+                    !tail ...)
+                  (guard (<= (count !?docstring) 1))
+                  (guard (<= (count !?attr-map) 1))
+                  (let
+                    (or (([(pred simple-symbol? !params) ... :as !param-list] . !forms ... :as !fn-specs) ..1)
+                        ([(pred simple-symbol? !params) ... :as !param-list] . !forms ... :as !fn-specs))
+                    (list* !tail))
+                  (guard (apply distinct? (map count !param-list))))
+             (defn ?name . !?docstring ... !?attr-map ...
+               ~@(map rewrite-fn-spec !fn-specs))))
+----
+
+== BFS
+
+[source,clojure]
+----
+{:tag "foo"
+ :children [{:tag "bar"
+             :children [{:tag "baz"}]}
+ {:tag "boz"}]}
+----
+
+In Meander we can pull out all the tags of the tree structurally.
+
+[source,clojure]
+----
+(def p
+ (m/rewrite
+   {:tag ?tag
+    :children ?children}
+   [?tag ~@(map get-names ?children)]))
+----
+
+The equivalent can be acheived succinctly in Clojure using `tree-seq`.
+
+[source,clojure]
+----
+(map :tag (tree-seq :children :children)
+----
+
+The former shows the structure of the search explicitly.
+The latter is more compact.
