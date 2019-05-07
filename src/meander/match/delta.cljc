@@ -1080,8 +1080,9 @@
                                                 ~@(:cols row)])])))))
 
            :else
-           (r.ir/op-check-boolean (r.ir/op-eval `(set/subset? ~(compile-ground node) ~target))
-             (compile targets* [row])))))
+           (r.ir/op-check-set (r.ir/op-eval target)
+             (r.ir/op-check-boolean (r.ir/op-eval `(set/subset? ~(compile-ground node) ~target))
+               (compile targets* [row]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
