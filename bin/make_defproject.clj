@@ -17,23 +17,20 @@
     ?result
     [:error (ex-info "Unable to compute branch name"  ?result)]))
 
+(def git-commit-count-start
+  "Starting SHA to count commits from."
+  "d9a5cc3d2a26bc5552c7bd0631847872071fbd5b")
 
 (defn git-branch-commit-count
   "Attempts to get the current number of commits on the current branch
   via the shell."
   []
-  (r.match/match (git-branch-name)
-    [:okay ?branch-name]
-    (r.match/match (shell/sh "git" "rev-list" (str ?branch-name "...origin/gamma") "--count")
-      {:exit 0, :out ?out}
-      [:okay (string/trim ?out)]
-
-      ?result
-      [:error (ex-info "Unable to compute commit count" ?result)])
+  (r.match/match (shell/sh "git" "rev-list" (str git-commit-count-start "...") "--count")
+    {:exit 0, :out ?out}
+    [:okay (string/trim ?out)]
 
     ?result
-    ?result))
-
+    [:error (ex-info "Unable to compute commit count" ?result)]))
 
 (defn -main
   "Creates and writes the project.clj file for this project."
