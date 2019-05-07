@@ -907,10 +907,11 @@
                :owners ["De Morgan"]}
               {:name "Bob"
                :owners ["Peirce"]}]
-        expected-results #{{:owner "Frege", :names ["George"]}
-                           {:owner "Peirce", :names ["George" "Bob"]}
-                           {:owner "De Morgan", :names ["Francis"]}
-                           {:owner "Peirce", :names ["Bob"]}}]
+        expected-results #{{:owner "De Morgan", :names ["Francis"]}
+                           {:owner "Frege", :names ["George"]}
+                           {:owner "Peirce", :names ["Bob"]}
+                           {:owner "Peirce", :names ["George"]}
+                           {:owner "Peirce", :names ["George" "Bob"]}}]
     (t/is (= expected-results
              (set (r.match/search data
                     [_ ...
@@ -1284,7 +1285,22 @@
              (r.match/find #{:foo "bar", :baz "quux"}
                (with [%elems #{!x ^& (or %elems #{})}]
                  %elems)
-               (set !x))))))
+               (set !x)))))
+
+  (t/testing "recursive grammar"
+    (t/is (= #{[1 1 1 1] [1 1 1] [1 1] [1] []}
+             (set (r.match/search {:a 1
+                                   :b {:a 1
+                                       :b 2}
+                                   :c '(1 2 1 2)}
+                    (with [%1_ (or %1 _)
+                           %1 (or (and 1 !1s)
+                                  {_ %1_ & %1_}
+                                  (%1_ ...)
+                                  [%1_ ...]
+                                  #{%1_})]
+                      %1)
+                    !1s))))))
 
 
 (t/deftest gh-33
