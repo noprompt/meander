@@ -2,8 +2,7 @@
 
 Meander is a Clojure/ClojureScript data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting) and [logic programming](https://en.wikipedia.org/wiki/Logic_programming). It does so with extensible syntactic [pattern matching](https://en.wikipedia.org/wiki/Pattern_matching), syntactic [pattern substitution](https://en.wikipedia.org/wiki/Substitution_(logic)), and a suite of combinators known as _strategies_ that run the gamut from purely functional to purely declarative.
 
-
-[![Clojars Project](https://img.shields.io/clojars/v/meander/gamma.svg)](https://clojars.org/meander/gamma)
+[![Clojars Project](https://img.shields.io/clojars/v/meander/delta.svg)](https://clojars.org/meander/delta)
 
 
 ## Contents
@@ -25,6 +24,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [Logic Variables](#logic-variables)
     * [Memory Variables](#memory-variables)
     * [Any Variables](#any-variables)
+    * [Mutable Variables](#mutable-variables)
   * [Operators](#operators)
     * [`and`](#and)
     * [`or`](#or)
@@ -32,6 +32,8 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [`guard`](#guard)
     * [`app`](#app)
     * [`let`](#let)
+    * [`scan`](#scan)
+    * [`with`](#with)
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
     * [N or More](#n-or-more)
@@ -40,11 +42,11 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [Unquote](#unquote)
     * [Unquote Splicing](#unquote-splicing)
 
+## Pattern Matching
 
 ### Operators
 
-The primary operators for pattern matching and searching are available in `meander.match.gamma`.
-
+The primary operators for pattern matching and searching are available in `meander.match.delta`.
 
 #### `match`
 
@@ -71,7 +73,7 @@ Example:
   ;; Pair of equivalent objects.
   [?a ?a]
   ?a
-  
+
   ;; Triple where the first and last element are equal.
   [?a ?b ?a]
   ?a)
@@ -117,7 +119,7 @@ Example:
 
 The simplest patterns to express are literal patterns. Literal patterns are patterns which are either quoted with `'` or are not variables, pattern operators, or pattern subsequences. They match themselves.
 
-For example, the pattern 
+For example, the pattern
 
 ```clj
 [1 ?x 3]
@@ -193,13 +195,13 @@ To express any 2-tuple composed of equivalent elements we would write the follow
 [?x ?x]
 ```
 
-This pattern will match a value like 
+This pattern will match a value like
 
 ```clj
 [1 1]
-``` 
+```
 
-and bind `?x` to `1` but will not match a value like 
+and bind `?x` to `1` but will not match a value like
 
 ```clj
 [1 2]
@@ -219,7 +221,7 @@ To collect values from a 4-tuple such that we collect the first and last element
 [!xs !ys !ys !xs]
 ```
 
-This pattern will match a value like 
+This pattern will match a value like
 
 ```clj
 [:red :green :yellow :blue]
@@ -232,6 +234,23 @@ and bind `!xs` to `[:red :blue]` and `!ys` to `[:green :yellow]`.
 
 _Any variables_ are variables which match anything but do not bind the values they match. They are represented as simple symbols prefixed with the `_` character e.g. `_`, `_first-name`, and so on. Any variables commonly appear in the last clause of a `match` expression as a catch-all when all other patterns fail to match.
 
+#### Mutable Variables
+
+_Mutable variables_ are variables which, like _any variables_, will match anything but, unlike _any variables_ will bind the values they match. They are represented as simple symbols prefixed with the `*` character e.g. `*scratch`. Mutable variables were introduced as a primitive in order to derive specific features cleanly.
+
+Matching the pattern
+
+```clj
+[*m *m]
+```
+
+against
+
+```clj
+[1 2]
+```
+
+would first bind `*m` to `1`, and then ultimately to `2`.
 
 ### Operators
 
@@ -255,7 +274,7 @@ Example:
 
 ```clj
 (match 42
-  (pred even?) 
+  (pred even?)
   :okay)
 ;; => :okay
 ```
@@ -382,6 +401,60 @@ replaced with the argument.
   ($ ?context [?a ?b])
   (?context [9])
 ;; => ([[1] 2 [9]] [[1] 2 [[9] 5]])
+```
+
+#### `with`
+
+The `with` pattern operator enables patterns to bound and then later
+referenced much like `clojure.core/let`.
+
+```clj
+(with [%ref1 pat1 
+       ,,,
+       %refn patn]
+  pat)
+```
+
+These pattern bindings are called "references" and are named with
+simple symbols prefixed by the `%` character. References may be
+specified in any order and may also be recursive. In essence, the
+`with` operator allows for novel and powerful feature: the ad-hoc
+construction and matching of recursive grammars.
+
+Example:
+
+```clj
+(let [hiccup [:div
+              [:p {"foo" "bar"}
+               [:strong "Foo"]
+               [:em {"baz" "quux"} "Bar"
+                [:u "Baz"]]]
+              [:ul
+               [:li "Beef"]
+               [:li "Lamb"]
+               [:li "Pork"]
+               [:li "Chicken"]]]]
+  ;; meander.match.delta/find
+  (find hiccup
+    (with [%h1 [!tags {:as !attrs} . %hiccup ...]
+           %h2 [!tags . %hiccup ...]
+           %h3 !xs
+           %hiccup (or %h1 %h2 %h3)]
+      %hiccup)
+    [!tags !attrs !xs]))
+;; =>
+[[:div :p :strong :em :u :ul :li :li :li :li]
+ [{"foo" "bar"} {"baz" "quux"}]
+ ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]]
+```
+
+In the example above, `with` is used to (naively) describe and match
+[hiccup](https://github.com/weavejester/hiccup). Notice that
+references `%h1`, `%h2`, and `%hiccup` refer to each other in their
+definitions. The "body" of the `with` form says we wish to match
+`%hiccup` against the current value being matched, in this case
+`hiccup`. When the match executes it does so recursively and, as we
+can see, correctly.
 
 ### Subsequences
 
@@ -408,7 +481,7 @@ Example:
 ;; =>
 [:A :B :C :D]
 ```
-  
+
 #### N or more
 
 The `..n` postfix operator matches the _subsequence_ of patterns to it's left (up to the first `.` or start of the collection) _n_ or more times where _n_ is a positive natural number.
@@ -422,7 +495,7 @@ Example:
 ;; =>
 [2 3]
 ```
-  
+
 ```clj
 (match [1 2 3]
   [1 ..3 ?x ?y]
@@ -430,7 +503,7 @@ Example:
 
   _
   [:fail])
-;; => 
+;; =>
 [:fail]
 ```
 
@@ -441,7 +514,7 @@ The `.` operator, read as "partition", partitions the collection into two parts:
 Example:
 
 ```clj
-(match [3 4 5 6 7 8] 
+(match [3 4 5 6 7 8]
   [3 4 . !xs !ys ...]
   [!xs !ys])
 ;; =>
@@ -453,7 +526,7 @@ Had the pattern `[3 4 . !xs !ys ...]` in this example been written as `[3 4 !xs 
 Example:
 
 ```clj
-(search [3 0 0 3 1 1 3 2 2] 
+(search [3 0 0 3 1 1 3 2 2]
   [_ ... 3 . !ys ...]
   {:!ys !ys})
 ;; =>
@@ -507,7 +580,7 @@ Example:
 
 Pattern substitution can be thought of as the inverse to pattern matching. While pattern matching binds values by deconstructing an object, pattern substitution uses existing bindings to _construct_ an object.
 
-The `substitute` operator is available from the `meander.substitute.gamma` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On it's own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
+The `substitute` operator is available from the `meander.substitute.delta` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On it's own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
 
 Because rewriting is a central theme it's worthwhile to understand substitution semantics.
 
@@ -581,7 +654,7 @@ When an expression has memory variable occurences which exceed the number of ava
   * [`match`](#match)
   * [`find`](#find)
   * [`rewrite`](#rewrite)
-  
+
 ### Rewriting Overview
 
 Rewriting, also known as term rewriting or program transformation, is a programming paradigm based on the idea of replacing one term with another.
@@ -610,7 +683,7 @@ Putting multiplication aside for moment and considering only the symbols involve
 
 with these rules.
 
-By the distributed property we have 
+By the distributed property we have
 
 ```
 ((w + x) × y) + ((w + x) × z)
@@ -650,15 +723,15 @@ But how did we know we were finished? Couldn't we continue to apply the commutat
 
 A _strategy_ is a function of one argument, a term `t`, and returns the term rewritten `t*`. A _strategy combinator_ is a function which accepts, as arguments, one or more _strategies_ and returns a _strategy_.
 
-Meander's strategy combinators can be found in the `meander.strategy.gamma` namespace.
+Meander's strategy combinators can be found in the `meander.strategy.delta` namespace.
 
 ```
-(require '[meander.strategy.gamma :as r])
+(require '[meander.strategy.delta :as r])
 ```
 
 The alias `r` stands for "rewrite" and will be used throughout the following examples.
 
-Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.gamma/*fail*` which is printed as `#meander.gamma/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.gamma/fail?`, however, you should rarely need to reach for this function outside of combinators.
+Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.delta/*fail*` which is printed as `#meander.delta/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.delta/fail?`, however, you should rarely need to reach for this function outside of combinators.
 
 ### Basic Combinators
 
@@ -669,7 +742,7 @@ Strategy which always fails.
 ```clj
 (r/fail 10)
 ;; =>
-#meander.gamma/fail[]
+#meander.delta/fail[]
 ```
 
 #### `build`
@@ -699,7 +772,7 @@ Strategy combinator which takes two (or more) strategies`p` and `q` and returns 
 (let [s (r/pipe inc fail)]
   (s 10))
 ;; =>
-#meander.gamma/fail[]
+#meander.delta/fail[]
 ```
 
 Note: `pipe` actually takes zero or more strategies as arguments and has behavior analogous to `and` e.g. `((pipe) t)` and `((pipe s) t)` is the equivalent to `(identity t)` and `(s t)` respectively.
@@ -749,7 +822,7 @@ The `one` combinator is a traversal combinator which applies a strategy `s` to o
             r/*fail*))
       one-s (r/one s)]
   (one-s ["a" 2 "b" 3]))
-;; => 
+;; =>
 ["a" 3 "b" 3]
 ```
 
@@ -760,8 +833,8 @@ The `one` combinator is a traversal combinator which applies a strategy `s` to o
             r/*fail*))
       one-s (r/one s)]
   (s ["a" "b" "c"]))
-;; => 
-#meander.gamma/fail[]
+;; =>
+#meander.delta/fail[]
 ```
 
 #### `some`
@@ -775,7 +848,7 @@ The `some` combinator is a traversal combinator which applies a strategy `s` to 
             r/*fail*))
       some-s (r/some s)]
   (some-s ["a" 2 "b" 3]))
-;; => 
+;; =>
 ["a" 3 "b" 4]
 ```
 
@@ -786,8 +859,8 @@ The `some` combinator is a traversal combinator which applies a strategy `s` to 
             r/*fail*))
       some-s (r/some s)]
   (some-s ["a" "b" "c"]))
-;; => 
-#meander.gamma/fail[]
+;; =>
+#meander.delta/fail[]
 ```
 
 #### `all`
@@ -801,7 +874,7 @@ The `all` combinator is a traversal combinator which applies a strategy `s` to e
             r/*fail*))
       all-s (r/all s)]
   (all-s [1 2 3]))
-;; => 
+;; =>
 [2 3 4]
 ```
 
@@ -812,15 +885,15 @@ The `all` combinator is a traversal combinator which applies a strategy `s` to e
             r/*fail*))
       all-s (r/all s)]
   (all-s [1 2 "c"]))
-;; => 
-#meander.gamma/fail[]
+;; =>
+#meander.delta/fail[]
 ```
 
 ### Matching Combinators
 
 #### `match`
 
-The `match` strategy is built on top of `meander.match.gamma/match`. It succeeds whenever some term `t` is successfully matched.
+The `match` strategy is built on top of `meander.match.delta/match`. It succeeds whenever some term `t` is successfully matched.
 
 ```clj example
 (let [s (r/match
@@ -837,12 +910,12 @@ The `match` strategy is built on top of `meander.match.gamma/match`. It succeeds
           {:bar ?bar, :baz ?baz})]
   (s [:baz 1 2]))
 ;; =>
-#meander.gamma/fail[]
+#meander.delta/fail[]
 ```
 
 #### `find`
 
-The `find` strategy is built on top of `meander.match.gamma/find`. 
+The `find` strategy is built on top of `meander.match.delta/find`.
 
 ```clj example
 (let [s (r/find
@@ -856,7 +929,7 @@ The `find` strategy is built on top of `meander.match.gamma/find`.
 [b bb bbb]
 ```
 
-Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.gamma/*fail*`.
+Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.delta/*fail*`.
 
 ```clj example
 (let [s (r/find
@@ -882,5 +955,5 @@ nil
        :namespaces {a.core [a aa aaa]
                     b.core [b bb bbb]}}))
 ;; =>
-#meander.gamma/fail[]
+#meander.delta/fail[]
 ```
