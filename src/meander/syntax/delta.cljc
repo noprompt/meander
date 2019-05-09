@@ -608,6 +608,7 @@
     (quote <form>)
     (re <regex-expr>)
     (re <regex-expr> <pattern>)
+    (with [%<simple-symbol> <pattern> ...] <pattern>)
     (clojure.core/unquote <form>) 
     (clojure.core/unquote-splicig <form>)
     (<symbol*> <form_0> ... <form_n>)
