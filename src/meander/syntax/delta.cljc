@@ -563,9 +563,10 @@
                  (if (identical? x nothing)
                    nil
                    (parse x env)))}
-        (ex-info "second argument to with must be vector of the form [%ref-name pattern ...]"
-                 {:form xs
-                  :meta (meta xs)})))
+        (throw
+         (ex-info "second argument to with must be vector of the form [%ref-name pattern ...]"
+                  {:form xs
+                   :meta (meta xs)}))))
     (parse xs env)))
 
 (defn parse-seq-no-head
