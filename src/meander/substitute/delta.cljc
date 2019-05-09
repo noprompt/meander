@@ -236,12 +236,10 @@
 
 
 (defmethod compile-substitute :rst [node env]
-  (compile-substitute
-   {:tag :rp*
-    :cat {:tag :cat
-          :elements [(:mvr node)]}}
-   env))
-
+  (let [ref-sym (get-mvr-ref-sym env (:mvr node))]
+    `(let [xs# (deref ~ref-sym)]
+       (vreset! ~ref-sym [])
+       xs#)))
 
 (defmethod compile-substitute :set [node env]
   `(set/union
