@@ -120,7 +120,7 @@
   See also: compile-ground"
   [node]
   (and (r.syntax/ground? node)
-       (not-any? (comp #{:map :set} r.syntax/tag)
+       (not-any? (comp #{:map :unq :set} r.syntax/tag)
                  (r.syntax/subnodes node))))
 
 
@@ -179,6 +179,45 @@
 
     :set
     (into #{} (map compile-ground (:elements node)))))
+
+(defn lit-form [node]
+  (case (r.syntax/tag node)
+    :cat
+    (map lit-form (:elements node))
+
+    :jsa
+    #?(:clj
+       (JSValue. (vec (lit-form (:prt node))))
+       :cljs
+       (into-array (lit-form (:prt node))))
+
+    :lit
+    (:value node)
+
+    :map
+    (into {}
+          (map (fn [[k v]]
+                 [(lit-form k)
+                  (lit-form v)]))
+          (:map node))
+
+    :prt
+    (concat (lit-form (:left node))
+            (lit-form (:right node)))
+
+    :quo
+    (:form node)
+
+    :vec
+    (into [] (lit-form (:prt node)))
+
+    :seq
+    (if-some [l (seq (lit-form (:prt node)))]
+      `(quote ~(apply list l))
+      ())
+
+    :set
+    (into #{} (map lit-form (:elements node)))))
 
 
 (defn compile-pass
@@ -1700,9 +1739,11 @@
              :arguments [as (dissoc x :as)]})
          x)
        ;; else
-       x))
+       (if (literal? x)
+         {:tag :lit
+          :value (lit-form x)}
+         x)))
    (r.syntax/rename-refs node)))
-
 
 (defn parse-expand
   {:private true}
