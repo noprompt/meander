@@ -15,6 +15,12 @@
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
+(def
+  ^{:dynamic true
+    :private true
+    :doc ""}
+  *env* {})
+
 
 (def
   ^{:dynamic true
@@ -23,7 +29,7 @@
 
 
 (defn negating?
-  "true if currently compiling a matrix dervied from a not pattern,
+  "true if currently compiling a matrix derived from a not pattern,
   false otherwise."
   []
   (true? *negating*))
@@ -215,7 +221,7 @@
 
     :seq
     (if-some [l (seq (lit-form (:prt node)))]
-      `(quote ~(apply list l))
+      l
       ())
 
     :set
@@ -625,10 +631,18 @@
          (r.ir/op-pass (compile targets* [row]))
 
          :lit
-         (r.ir/op-check-lit
-           (r.ir/op-eval target)
-           (r.ir/op-eval (r.syntax/unparse node))
-           (compile targets* [row]))))
+         (let [then (compile targets* [row])]
+           (if (r.util/cljs-env? *env*)
+             (r.ir/op-check-lit
+               (r.ir/op-eval target)
+               (r.ir/op-eval (r.syntax/unparse node))
+               then)
+             (let [hash-sym (gensym* "hash__")]
+               (r.ir/op-bind hash-sym (r.ir/op-eval `(hash ~target))
+                 (r.ir/op-check-equal
+                   (r.ir/op-eval hash-sym)
+                   (r.ir/op-eval (hash (:value node)))
+                   then)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1834,20 +1848,21 @@
         matrix (:matrix match-data)
         final-clause (:final-clause match-data)
         errors (:errors match-data)]
-    (if-some [error (first errors)]
-      (throw error)
-      (let [target (gensym "target__")
-            fail (gensym "fail__")]
-        (if (r.matrix/empty? matrix)
-          (if (some? final-clause)
-            (r.ir/compile (compile [expr] [final-clause]) nil :match)
-            `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
-          `(let [~target ~expr
-                 ~fail (fn []
-                         ~(if (some? final-clause)
-                            (r.ir/compile (compile [target] [final-clause]) nil :match)
-                            `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
-             ~(r.ir/compile (compile [target] matrix) `(~fail) :match)))))))
+    (binding [*env* &env]
+      (if-some [error (first errors)]
+        (throw error)
+        (let [target (gensym "target__")
+              fail (gensym "fail__")]
+          (if (r.matrix/empty? matrix)
+            (if (some? final-clause)
+              (r.ir/compile (compile [expr] [final-clause]) nil :match)
+              `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
+            `(let [~target ~expr
+                   ~fail (fn []
+                           ~(if (some? final-clause)
+                              (r.ir/compile (compile [target] [final-clause]) nil :match)
+                              `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
+               ~(r.ir/compile (compile [target] matrix) `(~fail) :match))))))))
 
 
 (defn analyze-search-args
@@ -1914,13 +1929,14 @@
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
-    (if-some [error (first errors)]
-      (throw error)
-      (let [target (gensym "target__")]
-        (if (r.matrix/empty? matrix)
-          nil
-          `(let [~target ~expr]
-             ~(r.ir/compile (compile [target] matrix) nil :search)))))))
+    (binding [*env* &env]
+      (if-some [error (first errors)]
+        (throw error)
+        (let [target (gensym "target__")]
+          (if (r.matrix/empty? matrix)
+            nil
+            `(let [~target ~expr]
+               ~(r.ir/compile (compile [target] matrix) nil :search))))))))
 
 
 (s/fdef search
@@ -1994,23 +2010,24 @@
         errors (:errors match-data)
         final-clause (:final-clause match-data)
         fail (gensym "fail__")]
-    (if-some [error (first errors)]
-      (throw error)
-      (let [target (gensym "target__")]
-        (if (r.matrix/empty? matrix)
-          (if (some? final-clause)
-            (r.ir/compile
-             (r.ir/op-bind target (r.ir/op-eval expr)
-               (compile [target] [final-clause])) nil :find)
-            nil)
-          `(let [~target ~expr
-                 ~fail (fn []
-                         ~(if (some? final-clause)
-                            (r.ir/compile
-                             (r.ir/op-bind target (r.ir/op-eval expr)
-                               (compile [target] [final-clause])) nil :find)
-                            nil))]
-             ~(r.ir/compile (compile [target] matrix) `(~fail) :find)))))))
+    (binding [*env* &env]
+      (if-some [error (first errors)]
+        (throw error)
+        (let [target (gensym "target__")]
+          (if (r.matrix/empty? matrix)
+            (if (some? final-clause)
+              (r.ir/compile
+               (r.ir/op-bind target (r.ir/op-eval expr)
+                 (compile [target] [final-clause])) nil :find)
+              nil)
+            `(let [~target ~expr
+                   ~fail (fn []
+                           ~(if (some? final-clause)
+                              (r.ir/compile
+                               (r.ir/op-bind target (r.ir/op-eval expr)
+                                 (compile [target] [final-clause])) nil :find)
+                              nil))]
+               ~(r.ir/compile (compile [target] matrix) `(~fail) :find))))))))
 
 (s/fdef find
   :args (s/cat :expr any?
