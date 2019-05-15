@@ -637,12 +637,24 @@
                (r.ir/op-eval target)
                (r.ir/op-eval (r.syntax/unparse node))
                then)
-             (let [hash-sym (gensym* "hash__")]
+             (let [hash-sym (gensym* "hash__")
+                   value (:value node)
+                   check-equal (r.ir/op-check-equal
+                                 (r.ir/op-eval hash-sym)
+                                 (r.ir/op-eval (hash value))
+                                 then)]
                (r.ir/op-bind hash-sym (r.ir/op-eval `(hash ~target))
-                 (r.ir/op-check-equal
-                   (r.ir/op-eval hash-sym)
-                   (r.ir/op-eval (hash (:value node)))
-                   then)))))))
+                 (cond
+                   (seq? value)
+                   (r.ir/op-check-seq (r.ir/op-eval target)
+                     check-equal)
+
+                   (vector? value)
+                   (r.ir/op-check-vector (r.ir/op-eval target)
+                     check-equal)
+
+                   :else
+                   check-equal)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
