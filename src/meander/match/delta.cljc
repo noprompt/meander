@@ -180,7 +180,10 @@
     :set
     (into #{} (map compile-ground (:elements node)))))
 
-(defn lit-form [node]
+
+(defn lit-form
+  {:private true}
+  [node]
   (case (r.syntax/tag node)
     :cat
     (map lit-form (:elements node))
@@ -197,8 +200,7 @@
     :map
     (into {}
           (map (fn [[k v]]
-                 [(lit-form k)
-                  (lit-form v)]))
+                 [(lit-form k) (lit-form v)]))
           (:map node))
 
     :prt
@@ -1737,12 +1739,13 @@
        (if-some [as (:as x)]
          (f {:tag :cnj
              :arguments [as (dissoc x :as)]})
-         x)
+         (if (literal? x)
+           {:tag :lit
+            :value (lit-form x)}
+           x))
+
        ;; else
-       (if (literal? x)
-         {:tag :lit
-          :value (lit-form x)}
-         x)))
+       x))
    (r.syntax/rename-refs node)))
 
 (defn parse-expand
