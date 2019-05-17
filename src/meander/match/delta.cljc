@@ -152,7 +152,7 @@
     :jsa
     #?(:clj
        (JSValue. (vec (compile-ground (:prt node))))
-       :cljs 
+       :cljs
        (into-array (compile-ground (:prt node))))
 
     :lit
@@ -171,7 +171,7 @@
 
     :unq
     (:expr node)
-    
+
     :quo
     (list 'quote (:form node))
 
@@ -232,6 +232,94 @@
   {:private true}
   [targets matrix]
   (r.ir/op-pass (compile targets matrix)))
+
+
+(def ^{:doc "Node tags ordered from highest precedence to lowest."
+       :private true}
+  tag-ranking
+  [:mut
+   :lit
+   :quo
+   :unq
+   ;; The tags below are toggled off because some of them can break
+   ;; the linear semantics of pattern matching. More investigation is
+   ;; needed.
+   #_:any
+   #_:drp
+   #_:mvr
+   #_:rst
+   #_:rxt
+   #_:lvr
+   #_:grd
+   #_:prd
+   #_:vec
+   #_:seq
+   #_:jsa
+   #_:jso
+   #_:cat
+   #_:mkv
+   #_:okv
+   #_:rxc
+   #_:set
+   #_:map
+   #_:prt
+   #_:ctn
+   #_:rp*
+   #_:rp+
+   #_:ref
+   #_:wth
+   #_:app
+   #_:let*
+   #_:let
+   #_:not
+   #_:cnj
+   #_:dsj])
+
+(defn tag-rank
+  "Returns the rank of a tag. Used to compute the score
+  of a pattern matrix column."
+  {:private true}
+  [tag]
+  (let [i (.indexOf tag-ranking tag)]
+    (case i
+      -1 (count tag-ranking)
+      i)))
+
+(s/fdef tag-rank
+  :args (s/cat :tag keyword?)
+  :ret nat-int?)
+
+
+(defn score-column
+  "Returns the total score of a pattern matrix column"
+  {:private true}
+  [column]
+  (transduce
+   (comp (map :tag)
+         (map tag-rank))
+   +
+   0
+   column))
+
+(s/fdef score-column
+  :args (s/cat :column (s/coll-of :r.syntax/node :kind sequential?))
+  :ret nat-int?)
+
+
+(defn prioritize-matrix
+  "Reorganizes a the pattern targets and matrix columns according to
+  the score of each column. Columns are resorted from lowest to
+  highest score."
+  [targets matrix]
+  (let [columns (r.matrix/columns matrix)
+        scores (map score-column columns)
+        targets* (map second (sort-by first (map vector scores targets)))
+        columns* (map second (sort-by first (map vector scores columns)))
+        matrix* (map-indexed
+                 (fn [i cols]
+                   (assoc (nth matrix i) :cols cols))
+                 (apply map vector columns*))]
+    [(vec targets*) (vec matrix*)]))
 
 
 (defn specialize-matrix
@@ -458,9 +546,7 @@
          (compile-pass targets* [row])
 
          :grd
-         (r.ir/op-check
-          (r.ir/op-eval (:expr node))
-          (r.ir/op-eval target)
+         (r.ir/op-check (r.ir/op-eval (:expr node))
           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -604,7 +690,7 @@
 (defmethod compile-specialized-matrix :let
   [_ targets matrix]
   [(compile targets
-            (r.matrix/prepend-column 
+            (r.matrix/prepend-column
              (r.matrix/drop-column matrix)
              (mapv
               (fn [node]
@@ -632,29 +718,10 @@
 
          :lit
          (let [then (compile targets* [row])]
-           (if (r.util/cljs-env? *env*)
-             (r.ir/op-check-lit
-               (r.ir/op-eval target)
-               (r.ir/op-eval (r.syntax/unparse node))
-               then)
-             (let [hash-sym (gensym* "hash__")
-                   value (:value node)
-                   check-equal (r.ir/op-check-equal
-                                 (r.ir/op-eval hash-sym)
-                                 (r.ir/op-eval (hash value))
-                                 then)]
-               (r.ir/op-bind hash-sym (r.ir/op-eval `(hash ~target))
-                 (cond
-                   (seq? value)
-                   (r.ir/op-check-seq (r.ir/op-eval target)
-                     check-equal)
-
-                   (vector? value)
-                   (r.ir/op-check-vector (r.ir/op-eval target)
-                     check-equal)
-
-                   :else
-                   check-equal)))))))
+           (r.ir/op-check-lit
+             (r.ir/op-eval target)
+             (r.ir/op-eval (r.syntax/unparse node))
+             then))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -819,6 +886,7 @@
      (r.matrix/drop-column matrix))))
 
 
+
 (defmethod compile-specialized-matrix :prt
   [_ [target & targets* :as targets] matrix]
   (let [targets* (vec targets*)]
@@ -851,15 +919,15 @@
                (r.ir/op-check-empty
                  (r.ir/op-eval target)
                  (compile targets [row]))
-               
+
                (zero? llen)
                (r.ir/op-check-bounds (r.ir/op-eval target) rlen *collection-context*
                  (compile targets [(assoc row :cols `[~right ~@(:cols row)])]))
-               
+
                (zero? rlen)
                (r.ir/op-check-bounds (r.ir/op-eval target) llen *collection-context*
                  (compile targets [(assoc row :cols `[~left ~@(:cols row)])]))
-               
+
                :else
                (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
                  (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
@@ -941,7 +1009,9 @@
          (compile-pass targets* [row])
 
          :quo
-         (r.ir/op-check-equal (r.ir/op-eval target) (r.ir/op-eval (r.syntax/unparse node))
+         (r.ir/op-check-equal
+           (r.ir/op-eval target)
+           (r.ir/op-eval (r.syntax/unparse node))
            (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -1198,7 +1268,7 @@
        (if (literal? node)
          (r.ir/op-check-equal (r.ir/op-eval target) (r.ir/op-eval (compile-ground node))
            (compile targets* [row]))
-         (r.ir/op-check-vector (r.ir/op-eval target)  
+         (r.ir/op-check-vector (r.ir/op-eval target)
            (let [;; prt needs to be compiled within a :vector
                  ;; collection-context separately from the targets*
                  ;; to the right. The targets* on the right need to
@@ -1250,7 +1320,7 @@
                 (r.ir/op-mvr-init (:symbol node)
                   dt))
               ;; Compile nodes for all possible defs.
-              (reduce 
+              (reduce
                (fn [dt spec-map]
                  (let [target-arg (gensym* "arg__")
                        ret-syms (mapv :symbol (:rets spec-map))]
@@ -1311,15 +1381,16 @@
                       i))
                   (map-indexed vector (r.matrix/columns matrix)))]
       (if (= 0 i)
-        (let [tags (into []
+        (let [[targets* matrix*] (prioritize-matrix targets matrix)
+              tags (into []
                          (comp (map r.syntax/tag)
                                (remove #{:any})
                                (distinct))
-                         (r.matrix/first-column matrix))
+                         (r.matrix/first-column matrix*))
               arms (into [] (mapcat
                              (fn [tag]
-                               (let [s-matrix (specialize-matrix tag matrix)]
-                                 (compile-specialized-matrix tag targets s-matrix))))
+                               (let [s-matrix (specialize-matrix tag matrix*)]
+                                 (compile-specialized-matrix tag targets* s-matrix))))
                          tags)
               arms (if (and (some (fn [op]
                                     (= (:type op) :test))
@@ -1374,7 +1445,7 @@
    :refs (into {} (map
                    (fn [[k v]]
                      [(r.syntax/unparse k)
-                      {:node (r.syntax/unparse (:node v)) 
+                      {:node (r.syntax/unparse (:node v))
                        :with (r.syntax/unparse (:with v))}]))
                (:refs check-env))
    :path (into []

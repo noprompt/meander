@@ -148,13 +148,39 @@
 
 (defop op-bind :bind [symbol value then])
 
-(defop op-branch :branch [arms])
+(defn op-branch [arms]
+  (if (= (count arms) 1)
+    (first arms)
+    {:op :branch
+     :arms (vec arms)}))
+
+(defn op-case
+  {:style/indent :defn}
+  [target clauses then]
+  (let [values (distinct (map first clauses))
+        index (group-by first clauses)]
+    {:op :case
+     :target target
+     :clauses (mapv
+               (fn [value]
+                 (let [clauses (get index value)]
+                   (if (= 1 (count clauses))
+                     (first clauses)
+                     [value (op-branch (map second clauses))])))
+               values)
+     :then then}))
+
+(s/fdef op-case
+  :args (s/cat :target ::node
+               :clauses (s/coll-of (s/tuple ::node ::node) :kind sequential?)
+               :then ::node)
+  :ret ::node)
 
 (defop op-drop :drop [target n kind])
 
 (defop op-eval :eval [form])
 
-(defop op-check :check [test target then])
+(defop op-check :check [test then])
 
 (defop op-check-array :check-array [target then])
 
@@ -265,6 +291,9 @@
 ;; ---------------------------------------------------------------------
 ;; AST Rewriting
 
+(defn can-merge? [a b]
+  (= (op a) (op b)))
+
 (defmulti merge
   "Attempt to merge node-a and node-b. Returns the result of the merge
   if the merge succeeds. Returns a :branch node with :arms node-a and
@@ -280,7 +309,20 @@
   [a b]
   (if (= a b)
     a
-    (op-branch [a b])))
+    (let [default (op-branch [a b])]
+      default
+      (case [(:op a) (:op b)]
+        [:case :check-lit]
+        (if (= (:target a) (:target b))
+          (let [clauses (:clauses a)
+                b-value (:value b)
+                b-then (:then b)]
+            (if (some #{b-value} (map first clauses))
+              (assoc a :then (op-branch [(:then a) b]))
+              (update a :clauses conj [b-value b-then])))
+          default)
+        ;; else
+        default))))
 
 (defmethod merge :bind
   [a b]
@@ -346,11 +388,12 @@
 
 (defmethod merge :lvr-bind
   [a b]
-  (if (and (= (:symbol a)
-              (:symbol b))
-           (= (:target a)
-              (:target b)))
-    (assoc a :then (merge (:then a) (:then b)))
+  (if (= (:symbol a)
+         (:symbol b))
+    (if (= (:target a)
+           (:target b))
+      (assoc a :then (merge (:then a) (:then b)))
+      (assoc a :then (assoc b :then (merge (:then a) (:then b)))))
     (op-branch [a b])))
 
 ;; :branch rewriting
@@ -405,9 +448,50 @@
 
         ;; else
         (let [[a b & rest-arms] arms]
-          (merge (merge a b)
-                 (op-branch rest-arms)))))
+          (if (can-merge? a b)
+            (merge (merge a b) (op-branch rest-arms))
+            (rewrite-branch-merge
+             (op-branch [a (rewrite-branch-merge (assoc node :arms (rest arms)))]))))))
     node))
+
+(defn rewrite-branch-check-lits-to-case
+  [node]
+  (if (op= node :branch)
+    (case (count (:arms node))
+      (0 1)
+      node
+
+      2
+      (let [[node-a node-b] (:arms node)]
+        (if (and (op= node-a :check-lit)
+                 (op= node-b :check-lit)
+                 (= (:target node-a)
+                    (:target node-b)))
+          (op-case (:target node-a)
+            (mapv (juxt :value :then) (:arms node))
+            (op-fail))
+          node))
+
+      ;; else
+      (or (some
+           (fn [[a b]]
+             (let [[node & rest-nodes] b]
+               (if (= (:op node) :check-lit)
+                 (let [target (:target node)
+                       [r1 r2] (split-with
+                                (fn [other-node]
+                                  (and (= (:op other-node) :check-lit)
+                                       (= (:target other-node) target)))
+                                rest-nodes)]
+                   (if (< 1 (count r1))
+                     (op-branch (conj (vec a)
+                                      (op-case target
+                                        (map (juxt :value :then) (cons node r1))
+                                        (op-branch r2)))))))))
+           (r.util/partitions 2 (:arms node)))
+          node))
+    node))
+
 
 ;; :def rewriting
 ;; --------------
@@ -470,7 +554,6 @@
       ir
       (recur ir*))))
 
-
 (defn rewrite*
   [node]
   (prewalk
@@ -487,7 +570,22 @@
         (-> node
             rewrite-branch-one-fail
             rewrite-branch-merge
-            rewrite-branch-splice-branches)
+            rewrite-branch-splice-branches
+            rewrite-branch-check-lits-to-case)
+        ;; else
+        node))
+    (fn h [node]
+      (case (op node)
+        :bind
+        (let [then-node (:then node)]
+          (if (and (op= then-node :bind)
+                   (= (:value node)
+                      (:value then-node)))
+            (let [then* (walk/postwalk-replace
+                         {(:symbol then-node) (:symbol node)}
+                         (:then then-node))]
+              (assoc node :then then*))
+            node))
         ;; else
         node)))
    node))
@@ -647,6 +745,29 @@
             ~(compile* (:then ir) fail kind))))
       (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir)))))
 
+(defmethod compile* :case
+  [ir fail kind]
+  `(case ~(compile* (:target ir) fail kind)
+     ~@(mapcat
+        (fn [[value then]]
+          (let [compiled-value (walk/postwalk
+                                (fn [x]
+                                  (if (and (seq? x)
+                                           (= (first x) 'quote))
+                                    (second x)
+                                    x))
+                                (compile* value fail kind))]
+            `((~compiled-value)
+              ~(compile* then fail kind))))
+        (:clauses ir))
+     ~(compile* (:then ir) fail kind)))
+
+(defmethod compile* :check
+  [ir fail kind]
+  `(if ~(compile* (:test ir) fail kind)
+     ~(compile* (:then ir) fail kind)
+     ~fail))
+
 (defmethod compile* :check-array
   [ir fail kind]
   `(if (cljs.core/array? ~(compile* (:target ir) fail kind))
@@ -704,7 +825,7 @@
 (defmethod compile* :check-lit
   [ir fail kind]
   `(if (= ~(compile* (:target ir) fail kind)
-          ~(compile* (:value ir) fail kind))
+          ~(compile* (:value ir)  fail kind))
      ~(compile* (:then ir) fail kind)
      ~fail))
 
