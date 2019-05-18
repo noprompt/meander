@@ -1822,3 +1822,18 @@
         :else
         node))
     node)))
+
+(defn literal?
+  "true if node is ground and does not contain :map or :set subnodes,
+  false otherwise.
+
+  The constraint that node may not contain :map or :set subnodes is
+  due to the semantics of map and set patterns: they express submap
+  and subsets respectively. Compiling these patterns to literals as
+  part of an equality check would result in false negative matches.
+
+  See also: compile-ground"
+  [node]
+  (and (ground? node)
+       (not-any? (comp #{:map :unq :set} tag)
+                 (subnodes node))))
