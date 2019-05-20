@@ -1172,7 +1172,17 @@
 
 (defmethod children :map [node]
   (concat (mapcat identity (:map node))
-          (children (:rest-map node))))
+          (if-some [rest-map (:rest-map node)]
+            (let [xs (children rest-map)]
+              (if (seq xs)
+                xs
+                [rest-map])))
+          (if-some [as (:as node)]
+            (let [xs (children as)]
+              (if (seq xs)
+                xs
+                [as])))))
+
 
 (defmethod ground? :map [node]
   (every?
@@ -1408,7 +1418,17 @@
 
 (defmethod children :set [node]
   (if-some [rest-node (:rest node)]
-    (concat (:elements node) (list (:rest node)))
+    (concat (:elements node)
+            (if-some [rest-set (:rest node)]
+              (let [xs (children rest-set)]
+                (if (seq xs)
+                  xs
+                  [rest-set])))
+            (if-some [as (:as node)]
+              (let [xs (children as)]
+                (if (seq xs)
+                  xs
+                  [as]))))
     (:elements node)))
 
 (defmethod ground? :set [node]

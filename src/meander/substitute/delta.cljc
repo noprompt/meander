@@ -172,9 +172,9 @@
                       [:as (compile-substitute as env)])
                   ~@compiled-kvs)
           compiled-rest-map))
-      `(hash-map ~@compiled-kvs
-                 ~@(if (some? as)
-                     [:as (compile-substitute as env)])))))
+      `(merge ~@(if (some? as)
+                  [(compile-substitute as env)])
+              (hash-map ~@compiled-kvs)))))
 
 
 (defmethod compile-substitute :mvr [mvr env]
@@ -434,6 +434,7 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
+
 
 #_
 (comment
