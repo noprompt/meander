@@ -413,10 +413,9 @@
 (defn parse-rewrite
   {:private true}
   ([x]
-   (parse-rewrite x))
+   (parse-rewrite x {}))
   ([x env]
    (rewrite-node (r.syntax/parse x env))))
-
 
 (defmacro substitute
   [x]
