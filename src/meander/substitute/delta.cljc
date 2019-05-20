@@ -290,8 +290,8 @@
       {:prt {:left ?left
              :right ?right
              :as ?prt}}
-      (if (and (r.syntax/variable-length? ?left)
-               (r.syntax/variable-length? ?right))
+      (if (or (r.syntax/variable-length? ?left)
+              (r.syntax/variable-length? ?right))
         `(or (seq ~(compile-substitute ?prt env*)) (list))
         (compile-substitute ?prt env*)))))
 
