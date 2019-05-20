@@ -2018,8 +2018,10 @@
         (let [target (gensym "target__")]
           (if (r.matrix/empty? matrix)
             nil
-            `(let [~target ~expr]
-               ~(r.ir/compile (compile [target] matrix) nil :search))))))))
+            (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                            (compile [target] matrix))
+                          nil
+                          :search)))))))
 
 
 (s/fdef search
@@ -2092,25 +2094,27 @@
         matrix (:matrix match-data)
         errors (:errors match-data)
         final-clause (:final-clause match-data)
+        target (gensym "target__")
         fail (gensym "fail__")]
     (binding [*env* &env]
       (if-some [error (first errors)]
         (throw error)
-        (let [target (gensym "target__")]
-          (if (r.matrix/empty? matrix)
-            (if (some? final-clause)
-              (r.ir/compile
-               (r.ir/op-bind target (r.ir/op-eval expr)
-                 (compile [target] [final-clause])) nil :find)
-              nil)
-            `(let [~target ~expr
-                   ~fail (fn []
-                           ~(if (some? final-clause)
-                              (r.ir/compile
-                               (r.ir/op-bind target (r.ir/op-eval expr)
-                                 (compile [target] [final-clause])) nil :find)
-                              nil))]
-               ~(r.ir/compile (compile [target] matrix) `(~fail) :find))))))))
+        (if (r.matrix/empty? matrix)
+          (if (some? final-clause)
+            (r.ir/compile
+             (r.ir/op-bind target (r.ir/op-eval expr)
+               (compile [target] [final-clause])) nil :find)
+            nil)
+          (r.ir/compile 
+           (r.ir/op-bind target (r.ir/op-eval expr)
+             (r.ir/op-eval
+               (if (some? final-clause)
+                 `(let [~fail (fn []
+                                ~(r.ir/compile (compile [target] [final-clause]) nil :find))]
+                    ~(r.ir/compile (compile [target] matrix) `(~fail) :find))
+                 (r.ir/compile (compile [target] matrix) nil :find))))
+           nil
+           :find))))))
 
 (s/fdef find
   :args (s/cat :expr any?
