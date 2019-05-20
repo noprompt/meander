@@ -1,7 +1,9 @@
 (ns meander.substitute.delta
   #?(:cljs (:require-macros [meander.substitute.delta]))
-  (:require [clojure.spec.alpha :as s]
-            [clojure.set :as set]
+  (:require [clojure.set :as set]
+            [clojure.spec.alpha :as s]
+            [clojure.walk :as walk]
+            [meander.match.delta :as r.match]
             [meander.syntax.delta :as r.syntax]
             [meander.util.delta :as r.util]))
 
@@ -65,7 +67,7 @@
       x
       (if (= (first x) `list)
         (cons (first x) (map compile-ground (rest x)))
-        (if (seq x) 
+        (if (seq x)
           (cons `list (map compile-ground x))
           ())))
 
@@ -111,8 +113,8 @@
                                   form
                                   `(list ~form)))))
                            elements
-                           (repeat env)))   
-      `(list ~@(sequence (map compile-substitute) elements (repeat env))))))
+                           (repeat env)))
+      `[~@(sequence (map compile-substitute) elements (repeat env))])))
 
 
 (defmethod compile-substitute :cnj
@@ -172,7 +174,7 @@
           compiled-rest-map))
       `(hash-map ~@compiled-kvs
                  ~@(if (some? as)
-                     [:as (compile-substitute as env)]))))) 
+                     [:as (compile-substitute as env)])))))
 
 
 (defmethod compile-substitute :mvr [mvr env]
@@ -180,7 +182,7 @@
     (let [item (gensym "item__")]
       `(when-some [[_# ~item] (find (deref ~mvr-ref-sym) 0)]
          (vswap! ~mvr-ref-sym subvec 1)
-         ~item)))) 
+         ~item))))
 
 
 (defmethod compile-substitute :not
@@ -196,8 +198,16 @@
 
 (defmethod compile-substitute :prt
   [node env]
-  `(concat ~(compile-substitute (:left node) env)
-           ~(compile-substitute (:right node) env)))
+  (r.match/match node
+    {:left ?left
+     :right {:tag :cat
+             :elements (or [] ())}}
+    (compile-substitute ?left env)
+
+    {:left ?left
+     :right ?right}
+    `(concat ~(compile-substitute ?left env)
+             ~(compile-substitute ?right env))))
 
 
 (defmethod compile-substitute :quo
@@ -227,12 +237,17 @@
                        :env env})))))
 
 (defmethod compile-substitute :rp+ [node env]
-  (let [n (:n node)
-        cat-node (:cat node)]
+  (r.match/match node
+    {:cat {:tag :cat
+           :elements (or ({:tag :lit} ..1 :as ?elements)
+                         [{:tag :lit} ..1 :as ?elements])}
+     :n ?n}
+    (into [] cat (repeat ?n (map compile-substitute ?elements (repeat env))))
+
+    {:cat ?cat
+     :n ?n}
     ;; Yield n substitutions.
-    `(into []
-           (mapcat identity)
-           (repeatedly ~n (fn [] ~(compile-substitute cat-node env))))))
+    `(into [] cat (repeatedly ~?n (fn [] ~(compile-substitute ?cat env))))))
 
 
 (defmethod compile-substitute :rst [node env]
@@ -249,16 +264,36 @@
           (compile-substitute x env))
         (:elements node)))
     ~@(if-some [as (:as node)]
-       [(compile-substitute as env)])
+        [(compile-substitute as env)])
     ~@(if-some [rest (:rest node)]
         [(compile-substitute rest env)])))
 
 
 (defmethod compile-substitute :seq
   [node env]
-  `(or (seq ~(compile-substitute (:prt node)
-                                 (assoc env :collection-context :seq)))
-       (list)))
+  (let [env* (assoc env :collection-context :seq)]
+    (r.match/find node
+      {:prt {:left {:tag :cat
+                    :elements (and ?left-elements (not (scan {:tag :uns})))}
+             :right {:tag :cat
+                     :elements (and ?right-elements (not (scan {:tag :uns})))}}}
+      `(list ~@(map compile-substitute ?left-elements (repeat env*))
+             ~@(map compile-substitute ?right-elements (repeat env*)))
+
+      {:prt {:left {:tag :cat
+                    :elements (and ?left-elements (not (scan {:tag :uns})))}
+             :right {:tag :lit
+                     :value (_ ... :as ?right-elements)}}}
+      `(list ~@(map compile-substitute ?left-elements (repeat env*))
+             ~@?right-elements)
+
+      {:prt {:left ?left
+             :right ?right
+             :as ?prt}}
+      (if (and (r.syntax/variable-length? ?left)
+               (r.syntax/variable-length? ?right))
+        `(or (seq ~(compile-substitute ?prt env*)) (list))
+        (compile-substitute ?prt env*)))))
 
 
 (defmethod compile-substitute :unq
@@ -273,17 +308,35 @@
 
 (defmethod compile-substitute :vec
   [node env]
-  `(vec ~(compile-substitute (:prt node)
-                             (assoc env :collection-context :vector))))
+  (let [env* (assoc env :collection-context :vector)]
+    (r.match/find node
+      {:prt {:left {:tag :cat
+                    :elements (and ?left-elements (not (scan {:tag :uns})))}
+             :right {:tag :cat
+                     :elements (and ?right-elements (not (scan {:tag :uns})))}}}
+      `[~@(map compile-substitute ?left-elements (repeat env*))
+        ~@(map compile-substitute ?right-elements (repeat env*))]
+
+      {:prt {:left {:tag :cat
+                    :elements (and ?left-elements (not (scan {:tag :uns})))}
+             :right {:tag :lit
+                     :value (_ ... :as ?right-elements)}}}
+      `[~@(map compile-substitute ?left-elements (repeat env*))
+        ~@?right-elements]
+
+      _
+      `(vec ~(compile-substitute (:prt node) env*)))))
+
 
 (defmethod compile-substitute :ref
   [node env]
   `(~(:symbol node)))
 
+
 (defmethod compile-substitute :wth
   [node env]
   (let [ref-map (r.syntax/make-ref-map node)
-        env* (add-wth-refs env ref-map) 
+        env* (add-wth-refs env ref-map)
         refs (into (r.syntax/references node)
                    (comp (map :pattern)
                          (mapcat r.syntax/references))
@@ -299,14 +352,85 @@
                  bindings)]
        ~(compile-substitute (:body node) env*))))
 
-(defmacro substitute [x]
-  (let [node (r.syntax/rename-refs (r.syntax/parse x &env))
-        env (make-env node)]
-    `(let [~@(mapcat
-              (fn [[mvr-node ref-sym]]
-                [ref-sym `(volatile! ~(:symbol mvr-node))])
-              (:mvr-refs env))]
-       ~(compile-substitute node env))))
+
+(defn rewrite-partitions
+  {:private true}
+  [node]
+  (r.syntax/prewalk
+   (fn [node]
+     (r.match/find node
+       (with [%right (not (or () []))]
+         {:tag :prt
+          :left {:tag :cat
+                 :elements ?ls}
+          :right {:tag :cat
+                  :elements (and %right ?rs)}
+          :as ?prt})
+       {:tag :prt
+        :left {:tag :cat
+               :elements (concat ?ls ?rs)}
+        :right {:tag :cat
+                :elements []}}
+
+       {:tag :prt
+        :left {:tag :cat
+               :elements ?elements1}
+        :right {:tag :prt
+                :left {:tag :cat
+                       :elements ?elements2}
+                :right ?right}}
+       {:tag :prt
+        :left {:tag :cat
+               :elements (concat ?elements1 ?elements2)}
+        :right ?right}
+       _
+       node))
+   node))
+
+
+(defn rewrite-coerce-literals-to-lit
+  {:private true}
+  [node]
+  (r.syntax/prewalk
+   (fn [node]
+     (if (and (r.syntax/literal? node)
+              (not= (r.syntax/tag node) :cat))
+       {:tag :lit
+        :value (r.syntax/unparse node)}
+       node))
+   node))
+
+
+(defn rewrite-node
+  {:private true}
+  [node]
+  (-> node
+      r.syntax/rename-refs
+      rewrite-partitions
+      rewrite-coerce-literals-to-lit))
+
+
+(defn parse-rewrite
+  {:private true}
+  ([x]
+   (parse-rewrite x))
+  ([x env]
+   (rewrite-node (r.syntax/parse x env))))
+
+
+(defmacro substitute
+  [x]
+  (let [node (parse-rewrite x &env) 
+        env (make-env node)
+        mvr-ref-bindings (mapcat
+                          (fn [[mvr-node ref-sym]]
+                            [ref-sym `(volatile! ~(:symbol mvr-node))])
+                          (:mvr-refs env))
+        compiled (compile-substitute node env)]
+    (if (seq mvr-ref-bindings)
+      `(let [~@mvr-ref-bindings]
+         ~compiled)
+      compiled)))
 
 (s/fdef substitute
   :args (s/cat :term any?)
@@ -318,11 +442,7 @@
     (substitute
      (with [%h1 [!tags . %h1 ...]]
        %h1)))
-  (let [node (r.syntax/rename-refs
-              (r.syntax/parse
-               '(with [%h1 [!tags . %h1 ...]]
-                  %h1)))]
-    (compile-substitute node (make-env node)))
+
   (let [!xs [11 12 14]
         ?y 12
         ?z 13]
