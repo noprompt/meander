@@ -483,7 +483,7 @@
                                   (and (= (:op other-node) :check-lit)
                                        (= (:target other-node) target)))
                                 rest-nodes)]
-                   (if (< 1 (count r1))
+                   (if (<= 1 (count r1))
                      (op-branch (conj (vec a)
                                       (op-case target
                                         (map (juxt :value :then) (cons node r1))
