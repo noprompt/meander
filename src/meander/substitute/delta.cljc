@@ -172,9 +172,9 @@
                       [:as (compile-substitute as env)])
                   ~@compiled-kvs)
           compiled-rest-map))
-      `(merge ~@(if (some? as)
-                  [(compile-substitute as env)])
-              (hash-map ~@compiled-kvs)))))
+      `(hash-map ~@(concat (if (some? as)
+                             [:as (compile-substitute as env)])
+                           compiled-kvs)))))
 
 
 (defmethod compile-substitute :mvr [mvr env]
