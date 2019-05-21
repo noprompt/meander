@@ -88,8 +88,15 @@
     (let [!ks [:foo :bar :baz]
           !vs [1111 2222 3333]]
       (t/is (= (r.substitute/substitute {& [[!ks !vs] ...]})
-               {:foo 1111, :bar 2222, :baz 3333})))))
-
+               {:foo 1111, :bar 2222, :baz 3333})))
+    (let [!ms [{:foo 1}
+               {:foo 2}
+               {:foo 3}]
+          !ns [4 5 6]]
+      (t/is (= (r.substitute/substitute [{:bar !ns & !ms} ...])
+               [{:foo 1, :bar 4}
+                {:foo 2, :bar 5}
+                {:foo 3, :bar 6}])))))
 
 (t/deftest ctn-test
   (let [?context (fn [hole]
@@ -115,3 +122,4 @@
     (t/is (= #{1 2 3 4}
              (r.substitute/substitute
               #{^:as ?a-set ^& ?b-set})))))
+
