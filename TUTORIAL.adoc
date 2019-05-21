@@ -386,12 +386,81 @@ $
 A match only occurs when `?x` passes the `string?` predicate.
 
 
-== Guards
+== guard
 
 
-== And or
+== and
+
+The `and` operator takes a variable number of patterns and succeeds when each pattern matches. If any of the patterns fails to match so does `and`.
+
+[source,clojure]
+----
+(def and-example
+  (m/rewrite
+    ((and ?f (not ->)) ?x)
+    (-> ?x (?f))))
+
+(and-example '(clojure.string/upper-case "foo"))
+;=> (-> "foo" (clojure.string/upper-case))
+----
+
+=== or
+
+The `or` operator takes a variable number of patterns and succeeds when one of the patterns matches. If all of the patterns fail to match so does `or`.
+
+[source,clojure]
+----
+(def or-example-1
+  (m/rewrite
+    (or (pred number? ?x)
+        (pred string? ?x))
+    ?x))
+
+(or-example-1 1)
+;=> 1
+
+(or-example-1 "foo")
+;=> "foo"
+
+(or-example-1 :foo)
+;=> *fail*
+----
+
+There is one very important condition to note about `or`: each of it's arguments must make reference to the same _unbound_ variables. That is to say, if an unbound variable is in one pattern, it must be in all patterns. If we try to write an `or` pattern which breaks this rule, we'll get an exception.
+
+[source,clojure]
+----
+(def or-example-2
+  (m/rewrite
+    (or ?x ?y)
+    ?x))
+; Every pattern of an or pattern must have references to the same
+; unbound logic variables.
+; {:problems [{:pattern ?x, :absent #{?y}}
+;             {:pattern ?y, :absent #{?x}}]
+;  :syntax-trace [(or ?x ?y)]}
+----
+
+As we can see here, Meander will tell us there's a problem with our pattern and give us some clues as to where we've gone wrong. Right away we know we've got a bad `or` pattern; the message tells us that clearly. Next we have the `:syntax-trace` which gives us a vector path from the leaf (the offending pattern) to the root (the full pattern). In this case its just our `or` pattern for demonstration. Finally we have `:problems` which is a vector of maps. Each map contains the keys `:pattern` and `:absent`. `:pattern` is and offending pattern where one or more variables is missing. `:absent` tells us what those variables are. Here, the `?x` pattern is missing `?y`, and the `?y` pattern is missing `?x`.
 
 == Let
+
+`let` allows for pattern matching on an arbitrary expression. It can be used to provide default values when a pattern match might fail.
+
+[source,clojure]
+----
+(def let-example
+  (m/rewrite
+    (or [?x ?y]
+        (let [?x ?y] [1 2]))
+    {:?x ?x, :?y ?y}))
+
+(let-example :nope)
+;=> {:?x 1, :?y 2}
+
+(let-example ["this" "works"])
+;=> {:?x "this", :?y "works"}
+---
 
 == $
 
