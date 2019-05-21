@@ -292,7 +292,14 @@
 ;; AST Rewriting
 
 (defn can-merge? [a b]
-  (= (op a) (op b)))
+  (let [op-a (op a)
+        op-b (op b)]
+    (case [op-a op-b]
+      [:bind :bind]
+      (= (:value a) (:value b))
+
+      ;; else
+      (= (op a) (op b)))))
 
 (defmulti merge
   "Attempt to merge node-a and node-b. Returns the result of the merge
