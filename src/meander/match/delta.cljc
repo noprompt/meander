@@ -410,11 +410,13 @@
                  nth-syms (take (count elements) nth-syms)
                  targets* `[~@nth-syms ~@targets*]]
              (reduce
-              (fn [tree [i nth-sym]]
-                (r.ir/op-bind nth-sym (r.ir/op-nth (r.ir/op-eval target) i)
-                  tree))
+              (fn [tree [i nth-sym elem]]
+                (case (r.syntax/tag elem)
+                  :any tree
+                  (r.ir/op-bind nth-sym (r.ir/op-nth (r.ir/op-eval target) i)
+                    tree)))
               (compile targets* [(assoc row :cols `[~@elements ~@(:cols row)])])
-              (reverse (map-indexed vector nth-syms)))))))
+              (reverse (map vector (range max-size) nth-syms elements)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
