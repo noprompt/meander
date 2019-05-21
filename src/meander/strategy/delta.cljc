@@ -1046,7 +1046,12 @@
              (let* [!bs !vs ...]
                . !body ...)))]
     (s '(let* [b1 :v1, b2 :v2, b3 :v3]
-          (vector b1 b2 b3))))"
+          (vector b1 b2 b3))))
+    ;; =>
+    (let* [b1 :v1]
+      (let* [b2 :v2
+             b3 :v3]
+        (vector b1 b2 b3)))"
   [& rules]
   `(find
      ~@(mapcat
