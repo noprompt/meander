@@ -957,3 +957,38 @@ nil
 ;; =>
 #meander.delta/fail[]
 ```
+
+#### `rewrite`
+
+The `rewrite` strategy is built on top of `meander.match.delta/find` and `meander.substitute.delta/substitute` The `rewrite` strategy has the same form as `find`, `match`, and `search`, however, a substitution is performed instead of executing code. This allows for purely symbolic data transformation and is an incredibly powerful tool for syntactic and structural manipulations.
+
+```clj example
+;; The commutative rule for multiplication.
+(let [comm (rewrite
+            ;; Left side
+            (* ?a (+ ?b ?c))
+            ;; Right side
+            (+ (* ?a ?b)
+               (* ?a ?c)))]
+  (comm '(* (+ w x)
+            (+ y z))))
+;; =>
+(+ (* (+ w x) y)
+   (* (+ w x) z))
+```
+
+```clj example
+(let [s (rewrite
+         (let* [!bs !vs ..1]
+           . !body ...)
+         (let* [!bs !vs]
+           (let* [!bs !vs ...]
+             . !body ...)))]
+    (s '(let* [b1 :v1, b2 :v2, b3 :v3]
+          (vector b1 b2 b3))))
+;; =>
+(let* [b1 :v1]
+ (let* [b2 :v2
+        b3 :v3]
+   (vector b1 b2 b3)))
+```
