@@ -1317,3 +1317,11 @@
 
                (?a ?b)
                ?a))))
+
+(t/deftest gh-41
+  (let [fail (Object.)]
+    (t/is (identical? fail
+                      (r.match/match [1 2 3 4 5 6 7]
+                        [!as !bs ...]
+                        {:as !as, :bs !bs}
+                        _ fail)))))

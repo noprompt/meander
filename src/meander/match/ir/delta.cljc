@@ -1129,15 +1129,18 @@
         `(run-star-vec-search ~input-form ~rets ~n ~body-f ~then-f))
 
       ;;else
-      (case (:kind ir)
-        :js-array
-        `(run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
+      `(let [ret# ~(case (:kind ir)
+                     :js-array
+                     `(run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
 
-        :seq
-        `(run-star-seq ~input-form ~rets ~n ~body-f ~then-f)
+                     :seq
+                     `(run-star-seq ~input-form ~rets ~n ~body-f ~then-f)
 
-        :vector
-        `(run-star-vec ~input-form ~rets ~n ~body-f ~then-f)))))
+                     :vector
+                     `(run-star-vec ~input-form ~rets ~n ~body-f ~then-f))]
+           (if (fail? ret#)
+             ~fail
+             ret#)))))
 
 (defmethod compile* :take
   [ir fail kind]
