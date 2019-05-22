@@ -1,6 +1,6 @@
 = Meander Tutorial
 :external-libs: meander[https://raw.githubusercontent.com/no-prompt/meander/delta/src]
-:preamble: (ns meander.examples (:require [meander.delta.strategy :as m]))
+:preamble: (ns meander.examples (:require [meander.strategy.delta :as m]))
 :repl: true
 :program: true
 :output: true
@@ -43,7 +43,7 @@ Pretty much anything we could do with the other namespaces, we can achieve with 
 [source,clojure]
 ----
 (ns meander.examples
-  (:require [meander.delta.strategy :as m]))
+  (:require [meander.strategy.delta :as m]))
 ----
 
 
@@ -121,8 +121,7 @@ When there is a match, the output is explicitly of the type that the pattern spe
     (not (not ?x))
     ?x))
 
-(not-not
-  (not (not 1)))
+(not-not 1)
 ;=> 1
 ----
 
