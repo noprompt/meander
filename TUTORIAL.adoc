@@ -76,15 +76,15 @@ Once we are happy with a transformation, it makes sense to give it a name.
 
 [source,clojure]
 ----
-(def foo-bar
+(def any-to-foo
   (m/rewrite
     ?x
     "foo"))
 
-(foo-bar "bar")
+(any-to-foo "bar")
 ;=> "foo"
-(foo-bar "baz")
-;=> "baz"
+(any-to-foo "baz")
+;=> "foo"
 ----
 
 Meander compiles a function that takes some input, and rewrites it to a new output.
@@ -317,7 +317,7 @@ See https://github.com/noprompt/meander/issues/15[further explanation].
 
 [source,clojure]
 ----
-((r/rewrite
+((m/rewrite
   #{1 ^& ?rest-set}
   #{2 ^& ?rest-set})
  #{1 3 5})
@@ -440,7 +440,7 @@ There is one very important condition to note about `or`: each of it's arguments
 ;  :syntax-trace [(or ?x ?y)]}
 ----
 
-As we can see here, Meander will tell us there's a problem with our pattern and give us some clues as to where we've gone wrong. Right away we know we've got a bad `or` pattern; the message tells us that clearly. Next we have the `:syntax-trace` which gives us a vector path from the leaf (the offending pattern) to the root (the full pattern). In this case its just our `or` pattern for demonstration. Finally we have `:problems` which is a vector of maps. Each map contains the keys `:pattern` and `:absent`. `:pattern` is and offending pattern where one or more variables is missing. `:absent` tells us what those variables are. Here, the `?x` pattern is missing `?y`, and the `?y` pattern is missing `?x`.
+As we can see here, Meander will tell us there's a problem with our pattern and give us some clues as to where we've gone wrong. Right away we know we've got a bad `or` pattern; the message tells us that clearly. Next we have the `:syntax-trace` which gives us a vector path from the leaf (the offending pattern) to the root (the full pattern). In this case its just our `or` pattern for demonstration. Finally we have `:problems` which is a vector of maps. Each map contains the keys `:pattern` and `:absent`. `:pattern` is an offending pattern where one or more variables is missing. `:absent` tells us what those variables are. Here, the `?x` pattern is missing `?y`, and the `?y` pattern is missing `?x`.
 
 == Let
 
@@ -459,7 +459,7 @@ As we can see here, Meander will tell us there's a problem with our pattern and 
 
 (let-example ["this" "works"])
 ;=> {:?x "this", :?y "works"}
----
+----
 
 == $
 
