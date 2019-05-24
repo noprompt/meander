@@ -7,7 +7,6 @@
             [meander.syntax.delta :as r.syntax]
             [meander.util.delta :as r.util]))
 
-
 (defn make-env
   "Derives a map of
 
@@ -17,16 +16,16 @@
 
   from the pattern node where mvr is a memory variable node, and
   mvr-ref-sym is a memory varable symbol with the suffix
-  _ref__<digits> e.g. !xs_ref__234."
+  _idx__<digits> e.g. !xs_idx__234. The mvr-ref-sym will be bound to
+  a volatile interger."
   {:private true}
   [pat]
   {:collection-context nil
    :wth-refs {}
    :mvr-refs (into {} (map
                        (fn [mvr-node]
-                         [mvr-node (gensym (str (:symbol mvr-node) "_ref__"))]))
+                         [mvr-node (gensym (str (:symbol mvr-node) "_idx__"))]))
                    (r.syntax/memory-variables pat))})
-
 
 (defn get-mvr-ref-sym
   "Gets the reference symbol for mvr-sym from env. Throws if
@@ -180,8 +179,8 @@
 (defmethod compile-substitute :mvr [mvr env]
   (let [mvr-ref-sym (get-mvr-ref-sym env mvr)]
     (let [item (gensym "item__")]
-      `(when-some [[_# ~item] (find (deref ~mvr-ref-sym) 0)]
-         (vswap! ~mvr-ref-sym subvec 1)
+      `(let [~item (nth ~(:symbol mvr) (deref ~mvr-ref-sym) nil)]
+         (vswap! ~mvr-ref-sym inc)
          ~item))))
 
 
@@ -226,7 +225,7 @@
          (loop []
            (if (and ~@(map
                        (fn [mvr]
-                         `(seq (deref ~(get-mvr-ref-sym env mvr))))
+                         `(find ~(:symbol mvr) (deref ~(get-mvr-ref-sym env mvr))))
                        mvrs))
              (do
                (run! (fn [x#] (conj! ret# x#)) ~(compile-substitute cat-node env))
@@ -251,9 +250,11 @@
 
 
 (defmethod compile-substitute :rst [node env]
-  (let [ref-sym (get-mvr-ref-sym env (:mvr node))]
-    `(let [xs# (deref ~ref-sym)]
-       (vreset! ~ref-sym [])
+  (let [mvr (:mvr node)
+        ref-sym (get-mvr-ref-sym env mvr)]
+    `(let [xs# (subvec ~(:symbol mvr) (min (deref ~ref-sym)
+                                           (dec (count ~(:symbol mvr)))))]
+       (vreset! ~ref-sym (count ~(:symbol mvr)))
        xs#)))
 
 (defmethod compile-substitute :set [node env]
@@ -423,7 +424,7 @@
         env (make-env node)
         mvr-ref-bindings (mapcat
                           (fn [[mvr-node ref-sym]]
-                            [ref-sym `(volatile! ~(:symbol mvr-node))])
+                            [ref-sym `(volatile! 0)])
                           (:mvr-refs env))
         compiled (compile-substitute node env)]
     (if (seq mvr-ref-bindings)
@@ -434,7 +435,6 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
-
 
 #_
 (comment
