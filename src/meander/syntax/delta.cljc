@@ -1857,3 +1857,31 @@
   (and (ground? node)
        (not-any? (comp #{:map :unq :set} tag)
                  (subnodes node))))
+
+(defn match-bindings
+  "Returns a set of variables which would be bound by a successful
+  pattern match.
+
+  (match-bindings (parse '(not [?x])))
+  ;; =>
+  #{}
+
+  (match-bindings (parse '(not (not [?x]))))
+  ;; =>
+  #{{:tag :lvr, :symbol ?x}}
+  "
+  [node]
+  (variables
+   (prewalk
+    (fn [node]
+      (case (:tag node)
+        :not
+        (case (:tag (:argument node))
+          :not
+          (:argument (:argument node))
+          ;; else
+          {:tag :any, :symbol '_})
+        ;; else
+        node))
+    node)))
+
