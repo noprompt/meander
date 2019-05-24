@@ -441,21 +441,3 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
-
-(comment
-  (let [!tags [1 2 3]]
-    (substitute
-     (with [%h1 [!tags . %h1 ...]]
-       %h1)))
-  ;; => [1 [2 [3]]]
-
-  (let [!xs [11 12 14]
-        ?y 12
-        ?z 13]
-    (substitute
-     (with [%baz 20
-            %foo [%bar ..3]
-            %bar [!xs ?z]]
-       %foo)))
-  ;; =>
-  [[11 13] [12 13] [14 13]])
