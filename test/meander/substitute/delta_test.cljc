@@ -123,3 +123,17 @@
              (r.substitute/substitute
               #{^:as ?a-set ^& ?b-set})))))
 
+(t/deftest wth-test
+  (let [!tags [1 2 3]]
+    (t/is (= [1 [2 [3]]]
+             (r.substitute/substitute
+              (with [%h1 [!tags . %h1 ...]]
+                %h1)))))
+  (let [!xs [11 12 14]
+        ?y 12
+        ?z 13]
+    (t/is (= [[11 13] [12 13] [14 13]]
+             (r.substitute/substitute
+              (with [%foo [%bar ..3]
+                     %bar [!xs ?z]]
+                %foo))))))

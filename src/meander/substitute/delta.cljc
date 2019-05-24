@@ -256,11 +256,11 @@
 
 
 (defmethod compile-substitute :rst [node env]
-  (let [mvr (:mvr node)
-        ref-sym (get-mvr-ref-sym env mvr)]
-    `(let [xs# (subvec ~(:symbol mvr) (min (deref ~ref-sym)
-                                           (dec (count ~(:symbol mvr)))))]
-       (vreset! ~ref-sym (count ~(:symbol mvr)))
+  (r.match/find [node env]
+    [{:mvr {:symbol ?symbol :as ?mvr}}
+     {:mvr-refs {?mvr ?ref-sym}}]
+    `(let [xs# (subvec ~?symbol (min (deref ~?ref-sym) (dec (count ~?symbol))))]
+       (vreset! ~?ref-sym (count ~?symbol))
        xs#)))
 
 (defmethod compile-substitute :set [node env]
@@ -342,21 +342,21 @@
 
 (defmethod compile-substitute :wth
   [node env]
-  (let [ref-map (r.syntax/make-ref-map node)
-        env* (add-wth-refs env ref-map)
-        refs (into (r.syntax/references node)
-                   (comp (map :pattern)
-                         (mapcat r.syntax/references))
-                   (:bindings node))
-        bindings (filter
-                  (fn [binding]
-                    (contains? refs (:ref binding)))
-                  (:bindings node))]
-    `(letfn [~@(map
-                 (fn [binding]
-                   `(~(:symbol (:ref binding)) []
-                     ~(compile-substitute (:pattern binding) env*)))
-                 bindings)]
+  (let [;; Get all of the references used in the body and in the
+        ;; bindings.
+        ref-set (into (r.syntax/references node)
+                       (comp (map :pattern)
+                             (mapcat r.syntax/references))
+                       (:bindings node))
+        ;; Update the compilation environment for subnodes.
+        env* (add-wth-refs env (r.syntax/make-ref-map node))]
+    ;; Compile functions only for the references used.
+    `(letfn [~@(r.match/search [node ref-set]
+                 [{:bindings (scan {:ref {:symbol ?symbol :as ?ref}
+                                    :pattern ?pattern})}
+                  #{?ref}]
+                 `(~?symbol []
+                   ~(compile-substitute ?pattern env*)))]
        ~(compile-substitute (:body node) env*))))
 
 
@@ -442,18 +442,19 @@
   :args (s/cat :term any?)
   :ret any?)
 
-#_
 (comment
   (let [!tags [1 2 3]]
     (substitute
      (with [%h1 [!tags . %h1 ...]]
        %h1)))
+  ;; => [1 [2 [3]]]
 
   (let [!xs [11 12 14]
         ?y 12
         ?z 13]
     (substitute
-     (with [%foo [%bar ..3]
+     (with [%baz 20
+            %foo [%bar ..3]
             %bar [!xs ?z]]
        %foo)))
   ;; =>
