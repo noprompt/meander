@@ -103,17 +103,23 @@
 
 (defmethod compile-substitute :cat
   [node env]
-  (let [elements (:elements node)]
-    (if (some #{:uns} (map r.syntax/tag elements))
-      `(concat ~@(sequence (map
-                            (fn [node env]
-                              (let [form (compile-substitute node env)]
-                                (if (= :uns (r.syntax/tag node))
-                                  form
-                                  `(list ~form)))))
-                           elements
-                           (repeat env)))
-      `[~@(sequence (map compile-substitute) elements (repeat env))])))
+  (r.match/find node
+    {:elements (_ ... {:tag :uns} . _ ... :as ?elements)}
+    `(concat ~@(sequence
+                (map
+                 (fn [node env]
+                   (let [form (compile-substitute node env)]
+                     (r.match/find node
+                       {:tag :uns}
+                       form
+
+                       _
+                       `(list ~form)))))
+                ?elements
+                (repeat env)))
+
+    {:elements ?elements}
+    `[~@(sequence (map compile-substitute) ?elements (repeat env))]))
 
 
 (defmethod compile-substitute :cnj
