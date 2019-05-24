@@ -417,16 +417,17 @@
       rewrite-coerce-literals-to-lit))
 
 
-(defn parse-rewrite
+(defn parse-and-rewrite
   {:private true}
   ([x]
-   (parse-rewrite x {}))
+   (parse-and-rewrite x {}))
   ([x env]
    (rewrite-node (r.syntax/parse x env))))
 
+
 (defmacro substitute
   [x]
-  (let [node (parse-rewrite x &env) 
+  (let [node (parse-and-rewrite x &env) 
         env (make-env node)
         mvr-ref-bindings (mapcat
                           (fn [[mvr-node ref-sym]]
