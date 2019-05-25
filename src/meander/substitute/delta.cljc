@@ -7,6 +7,93 @@
             [meander.syntax.delta :as r.syntax]
             [meander.util.delta :as r.util]))
 
+;; ---------------------------------------------------------------------
+;; Rewrite helpers
+
+(defn rewrite-partition
+  {:private true}
+  [node]
+  (r.match/find node
+    (with [%right (not (or () []))]
+      {:tag :prt
+       :left {:tag :cat
+              :elements ?ls}
+       :right {:tag :cat
+               :elements (and %right ?rs)}
+       :as ?prt})
+    {:tag :prt
+     :left {:tag :cat
+            :elements (vec (concat ?ls ?rs))}
+     :right {:tag :cat
+             :elements []}}
+
+    {:tag :prt
+     :left {:tag :cat
+            :elements ?elements1}
+     :right {:tag :prt
+             :left {:tag :cat
+                    :elements ?elements2}
+             :right ?right}}
+    (rewrite-partition
+     {:tag :prt
+      :left {:tag :cat
+             :elements (vec (concat ?elements1 ?elements2))}
+      :right ?right})
+
+    {:tag :prt
+     :left {:tag :prt,
+            :left ?left,
+            :right {:tag :cat
+                    :elements ?elements-1}},
+     :right {:tag :cat
+             :elements ?elements-2}}
+    (rewrite-partition
+     {:tag :prt
+      :left ?left
+      :right {:tag :cat
+              :elements (vec (concat ?elements-1 ?elements-2))}})
+
+    _
+    node))
+
+(defn rewrite-partitions
+  {:private true}
+  [node]
+  (r.syntax/prewalk rewrite-partition node))
+
+
+(defn rewrite-coerce-literals-to-lit
+  {:private true}
+  [node]
+  (r.syntax/prewalk
+   (fn [node]
+     (if (and (r.syntax/literal? node)
+              (not= (r.syntax/tag node) :cat))
+       {:tag :lit
+        :value (r.syntax/unparse node)}
+       node))
+   node))
+
+
+(defn rewrite-node
+  {:private true}
+  [node]
+  (-> node
+      r.syntax/rename-refs
+      rewrite-partitions
+      rewrite-coerce-literals-to-lit))
+
+
+(defn parse-and-rewrite
+  {:private true}
+  ([x]
+   (parse-and-rewrite x {}))
+  ([x env]
+   (rewrite-node (r.syntax/parse x env))))
+
+;; ---------------------------------------------------------------------
+;; Environment
+
 (defn make-env
   "Derives a map of
 
@@ -26,6 +113,7 @@
                        (fn [mvr-node]
                          [mvr-node (gensym (str (:symbol mvr-node) "_idx__"))]))
                    (r.syntax/memory-variables pat))})
+
 
 (defn get-mvr-ref-sym
   "Gets the reference symbol for mvr-sym from env. Throws if
@@ -53,6 +141,11 @@
   {:private true}
   [env ref-map]
   (update env :wth-refs merge ref-map))
+
+
+;; ---------------------------------------------------------------------
+;; Compilation
+
 
 (defn compile-ground
   {:private true}
@@ -92,6 +185,10 @@
 (defmulti compile-substitute
   {:arglists '([node env])}
   #'compile-substitute-dispatch)
+
+
+(defn compile-all [nodes env]
+  (map compile-substitute nodes (repeat env)))
 
 
 (defmethod compile-substitute :app
@@ -284,16 +381,17 @@
                     :elements (and ?left-elements (not (scan {:tag :uns})))}
              :right {:tag :cat
                      :elements (and ?right-elements (not (scan {:tag :uns})))}}}
-      `(list ~@(map compile-substitute ?left-elements (repeat env*))
-             ~@(map compile-substitute ?right-elements (repeat env*)))
+      `(list ~@(compile-all ?left-elements env*)
+             ~@(compile-all ?right-elements env*))
 
       {:prt {:left {:tag :cat
                     :elements (and ?left-elements (not (scan {:tag :uns})))}
              :right {:tag :lit
                      :value (_ ... :as ?right-elements)}}}
-      `(list ~@(map compile-substitute ?left-elements (repeat env*))
+      `(list ~@(compile-all ?left-elements env*)
              ~@?right-elements)
 
+      ;; Default
       {:prt {:left ?left
              :right ?right
              :as ?prt}}
@@ -313,26 +411,73 @@
   (:expr node))
 
 
+(defn compile-vec-prt
+  {:private true}
+  ([prt env]
+   (compile-vec-prt [] prt env))
+  ([vec-form prt env]
+   (r.match/find (rewrite-partition prt)
+     ;; Compile [?a ~@xs ?b] as (conj (into [?x] xs) ?b)
+     (with [%not-uns (not {:tag :uns})]
+       {:left {:tag :cat
+               :elements [(and %not-uns !1s) ... {:tag :uns :as !uns} ..1 (and %not-uns !2s) ...]}
+        :right ?right})
+     (compile-vec-prt `(conj ~(reduce
+                               (fn [form compiled-uns]
+                                 `(into ~form ~compiled-uns))
+                               `(conj ~vec-form ~@(compile-all !1s env))
+                               (compile-all !uns env))
+                             ~@(compile-all !2s env))
+                      {:tag :prt
+                       :left ?right
+                       :right {:tag :cat
+                               :elements []}}
+                      env)
+
+     ;; Compile [?x ?y . ?z] as (conj vec-form ?x ?y ?z)
+     {:left {:tag :cat
+             :elements ?left-elements}
+      :right {:tag :cat
+              :elements ?right-elements}}
+     `(conj ~vec-form
+            ~@(compile-all ?left-elements env)
+            ~@(compile-all ?right-elements env))
+
+     ;; Compile [1 2 . 3 4] as (conj vec-form 1 2 3 4)
+     {:left {:tag :cat
+             :elements ?left-elements}
+      :right {:tag :lit
+              :value (_ ... :as ?right-elements)}}
+     `(conj ~vec-form
+            ~@(compile-all ?left-elements env)
+            ~@?right-elements)
+
+     {:left {:tag :cat
+             :elements ?elements}
+      :right ?right}
+     (compile-vec-prt `(conj ~vec-form ~@(compile-all ?elements env))
+                      {:tag :prt
+                       :left ?right
+                       :right {:tag :cat
+                               :elements []}}
+                      env)
+
+     ;; Compile [!xs ...] as (into vec-form !xs)
+     {:left {:tag (or :rst :rp+ :rp*) :as ?rep}
+      :right ?right}
+     (compile-vec-prt `(into ~vec-form ~(compile-substitute ?rep env))
+                      {:tag :prt
+                       :left ?right
+                       :right {:tag :cat
+                               :elements []}}
+                      env)
+     _
+     `(into ~vec-form ~(compile-substitute prt env)))))
+
+
 (defmethod compile-substitute :vec
   [node env]
-  (let [env* (assoc env :collection-context :vector)]
-    (r.match/find node
-      {:prt {:left {:tag :cat
-                    :elements (and ?left-elements (not (scan {:tag :uns})))}
-             :right {:tag :cat
-                     :elements (and ?right-elements (not (scan {:tag :uns})))}}}
-      `[~@(map compile-substitute ?left-elements (repeat env*))
-        ~@(map compile-substitute ?right-elements (repeat env*))]
-
-      {:prt {:left {:tag :cat
-                    :elements (and ?left-elements (not (scan {:tag :uns})))}
-             :right {:tag :lit
-                     :value (_ ... :as ?right-elements)}}}
-      `[~@(map compile-substitute ?left-elements (repeat env*))
-        ~@?right-elements]
-
-      _
-      `(vec ~(compile-substitute (:prt node) env*)))))
+  (compile-vec-prt (:prt node) (assoc env :collection-context :vector)))
 
 
 (defmethod compile-substitute :ref
@@ -345,9 +490,9 @@
   (let [;; Get all of the references used in the body and in the
         ;; bindings.
         ref-set (into (r.syntax/references node)
-                       (comp (map :pattern)
-                             (mapcat r.syntax/references))
-                       (:bindings node))
+                      (comp (map :pattern)
+                            (mapcat r.syntax/references))
+                      (:bindings node))
         ;; Update the compilation environment for subnodes.
         env* (add-wth-refs env (r.syntax/make-ref-map node))]
     ;; Compile functions only for the references used.
@@ -359,75 +504,9 @@
                    ~(compile-substitute ?pattern env*)))]
        ~(compile-substitute (:body node) env*))))
 
-
-(defn rewrite-partitions
-  {:private true}
-  [node]
-  (r.syntax/prewalk
-   (fn [node]
-     (r.match/find node
-       (with [%right (not (or () []))]
-         {:tag :prt
-          :left {:tag :cat
-                 :elements ?ls}
-          :right {:tag :cat
-                  :elements (and %right ?rs)}
-          :as ?prt})
-       {:tag :prt
-        :left {:tag :cat
-               :elements (concat ?ls ?rs)}
-        :right {:tag :cat
-                :elements []}}
-
-       {:tag :prt
-        :left {:tag :cat
-               :elements ?elements1}
-        :right {:tag :prt
-                :left {:tag :cat
-                       :elements ?elements2}
-                :right ?right}}
-       {:tag :prt
-        :left {:tag :cat
-               :elements (concat ?elements1 ?elements2)}
-        :right ?right}
-       _
-       node))
-   node))
-
-
-(defn rewrite-coerce-literals-to-lit
-  {:private true}
-  [node]
-  (r.syntax/prewalk
-   (fn [node]
-     (if (and (r.syntax/literal? node)
-              (not= (r.syntax/tag node) :cat))
-       {:tag :lit
-        :value (r.syntax/unparse node)}
-       node))
-   node))
-
-
-(defn rewrite-node
-  {:private true}
-  [node]
-  (-> node
-      r.syntax/rename-refs
-      rewrite-partitions
-      rewrite-coerce-literals-to-lit))
-
-
-(defn parse-and-rewrite
-  {:private true}
-  ([x]
-   (parse-and-rewrite x {}))
-  ([x env]
-   (rewrite-node (r.syntax/parse x env))))
-
-
 (defmacro substitute
   [x]
-  (let [node (parse-and-rewrite x &env) 
+  (let [node (parse-and-rewrite x &env)
         env (make-env node)
         mvr-ref-bindings (mapcat
                           (fn [[mvr-node ref-sym]]
@@ -442,3 +521,12 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
+
+(comment
+  (let [!xs [:x1 :x2 :x3]
+        ?x 4
+        ?y 5
+        ?z 6
+        !ys [7 8 9]]
+    (substitute [!xs ..2 !ys ... ?x ?y ?z]))
+  (parse-and-rewrite '[!xs ..2 ?x ?y]))
