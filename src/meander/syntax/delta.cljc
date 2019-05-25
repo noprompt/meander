@@ -1858,6 +1858,23 @@
        (not-any? (comp #{:map :unq :set} tag)
                  (subnodes node))))
 
+(defn not-not?
+  [node]
+  (= (:tag node) :not (:tag (:argument node))))
+
+(defn not-tag
+  {:private true}
+  [node]
+  (case (:tag node)
+    :not
+    (case (:tag (:argument node))
+      :not
+      :not-not
+      ;; else
+      :not)
+    ;; else
+    nil))
+
 (defn match-bindings
   "Returns a set of variables which would be bound by a successful
   pattern match.
@@ -1874,14 +1891,67 @@
   (variables
    (prewalk
     (fn [node]
-      (case (:tag node)
+      (case (not-tag node)
+        ;; Replace (not (not ?x)) with ?x.
+        :not-not
+        (:argument (:argument node))
+
+        ;; Replace (not ?x) with _.
         :not
-        (case (:tag (:argument node))
-          :not
-          (:argument (:argument node))
-          ;; else
-          {:tag :any, :symbol '_})
+        {:tag :any, :symbol '_}
+
         ;; else
         node))
     node)))
 
+(defn analyze*
+  {:private true}
+  [node]
+  (fold
+   (fn [state node]
+     (let [negated-counter (:negated-counter state)]
+       {:negated-counter
+        (if (zero? negated-counter)
+          (case (not-tag node)
+            :not
+            (+ negated-counter (dec (count (subnodes node))))
+
+            :not-not
+            (+ negated-counter 1)
+
+            ;; else
+            negated-counter)
+          (dec negated-counter))
+        
+        :occurrences
+        (if (variable-node? node)
+          (update (:occurrences state) node (fnil inc 0))
+          (:occurrences state))
+        
+        :occurrences-in-not
+        (if (and (not (zero? negated-counter))
+                 (variable-node? node))
+          (update (:occurrences-in-not state) node (fnil inc 0))
+          (:occurrences-in-not state))}))
+   {;; The `nat-int?` number of nodes currently under a negation.
+    :negated-counter 0
+    ;; A map from `variable-node?` to `nat-int?`. Keeps track of how
+    ;; many times a `variable-node?` appears.
+    :occurrences {}
+    ;; A map from `variable-node?` to `nat-int?`. Keeps track of how
+    ;; many times a `variable-node?` appears inside a `not` pattern.
+    :occurrences-in-not {}}
+   node))
+
+(defn analyze
+  [node]
+  (dissoc (analyze* node) :negated-counter))
+
+(comment
+  (analyze (parse '[(not [?x (not ?x)]) !xs (not [?x ?x])]))
+  ;; =>
+  {:occurrences
+   {{:tag :lvr, :symbol ?x} 4
+    {:tag :mvr, :symbol !xs} 1}
+   :occurrences-in-not
+   {{:tag :lvr, :symbol ?x} 4}})
