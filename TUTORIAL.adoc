@@ -5,12 +5,7 @@
 :program: true
 :output: true
 :js: false
-:background_image: image:http://ladyprestige.club/wp-content/uploads//2019/01/patterns-in-math-a-new-coloring-book-highlights-the-visual-beauty-of-mathematics-patterns-math-4th-grade.jpg[fractal pattern]
 
-image:http://ladyprestige.club/wp-content/uploads//2019/01/patterns-in-math-a-new-coloring-book-highlights-the-visual-beauty-of-mathematics-patterns-math-4th-grade.jpg[fractal pattern]
-
-
-== Welcome to Meander
 
 Meander is a term rewriting language embedded inside of Clojure for expressing declarative transforms.
 A language where transformations are pictures; patterns of logical matches and substitution,
@@ -110,54 +105,6 @@ Meander matches structure explicitly.
 
 If we look for a vector, we will only match with a vector.
 When there is a match, the output is explicitly of the type that the pattern specifies.
-
-
-== Example
-
-[source,clojure]
-----
-(def not-not
-  (m/rewrite
-    (not (not ?x))
-    ?x))
-
-(not-not 1)
-;=> 1
-----
-
-
-== Combining steps
-
-Here's where things get really interesting.
-Meander has a `bottom-up` combinator which allows us to rewrite terms anywhere in an expression.
-The idea is that the expression is treated as a tree, and Meander will explore that tree for us until it finds a pattern match.
-There is also an `until` combinator that keeps applying the same transform.
-We'll put these combinators into a handy macro, as we'll be using it in a few places.
-
-[source,clojure]
-----
-(defmacro bup [& body]
-  `(m/until = (m/bottom-up (m/rewrite ~@body))))
-----
-
-Combinators allow us to control how rewriting should occur.
-In this case we have specified that `bup` expressions should be applied bottom up until the expression stabilizes.
-Our `bup` expects patterns just like `rewrite`, and will produce a function, just like `rewrite`.
-
-[source,clojure]
-----
-(def nn
-  (bup
-   ('not ('not ?x))
-   ?x))
-
-(nn '(and (not (not (or 1 2)))
-          (or 3 (not (not 4)))))
-;; => (and (or 1 2) (or 3 4))
-----
-
-Notice that Meander rewrote the subexpressions regardless of how they were nested.
-We have created a mini logic simplifier.
 
 == Unification
 
@@ -263,9 +210,6 @@ The `.` operator serves as a break to indicate how parts of the sequence should 
 
 
 == Rearranging an expression
-
-
-
 
 
 == Map nil punning
@@ -534,3 +478,34 @@ The equivalent can be acheived succinctly in Clojure using `tree-seq`.
 
 The former shows the structure of the search explicitly.
 The latter is more compact.
+
+
+
+== Combining steps
+
+Here's where things get really interesting.
+Meander has a `bottom-up` combinator which allows us to rewrite terms anywhere in an expression.
+The idea is that the expression is treated as a tree, and Meander will explore that tree for us until it finds a pattern match.
+
+Combinators allow us to control how rewriting should occur.
+In this case we have specified that expressions should be applied bottom up until the expression stabilizes.
+
+[source,clojure]
+----
+(def nn
+  (r/until =
+    (r/bottom-up
+     (r/rewrite
+      ('not ('not ?x))
+      ?x
+
+      ?x ?x))))
+
+(nn '(and (not (not (or 1 2)))
+          (or 3 (not (not 4)))))
+;; => (and (or 1 2) (or 3 4))
+----
+
+Notice that Meander rewrote the subexpressions regardless of how they were nested. Another thing to note is the use of `'not`.
+`not` is a keyword in meander so we quoted it to show that we wanted to make against the symbol `not`.
+We have created a mini logic simplifier.
