@@ -69,6 +69,8 @@ thrown.
 Example:
 
 ```clj
+(require '[meander.core.delta :refer [match]])
+
 (match [1 2 1]
   ;; Pair of equivalent objects.
   [?a ?a]
@@ -88,6 +90,8 @@ The `search` operator is an extended version `match` which returns a sequence of
 Example:
 
 ```clj
+(require '[meander.core.delta :refer [search]])
+
 ;; Find all pairs of an odd number followed by an even number in the
 ;; collection.
 (search [1 1 2 2 3 4 5]
@@ -104,6 +108,8 @@ The `find` operator is similar to `search`, however, returns only the first sear
 Example:
 
 ```clj
+(require '[meander.core.delta :refer [find]])
+
 ;; Find the first pair of an odd number followed by an even number in
 ;; the collection.
 (find [1 1 2 2 3 4 5]
@@ -117,21 +123,24 @@ Example:
 
 #### Literals
 
-The simplest patterns to express are literal patterns. Literal patterns are patterns which are either quoted with `'` or are not variables, pattern operators, or pattern subsequences. They match themselves.
+The simplest patterns to express are literal patterns. Literal patterns are patterns are any lists, vectors, simple data types (numbers, strings, booleans, etc), or any symbols that aren't considered special by meander.
 
 For example, the pattern
 
 ```clj
-[1 ?x 3]
+1
+2
+"stuff"
+True
 ```
 
-contains the literals `1` and `3`. And the pattern
+All of these are simple data type patterns that match themselves
 
 ```clj
-(fn ?args "foo")
+(fn [] "foo")
 ```
 
-contains the literals `fn` and `"foo"`.
+matches a list where the first element is the symbol `fn`, the second is the empty vector, and the third is the string `"foo"`
 
 List and vector patterns may also qualify as literal patterns if they contain no map or set patterns.
 
@@ -152,13 +161,15 @@ is not. This is because map and set patterns express submap and subset patterns 
 {:foo 1}
 ```
 
-expresses the value being matched is a map containing the key `:foo` with value `1`. The pattern
+expresses the value being matched is a map containing the key `:foo` with value `1`. That means that there may be more keys. For example the above pattern would match the following list: `{:foo 1 :bar 2}`
+
+ The pattern
 
 ```clj
 #{:foo :bar}
 ```
 
-expresses the value being matched is a set containing the values `:foo` and `:bar`.
+expresses the value being matched is a set containing the values `:foo` and `:bar`. Again, this does not mean that these are the only elements in the set.
 
 #### ClojureScript Literals
 
@@ -261,8 +272,8 @@ would first bind `*m` to `1`, and then ultimately to `2`.
 Example:
 
 ```clj
-(match 42
-  (guard true) :okay)
+(match :anything
+  (guard (= 1 1)) :okay)
 ;; => :okay
 ```
 
@@ -302,9 +313,9 @@ Example:
 
 (r.match/match (list 1 2 3)
   (and (app first ?x) (app rest ?xs))
-  {'?x ?x, '?xs ?xs})
+  {:x ?x, :xs ?xs})
 ;; =>
-{'?x 1, '?xs (2 3)}
+{:x 1, :xs (2 3)}
 ```
 
 #### `let`
@@ -314,10 +325,32 @@ Example:
 Example:
 
 ```clj
-(match 42
+(match :not-a-pair
   (or [?x ?y] (let [?x ?y] [1 2]))
   [?x ?y])
 ;; => [1 2]
+
+```
+
+#### `not`
+
+`(not pattern)` is the negation of a pattern. It will match anything that does not match `pattern`
+
+Example:
+
+```clj
+(match 12
+  (not 42)
+  :yep)
+;; => :yep
+
+(match 42
+  (not 42)
+  :yep
+
+  _
+  :fail)
+;; => :fail
 ```
 
 #### `and`
@@ -500,11 +533,19 @@ Example:
 (match [1 2 3]
   [1 ..3 ?x ?y]
   [:okay [?x ?y]]
-
   _
   [:fail])
 ;; =>
 [:fail]
+
+
+(match [1 1 1 2 3]
+  [1 ..3 ?x ?y]
+  [:okay [?x ?y]]
+  _
+  [:fail])
+;; =>
+[:okay [2 3]]
 ```
 
 #### Partition
@@ -546,18 +587,24 @@ In some cases you may want to "parameterize" a pattern by referencing an externa
 Example:
 
 ```clj
-(let [f (fn [x]
-          (fn [z]
-            (match z
-              {:x ~x, :y ?y}
-              [:okay ?y]
-              _
-              [:fail])))
-      g (f 1)]
-  [(g {:x 1 :y 2})
-   (g {:x 2 :y 2})])
+(def x 2)
+
+(defn match-my-map [m]
+  (m/match m
+    {:x ~x :y ?y}
+    [:okay ?y]
+
+    _
+    [:fail]))
+
+(match-my-map {:x 1 :y 3})
 ;; =>
-[[:okay 2] [:fail]]
+[:fail]
+
+(match-my-map {:x 2 :y 3})
+;;=>
+[:okay 3]
+
 ```
 
 ```clj
