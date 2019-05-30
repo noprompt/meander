@@ -1,7 +1,35 @@
 #!/usr/bin/env bash
 
+function color () {
+    case $1 in
+        red)
+            echo -ne '\033[0;31m'
+            ;;
+
+        green)
+            echo -ne '\033[0;32m'
+            ;;
+        yellow)
+            echo -ne '\033[0;33m'
+            ;;
+        default)
+            echo -ne '\033[0m'
+            ;;
+    esac
+}
+
+echo '---------------------'
+color yellow
 echo 'Running Clojure tests'
+color default
+echo '---------------------'
 clojure -A:test
 
-echo 'Running ClojureScript tests'
-clojure -A:cljs-test
+echo
+
+#echo '---------------------------'
+#color yellow
+#echo 'Running ClojureScript tests'
+#color default
+#echo '---------------------------'
+#clojure -A:cljs-test
