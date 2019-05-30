@@ -280,3 +280,41 @@
           v (s 1)]
       (t/is (= (count v) (count fs)))
       (t/is (every? #{2} v)))))
+
+
+(t/deftest rewrite-test
+  (let [fib-rules (r/rewrite
+                   (+ 0 ?y)
+                   ?y
+
+                   (+ ?y 0)
+                   ?y
+
+                   (+ (s ?x) ?y)
+                   (s (+ ?x ?y))
+
+                   (fib 0)
+                   0
+
+                   (fib (s 0))
+                   (s 0)
+
+                   (fib (s (s ?x)))
+                   (+ (fib (s ?x))
+                      (fib ?x))
+
+                   ?else
+                   ?else)
+        fib (r/until = (r/bottom-up fib-rules))]
+    ;; F1 = 1
+    (t/is (= '(s 0) (fib '(fib (s 0)))))
+    ;; F2 = 1
+    (t/is (= '(s 0) (fib '(fib (s (s 0))))))
+    ;; F3 = 2
+    (t/is (= '(s (s 0)) (fib '(fib (s (s (s 0)))))))
+    ;; F4 = 3
+    (t/is (= '(s (s (s 0))) (fib '(fib (s (s (s (s 0))))))))
+    ;; F5 = 5
+    (t/is (= '(s (s (s (s (s 0))))) (fib '(fib (s (s (s (s (s 0)))))))))
+    ;; F6 = 8
+    (t/is (= '(s (s (s (s (s (s (s (s 0)))))))) (fib '(fib (s (s (s (s (s (s 0))))))))))))

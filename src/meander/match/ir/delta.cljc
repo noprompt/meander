@@ -12,6 +12,13 @@
    [meander.util.delta :as r.util]
    [meander.syntax.delta :as r.syntax]))
 
+
+(def ^{:doc "A macro &env map. Used to make platform specific
+compilation decisions."
+       :dynamic true
+       :private true}
+  *env* {})
+
 ;; ---------------------------------------------------------------------
 ;; AST API
 
@@ -663,6 +670,61 @@
     :seq
     `(drop ~n ~target-form)))
 
+
+(defn case-clause-test-form
+  "Given an arbitrary Clojure value `form` return a form suitable for
+  use as a case test clause.
+
+    (case expr
+      form ;; <-- Test clause
+      expr
+      ,,,)
+
+  For Clojure this is always
+
+    (form)
+
+  For ClojureScript this is
+
+    (form)
+
+  if `form` is not a `seq?`. If `form` is a `seq?` then the form is
+
+    (form*)
+
+  where `form*` is `vec` of `form`.
+
+  This is due to differences in how `case` is handled by ClojureScript
+  where we must write
+
+    (case expr
+      ([1 2 3])
+      expr
+      ,,,)
+
+  in placement of
+
+    (case expr
+      ((1 2 3))
+      expr
+      ,,,)
+  "
+  {:private true}
+  [form]
+  (let [form (walk/postwalk
+               (fn [x]
+                 (if (and (seq? x)
+                          (= (first x) 'quote))
+                   (second x)
+                   x))
+               form)]
+    (if (r.util/cljs-env? *env*)
+      (if (seq? form)
+        `(~(vec form))
+        `(~form))
+      `(~form))))
+
+
 (defmulti compile*
   {:arglists '([ir fail kind])}
   (fn [ir fail kind]
@@ -757,14 +819,8 @@
   `(case ~(compile* (:target ir) fail kind)
      ~@(mapcat
         (fn [[value then]]
-          (let [compiled-value (walk/postwalk
-                                (fn [x]
-                                  (if (and (seq? x)
-                                           (= (first x) 'quote))
-                                    (second x)
-                                    x))
-                                (compile* value fail kind))]
-            `((~compiled-value)
+          (let [compiled-value (compile* value fail kind)]
+            `(~(case-clause-test-form compiled-value)
               ~(compile* then fail kind))))
         (:clauses ir))
      ~(compile* (:then ir) fail kind)))
@@ -831,10 +887,11 @@
 
 (defmethod compile* :check-lit
   [ir fail kind]
-  `(if (= ~(compile* (:target ir) fail kind)
-          ~(compile* (:value ir)  fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [compiled-value (compile* (:value ir) fail kind)]
+    `(case ~(compile* (:target ir) fail kind)
+       ~(case-clause-test-form compiled-value)
+       ~(compile* (:then ir) fail kind)
+       ~fail)))
 
 (defmethod compile* :check-map
   [ir fail kind]
@@ -1152,5 +1209,9 @@
   [ir fail kind]
   ir)
 
-(defn compile [ir fail kind]
-  (compile* (rewrite ir) fail kind))
+(defn compile
+  ([ir fail kind]
+   (compile* (rewrite ir) fail kind))
+  ([ir fail kind env]
+   (binding [*env* env]
+     (compile* (rewrite ir) fail kind))))
