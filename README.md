@@ -161,7 +161,7 @@ is not. This is because map and set patterns express submap and subset patterns 
 {:foo 1}
 ```
 
-expresses the value being matched is a map containing the key `:foo` with value `1`. That means that there may be more keys. For example the above pattern would match the following list: `{:foo 1 :bar 2}`
+expresses the value being matched is a map containing the key `:foo` with value `1`. That means that there may be more keys. For example the above pattern would match the following list: `{:foo 1 :bar 2}`.
 
  The pattern
 
@@ -220,6 +220,52 @@ and bind `?x` to `1` but will not match a value like
 
 since the second occurence of `?x` is not equal to `1`.
 
+Note that a logic variable in place of a map's value might have a surprising result:
+
+```clj
+(match {:a 1}
+  {:b ?b}
+  ?b)
+;; =>
+nil
+```
+
+One might expect this pattern to fail. This behavior is useful in other situations though since in clojure it is idiomatic to leave a key out completely when there's no reasonable value for it:
+
+```clj
+(doseq [person [{:name "John Doe" :title "MD"}
+                {:name "Mike Foe"}]]
+  (match person
+    {:name ?name :title ?title}
+    (println (str ?name (when ?title (str ", " ?title))))))
+;; =>
+John Doe, MD
+Mike Foe
+nil
+```
+
+If you wish to match a key's value to a non-nil value you can use:
+
+```clj
+(match {:name "Mike Foe"}
+  {:name (pred some? ?name) :title (pred some? ?title)}
+  [?name ?title])
+;; =>
+Execution error (ExceptionInfo) at user/eval4134$fail (REPL:1).
+non exhaustive pattern match
+```
+
+Or if you just need to ensure a key is present without binding it:
+
+```clj
+(match {:name "John Doe" :title "MD"}
+  (pred #(contains? % :title) ?p)
+  :has-a-title)
+;; =>
+:has-a-title
+```
+
+[`pred`](#pred) will be discussed shortly.
 
 #### Memory Variables
 
@@ -267,7 +313,7 @@ would first bind `*m` to `1`, and then ultimately to `2`.
 
 #### `guard`
 
-`(guard expr)` matches whenenver `expr` true.
+`(guard expr)` matches whenenver `expr` is truthy.
 
 Example:
 
@@ -302,7 +348,7 @@ Example:
 `(app fn-expr pat-0 ,,, pat-n)` matches whenever `fn-expr` applied to the current value being matched matches `pat-0` through `pat-n`.
 
 ```clj
-(r.match/match 42
+(match 42
   (app inc (pred odd? ?x))
   :even
 
@@ -311,7 +357,7 @@ Example:
 ;; =>
 :even
 
-(r.match/match (list 1 2 3)
+(match (list 1 2 3)
   (and (app first ?x) (app rest ?xs))
   {:x ?x, :xs ?xs})
 ;; =>
@@ -438,8 +484,7 @@ replaced with the argument.
 
 #### `with`
 
-The `with` pattern operator enables patterns to bound and then later
-referenced much like `clojure.core/let`.
+The `with` pattern operator enables patterns to be bound much like `clojure.core/let`.
 
 ```clj
 (with [%ref1 pat1 
@@ -495,7 +540,7 @@ When matching subsequences it is often useful to express the notions of _zero or
 
 #### Zero or more
 
-The `...` postfix operator matches the _subsequence_ of patterns to it's left (up to the first `.` or start of the collection) zero or more times.
+The `...` postfix operator matches the _subsequence_ of patterns to its left (up to the first `.` or start of the collection) zero or more times.
 
 Example:
 
@@ -515,9 +560,28 @@ Example:
 [:A :B :C :D]
 ```
 
+Note that multiple unbounded sequences are allowed in a pattern only for `search` and `find`, `match` will throw an exception since the result is non-determinitic.
+
+Example:
+
+```clj
+(mm/search [1 1 2 3]
+  [1 ... !rest ... ]
+  !rest)
+;; =>
+([1 1 2 3] [1 2 3] [2 3])
+
+(mm/match [1 1 2 3]
+  [1 ... !rest ... ]
+  !rest)
+;; =>
+Syntax error macroexpanding mm/match at (REPL:1:1).
+A variable length subsequence pattern may not be followed by another variable length subsequence pattern.
+```
+
 #### N or more
 
-The `..n` postfix operator matches the _subsequence_ of patterns to it's left (up to the first `.` or start of the collection) _n_ or more times where _n_ is a positive natural number.
+The `..n` postfix operator matches the _subsequence_ of patterns to its left (up to the first `.` or start of the collection) _n_ or more times where _n_ is a positive natural number.
 
 Example:
 
@@ -550,7 +614,7 @@ Example:
 
 #### Partition
 
-The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is use primarily to delimit the start of a variable length subsequence. It is important to note that both `...` and `..n` act as partition operators as well.
+The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is used primarily to delimit the start of a variable length subsequence. It is important to note that both `...` and `..n` act as partition operators as well.
 
 Example:
 
@@ -622,12 +686,69 @@ Example:
 [:yes :no :yes]
 ```
 
+### Use cases
+
+Here are some tips where pattern matching can come in handy:
+
+- branching
+
+```clj
+(defn factorial [n]
+  (match n
+    0 1
+    1 1
+    _ (* n (factorial (- n 1)))))
+```
+
+- destructuring (with additional logic)
+
+```clj
+(search {:name "John" :accounts [{:id 1 :cash 100} {:id 2 :cash 200} {:id 3 :cash 300}]}
+  {:accounts (scan (and ?a (guard (> (:cash ?a) 150))))}
+  ?a)
+;; =>
+({:id 2, :cash 200} {:id 3, :cash 300})
+```
+
+- validating
+
+```clj
+(match [1 2 3 2 5 2]
+  [(pred odd?) 2 ...]
+  :valid
+  _
+  :invalid_)
+;; =>
+:valid
+```
+
+Here are some fun examples:
+
+- solving puzzles
+
+```clj
+(find [1 10 3 12 15 10 7]
+  [_ ... ?a ?b (pred #(= (+ ?a ?b) %)) . _ ...]
+  [?a ?b])
+;; =>
+[3 12]
+```
+
+- building list comprehensions
+
+```clj
+(search [[1 2 3] [4 3 2]]
+  (and [(scan ?x) (scan ?y)] (guard (< ?x ?y)))
+  [?x ?y])
+;; =>
+([1 4] [1 3] [1 2] [2 4] [2 3] [3 4])
+```
 
 ## Pattern Substitution
 
 Pattern substitution can be thought of as the inverse to pattern matching. While pattern matching binds values by deconstructing an object, pattern substitution uses existing bindings to _construct_ an object.
 
-The `substitute` operator is available from the `meander.substitute.delta` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On it's own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
+The `substitute` operator is available from the `meander.substitute.delta` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On its own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
 
 Because rewriting is a central theme it's worthwhile to understand substitution semantics.
 
@@ -664,7 +785,7 @@ This works similarly for subsequence patterns: values are dispersed until one of
 (let* [x 1 y 2] (println x) (println y) (+ x y))
 ```
 
-When an expression has memory variable occurences which exceed the number of available elements in it's collection `nil` is dispersed after it is exhausted.
+When an expression has memory variable occurences which exceed the number of available elements in its collection `nil` is dispersed after it is exhausted.
 
 ```clj
 (let [!xs [1]]
@@ -816,7 +937,7 @@ Strategy combinator which takes two (or more) strategies`p` and `q` and returns 
 ```
 
 ```clj
-(let [s (r/pipe inc fail)]
+(let [s (r/pipe inc r/fail)]
   (s 10))
 ;; =>
 #meander.delta/fail[]
@@ -829,12 +950,12 @@ Note: `pipe` actually takes zero or more strategies as arguments and has behavio
 Strategy which takes two (or more) strategies `p` and `q` and returns a strategy which attempts to apply `p` to `t` or `q` to `t` whichever succeeds first. Fails if all provided strategies fail. Choices are applied deterministically from left to right.
 
 ```clj example
-(let [s1 (r/pipe inc fail)
+(let [s1 (r/pipe inc r/fail)
       s2 (r/pipe inc str)
       s (r/choice s1 s2)]
   (s 10))
 ;; =>
-"10"
+"11"
 ```
 
 #### `pred`
@@ -886,7 +1007,7 @@ The `one` combinator is a traversal combinator which applies a strategy `s` to o
 
 #### `some`
 
-The `some` combinator is a traversal combinator which applies a strategy `s` to at least child of a term `t`. If there is no child term for which `s` succeeds then `(some s)` fails.
+The `some` combinator is a traversal combinator which applies a strategy `s` to one child of a term `t`. If there is no child term for which `s` succeeds then `(some s)` fails.
 
 ```clj example
 (let [s (fn [x]
@@ -912,7 +1033,7 @@ The `some` combinator is a traversal combinator which applies a strategy `s` to 
 
 #### `all`
 
-The `all` combinator is a traversal combinator which applies a strategy `s` to every child of a term `t`. If there one child term for which `s` fails then `(all s)` fails.
+The `all` combinator is a traversal combinator which applies a strategy `s` to every child of a term `t`. If there is one child term for which `s` fails then `(all s)` fails.
 
 ```clj example
 (let [s (fn [x]
