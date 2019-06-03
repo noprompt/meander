@@ -1,5 +1,8 @@
 (ns meander.substitute.delta-test
   (:require [clojure.test :as t]
+            [clojure.test.check.clojure-test :as tc.t :include-macros true]
+            [clojure.test.check.generators :as tc.gen :include-macros true]
+            [clojure.test.check.properties :as tc.prop :include-macros true]
             [meander.substitute.delta :as r.substitute :include-macros true]))
 
 (t/deftest lvr-test
@@ -137,3 +140,15 @@
               (with [%foo [%bar ..3]
                      %bar [!xs ?z]]
                 %foo))))))
+
+(tc.t/defspec rst-behaves-properly-1
+  (tc.prop/for-all [!xs (tc.gen/vector tc.gen/int)]
+    (= !xs
+       (r.substitute/substitute [!xs ...]))))
+
+(tc.t/defspec rst-behaves-properly-2
+  (tc.prop/for-all [!ys (tc.gen/vector tc.gen/int)
+                    !xs (tc.gen/vector tc.gen/int)]
+    (= (into !ys !xs)
+       (r.substitute/substitute [!ys ... !xs ...]))))
+

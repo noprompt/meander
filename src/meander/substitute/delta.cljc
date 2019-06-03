@@ -369,7 +369,7 @@
   (r.match/find [node env]
     [{:mvr {:symbol ?symbol :as ?mvr}}
      {:mvr-refs {?mvr ?ref-sym}}]
-    `(let [xs# (subvec ~?symbol (min (deref ~?ref-sym) (dec (count ~?symbol))))]
+    `(let [xs# (subvec ~?symbol (max (min (deref ~?ref-sym) (dec (count ~?symbol))) 0))]
        (vreset! ~?ref-sym (count ~?symbol))
        xs#)))
 
