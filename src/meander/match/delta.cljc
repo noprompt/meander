@@ -240,10 +240,10 @@
   [:mut
    :lit
    :quo
-   :unq
    ;; The tags below are toggled off because some of them can break
    ;; the linear semantics of pattern matching. More investigation is
    ;; needed.
+   #_:unq
    #_:any
    #_:drp
    #_:mvr
