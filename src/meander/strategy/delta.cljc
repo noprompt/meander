@@ -1009,12 +1009,74 @@
   :args :meander.match.delta.match/clauses
   :ret any?)
 
+;; ---------------------------------------------------------------------
+;; Rewrite
 
 (defn linear?
-  "true if no variable occurs more than once in the term node."
+  "`true` if no variable occurs more than once in `node`."
   {:private true}
   [node]
-  (every? #(= 1 %) (vals (frequencies (r.syntax/variables node)))))
+  (r.match/find (r.syntax/analyze node)
+    {:occurrences {_ (not 1)}}
+    false
+
+    _
+    true))
+
+
+;; This property is also known as "nonerasing".
+(defn variable-preserving?
+  "`true` if the set of variables occuring on the left side of `rule`
+  is equal to the set variables on the right, `false` otherwise."
+  {:private true}
+  [rule]
+  (r.match/find rule
+    (with [%variables (app keys (app set ?variables))]
+      {:lhs/analysis {:occurrences %variables}
+       :rhs/analysis {:occurrences %variables}})
+    true
+
+    _
+    false))
+
+
+(defn collapsing?
+  "`true` if the right side of `rule` is a variable, false otherwise."
+  {:private true}
+  [rule]
+  (r.match/find rule
+    {:rhs/node {:tag (or :mvr :lvr)}}
+    true
+
+    _
+    false))
+
+
+(defn duplicating?
+  "true if there is a variable occuring more often on the right side
+  of `rule` than on the left."
+  {:private true}
+  [rule]
+  (r.match/find rule
+    (and {:rhs/analysis {:occurrences {?variable ?m}}}
+         {:lhs/analysis {:occurrences {?variable ?n}}}
+         (guard (< ?n ?m)))
+    true
+
+    _
+    false))
+
+
+(defn check-rule
+  {:private true}
+  [rule]
+  (r.match/search rule
+    ;; Find all occurences of variables on the right that are not on
+    ;; the left.
+    (and {:rhs/analysis {:occurrences {{:symbol ?symbol :as ?node} _}}}
+         {:lhs/analysis {:occurrences (not {?node _})}})
+    [:error {:message (str "The variable " ?symbol " must also appear in the match if it appears in the substitution")
+             :ex-data {:variable ?symbol}}]))
 
 
 (defn analyze-rewrite-args
@@ -1025,17 +1087,20 @@
     (fn [[lhs rhs]]
       (let [lhs-node (r.syntax/parse lhs)
             rhs-node (r.syntax/parse rhs)
-            lhs-vars (r.syntax/variables lhs-node)
-            rhs-vars (r.syntax/variables rhs-node)]
-        {:lhs {:pattern lhs-node
-               :vars lhs-vars}
-         :rhs {:pattern rhs-node
-               :vars rhs-vars}})))
+            rule {:lhs/analysis (r.syntax/analyze lhs-node)
+                  :lhs/form lhs
+                  :lhs/node lhs-node
+                  :rhs/analysis (r.syntax/analyze rhs-node)
+                  :rhs/form rhs
+                  :rhs/node rhs-node}]
+        (merge rule {:errors (check-rule rule)}))))
    (partition 2 args)))
 
+
 (defmacro rewrite
-  "Returns strategy which symbolically transforms t in to t' via
-  pattern matching and substitution.
+  "Returns strategy which symbolically transforms `t` in to `t*` via
+  pattern matching and substitution. Pattern matching is conducted
+  using `find`.
 
   Example:
 
