@@ -656,7 +656,7 @@
 
          (satisfies? cljs.core/ISet t)
          (meander.strategy.delta/iset-some-body t s)
-         
+
          :else
          t))))
 
