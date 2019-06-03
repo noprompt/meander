@@ -27,9 +27,9 @@ clojure -A:test
 
 echo
 
-#echo '---------------------------'
-#color yellow
-#echo 'Running ClojureScript tests'
-#color default
-#echo '---------------------------'
-#clojure -A:cljs-test
+echo '---------------------------'
+color yellow
+echo 'Running ClojureScript tests'
+color default
+echo '---------------------------'
+clojure -A:cljs-test
