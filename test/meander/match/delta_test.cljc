@@ -1325,3 +1325,16 @@
                         [!as !bs ...]
                         {:as !as, :bs !bs}
                         _ fail)))))
+
+(t/deftest gh-44
+  (let [f (fn [z]
+            (r.match/match z
+              [?x ?y ~(+ ?x ?y)]
+              :yes
+
+              _
+              :no))]
+    (t/is (= [:yes :no :yes]
+             [(f [1 2 3])
+              (f [2 1 4])
+              (f [1 3 4])]))))
