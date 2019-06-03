@@ -281,31 +281,92 @@
       (t/is (= (count v) (count fs)))
       (t/is (every? #{2} v)))))
 
+;; ---------------------------------------------------------------------
+;; rewrite
 
-(t/deftest rewrite-test
-  (let [fib-rules (r/rewrite
-                   (+ 0 ?y)
-                   ?y
+(def fib-identity
+  (r/rewrite
+   (+ 0 ?x)
+   ?x
 
-                   (+ ?y 0)
-                   ?y
+   (+ ?x 0)
+   ?x))
 
-                   (+ (s ?x) ?y)
-                   (s (+ ?x ?y))
+(def fib-add
+  (r/rewrite
+   (+ (s ?x) ?y)
+   (s (+ ?x ?y))))
 
-                   (fib 0)
-                   0
+(def fib-0
+  (r/rewrite
+   (fib 0)
+   0))
 
-                   (fib (s 0))
-                   (s 0)
+(def fib-1
+  (r/rewrite
+   (fib (s 0))
+   (s 0)))
 
-                   (fib (s (s ?x)))
-                   (+ (fib (s ?x))
-                      (fib ?x))
+(def fib-n
+  (r/rewrite
+   (fib (s (s ?x)))
+   (+ (fib (s ?x))
+      (fib ?x))))
 
-                   ?else
-                   ?else)
-        fib (r/until = (r/bottom-up fib-rules))]
+(t/deftest fib-rewrite-test
+  (t/testing "fib 0"
+    (t/is (= 0
+             (fib-0 '(fib 0)))))
+
+  (t/testing "fib 1"
+    (t/is (= '(s 0)
+             (fib-1 '(fib (s 0))))))
+
+  (t/testing "fib n"
+    (t/is (= '(+ (fib (s 0))
+                 (fib 0))
+             (fib-n '(fib (s (s 0)))))))
+
+  (t/testing "fib-identity"
+    (t/is (= '(s 0)
+             (fib-identity '(+ (s 0) 0))))
+
+    (t/is (= '(s 0)
+             (fib-identity '(+ 0 (s 0))))))
+
+  (t/testing "fib-add"
+    (t/is (=  '(s (+ 0 0))
+              (fib-add '(+ (s 0) 0))))))
+
+(def fib-rules
+  (r/rewrite
+   (+ 0 ?x)
+   ?x
+
+   (+ ?x 0)
+   ?x
+
+   (+ (s ?x) ?y)
+   (s (+ ?x ?y))
+
+   (fib 0)
+   0
+
+   (fib (s 0))
+   (s 0)
+
+   (fib (s (s ?x)))
+   (+ (fib (s ?x))
+      (fib ?x))
+
+   ?else
+   ?else))
+
+(def fib
+  (r/until = (r/bottom-up fib-rules)))
+
+(t/deftest fib-rules-test
+  (t/testing "Fibs 1 to 8"
     ;; F1 = 1
     (t/is (= '(s 0) (fib '(fib (s 0)))))
     ;; F2 = 1

@@ -670,6 +670,21 @@ compilation decisions."
     :seq
     `(drop ~n ~target-form)))
 
+(defn case-clause-quote-symbols
+  {:private true}
+  [form]
+  (if (r.util/cljs-env? *env*)
+    (cond
+      (sequential? form)
+      (mapv (fn [x]
+              (if (symbol? x)
+                (list 'quote x)
+                x))
+            form)
+
+      :else
+      form)
+    form))
 
 (defn case-clause-test-form
   "Given an arbitrary Clojure value `form` return a form suitable for
@@ -712,12 +727,20 @@ compilation decisions."
   {:private true}
   [form]
   (let [form (walk/postwalk
-               (fn [x]
-                 (if (and (seq? x)
-                          (= (first x) 'quote))
-                   (second x)
-                   x))
-               form)]
+              (fn [x]
+                (cond
+                  (seq? x)
+                  (case-clause-quote-symbols
+                   (if (= (first x) 'quote)
+                     (second x)
+                     x))
+
+                  (vector? x)
+                  (case-clause-quote-symbols x)
+
+                  :else
+                  x))
+              form)]
     (if (r.util/cljs-env? *env*)
       (if (seq? form)
         `(~(vec form))
