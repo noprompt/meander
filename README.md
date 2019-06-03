@@ -1172,7 +1172,7 @@ Releases can be expected most weeks. Prompt releases can be expected when bugs a
 
 ### Version semantics
 
-This project uses an unorthodox method of versioning in that *any* change that could break compatibility with the current `meander/artifactID` must occur at a new `meander/artifactID`. For instance, a change in syntax could cause patterns written with prior versions to cause matches to fail. In this case we do not want a new version of the software i.e. we do not wish to go from `0.0.N` to `1.N.N` etc. Instead we create a new `meander/artifactID` update the namespaces accordingly and continue to progress from there. This might sound strange at first but this method allows the project to progress in a way that is much more free than traditional approach with semantic versioning with the following advantages:
+This project uses an unorthodox method of versioning in that *any* change that could break compatibility with the current `meander/artifactID` must occur at a new `meander/artifactID`. For instance, a change in syntax could cause matches to now fail. In this case we do not want a new version of the software i.e. we do not wish to go from `0.0.N` to `1.N.N` etc. Instead we create a new `meander/artifactID` update the namespaces accordingly and continue to progress from there. This might sound strange at first but this method allows the project to progress in a way that is much more free than traditional approach with semantic versioning with the following advantages:
 
 1. A version of a `meander/artifactID` will always be safe to uprade.
 1. When a new `meander/artifactID` is created you can depend on both without conflict when or if you decide to transition.
