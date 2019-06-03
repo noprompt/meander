@@ -53,6 +53,18 @@
       :right {:tag :cat
               :elements (vec (concat ?elements-1 ?elements-2))}})
 
+    {:tag :prt
+     :left ?left
+     :right {:tag :prt
+             :left {:tag :cat
+                    :elements ?elements}
+             :right {:tag :cat
+                     :elements (or [] ())}}}
+    {:tag :prt
+     :left ?left
+     :right {:tag :cat
+             :elements ?elements}}
+
     _
     node))
 
@@ -68,7 +80,8 @@
   (r.syntax/prewalk
    (fn [node]
      (if (and (r.syntax/literal? node)
-              (not= (r.syntax/tag node) :cat))
+              (not= (r.syntax/tag node) :cat)
+              (not= (r.syntax/tag node) :prt))
        {:tag :lit
         :value (r.syntax/unparse node)}
        node))
