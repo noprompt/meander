@@ -72,7 +72,7 @@
    (defmethod print-method (class *fail*) [v ^java.io.Writer w]
      (.write w "#meander.delta/fail[]"))
    :cljs
-   (specify! *pass* IPrintWithWriter
+   (specify! *fail* IPrintWithWriter
      (-pr-writer [new-obj writer _]
        (write-all writer "#meander.delta/fail[]"))))
 
