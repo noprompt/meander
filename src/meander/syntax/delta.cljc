@@ -491,16 +491,15 @@
   [xs env]
   (if (and (seq? xs)
            (= (first xs) 'scan))
-    (let [nothing (gensym)
-          pattern (nth xs 1 nothing)]
-      (if (identical? pattern nothing)
+    (let [nothing (gensym)]
+      (if (identical? (nth xs 1 nothing) nothing)
         (throw (ex-info "scan expects at least one argument"
                         {:pattern xs
                          :meta (meta xs)}))
         (parse
          `(~'pred coll?
            ;; Will cause compiler to emit a useless seq? check.
-           (~'app seq (~@'(_ ...) ~pattern ~@'(. _ ...))))
+           (~'app seq (~@'(_ ...) ~@(rest xs) ~@'(. _ ...))))
          env)))
     (parse xs env)))
 
@@ -509,9 +508,8 @@
   [xs env]
   (if (and (seq? xs)
            (= (first xs) 'vscan))
-    (let [nothing (gensym)
-          pattern (nth xs 1 nothing)]
-      (if (identical? pattern nothing)
+    (let [nothing (gensym)]
+      (if (identical? (nth xs 1 nothing) nothing)
         (throw (ex-info "vscan expects at least one argument"
                         {:pattern xs
                          :meta (meta xs)}))
@@ -519,7 +517,7 @@
          `(~'pred coll?
            ;; Will cause compiler to emit a useless vector?
            ;; check.
-           (~'app vec [~@'(_ ...) ~pattern ~@'(. _ ...)]))
+           (~'app vec [~@'(_ ...) ~@(rest xs) ~@'(. _ ...)]))
          env)))
     (parse xs env)))
 
