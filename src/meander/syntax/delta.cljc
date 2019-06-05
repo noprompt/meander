@@ -1740,6 +1740,9 @@
 
            (var ~q-sym))))))
 
+;; ---------------------------------------------------------------------
+;; Other useful utilities
+
 (defn genref
   {:private true}
   []
