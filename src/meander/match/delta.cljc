@@ -970,11 +970,27 @@
              ;; Variable length on both sides.
              [true true]
              (let [parts-sym (gensym* "parts__")]
-               (r.ir/op-search parts-sym (r.ir/op-eval `(r.util/partitions 2 ~target))
-                 (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
-                   (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
-                     (compile `[~lsym ~rsym ~@targets*]
-                              [(assoc row :cols `[~left ~right ~@(:cols row)])])))))))))
+               (if-some [cat-node (r.syntax/scan-cat node)]
+                 (let [elements (:elements cat-node)
+                       cat-length (count elements)]
+                   (case cat-length
+                     0
+                     (r.ir/op-fail)
+
+                     1
+                     (r.ir/op-search parts-sym (r.ir/op-eval target)
+                       (compile `[~parts-sym ~@targets*]
+                                (r.matrix/prepend-column [row] [(first elements)]))) 
+
+                     ;; else
+                     (r.ir/op-search parts-sym (r.ir/op-eval `(partition ~cat-length ~target))
+                       (compile `[~parts-sym ~@targets*]
+                                (r.matrix/prepend-column [row] [cat-node])))))
+                 (r.ir/op-search parts-sym (r.ir/op-eval `(r.util/partitions 2 ~target))
+                   (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                     (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
+                       (compile `[~lsym ~rsym ~@targets*]
+                                [(assoc row :cols `[~left ~right ~@(:cols row)])]))))))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
