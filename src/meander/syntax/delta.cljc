@@ -494,7 +494,7 @@
     (let [nothing (gensym)
           pattern (nth xs 1 nothing)]
       (if (identical? pattern nothing)
-        (throw (ex-info "scan expects at least on argument"
+        (throw (ex-info "scan expects at least one argument"
                         {:pattern xs
                          :meta (meta xs)}))
         (parse
@@ -512,7 +512,7 @@
     (let [nothing (gensym)
           pattern (nth xs 1 nothing)]
       (if (identical? pattern nothing)
-        (throw (ex-info "vscan expects at least on argument"
+        (throw (ex-info "vscan expects at least one argument"
                         {:pattern xs
                          :meta (meta xs)}))
         (parse
