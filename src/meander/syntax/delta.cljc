@@ -1948,6 +1948,48 @@
   [node]
   (dissoc (analyze* node) :negated-counter))
 
+(defn scan-cat
+  "If `node` is a `:prt` node resembling the pattern
+
+    _ ... <p_1 ,,, p_n> . _ ...
+
+  then `scan-cat` will return the `:cat` node representing
+
+    <p_1 ,,, p_n>
+
+  Example:
+
+    (scan-cat
+     '{:tag :prt,
+       :left {:tag :drp, :symbol _},
+       :right
+       {:tag :prt,
+        :left {:tag :cat,
+               :elements [{:tag :lvr, :symbol ?x}
+                          {:tag :lvr, :symbol ?y}]},
+        :right
+        {:tag :prt,
+         :left {:tag :drp, :symbol _},
+         :right {:tag :cat, :elements []}}}})
+    ;; =>
+    {:tag :cat,
+     :elements [{:tag :lvr, :symbol ?x}
+                {:tag :lvr, :symbol ?y}]}"
+  [node]
+  (if (and (= (:tag node) :prt)
+           (= (:tag (:left node)) :drp)
+           (= (:tag (:right node)) :prt)
+           (= (:tag (:left (:right node))) :cat)
+           (= (:tag (:right (:right node))) :prt)
+           (= (:tag (:left (:right (:right node)))) :drp)
+           (= (:tag (:right (:right (:right node)))) :cat)
+           (empty? (:elements (:right (:right (:right node))))))
+    (:left (:right node))))
+
+(s/fdef scan-cat
+  :args (s/cat :node ::node)
+  :ret (s/nilable ::node))
+
 (comment
   (analyze (parse '[(not [?x (not ?x)]) !xs (not [?x ?x])]))
   ;; =>
