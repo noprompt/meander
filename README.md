@@ -5,12 +5,18 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
 [![Clojars Project](https://img.shields.io/clojars/v/meander/delta.svg)](https://clojars.org/meander/delta)
 
 
-## Contents
+## Documentation
 
 * [Pattern Matching](#pattern-matching)
-* [Pattern Substituton](#pattern-matching)
+* [Pattern Substituton](#pattern-substitution)
 * [Rewriting](#rewriting)
 * [Project Status](#project-status)
+
+## Blog Posts
+
+* [Meander: The answer to map fatigue](http://timothypratley.blogspot.com/2019/01/meander-answer-to-map-fatigue.html)
+* [Meander for Practical Data Transformation](https://jimmyhmiller.github.io/meander-practical/)
+
 
 ## Pattern Matching
 
@@ -33,6 +39,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [`guard`](#guard)
     * [`app`](#app)
     * [`let`](#let)
+    * [`not`](#not)
     * [`scan`](#scan)
     * [`with`](#with)
   * [Subsequences](#subsequences)
@@ -41,9 +48,6 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [Partition](#partition)
   * [Escaping](#escaping)
     * [Unquote](#unquote)
-    * [Unquote Splicing](#unquote-splicing)
-
-## Pattern Matching
 
 ### Operators
 
