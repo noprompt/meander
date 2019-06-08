@@ -155,37 +155,46 @@ compilation decisions."
 
 (defop op-bind :bind [symbol value then])
 
+(defop op-apply :apply [target fn-expr body-fn]
+  (let [result-symbol (gensym "result__")]
+    {:op :apply
+     :target target
+     :fn-expr fn-expr
+     :symbol result-symbol
+     :then (body-fn result-symbol)}))
+
 (defn op-branch [arms]
-  (if (= (count arms) 1)
-    (first arms)
-    {:op :branch
-     :arms (vec arms)}))
+  {:op :branch
+   :arms (vec arms)})
 
 (defn op-case
   {:style/indent :defn}
-  [target clauses then]
-  (let [values (distinct (map first clauses))
-        index (group-by first clauses)]
-    {:op :case
-     :target target
-     :clauses (mapv
-               (fn [value]
-                 (let [clauses (get index value)]
-                   (if (= 1 (count clauses))
-                     (first clauses)
-                     [value (op-branch (map second clauses))])))
-               values)
-     :then then}))
+  [target clauses else]
+  {:op :case
+   :target target
+   :clauses clauses
+   :then else})
+
+(s/def ::op-case-clause
+  (s/tuple (s/or :node ::node
+                 :node-set (s/coll-of ::node :kind set?))
+           ::node))
 
 (s/fdef op-case
   :args (s/cat :target ::node
-               :clauses (s/coll-of (s/tuple ::node ::node) :kind sequential?)
+               :clauses (s/coll-of ::op-case-clause :kind sequential?)
                :then ::node)
   :ret ::node)
 
 (defop op-drop :drop [target n kind])
 
 (defop op-eval :eval [form])
+
+(s/def :meander.match.ir.delta.op-eval/form
+  any?)
+
+(s/def :meander.match.ir.delta/op-eval
+  (s/keys :req-un [:meander.match.ir.delta.op-eval/form]))
 
 (defop op-check :check [test then])
 
@@ -202,6 +211,12 @@ compilation decisions."
 (defop op-check-equal :check-equal [target-1 target-2 then])
 
 (defop op-check-lit :check-lit [target value then])
+
+(s/fdef op-check-lit
+  :args (s/cat :target ::node
+               :value ::node
+               :then ::node)
+  :ret ::node)
 
 (defop op-check-map :check-map [target then])
 
@@ -235,6 +250,12 @@ compilation decisions."
 (defop op-pass :pass [then])
 
 (defop op-return :return [value])
+
+(s/def :meander.match.ir.delta.op-return/value
+  any?)
+
+(s/def :meander.match.ir.delta/op-return
+  (s/keys :req-un [:meander.match.ir.delta.op-return/value]))
 
 (defop op-save :save [id body-1 body-2])
 
@@ -298,21 +319,197 @@ compilation decisions."
 ;; ---------------------------------------------------------------------
 ;; AST Rewriting
 
-(defn can-merge? [a b]
-  (let [op-a (op a)
-        op-b (op b)]
-    (case [op-a op-b]
-      [:bind :bind]
-      (= (:value a) (:value b))
+(defmulti merge*
+  "Attempts to merge two nodes into one node returning node* if
+  successful and ::merge-fail otherwise."
+  {:arglists '([node-a node-b])}
+  (fn [a b]
+    (if (= a b)
+      ::merge-equal
+      [(op a) (op b)]))
+  :default ::merge-fail)
 
-      ;; else
-      (= (op a) (op b)))))
+(s/fdef merge*
+  :args (s/cat :node-a ::node
+               :node-b ::node)
+  :ret (s/or :node ::node
+             :fail #{::merge-fail}))
+
+(defmethod merge* ::merge-equal [a _]
+  a)
+
+(defmethod merge* ::merge-fail [_ _]
+  ::merge-fail)
+
+(defn do-merge
+  "Attempts to merge two nodes `a` and `b` into a new node.  If the
+  merge is successful the function `then` is invoked with the new
+  node. If the merge fails and the optional function `else` was
+  passed, then `else` is invoked with `a` and `b`. If the merge fails
+  and `else` was not passed, then the value `::merge-fail` is
+  returned."
+  ([a b then]
+   (let [x (merge* a b)]
+     (if (= ::merge-fail x)
+       x
+       (then x))))
+  ([a b then else]
+   (let [x (merge* a b)]
+     (if (= ::merge-fail x)
+       (else a b)
+       (then x)))))
+
+(s/fdef do-merge
+  :args (s/alt :a1 (s/cat :a ::node
+                          :b ::node
+                          :then fn?)
+               :a2 (s/cat :a ::node
+                          :b ::node
+                          :then fn?
+                          :else fn?))
+  :ret (s/or :node ::node
+             :fail #{::merge-fail}))
+
+(defn merge-all
+  "Attempts to successively merge all nodes in `nodes` from left to
+  right."
+  [nodes]
+  (case (bounded-count 2 nodes)
+    (0 1)
+    nodes
+
+    ;; else
+    (reduce
+     (fn [nodes* node]
+       (do-merge (peek nodes*) node
+                 (fn [node*]
+                   (conj (pop nodes*) node*))
+                 (fn [_ _]
+                   (conj nodes* node))))
+     [(first nodes)]
+     (rest nodes))))
+
+(s/fdef merge-all
+  :args (s/cat :nodes (s/coll-of ::node :kind sequential? :into []))
+  :ret (s/coll-of ::node :kind sequential? :into []))
+
+(defmethod merge* [:apply :apply] [a b]
+  (if (and (= (:target a) (:target b))
+           (= (:fn-expr a) (:fn-expr b)))
+    (let [then-b* (walk/postwalk-replace {(:symbol b) (:symbol a)} (:then b))]
+      (do-merge (:then a) then-b*
+                (fn [then-a*]
+                  (assoc a :then then-a*))))
+
+    ::merge-fail))
+
+(defmethod merge* [:bind :bind] [a b]
+  (if (= (:value a)
+         (:value b))
+    (let [then-b* (walk/postwalk-replace {(:symbol b) (:symbol a)} (:then b))]
+      (do-merge (:then a) then-b*
+                (fn [then-a*] (assoc a :then then-a*))))
+    ::merge-fail))
+
+(defmethod merge* [:branch :branch] [a b]
+  (op-branch (merge-all
+              (mapcat
+               (fn [node]
+                 (if (op= node :branch)
+                   (:arms node)
+                   (list node)))
+               (concat (:arms a) (:arms b))))))
+
+(defmethod merge* [:check-lit :check-lit] [a b]
+  (if (= (:target a) (:target b))
+    (if (= (:value a) (:value b))
+      (do-merge (:then a) (:then b)
+                (fn [then-a*] (assoc a :then then-a*)))
+      (op-case (:target a)
+        [[(:value a) (:then a)]
+         [(:value b) (:then b)]]
+        (op-fail)))
+    ::merge-fail))
+
+(defmethod merge* [:check-bounds :check-bounds] [a b]
+  (if (and (= (:target a) (:target b))
+           (= (:kind a) (:kind b))
+           (= (:length a) (:length b)))
+    (do-merge (:then a) (:then b)
+              (fn [then-a*] (assoc a :then then-a*)))
+    ::merge-fail))
+
+(defmethod merge* [:case :check-lit] [a b]
+  (if (= (:target a) (:target b))
+    (op-case (:target a)
+      (conj (vec (:clauses a)) [(:value b) (:then b)])
+      (:then a))
+    ::merge-fail))
+
+(defmethod merge* [:check-lit :case] [a b]
+  (if (= (:target a) (:target b))
+    (op-case (:target b)
+      (cons [(:value a) (:then a)] (:clauses b))
+      (:then b))
+    ::merge-fail))
+
+(defmethod merge* [:lvr-bind :lvr-bind] [a b]
+  (if (and (= (:symbol a) (:symbol b))
+           (= (:target a) (:target b)))
+    (do-merge (:then a) (:then b)
+              (fn [then-a*]
+                (assoc a :then then-a*)))
+    ::merge-fail))
+
+(defn merge-check-coll*
+  {:private true}
+  [a b]
+  (if (= (:target a)
+         (:target b))
+    (do-merge (:then a) (:then b)
+              (fn [then-a*]
+                (assoc a :then then-a*))
+              (fn [_ _]
+                (assoc a :then (op-branch [(:then a) (:then b)]))))
+    ::merge-fail))
+
+(defmethod merge* [:check-array :check-array] [a b]
+  (merge-check-coll* a b))
+
+(defmethod merge* [:check-map :check-map] [a b]
+  (merge-check-coll* a b))
+
+(defmethod merge* [:check-seq :check-seq] [a b]
+  (merge-check-coll* a b))
+
+(defmethod merge* [:check-set :check-set] [a b]
+  (merge-check-coll* a b))
+
+(defmethod merge* [:check-vector :check-vector] [a b]
+  (merge-check-coll* a b))
+
+(defmulti can-merge?
+  "DEPRECATED: `true` if two nodes `a` and `b` can be merged, `false`
+  otherwise."
+  {:deprecated true}
+  (fn [a b]
+    [(op a) (op b)])
+  :default ::default)
+
+(defmethod can-merge? ::default [a b]
+  (= (op a) (op b)))
+
+(defmethod can-merge? [:bind :bind] [a b]
+  (= (:value a) (:value b)))
+
+(defmethod can-merge? [:case :check-lit] [a b]
+  (= (:target a) (:target b)))
 
 (defmulti merge
-  "Attempt to merge node-a and node-b. Returns the result of the merge
-  if the merge succeeds. Returns a :branch node with :arms node-a and
-  node-b if not."
-  {:arglists '([node-a node-b])}
+  "Attempt to merge the nodes `a` and `b`. Returns the result of the merge
+  if the merge succeeds. Returns a `:branch` node with `:arms` `[a b]`
+  if the merge fails."
+  {:arglists '([a b])}
   (fn [a b]
     (if (= (op a) (op b))
       (op a)
@@ -321,94 +518,8 @@ compilation decisions."
 
 (defmethod merge ::default
   [a b]
-  (if (= a b)
-    a
-    (let [default (op-branch [a b])]
-      default
-      (case [(:op a) (:op b)]
-        [:case :check-lit]
-        (if (= (:target a) (:target b))
-          (let [clauses (:clauses a)
-                b-value (:value b)
-                b-then (:then b)]
-            (if (some #{b-value} (map first clauses))
-              (assoc a :then (op-branch [(:then a) b]))
-              (update a :clauses conj [b-value b-then])))
-          default)
-        ;; else
-        default))))
+  (do-merge a b identity (fn [a b] (op-branch [a b]))))
 
-(defmethod merge :bind
-  [a b]
-  (if (= (:value a)
-         (:value b))
-    (let [a-symbol (:symbol a)
-          b-symbol (:symbol b)]
-      (assoc a
-             :then
-             (merge (:then a)
-                    ;; Substitute b-symbol with a-symbol.
-                    (walk/postwalk-replace {b-symbol a-symbol}
-                                           (:then b)))))
-    (op-branch [a b])))
-
-(defn merge-check-coll
-  {:private true}
-  [a b]
-  (if (= (:target a)
-         (:target b))
-    (assoc a :then (merge (:then a) (:then b)))
-    (op-branch [a b])))
-
-(defmethod merge :check-array
-  [a b]
-  (merge-check-coll a b))
-
-(defmethod merge :check-lit
-  [a b]
-  (if (and (= (:target a)
-              (:target b))
-           (= (:value a)
-              (:value b)))
-    (assoc a :then (merge (:then a) (:then b)))
-    (op-branch [a b])))
-
-(defmethod merge :check-map
-  [a b]
-  (merge-check-coll a b))
-
-(defmethod merge :check-seq
-  [a b]
-  (merge-check-coll a b))
-
-(defmethod merge :check-set
-  [a b]
-  (merge-check-coll a b))
-
-(defmethod merge :check-vector
-  [a b]
-  (merge-check-coll a b))
-
-(defmethod merge :check-bounds
-  [a b]
-  (if (and (= (:target a)
-              (:target b))
-           (= (:kind a)
-              (:kind b))
-           (= (:length a)
-              (:length b)))
-    (assoc a :then (merge (:then a) (:then b)))
-    (op-branch [a b])))
-
-(defmethod merge :lvr-bind
-  [a b]
-  (if (= (:symbol a)
-         (:symbol b))
-    (if (= (:target a)
-           (:target b))
-      (assoc a :then (merge (:then a) (:then b)))
-      (assoc a :then (assoc b :then (merge (:then a) (:then b)))))
-    (op-branch [a b])))
 
 ;; :branch rewriting
 ;; -----------------
@@ -448,24 +559,7 @@ compilation decisions."
   {:private true}
   [node]
   (if (op= node :branch)
-    (let [arms (:arms node)]
-      (case (count arms)
-        0
-        node ;; fail?
-
-        1
-        (first arms)
-
-        2
-        (let [[a b] arms]
-          (merge a b))
-
-        ;; else
-        (let [[a b & rest-arms] arms]
-          (if (can-merge? a b)
-            (merge (merge a b) (op-branch rest-arms))
-            (rewrite-branch-merge
-             (op-branch [a (rewrite-branch-merge (assoc node :arms (rest arms)))]))))))
+    (op-branch (merge-all (:arms node)))
     node))
 
 (defn rewrite-branch-check-lits-to-case
@@ -506,6 +600,25 @@ compilation decisions."
           node))
     node))
 
+;; :case rewriting
+;; ---------------
+
+(defn rewrite-case-duplicate-actions
+  [node]
+  (if (op= node :case)
+    (let [clauses* (mapv
+                    (fn [[_ clauses]]
+                      [(into #{} (mapcat
+                                  (fn [clause]
+                                    (let [x (first clause)]
+                                      (if (and (coll? x) (not (map? x)))
+                                        x
+                                        (list x)))))
+                             clauses)
+                       (second (first clauses))])
+                    (group-by second (:clauses node)))]
+      (assoc node :clauses clauses*))
+    node))
 
 ;; :def rewriting
 ;; --------------
@@ -600,6 +713,9 @@ compilation decisions."
                          (:then then-node))]
               (assoc node :then then*))
             node))
+        :case
+        (rewrite-case-duplicate-actions node)
+
         ;; else
         node)))
    node))
@@ -747,11 +863,15 @@ compilation decisions."
         `(~form))
       `(~form))))
 
-
 (defmulti compile*
   {:arglists '([ir fail kind])}
   (fn [ir fail kind]
     (:op ir)))
+
+(defmethod compile* :apply
+  [ir fail kind]
+  `(let [~(:symbol ir) (~(:fn-expr ir) ~(:target ir))]
+     ~(compile* (:then ir) fail kind)))
 
 (defmethod compile* :bind
   [ir fail kind]
@@ -842,9 +962,13 @@ compilation decisions."
   `(case ~(compile* (:target ir) fail kind)
      ~@(mapcat
         (fn [[value then]]
-          (let [compiled-value (compile* value fail kind)]
-            `(~(case-clause-test-form compiled-value)
-              ~(compile* then fail kind))))
+          (if (set? value)
+            (let [compiled-values (map compile* value (repeat fail) (repeat kind))]
+              `(~(mapcat case-clause-test-form compiled-values)
+                ~(compile* then fail kind)))
+            (let [compiled-value (compile* value fail kind)]
+              `(~(case-clause-test-form compiled-value)
+                ~(compile* then fail kind)))))
         (:clauses ir))
      ~(compile* (:then ir) fail kind)))
 

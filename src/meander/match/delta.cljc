@@ -352,22 +352,20 @@
 
 (defmethod compile-specialized-matrix :app
   [_ [target & targets*] matrix]
-  (let [app-target (gensym* "app_target__")]
-    (mapv
-     (fn [node row]
-       (case (r.syntax/tag node)
-         :any
-         (compile-pass targets* [row])
+  (mapv
+   (fn [node row]
+     (case (r.syntax/tag node)
+       :any
+       (compile-pass targets* [row])
 
-         :app
-         ;; TODO: (r.ir/op-apply ,,,)
-         (r.ir/op-bind app-target (r.ir/op-eval `(~(:fn-expr node) ~target))
-           (compile `[~app-target ~@targets*]
-                    [(assoc row :cols `[~{:tag :cnj
-                                          :arguments (:arguments node)}
-                                        ~@(:cols row)])]))))
-     (r.matrix/first-column matrix)
-     (r.matrix/drop-column matrix))))
+       :app
+       (r.ir/op-apply target (:fn-expr node)
+         (fn [result-target]
+           (compile `[~result-target ~@targets*]
+                    (r.matrix/prepend-column [row] [{:tag :cnj
+                                                     :arguments (:arguments node)}]))))))
+   (r.matrix/first-column matrix)
+   (r.matrix/drop-column matrix)))
 
 
 (defmethod compile-specialized-matrix :cat
