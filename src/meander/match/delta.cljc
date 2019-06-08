@@ -1762,7 +1762,56 @@
   :args (s/cat :match-args :meander.match.delta.match/args)
   :ret :meander.match.delta.match/data)
 
+
+(defn expand-dsj
+  {:private true}
+  [node]
+  (let [arguments (:arguments node)]
+    (case (count arguments)
+      1
+      (first arguments)
+
+      ;; else
+      (let [[a b] (split-with r.syntax/literal? arguments)]
+        (case (count a)
+          0
+          node
+          #_
+          (let [[a b] (split-with (complement r.syntax/literal?) arguments)]
+            (case (count a)
+              1
+              (if (seq b)
+                {:tag :dsj
+                 :arguments [(first a)
+                             {:tag :dsj
+                              :arguments b}]}
+                (first a))
+
+              ;; else
+              {:tag :dsj
+               :arguments [{:tag :dsj
+                            :arguments a}
+                           {:tag :dsj
+                            :arguments b}]}))
+          1
+          {:tag :dsj
+           :arguments [(first a)
+                       {:tag :dsj
+                        :arguments b}]}
+
+          ;; else
+          {:tag :prd
+           :form (into #{} (map lit-form) a)
+           :arguments (if (seq b)
+                        [{:tag :dsj
+                          :arguments b}]
+                        [])})))))
+
+;; TODO: Break this up in to separate functions.
 (defn expand-node
+  "This function takes an AST node as returned by
+  `meander.syntax.delta/parse` and rewrites it in ways that can either
+  reduce compiled code size, efficiency, or both."
   {:private true}
   [node]
   (r.syntax/prewalk
@@ -1780,6 +1829,9 @@
            x
            (f {:tag :cnj
                :arguments arguments*})))
+
+       :dsj
+       (expand-dsj x)
 
        :map
        (if-some [rest-map (:rest-map x)]
@@ -1858,10 +1910,10 @@
              :arguments [as (dissoc x :as)]})
          x)
 
+
        ;; else
        x))
    (r.syntax/rename-refs node)))
-
 
 (defn parse-expand
   {:private true}
