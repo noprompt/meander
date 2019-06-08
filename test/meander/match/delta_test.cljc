@@ -983,6 +983,15 @@
              [(or (pred even? !xs) (pred odd? !ys)) ...]
              [!xs !ys]))))
 
+
+(t/deftest dsj-literal-test
+  (t/is (r.match/match false
+          (or true false)
+          true))
+  (t/is (r.match/match nil
+          (or true nil false)
+          true)))
+
 (t/deftest seq-pattern-matching-with-infinite-sequences
   (t/is (r.match/match (iterate inc 1)
           (_1)
@@ -1348,3 +1357,5 @@
              [(f [1 2 3])
               (f [2 1 4])
               (f [1 3 4])]))))
+
+

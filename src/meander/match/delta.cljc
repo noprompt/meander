@@ -1762,7 +1762,6 @@
   :args (s/cat :match-args :meander.match.delta.match/args)
   :ret :meander.match.delta.match/data)
 
-
 (defn expand-dsj
   {:private true}
   [node]
@@ -1776,23 +1775,7 @@
         (case (count a)
           0
           node
-          #_
-          (let [[a b] (split-with (complement r.syntax/literal?) arguments)]
-            (case (count a)
-              1
-              (if (seq b)
-                {:tag :dsj
-                 :arguments [(first a)
-                             {:tag :dsj
-                              :arguments b}]}
-                (first a))
 
-              ;; else
-              {:tag :dsj
-               :arguments [{:tag :dsj
-                            :arguments a}
-                           {:tag :dsj
-                            :arguments b}]}))
           1
           {:tag :dsj
            :arguments [(first a)
@@ -1801,7 +1784,8 @@
 
           ;; else
           {:tag :prd
-           :form (into #{} (map lit-form) a)
+           :form `(fn [x#]
+                    (contains? ~(into #{} (map lit-form) a) x#))
            :arguments (if (seq b)
                         [{:tag :dsj
                           :arguments b}]
