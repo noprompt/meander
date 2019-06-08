@@ -1783,13 +1783,22 @@
                         :arguments b}]}
 
           ;; else
-          {:tag :prd
-           :form `(fn [x#]
-                    (contains? ~(into #{} (map lit-form) a) x#))
-           :arguments (if (seq b)
-                        [{:tag :dsj
-                          :arguments b}]
-                        [])})))))
+          (let [case-tests (sequence
+                            (comp (map lit-form)
+                                  (distinct)
+                                  (map r.util/case-test-form))
+                            a)
+                pred-form `(fn [x#]
+                             (case x#
+                               (~@case-tests)
+                               true
+                               false))]
+            {:tag :prd
+             :form pred-form
+             :arguments (if (seq b)
+                          [{:tag :dsj
+                            :arguments b}]
+                          [])}))))))
 
 ;; TODO: Break this up in to separate functions.
 (defn expand-node
