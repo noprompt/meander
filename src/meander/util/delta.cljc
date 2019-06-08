@@ -1,5 +1,6 @@
 (ns meander.util.delta
-  (:require [clojure.zip :as zip]))
+  (:require [clojure.walk :as walk]
+            [clojure.zip :as zip]))
 
 
 (defn cljs-env?
@@ -275,3 +276,14 @@ Examples:
      (.matches (re-matcher re s))
      :cljs
      (.test re s)))
+
+(defn case-test-form
+  "Converts all `form` into a form suitable for use as a `case`
+  test. Assumes `form` is already a literal value."
+  [form]
+  (walk/prewalk
+   (fn [y]
+     (if (seq? y)
+       (vec y)
+       y))
+   form))
