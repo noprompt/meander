@@ -282,6 +282,21 @@
         t*
         (recur t*)))))
 
+(defn n-times
+  "Builds a strategy that repeats the passed in strategy `n` times.
+  This is particularly useful for non-terminating rewrites or
+  when you are trying to write a strategy and want to make sure you
+  don't accidentally infinite loop.
+
+  ((n-times 2
+   (rewrite
+    ?x (?x ?x)))
+   :x)
+  ;; => ((:x :x) (:x :x))
+  "
+  {:style/indent :defn}
+  [n s]
+  (apply pipe (clojure.core/repeat n s)))
 
 ;; ---------------------------------------------------------------------
 ;; IAll implementation
