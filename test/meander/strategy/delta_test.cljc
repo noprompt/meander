@@ -379,3 +379,13 @@
     (t/is (= '(s (s (s (s (s 0))))) (fib '(fib (s (s (s (s (s 0)))))))))
     ;; F6 = 8
     (t/is (= '(s (s (s (s (s (s (s (s 0)))))))) (fib '(fib (s (s (s (s (s (s 0))))))))))))
+
+(defn replicate-self [n]
+  (r/n-times n
+    (r/rewrite ?x (?x ?x))))
+
+(t/deftest n-times-test
+  (t/testing "Apply strategy n-times"
+    (t/is (= '(:x :x) ((replicate-self 1) :x)))
+    (t/is (= '((:x :x) (:x :x)) ((replicate-self 2) :x)))
+    (t/is (= '(((:x :x) (:x :x)) ((:x :x) (:x :x))) ((replicate-self 3) :x)))))
