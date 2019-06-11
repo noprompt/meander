@@ -968,22 +968,39 @@
              ;; Variable length on both sides.
              [true true]
              (let [parts-sym (gensym* "parts__")]
-               (if-some [cat-node (r.syntax/scan-cat node)]
+               (if-some [[cat-node right] (r.syntax/window node)]
                  (let [elements (:elements cat-node)
                        cat-length (count elements)]
                    (case cat-length
                      0
-                     (r.ir/op-fail)
+                     (compile-pass `[~target ~@targets*]
+                                   (r.matrix/prepend-column [row] [right]))
 
                      1
-                     (r.ir/op-search parts-sym (r.ir/op-eval target)
-                       (compile `[~parts-sym ~@targets*]
-                                (r.matrix/prepend-column [row] [(first elements)]))) 
+                     (if right
+                       (r.ir/op-search parts-sym `(r.util/partitions 2 ~target)
+                         (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)   
+                             (let [partition-sym (gensym "partition__")]
+                               (r.ir/op-search partition-sym (r.ir/op-eval lsym)
+                                 (compile `[~partition-sym ~rsym ~@targets*]
+                                          [(r.matrix/prepend-cells row [(first elements) right])]))))))
+                       (r.ir/op-search parts-sym (r.ir/op-eval target)
+                         (compile `[~parts-sym ~@targets*]
+                                  [(r.matrix/prepend-cells row [(first elements)])])))
 
                      ;; else
-                     (r.ir/op-search parts-sym (r.ir/op-eval `(partition ~cat-length ~target))
-                       (compile `[~parts-sym ~@targets*]
-                                (r.matrix/prepend-column [row] [cat-node])))))
+                     (if right
+                       (r.ir/op-search parts-sym `(r.util/partitions 2 ~cat-length ~target)
+                         (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)   
+                             (let [partition-sym (gensym "partition__")]
+                               (r.ir/op-search partition-sym (r.ir/op-eval `(partition ~cat-length 1 ~lsym))
+                                 (compile `[~partition-sym ~rsym ~@targets*]
+                                          [(r.matrix/prepend-cells row [cat-node right])]))))))
+                       (r.ir/op-search parts-sym (r.ir/op-eval `(partition ~cat-length 1 ~target))
+                         (compile `[~parts-sym ~@targets*]
+                                  [(r.matrix/prepend-cells row [cat-node])])))))
                  (r.ir/op-search parts-sym (r.ir/op-eval `(r.util/partitions 2 ~target))
                    (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
                      (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)

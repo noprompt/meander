@@ -212,6 +212,21 @@
                 (update row :cols subvec 1))))
         matrix))
 
+
+(s/fdef prepend-cells
+  :args (s/cat :row :meander.matrix.delta/row
+               :cells (s/coll-of :meander.syntax.delta/node
+                                 :kind sequential?
+                                 :into []))
+  :ret :meander.matrix.delta/row)
+
+
+(defn prepend-cells
+  "Prepends `cells` to `row`."
+  [row cells]
+  (assoc row :cols (into (vec cells) (:cols row))))
+
+
 (s/fdef prepend-column
   :args (s/cat :matrix :meander.matrix.delta/matrix
                :column (s/coll-of :meander.syntax.delta/node

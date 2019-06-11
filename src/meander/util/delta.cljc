@@ -78,41 +78,74 @@
      [(subvec v 0 i) (subvec v i)])))
 
 
-(defn vec-partitions [n v]
-  {:private true}
+(defn vec-partitions
   "
-
-(let [coll [:a :b]
-      n 3]
+  (let [coll [:a :b]
+        n 3]
   (vec-partitions n coll))
-;; => ([[] [] [:a :b]]
-;;     [[] [:a] [:b]]
-;;     [[:a] [] [:b]]
-;;     [[] [:a :b] []]
-;;     [[:a] [:b] []]
-;;     [[:a :b] [] []])
-"
-  {:pre [(nat-int? n)]}
-  (case n
-    0 (list [])
-    1 (list [v])
-    2 (sequence
-       (map
-        (fn [i]
-          [(subvec v 0 i) (subvec v i)]))
-       (range (inc (count v))))
-    ;; else
-    (sequence
-     (comp (map-indexed
-            (fn [i _]
-              [(subvec v 0 i) (subvec v i)]))
-           (mapcat
-            (fn [[a b]]
-              (sequence
-               (map conj)
-               (vec-partitions (dec n) a)
-               (repeat b)))))
-     (range (inc (count v))))))
+  ;; => ([[] [] [:a :b]]
+  ;;     [[] [:a] [:b]]
+  ;;     [[:a] [] [:b]]
+  ;;     [[] [:a :b] []]
+  ;;     [[:a] [:b] []]
+  ;;     [[:a :b] [] []])
+  "
+  {:private true}
+  ([n v]
+   {:pre [(nat-int? n)]}
+   (case n
+     0 (list [])
+     1 (list [v])
+     2 (sequence
+        (map
+         (fn [i]
+           [(subvec v 0 i) (subvec v i)]))
+        (range (inc (count v))))
+     ;; else
+     (sequence
+      (comp (map-indexed
+             (fn [i _]
+               [(subvec v 0 i) (subvec v i)]))
+            (mapcat
+             (fn [[a b]]
+               (sequence
+                (map conj)
+                (vec-partitions (dec n) a)
+                (repeat b)))))
+      (range (inc (count v))))))
+  ([n m v]
+   {:pre [(nat-int? n) (nat-int? m)]}
+   (if (<= m (count v))
+     (case n
+       0 (list [])
+       1 (list [v])
+       2 (sequence
+          (comp (take-while
+                 (let [j (count v)]
+                   (fn [i]
+                     (<= (+ i m) j))))
+                (map
+                 (fn [i]
+                   [(subvec v 0 (+ i m)) (subvec v (+ i m))])))
+          (range (inc (count v))))
+       ;; else
+       (sequence
+        (comp (take-while
+               (let [j (count v)]
+                 (fn [i]
+                   (<= (+ i m) j))))
+              (map
+               (fn [i]
+                 [(subvec v 0 (+ i m)) (subvec v (+ i m))]))
+              (mapcat
+               (fn [[a b]]
+                 (sequence
+                  (map conj)
+                  (vec-partitions (dec n) m a)
+                  (repeat b)))))
+        (range (inc (count v)))))
+     (list []))))
+
 
 (defn coll-partitions
   {:private true}
@@ -140,40 +173,69 @@
            (repeat b)))))
       ;; Adding one more element to the coll ensures we split at 0
       ;; *and* at (count coll) without counting the collection.
-      (cons (first coll) coll)))))
+      (cons (first coll) coll))))
+  ([n m coll]
+   {:pre [(nat-int? n) (nat-int? m)]}
+   (if (<= m (bounded-count m coll))
+     (case n
+       0 (list [])
+       1 (list [coll])
+       2 (sequence
+          (comp (map-indexed
+                 (fn [i _]
+                   (split-at (+ i m) coll)))
+                (distinct))
+          (cons 1 coll))
+       ;; else
+       (sequence
+        (comp (map-indexed
+               (fn [i _]
+                 (split-at (+ i m) coll)))
+              (distinct)
+              (mapcat
+               (fn [[a b]]
+                 (sequence
+                  (map conj)
+                  (coll-partitions (dec n) m a)
+                  (repeat b)))))
+        ;; Adding one more element to the coll ensures we split at 0
+        ;; *and* at (count coll) without counting the collection.
+        (cons (first coll) coll)))
+     (list []))))
 
 
-(defn str-partitions [n str]
+(defn str-partitions
   "
-Examples:
+  Examples:
 
-(let [str \"ab\"
+  (let [str \"ab\"
       n 0]
   (str-partitions n str))
-;; => ([])
+  ;; => ([])
 
-(let [str \"ab\"
+  (let [str \"ab\"
       n 1]
   (partitions n coll))
-;; => ([\"ab\"])
+  ;; => ([\"ab\"])
 
-(let [str \"ab\"
+  (let [str \"ab\"
       n 2]
   (partitions n coll))
-;; => ([[] [\"ab\"]
-;;     [[\"a\"] [\"b\"]]
-;;     [[\"ab\"] []])
+  ;; => ([[] [\"ab\"]
+  ;;     [[\"a\"] [\"b\"]]
+  ;;     [[\"ab\"] []])
 
-(let [str \"ab\" 
+  (let [str \"ab\"
       n 3]
   (partitions n coll))
-;; => ([[] [] [\"ab\"]]
-;;     [[] [\"a\"] [\"b\"]]
-;;     [[\"a\"] [] [\"b\"]]
-;;     [[] [\"ab\"] []]
-;;     [[\"a\"] [\"b\"] []]
-;;     [[\"ab\"] [] []])
-"
+  ;; => ([[] [] [\"ab\"]]
+  ;;     [[] [\"a\"] [\"b\"]]
+  ;;     [[\"a\"] [] [\"b\"]]
+  ;;     [[] [\"ab\"] []]
+  ;;     [[\"a\"] [\"b\"] []]
+  ;;     [[\"ab\"] [] []])
+  "
+  [n str]
   {:pre [(nat-int? n)]}
   (case n
     0 (list [])
@@ -198,62 +260,75 @@ Examples:
      (range (inc (.length str))))))
 
 
-(defn partitions [n coll]
+(defn partitions "
+  Examples:
+
+  (def coll [:a :b])
+
+  (partitions 0 coll))
+  ;; => ([])
+
+  (partitions 1 coll)
+  ;; => ([[:a :b]])
+
+  (partitions 2 coll)
+  ;; => '([[] [:a :b]]
+  ;;      [[:a] [:b]]
+  ;;      [[:a :b] []])
+
+  (partitions 3 coll)
+  ;; => '([[] [] [:a :b]]
+  ;;      [[] [:a] [:b]]
+  ;;      [[:a] [] [:b]]
+  ;;      [[] [:a :b] []]
+  ;;      [[:a] [:b] []]
+  ;;      [[:a :b] [] []])
   "
-Examples:
+  ([n coll]
+   (cond
+     (vector? coll)
+     (vec-partitions n coll)
 
-(def coll [:a :b])
+     (coll? coll)
+     (coll-partitions n coll)
 
-(partitions 0 coll))
-;; => ([])
+     (string? coll)
+     (str-partitions n coll)
 
-(partitions 1 coll)
-;; => ([[:a :b]])
+     :else
+     (throw (ex-info "coll must be a string? or coll?" {:type (type coll)}))))
+  ([n m coll]
+   (cond
+     (vector? coll)
+     (vec-partitions n m coll)
 
-(partitions 2 coll)
-;; => '([[] [:a :b]]
-;;      [[:a] [:b]]
-;;      [[:a :b] []])
+     (coll? coll)
+     (coll-partitions n m coll)
 
-(partitions 3 coll)
-;; => '([[] [] [:a :b]]
-;;      [[] [:a] [:b]]
-;;      [[:a] [] [:b]]
-;;      [[] [:a :b] []]
-;;      [[:a] [:b] []]
-;;      [[:a :b] [] []])
-"
-  (cond
-    (vector? coll)
-    (vec-partitions n coll)
+     (string? coll)
+     (str-partitions n coll)
 
-    (coll? coll)
-    (coll-partitions n coll)
-
-    (string? coll)
-    (str-partitions n coll)
-
-    :else
-    (throw (ex-info "coll must be a string? or coll?" {:type (type coll)}))))
+     :else
+     (throw (ex-info "coll must be a string? or coll?" {:type (type coll)})))))
 
 (defn coll-zip
   "Return a zipper with a branch? fn of coll?."
   [root]
   (zip/zipper coll? seq
-    (fn [coll coll-new]
-      (cond
-        (seq? coll)
-        coll-new
+              (fn [coll coll-new]
+                (cond
+                  (seq? coll)
+                  coll-new
 
-        (map? coll)
-        (into {} coll-new)
+                  (map? coll)
+                  (into {} coll-new)
 
-        (map-entry? coll)
-        (vec coll-new)
+                  (map-entry? coll)
+                  (vec coll-new)
 
-        :else
-        (into (empty coll) coll-new)))
-    root))
+                  :else
+                  (into (empty coll) coll-new)))
+              root))
 
 (defn zip-next-seq
   "Given a clojure.zip zipper location loc return a lazy sequence of

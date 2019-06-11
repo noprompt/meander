@@ -204,6 +204,20 @@
 (defn with-node? [x]
   (s/valid? :meander.syntax.delta.node/with x))
 
+
+(s/def :meander.syntax.delta.node.partition/left
+  :meander.syntax.delta/node)
+
+(s/def :meander.syntax.delta.node.partition/right
+  :meander.syntax.delta/node)
+
+(s/def :meander.syntax.delta.node/partition
+  (s/keys :req-un [:meander.syntax.delta.node.partition/left
+                   :meander.syntax.delta.node.partition/right]))
+
+(defn partition-node? [x]
+  (s/valid? :meander.syntax.delta.node/partition x))
+
 (defn node?
   "true if x is an AST node."
   [x]
@@ -1989,6 +2003,59 @@
 (s/fdef scan-cat
   :args (s/cat :node ::node)
   :ret (s/nilable ::node))
+
+(defn partition-nodes
+  "Given a `partition-node?` returns a vector of its `:left` and
+  `:right` nodes recursively and in order i.e. `:left` or `:right` is
+  a `partition-node?` then the returned vector will include the result
+  of applying `partition-nodes` to them.
+
+  Example:
+
+      (let [vec-node (parse '[_ ..2 1 . 1 2 3 ... !xs])
+            prt-node (:prt vec-node)]
+        (map unparse (partition-nodes prt-node)))
+      ;; =>
+      ((_ ..2) (1) (1 2 3 ...) (!xs) ())"
+  {:arglists '([partition-node])
+   :private true}
+  [node]
+  (s/assert :meander.syntax.node.delta/partition node)
+  (let [left (:left node)
+        right (:right node)]
+    (concat (if (partition-node? left)
+              (partition-nodes left)
+              (list left))
+            (if (partition-node? right)
+              (partition-nodes right)
+              (list right)))))
+
+(defn partition-from-nodes
+  {:private true}
+  [nodes]
+  (reduce
+   (fn [prt-node node]
+     {:tag :prt
+      :left node
+      :right prt-node})
+   (last nodes)
+   (reverse (butlast nodes))))
+
+(defn window [node]
+  (s/assert :meander.syntax.node.delta/partition node)
+  (let [p-nodes (partition-nodes node)]
+    (if (<= 3 (count p-nodes))
+      (let [[a b c] p-nodes]
+        (if (and (= (:tag a) :drp)
+                 (= (:tag b) :cat)
+                 (= (:tag c) :drp))
+          (let [rest-p-nodes (drop 2 p-nodes)]
+            (if (and (= (count rest-p-nodes) 2)
+                     (= (:tag (nth rest-p-nodes 0)) :drp)
+                     (and (= (:tag (nth rest-p-nodes 1)) :cat)
+                          (= (max-length (nth rest-p-nodes 1)) 0)))
+              [b nil]
+              [b (partition-from-nodes rest-p-nodes)])))))))
 
 (comment
   (analyze (parse '[(not [?x (not ?x)]) !xs (not [?x ?x])]))
