@@ -1,16 +1,16 @@
-(ns meander.match.ir.delta
+(ns meander.match.ir.epsilon
   "Functions for working with the Meander's match compiler
   intermediate representation (IR)."
   (:refer-clojure :exclude [compile merge])
-  #?(:cljs (:require-macros [meander.match.ir.delta :refer [defop]]))
+  #?(:cljs (:require-macros [meander.match.ir.epsilon :refer [defop]]))
   (:require
    [clojure.core :as clj]
    [clojure.spec.alpha :as s]
    [clojure.spec.gen.alpha :as s.gen]
    [clojure.walk :as walk]
    [clojure.zip :as zip]
-   [meander.util.delta :as r.util]
-   [meander.syntax.delta :as r.syntax]))
+   [meander.util.epsilon :as r.util]
+   [meander.syntax.epsilon :as r.syntax]))
 
 
 (def ^{:doc "A macro &env map. Used to make platform specific
@@ -190,11 +190,11 @@ compilation decisions."
 
 (defop op-eval :eval [form])
 
-(s/def :meander.match.ir.delta.op-eval/form
+(s/def :meander.match.ir.epsilon.op-eval/form
   any?)
 
-(s/def :meander.match.ir.delta/op-eval
-  (s/keys :req-un [:meander.match.ir.delta.op-eval/form]))
+(s/def :meander.match.ir.epsilon/op-eval
+  (s/keys :req-un [:meander.match.ir.epsilon.op-eval/form]))
 
 (defop op-check :check [test then])
 
@@ -251,11 +251,11 @@ compilation decisions."
 
 (defop op-return :return [value])
 
-(s/def :meander.match.ir.delta.op-return/value
+(s/def :meander.match.ir.epsilon.op-return/value
   any?)
 
-(s/def :meander.match.ir.delta/op-return
-  (s/keys :req-un [:meander.match.ir.delta.op-return/value]))
+(s/def :meander.match.ir.epsilon/op-return
+  (s/keys :req-un [:meander.match.ir.epsilon.op-return/value]))
 
 (defop op-save :save [id body-1 body-2])
 

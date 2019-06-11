@@ -19,7 +19,7 @@
 
 (def git-commit-count-start
   "Starting SHA to count commits from."
-  "d9a5cc3d2a26bc5552c7bd0631847872071fbd5b")
+  "9dc4210d563512de04e48e10f3a842fb270823db")
 
 (defn git-branch-commit-count
   "Attempts to get the current number of commits on the current branch

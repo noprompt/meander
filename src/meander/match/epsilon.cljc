@@ -1,16 +1,16 @@
-(ns meander.match.delta
+(ns meander.match.epsilon
   (:refer-clojure :exclude [compile find])
-  #?(:cljs (:require-macros [meander.match.delta]))
+  #?(:cljs (:require-macros [meander.match.epsilon]))
   (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]
             [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
-            [meander.match.ir.delta :as r.ir]
-            [meander.matrix.delta :as r.matrix]
-            [meander.syntax.delta :as r.syntax]
-            [meander.util.delta :as r.util]
+            [meander.match.ir.epsilon :as r.ir]
+            [meander.matrix.epsilon :as r.matrix]
+            [meander.syntax.epsilon :as r.syntax]
+            [meander.util.epsilon :as r.util]
             #?(:cljs [goog.object :as gobj]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
@@ -346,8 +346,8 @@
 (s/fdef compile-specialized-matrix
   :args (s/cat :tag keyword?
                :targets (s/coll-of simple-symbol? :kind vector? :into [])
-               :matrix :meander.matrix.delta/matrix)
-  :ret (s/coll-of :meander.match.delta/tree))
+               :matrix :meander.matrix.epsilon/matrix)
+  :ret (s/coll-of :meander.match.epsilon/tree))
 
 
 (defmethod compile-specialized-matrix :app
@@ -1185,6 +1185,57 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
+(defmethod compile-specialized-matrix :rpl
+  [_ [target :as targets] matrix]
+  (let [matrix* (mapv
+                 (fn [node row]
+                   (case (r.syntax/tag node)
+                     :any
+                     (r.matrix/prepend-cells row [node node])
+
+                     :rpl
+                     (let [rp*-node {:tag :rp*
+                                     :cat (:cat node)}
+                           app-node {:tag :app
+                                     :fn-expr `clojure.core/count
+                                     :arguments [(:lvr node)]}]
+                       ;; If the logic variable is bound we place the `:app` node
+                       ;; ahead of the `:rp*` node to verify the `count` is equal
+                       ;; before attemping to pattern match on the input.
+                       (if (r.matrix/get-var row (:lvr node))
+                         (r.matrix/prepend-cells row [app-node rp*-node])
+                         (r.matrix/prepend-cells row [rp*-node app-node])))))
+                 (r.matrix/first-column matrix)
+                 (r.matrix/drop-column matrix))
+        targets*  `[~target ~@targets]]
+    [(compile targets* matrix*)]))
+
+
+(defmethod compile-specialized-matrix :rpm
+  [_ [target :as targets] matrix]
+  (let [matrix* (mapv
+                 (fn [node row]
+                   (case (r.syntax/tag node)
+                     :any
+                     (r.matrix/prepend-cells row [node node])
+
+                     ;; Here we turn `:rpm` into two nodes: an `:rp*`
+                     ;; and an `:app`. The `:rp*` will proceed against
+                     ;; `target` as usual and then afterwards will
+                     ;; `count` the target `conj`ing the result on to
+                     ;; the memory variable given by the `:rpm`.
+                     :rpm
+                     (let [rp*-node {:tag :rp*
+                                     :cat (:cat node)}
+                           app-node {:tag :app
+                                     :fn-expr `clojure.core/count
+                                     :arguments [(:mvr node)]}]
+                       (r.matrix/prepend-cells row [rp*-node app-node]))))
+                 (r.matrix/first-column matrix)
+                 (r.matrix/drop-column matrix))
+        targets* `[~target ~@targets]]
+    [(compile targets* matrix*)]))
+
 
 (defmethod compile-specialized-matrix :rst
   [_ [target & targets*] matrix]
@@ -1446,24 +1497,24 @@
 ;; ---------------------------------------------------------------------
 ;; match pattern checking
 
-(s/def :meander.match.delta.check-env/lvrs
-  (s/coll-of :meander.syntax.delta.node/lvr :kind set?))
+(s/def :meander.match.epsilon.check-env/lvrs
+  (s/coll-of :meander.syntax.epsilon.node/lvr :kind set?))
 
-(s/def :meander.match.delta.check-env/mvrs
-  (s/coll-of :meander.syntax.delta.node/mvr :kind set?))
+(s/def :meander.match.epsilon.check-env/mvrs
+  (s/coll-of :meander.syntax.epsilon.node/mvr :kind set?))
 
-(s/def :meander.match.delta.check-env/ref-map
-  (s/keys :req-un [:meander.syntax.delta/node
-                   :meander.syntax.delta.node/with]))
+(s/def :meander.match.epsilon.check-env/ref-map
+  (s/keys :req-un [:meander.syntax.epsilon/node
+                   :meander.syntax.epsilon.node/with]))
 
-(s/def :meander.match.delta.check-env/refs
-  (s/map-of :meander.syntax.delta.node/ref
-            :meander.match.delta.check-env/ref-map))
+(s/def :meander.match.epsilon.check-env/refs
+  (s/map-of :meander.syntax.epsilon.node/ref
+            :meander.match.epsilon.check-env/ref-map))
 
-(s/def :meander.match.delta/check-env
-  (s/keys :req-un [:meander.match.delta.check-env/lvrs
-                   :meander.match.delta.check-env/mvrs
-                   :meander.match.delta.check-env/refs]))
+(s/def :meander.match.epsilon/check-env
+  (s/keys :req-un [:meander.match.epsilon.check-env/lvrs
+                   :meander.match.epsilon.check-env/mvrs
+                   :meander.match.epsilon.check-env/refs]))
 
 
 (def empty-check-env
@@ -1552,7 +1603,7 @@
   [:okay exit-env]
     whenever the node is valid. exit-env is a set of all
     logic and memory variables which would be bound by a successful
-    pattern match; equivalent to (meander.syntax.delta/variables node)."
+    pattern match; equivalent to (meander.syntax.epsilon/variables node)."
   [node env search?]
   (let [[tag :as result] (check-node node env search?)]
     (case tag
@@ -1742,42 +1793,42 @@
 ;; match macro
 
 
-(s/def :meander.match.delta/expr
+(s/def :meander.match.epsilon/expr
   any?)
 
 
-(s/def :meander.match.delta/pattern
+(s/def :meander.match.epsilon/pattern
   any?)
 
 
-(s/def :meander.match.delta/clause
-  (s/cat :pat :meander.match.delta/pattern
-         :rhs :meander.match.delta/expr))
+(s/def :meander.match.epsilon/clause
+  (s/cat :pat :meander.match.epsilon/pattern
+         :rhs :meander.match.epsilon/expr))
 
 
-(s/def :meander.match.delta.match/clauses
-  (s/* (s/cat :pat :meander.match.delta/pattern
-              :rhs :meander.match.delta/expr)))
+(s/def :meander.match.epsilon.match/clauses
+  (s/* (s/cat :pat :meander.match.epsilon/pattern
+              :rhs :meander.match.epsilon/expr)))
 
 
-(s/def :meander.match.delta.match/args
-  (s/cat :expr :meander.match.delta/expr
-         :clauses (s/* :meander.match.delta/clause)))
+(s/def :meander.match.epsilon.match/args
+  (s/cat :expr :meander.match.epsilon/expr
+         :clauses (s/* :meander.match.epsilon/clause)))
 
 
-(s/def :meander.match.delta.match/data
-  (s/keys :req-un [:meander.match.delta/expr
-                   :meander.matrix.delta/matrix
-                   :meander.matrix.delta.data/final-clause]))
+(s/def :meander.match.epsilon.match/data
+  (s/keys :req-un [:meander.match.epsilon/expr
+                   :meander.matrix.epsilon/matrix
+                   :meander.matrix.epsilon.data/final-clause]))
 
 
-(s/def :meander.match.delta.match.data/final-clause
+(s/def :meander.match.epsilon.match.data/final-clause
   (s/nilable :meander.matrix.alpha/row))
 
 
 (s/fdef analyze-match-args
-  :args (s/cat :match-args :meander.match.delta.match/args)
-  :ret :meander.match.delta.match/data)
+  :args (s/cat :match-args :meander.match.epsilon.match/args)
+  :ret :meander.match.epsilon.match/data)
 
 (defn expand-dsj
   {:private true}
@@ -1820,7 +1871,7 @@
 ;; TODO: Break this up in to separate functions.
 (defn expand-node
   "This function takes an AST node as returned by
-  `meander.syntax.delta/parse` and rewrites it in ways that can either
+  `meander.syntax.epsilon/parse` and rewrites it in ways that can either
   reduce compiled code size, efficiency, or both."
   {:private true}
   [node]
@@ -1957,10 +2008,10 @@
   ([match-args]
    (analyze-match-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.delta.match/args match-args)]
+   (let [data (s/conform :meander.match.epsilon.match/args match-args)]
      (if (identical? data ::s/invalid)
        (throw (ex-info "Invalid match-args"
-                       (s/explain-data :meander.match.delta.match/args match-args)))
+                       (s/explain-data :meander.match.epsilon.match/args match-args)))
        (let [clauses (map
                       (fn [{:keys [pat rhs]}]
                         {:pat (r.syntax/parse pat env)
@@ -1998,7 +2049,7 @@
 
 (s/fdef match
   :args (s/cat :expr any?
-               :clauses :meander.match.delta.match/clauses)
+               :clauses :meander.match.epsilon.match/clauses)
   :ret any?)
 
 
@@ -2045,10 +2096,10 @@
   ([match-args]
    (analyze-search-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.delta.match/args match-args)]
+   (let [data (s/conform :meander.match.epsilon.match/args match-args)]
      (if (identical? data ::s/invalid)
        (throw (ex-info "Invalid search args"
-                       (s/explain-data :meander.match.delta.match/args match-args)))
+                       (s/explain-data :meander.match.epsilon.match/args match-args)))
        (let [clauses (mapv
                       (fn [{:keys [pat rhs]}]
                         {:pat (r.syntax/parse pat env)
@@ -2107,7 +2158,7 @@
 
 (s/fdef search
   :args (s/cat :expr any?
-               :clauses :meander.match.delta.match/clauses)
+               :clauses :meander.match.epsilon.match/clauses)
   :ret (s/coll-of any? :kind sequential?))
 
 
@@ -2128,10 +2179,10 @@
   ([match-args]
    (analyze-find-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.delta.match/args match-args)]
+   (let [data (s/conform :meander.match.epsilon.match/args match-args)]
      (if (identical? data ::s/invalid)
        (throw (ex-info "Invalid match args"
-                       (s/explain-data :meander.match.delta.match/args match-args)))
+                       (s/explain-data :meander.match.epsilon.match/args match-args)))
        (let [clauses (mapv
                       (fn [{:keys [pat rhs]}]
                         {:pat (r.syntax/parse pat env)
@@ -2202,5 +2253,5 @@
 
 (s/fdef find
   :args (s/cat :expr any?
-               :clauses :meander.match.delta.match/clauses)
+               :clauses :meander.match.epsilon.match/clauses)
   :ret any?)

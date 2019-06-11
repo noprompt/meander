@@ -1,19 +1,19 @@
-(ns meander.syntax.delta
+(ns meander.syntax.epsilon
   #?(:clj
      (:require [clojure.set :as set]
                [clojure.spec.alpha :as s]
                [clojure.spec.gen.alpha :as s.gen]
                [clojure.string :as string]
                [cljs.tagged-literals]
-               [meander.util.delta :as r.util])
+               [meander.util.epsilon :as r.util])
      :cljs
      (:require [clojure.set :as set]
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.spec.gen.alpha :as s.gen :include-macros true]
                [clojure.string :as string]
-               [meander.util.delta :as r.util]))
+               [meander.util.epsilon :as r.util]))
   #?(:cljs
-     (:require-macros [meander.syntax.delta]))
+     (:require-macros [meander.syntax.epsilon]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -22,11 +22,11 @@
 ;; ---------------------------------------------------------------------
 ;; AST specs and predicates
 
-(s/def :meander.syntax.delta/tag
+(s/def :meander.syntax.epsilon/tag
   keyword?)
 
-(s/def :meander.syntax.delta/node
-  (s/keys :req-un [:meander.syntax.delta/tag]))
+(s/def :meander.syntax.epsilon/node
+  (s/keys :req-un [:meander.syntax.epsilon/tag]))
 
 (defn any-form?
   "true if x is a symbol beginning with _."
@@ -34,7 +34,7 @@
   (and (simple-symbol? x)
        (r.util/re-matches? #"_.*" (name x))))
 
-(s/def :meander.syntax.delta/any
+(s/def :meander.syntax.epsilon/any
   (s/with-gen
     (s/conformer
      (fn [x]
@@ -48,20 +48,20 @@
          (symbol (str "_" (name sym))))
        (s.gen/symbol)))))
 
-(s/def :meander.syntax.delta.node.any/tag
+(s/def :meander.syntax.epsilon.node.any/tag
   #{:any})
 
-(s/def :meander.syntax.delta.node.any/symbol
-  :meander.syntax.delta/any)
+(s/def :meander.syntax.epsilon.node.any/symbol
+  :meander.syntax.epsilon/any)
 
-(s/def :meander.syntax.delta.node/any
-  (s/keys :req-un [:meander.syntax.delta.node.any/tag
-                   :meander.syntax.delta.node.any/symbol]))
+(s/def :meander.syntax.epsilon.node/any
+  (s/keys :req-un [:meander.syntax.epsilon.node.any/tag
+                   :meander.syntax.epsilon.node.any/symbol]))
 
 (defn any-node?
   "true if x is an :any node, false otherwise."
   [x]
-  (s/valid? :meander.syntax.delta.node/any x))
+  (s/valid? :meander.syntax.epsilon.node/any x))
 
 (s/fdef logic-variable-form?
   :args (s/cat :x any?)
@@ -74,7 +74,7 @@
   (and (simple-symbol? x)
        (r.util/re-matches? #"\?.+" (name x))))
 
-(s/def :meander.syntax.delta/logic-variable
+(s/def :meander.syntax.epsilon/logic-variable
   (s/with-gen
     (s/conformer
      (fn [x]
@@ -88,19 +88,19 @@
          (symbol (str \? (name x))))
        (s/gen simple-symbol?)))))
 
-(s/def :meander.syntax.delta.node.lvr/tag
+(s/def :meander.syntax.epsilon.node.lvr/tag
   #{:lvr})
 
-(s/def :meander.syntax.delta.node.lvr/symbol
-  :meander.syntax.delta/logic-variable)
+(s/def :meander.syntax.epsilon.node.lvr/symbol
+  :meander.syntax.epsilon/logic-variable)
 
-(s/def :meander.syntax.delta.node/lvr
-  (s/keys :req-un [:meander.syntax.delta.node.lvr/tag
-                   :meander.syntax.delta.node.lvr/symbol]))
+(s/def :meander.syntax.epsilon.node/lvr
+  (s/keys :req-un [:meander.syntax.epsilon.node.lvr/tag
+                   :meander.syntax.epsilon.node.lvr/symbol]))
 
 (defn lvr-node?
   [x]
-  (s/valid? :meander.syntax.delta.node/lvr x))
+  (s/valid? :meander.syntax.epsilon.node/lvr x))
 
 (defn memory-variable-form?
   "true if x is in the form of a memory variable i.e. a simple symbol
@@ -109,7 +109,7 @@
   (and (simple-symbol? x)
        (r.util/re-matches? #"!.+" (name x))))
 
-(s/def :meander.syntax.delta/memory-variable
+(s/def :meander.syntax.epsilon/memory-variable
   (s/with-gen
     (s/conformer
      (fn [x]
@@ -123,19 +123,19 @@
          (symbol (str \! (name x))))
        (s/gen simple-symbol?)))))
 
-(s/def :meander.syntax.delta.node.mvr/tag
+(s/def :meander.syntax.epsilon.node.mvr/tag
   #{:mvr})
 
-(s/def :meander.syntax.delta.node.mvr/symbol
-  :meander.syntax.delta/memory-variable)
+(s/def :meander.syntax.epsilon.node.mvr/symbol
+  :meander.syntax.epsilon/memory-variable)
 
-(s/def :meander.syntax.delta.node/mvr
-  (s/keys :req-un [:meander.syntax.delta.node.mvr/tag
-                   :meander.syntax.delta.node.mvr/symbol]))
+(s/def :meander.syntax.epsilon.node/mvr
+  (s/keys :req-un [:meander.syntax.epsilon.node.mvr/tag
+                   :meander.syntax.epsilon.node.mvr/symbol]))
 
 (defn mvr-node?
   [x]
-  (s/valid? :meander.syntax.delta.node/mvr x))
+  (s/valid? :meander.syntax.epsilon.node/mvr x))
 
 (defn variable-node?
   [x]
@@ -147,7 +147,7 @@
   (and (simple-symbol? x)
        (boolean (re-matches #"%.+" (name x)))))
 
-(s/def :meander.syntax.delta/reference
+(s/def :meander.syntax.epsilon/reference
   (s/with-gen
     (s/conformer
      (fn [x]
@@ -161,67 +161,67 @@
          (symbol (str \% (name x))))
        (s/gen simple-symbol?)))))
 
-(s/def :meander.syntax.delta.node.ref/tag
+(s/def :meander.syntax.epsilon.node.ref/tag
   #{:ref})
 
-(s/def :meander.syntax.delta.node.ref/symbol
-  :meander.syntax.delta/reference)
+(s/def :meander.syntax.epsilon.node.ref/symbol
+  :meander.syntax.epsilon/reference)
 
-(s/def :meander.syntax.delta.node/ref
-  (s/keys :req-un [:meander.syntax.delta.node.ref/symbol
-                   :meander.syntax.delta.node.ref/tag]))
+(s/def :meander.syntax.epsilon.node/ref
+  (s/keys :req-un [:meander.syntax.epsilon.node.ref/symbol
+                   :meander.syntax.epsilon.node.ref/tag]))
 
 (defn ref-node?
   "true if x is a :ref node, false otherwise."
   [x]
-  (s/valid? :meander.syntax.delta.node/ref x))
+  (s/valid? :meander.syntax.epsilon.node/ref x))
 
-(s/def :meander.syntax.delta.node.with/tag
+(s/def :meander.syntax.epsilon.node.with/tag
   #{:wth})
 
-(s/def :meander.syntax.delta.node.with.binding/ref
-  :meander.syntax.delta.node/ref)
+(s/def :meander.syntax.epsilon.node.with.binding/ref
+  :meander.syntax.epsilon.node/ref)
 
-(s/def :meander.syntax.delta.node.with.binding/pattern
-  :meander.syntax.delta/node)
+(s/def :meander.syntax.epsilon.node.with.binding/pattern
+  :meander.syntax.epsilon/node)
 
-(s/def :meander.syntax.delta.node.with/binding
-  (s/keys :req-un [:meander.syntax.delta.node.with.binding/pattern
-                   :meander.syntax.delta.node.with.binding/ref]))
+(s/def :meander.syntax.epsilon.node.with/binding
+  (s/keys :req-un [:meander.syntax.epsilon.node.with.binding/pattern
+                   :meander.syntax.epsilon.node.with.binding/ref]))
 
-(s/def :meander.syntax.delta.node.with/bindings
-  (s/coll-of :meander.syntax.delta.node.with/binding
+(s/def :meander.syntax.epsilon.node.with/bindings
+  (s/coll-of :meander.syntax.epsilon.node.with/binding
              :kind sequential?))
 
-(s/def :meander.syntax.delta.node.with/body
-  (s/nilable :meander.syntax.delta/node))
+(s/def :meander.syntax.epsilon.node.with/body
+  (s/nilable :meander.syntax.epsilon/node))
 
-(s/def :meander.syntax.delta.node/with
-  (s/keys :req-un [:meander.syntax.delta.node.with/tag
-                   :meander.syntax.delta.node.with/bindings]
-          :opt-un [:meander.syntax.delta.node.with/body]))
+(s/def :meander.syntax.epsilon.node/with
+  (s/keys :req-un [:meander.syntax.epsilon.node.with/tag
+                   :meander.syntax.epsilon.node.with/bindings]
+          :opt-un [:meander.syntax.epsilon.node.with/body]))
 
 (defn with-node? [x]
-  (s/valid? :meander.syntax.delta.node/with x))
+  (s/valid? :meander.syntax.epsilon.node/with x))
 
 
-(s/def :meander.syntax.delta.node.partition/left
-  :meander.syntax.delta/node)
+(s/def :meander.syntax.epsilon.node.partition/left
+  :meander.syntax.epsilon/node)
 
-(s/def :meander.syntax.delta.node.partition/right
-  :meander.syntax.delta/node)
+(s/def :meander.syntax.epsilon.node.partition/right
+  :meander.syntax.epsilon/node)
 
-(s/def :meander.syntax.delta.node/partition
-  (s/keys :req-un [:meander.syntax.delta.node.partition/left
-                   :meander.syntax.delta.node.partition/right]))
+(s/def :meander.syntax.epsilon.node/partition
+  (s/keys :req-un [:meander.syntax.epsilon.node.partition/left
+                   :meander.syntax.epsilon.node.partition/right]))
 
 (defn partition-node? [x]
-  (s/valid? :meander.syntax.delta.node/partition x))
+  (s/valid? :meander.syntax.epsilon.node/partition x))
 
 (defn node?
   "true if x is an AST node."
   [x]
-  (s/valid? :meander.syntax.delta/node x))
+  (s/valid? :meander.syntax.epsilon/node x))
 
 ;; ---------------------------------------------------------------------
 ;; AST API
@@ -229,15 +229,15 @@
 (defn tag
   "Return the tag of node."
   [node]
-  (s/assert :meander.syntax.delta/node node)
+  (s/assert :meander.syntax.epsilon/node node)
   (:tag node))
 
 ;; children
 ;; --------
 
 (s/fdef children
-  :args (s/cat :node :meander.syntax.delta/node)
-  :ret (s/coll-of :meander.syntax.delta/node
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret (s/coll-of :meander.syntax.epsilon/node
                   :kind sequential?))
 
 (defmulti children
@@ -260,7 +260,7 @@
   (rest (subnodes node)))
 
 (s/fdef max-length
-  :args (s/cat :node :meander.syntax.delta/node)
+  :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/or :nat nat-int?
              :inf #{##Inf}))
 
@@ -283,7 +283,7 @@
   #'tag)
 
 (s/fdef variable-length?
-  :args (s/cat :node :meander.syntax.delta/node)
+  :args (s/cat :node :meander.syntax.epsilon/node)
   :ret boolean?)
 
 (defn variable-length?
@@ -300,7 +300,7 @@
   #'tag)
 
 (s/fdef search?
-  :args (s/cat :node :meander.syntax.delta/node)
+  :args (s/cat :node :meander.syntax.epsilon/node)
   :ret boolean?)
 
 (defmulti search?
@@ -352,26 +352,26 @@
 (defn variables
   "Return all :lvr and :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.delta/node node)
+  (s/assert :meander.syntax.epsilon/node node)
   (let [vars (variables* node)]
     (set/union (:lvr vars) (:mvr vars))))
 
 (defn memory-variables
   "Return all :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.delta/node node)
+  (s/assert :meander.syntax.epsilon/node node)
   (:mvr (variables* node)))
 
 (defn logic-variables
   "Return all :lvr nodes in node."
   [node]
-  (s/assert :meander.syntax.delta/node node)
+  (s/assert :meander.syntax.epsilon/node node)
   (:lvr (variables* node)))
 
 
 (s/fdef references
-  :args (s/cat :node :meander.syntax.delta/node)
-  :ret (s/coll-of :meander.syntax.delta.node/ref
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret (s/coll-of :meander.syntax.epsilon.node/ref
                   :kind set?
                   :into #{}))
 
@@ -387,7 +387,6 @@
     (mapcat top-level (children node))
     ;; else
     [node]))
-
 
 ;; ---------------------------------------------------------------------
 ;; Parse implementation
@@ -405,7 +404,7 @@
   (let [[l r] (split-with
                (fn [{tag :tag}]
                  (case tag
-                   (:dot :dt+ :dt*)
+                   (:dot :dt+ :dt* :dtl :dtm)
                    false
                    ;; else
                    true))
@@ -417,26 +416,44 @@
                  :dt*
                  (let [c (bounded-count 2 l)]
                    (cond
+                     ;; _ ...
                      (and (= c 1)
                           (= :any (:tag (first l))))
                      {:tag :drp
                       :symbol (:symbol (first l))}
 
+                     ;; !xs ...
                      (and (= c 1)
                           (= :mvr (:tag (first l))))
                      {:tag :rst
                       :mvr (first l)}
 
+                     ;; a b ...
                      :else
                      {:tag :rp*
                       :cat {:tag :cat
                             :elements l}}))
 
+                 ;; a b ..<nat-int>
                  :dt+
                  {:tag :rp+
                   :cat {:tag :cat
                         :elements l}
                   :n (:n node)}
+
+                 ;; ab ..?<name>
+                 :dtl
+                 {:tag :rpl
+                  :cat {:tag :cat
+                        :elements l}
+                  :lvr (:lvr node)}
+
+                 ;; a b ..!<name>
+                 :dtm
+                 {:tag :rpm
+                  :cat {:tag :cat
+                        :elements l}
+                  :mvr (:mvr node)}
 
                  (nil :dot)
                  {:tag :cat
@@ -604,7 +621,7 @@
        :prt (expand-prt (parse-all xs env))})))
 
 (defn parse-seq
-  "Parses a seq? into a :meander.syntax.delta/node.
+  "Parses a seq? into a :meander.syntax.epsilon/node.
 
   seqs? of the following form are handled specially, all other seqs
   are parsed as :seq nodes.
@@ -729,9 +746,31 @@
     {:tag :lit
      :value sym}
     (let [s (name sym)
-          [$0 $N] (re-matches #"\.(?:\.(?:\.|(\d+))?)?" s)]
-      (case $N
-        nil
+          [$0 $N $L $M] (re-matches #"\.(?:\.(?:\.|(\d+)|(\?.+)|(!.+))?)?" s)]
+      (cond
+        ;; `..<nat-int>`
+        (some? $N)
+        (if (= $N "0")
+          ;; `..0` is the same as `...`.
+          {:tag :dt*}
+          ;; Inteneral tag for postfix n or more operator.
+          {:tag :dt+
+           :n (r.util/parse-int $N)})
+
+        ;; `..?<name>`
+        (some? $L)
+        ;; Internal tag for postfix ?n or more operator.
+        {:tag :dtl
+         :lvr {:tag :lvr
+               :symbol (symbol $L)}}
+
+        (some? $M)
+        ;; Internal tag for postfix !n or more operator.
+        {:tag :dtm
+         :mvr {:tag :mvr
+               :symbol (symbol $M)}}
+
+        :else
         (case $0
           ;; Internal tag for postfix partition.
           "."
@@ -770,16 +809,7 @@
 
             :else
             {:tag :lit
-             :value sym}))
-
-        ;; `..0` is the same as `...`.
-        "0"
-        {:tag :dt*}
-
-        ;; else
-        ;; Inteneral tag for postfix n or more operator.
-        {:tag :dt+
-         :n (r.util/parse-int $N)}))))
+             :value sym}))))))
 
 (defn parse-js-value
   {:private true}
@@ -882,7 +912,7 @@
 (s/fdef parse
   :args (s/alt :a1 (s/cat :x any?)
                :a2 (s/cat :x any? :env map?))
-  :ret :meander.syntax.delta/node)
+  :ret :meander.syntax.epsilon/node)
 
 (defn parse
   "Parse `x` into an abstract syntax tree (AST) optionally with
@@ -1384,6 +1414,48 @@
 (defmethod search? :rp+ [_]
   false)
 
+;; :rpl
+
+(defmethod children :rpl [node]
+  [(:cat node) (:lvr node)])
+
+(defmethod ground? :rpl [_]
+  false)
+
+(defmethod min-length :rpl [node]
+  0)
+
+(defmethod max-length :rpl [_]
+  ##Inf)
+
+(defmethod unparse :rpl [node]
+  (let [dots (symbol (str ".." (unparse (:lvr node))))]
+    `(~@(unparse (:cat node)) ~dots)))
+
+(defmethod search? :rpl [_]
+  false)
+
+;; :rpm
+
+(defmethod children :rpm [node]
+  [(:cat node) (:mvr node)])
+
+(defmethod ground? :rpm [_]
+  false)
+
+(defmethod min-length :rpm [node]
+  0)
+
+(defmethod max-length :rpm [_]
+  ##Inf)
+
+(defmethod unparse :rpm [node]
+  (let [dots (symbol (str ".." (unparse (:mvr node))))]
+    `(~@(unparse (:cat node)) ~dots)))
+
+(defmethod search? :rpm [_]
+  false)
+
 ;; :rst
 
 (defmethod children :rst [node]
@@ -1670,7 +1742,7 @@
 ;; defsyntax
 
 
-(s/def :meander.syntax.delta/defsyntax-args
+(s/def :meander.syntax.epsilon/defsyntax-args
   (s/cat :name simple-symbol?
          :docstring (s/? string?)
          :meta (s/? map?)
@@ -1691,7 +1763,7 @@
         (and (string? s#)
              (re-matches ~regex s#)))))
 
-  (require '[meander.match.delta :as r.match])
+  (require '[meander.match.epsilon :as r.match])
 
   (r.match/match \"elf\"
     (re #\"[a-z]+\")
@@ -1700,7 +1772,7 @@
   "
   {:arglists '([name docstring? meta? arglist & body])}
   [& args]
-  (let [data (s/conform :meander.syntax.delta/defsyntax-args args)]
+  (let [data (s/conform :meander.syntax.epsilon/defsyntax-args args)]
     (if (identical? data ::s/invalid)
       nil
       (let [sym (get data :name)
@@ -1712,7 +1784,7 @@
         ;; When defining new syntax in ClojureScript it is also
         ;; necessary to define the methods which parse and expand the
         ;; syntax in Clojure. This is because the match, search, and
-        ;; find macros (in meander.match.delta) are expanded in
+        ;; find macros (in meander.match.epsilon) are expanded in
         ;; Clojure which, in turn, rely on these methods.
         #?(:clj
            (when-some [cljs-ns (:ns &env)]
@@ -1737,9 +1809,9 @@
                    ~arglist
                    ~@body)
 
-                 (defmethod meander.syntax.delta/expand-seq '~q-sym [[_# ~@arglist] _#]
+                 (defmethod meander.syntax.epsilon/expand-seq '~q-sym [[_# ~@arglist] _#]
                    (~sym ~@arglist))))
-             (in-ns 'meander.syntax.delta)))
+             (in-ns 'meander.syntax.epsilon)))
         `(do
            (defn ~sym
              ~@(when-some [docstring (get data :docstring)]
@@ -1804,13 +1876,13 @@
      :body node}))
 
 
-(s/def :meander.syntax.delta/ref-map
-  (s/map-of :meander.syntax.delta.node/ref
-            :meander.syntax.delta/node))
+(s/def :meander.syntax.epsilon/ref-map
+  (s/map-of :meander.syntax.epsilon.node/ref
+            :meander.syntax.epsilon/node))
 
 (s/fdef make-ref-map
-  :args (s/cat :node :meander.syntax.delta/node)
-  :ret :meander.syntax.delta/ref-map)
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret :meander.syntax.epsilon/ref-map)
 
 (defn make-ref-map
   "If node is a node repesenting a with pattern, return a map from
@@ -1822,10 +1894,10 @@
     {}))
 
 (s/fdef substitute-refs
-  :args (s/alt :a1 (s/cat :node :meander.syntax.delta/node)
-               :a2 (s/cat :node :meander.syntax.delta/node
-                          :ref-map :meander.syntax.delta/ref-map))
-  :ret :meander.syntax.delta/node)
+  :args (s/alt :a1 (s/cat :node :meander.syntax.epsilon/node)
+               :a2 (s/cat :node :meander.syntax.epsilon/node
+                          :ref-map :meander.syntax.epsilon/ref-map))
+  :ret :meander.syntax.epsilon/node)
 
 (defn substitute-refs
   "Given node and an optional ref-map "
@@ -2020,7 +2092,7 @@
   {:arglists '([partition-node])
    :private true}
   [node]
-  (s/assert :meander.syntax.node.delta/partition node)
+  (s/assert :meander.syntax.node.epsilon/partition node)
   (let [left (:left node)
         right (:right node)]
     (concat (if (partition-node? left)
@@ -2042,7 +2114,7 @@
    (reverse (butlast nodes))))
 
 (defn window [node]
-  (s/assert :meander.syntax.node.delta/partition node)
+  (s/assert :meander.syntax.node.epsilon/partition node)
   (let [p-nodes (partition-nodes node)]
     (if (<= 3 (count p-nodes))
       (let [[a b c] p-nodes]

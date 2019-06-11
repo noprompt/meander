@@ -1,11 +1,11 @@
-(ns meander.match.delta-test
+(ns meander.match.epsilon-test
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.test :as t]
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.match.delta :as r.match :include-macros true]
-            [meander.syntax.delta :as r.syntax :include-macros true]))
+            [meander.match.epsilon :as r.match :include-macros true]
+            [meander.syntax.epsilon :as r.syntax :include-macros true]))
 
 (def gen-scalar
   (tc.gen/one-of [tc.gen/int
@@ -145,7 +145,7 @@
 #?(:clj
    (t/deftest or-compilation-fails
      (t/is (try
-             (macroexpand '(meander.match.delta/match 1 (or ?x ?y ?z) false))
+             (macroexpand '(meander.match.epsilon/match 1 (or ?x ?y ?z) false))
              false
              (catch Exception _
                true)))))
@@ -1381,3 +1381,15 @@
               (f [1 3 4])]))))
 
 
+(t/deftest logical-length-subsequence-test
+  (t/is (= [[1 2 3] [4 5 6]]
+           (r.match/find '[1 2 3 4 5 6]
+             [!xs ..?n !ys ..?n]
+             [!xs !ys]))))
+
+
+(t/deftest memory-length-subsequence-test
+  (t/is (= [[1 2 3 4 5 6] [4 2]]
+           (r.match/find '[[1 2 3 4] [5 6]]
+             [[!xs ..!ns] [!xs ..!ns]]
+             [!xs !ns]))))

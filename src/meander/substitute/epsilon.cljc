@@ -1,11 +1,11 @@
-(ns meander.substitute.delta
-  #?(:cljs (:require-macros [meander.substitute.delta]))
+(ns meander.substitute.epsilon
+  #?(:cljs (:require-macros [meander.substitute.epsilon]))
   (:require [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
-            [meander.match.delta :as r.match]
-            [meander.syntax.delta :as r.syntax]
-            [meander.util.delta :as r.util]))
+            [meander.match.epsilon :as r.match]
+            [meander.syntax.epsilon :as r.syntax]
+            [meander.util.epsilon :as r.util]))
 
 ;; ---------------------------------------------------------------------
 ;; Rewrite helpers

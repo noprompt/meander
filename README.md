@@ -1,4 +1,4 @@
-# Meander<sup>δ</sup>
+# Meander<sup>ε</sup>
 
 Meander is a Clojure/ClojureScript data transformation library which combines higher order functional programming with concepts from [term rewriting](https://en.wikipedia.org/wiki/Rewriting) and [logic programming](https://en.wikipedia.org/wiki/Logic_programming). It does so with a trifold union of syntactic [pattern matching](https://en.wikipedia.org/wiki/Pattern_matching), syntactic [pattern substitution](https://en.wikipedia.org/wiki/Substitution_(logic)), and a suite of transform combinators known as _strategies_ that run the gamut from purely functional to purely declarative.
 
@@ -51,7 +51,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
 
 ### Operators
 
-The primary operators for pattern matching and searching are available in `meander.match.delta`.
+The primary operators for pattern matching and searching are available in `meander.match.epsilon`.
 
 #### `match`
 
@@ -74,7 +74,7 @@ thrown.
 Example:
 
 ```clj
-(require '[meander.core.delta :refer [match]])
+(require '[meander.core.epsilon :refer [match]])
 
 (match [1 2 1]
   ;; Pair of equivalent objects.
@@ -95,7 +95,7 @@ The `search` operator is an extended version `match` which returns a sequence of
 Example:
 
 ```clj
-(require '[meander.core.delta :refer [search]])
+(require '[meander.core.epsilon :refer [search]])
 
 ;; Find all pairs of an odd number followed by an even number in the
 ;; collection.
@@ -113,7 +113,7 @@ The `find` operator is similar to `search`, however, returns only the first sear
 Example:
 
 ```clj
-(require '[meander.core.delta :refer [find]])
+(require '[meander.core.epsilon :refer [find]])
 
 ;; Find the first pair of an odd number followed by an even number in
 ;; the collection.
@@ -517,7 +517,7 @@ Example:
                [:li "Lamb"]
                [:li "Pork"]
                [:li "Chicken"]]]]
-  ;; meander.match.delta/find
+  ;; meander.match.epsilon/find
   (find hiccup
     (with [%h1 [!tags {:as !attrs} . %hiccup ...]
            %h2 [!tags . %hiccup ...]
@@ -753,7 +753,7 @@ Here are some fun examples:
 
 Pattern substitution can be thought of as the inverse to pattern matching. While pattern matching binds values by deconstructing an object, pattern substitution uses existing bindings to _construct_ an object.
 
-The `substitute` operator is available from the `meander.substitute.delta` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On its own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
+The `substitute` operator is available from the `meander.substitute.epsilon` namespace and utilizes the same syntax as `match` and `search` (with a few exceptions). On its own it is unlikely to be of much use, however, it is a necessary part of building syntactic _rewrite rules_.
 
 Because rewriting is a central theme it's worthwhile to understand substitution semantics.
 
@@ -896,15 +896,15 @@ But how did we know we were finished? Couldn't we continue to apply the commutat
 
 A _strategy_ is a function of one argument, a term `t`, and returns the term rewritten `t*`. A _strategy combinator_ is a function which accepts, as arguments, one or more _strategies_ and returns a _strategy_.
 
-Meander's strategy combinators can be found in the `meander.strategy.delta` namespace.
+Meander's strategy combinators can be found in the `meander.strategy.epsilon` namespace.
 
 ```
-(require '[meander.strategy.delta :as r])
+(require '[meander.strategy.epsilon :as r])
 ```
 
 The alias `r` stands for "rewrite" and will be used throughout the following examples.
 
-Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.delta/*fail*` which is printed as `#meander.delta/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.delta/fail?`, however, you should rarely need to reach for this function outside of combinators.
+Before diving into the combinators themselves it's important to understand how combinators fail. When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.epsilon/*fail*` which is printed as `#meander.epsilon/fail[]`. This value is at the heart of strategy control flow. You can detect this value in your with `meander.strategy.epsilon/fail?`, however, you should rarely need to reach for this function outside of combinators.
 
 ### Basic Combinators
 
@@ -915,7 +915,7 @@ Strategy which always fails.
 ```clj
 (r/fail 10)
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 #### `build`
@@ -945,7 +945,7 @@ Strategy combinator which takes two (or more) strategies`p` and `q` and returns 
 (let [s (r/pipe inc r/fail)]
   (s 10))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 Note: `pipe` actually takes zero or more strategies as arguments and has behavior analogous to `and` e.g. `((pipe) t)` and `((pipe s) t)` is the equivalent to `(identity t)` and `(s t)` respectively.
@@ -1007,7 +1007,7 @@ The `one` combinator is a traversal combinator which applies a strategy `s` to o
       one-s (r/one s)]
   (s ["a" "b" "c"]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 #### `some`
@@ -1033,7 +1033,7 @@ The `some` combinator is a traversal combinator which applies a strategy `s` to 
       some-s (r/some s)]
   (some-s ["a" "b" "c"]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 #### `all`
@@ -1059,14 +1059,14 @@ The `all` combinator is a traversal combinator which applies a strategy `s` to e
       all-s (r/all s)]
   (all-s [1 2 "c"]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 ### Matching Combinators
 
 #### `match`
 
-The `match` strategy is built on top of `meander.match.delta/match`. It succeeds whenever some term `t` is successfully matched.
+The `match` strategy is built on top of `meander.match.epsilon/match`. It succeeds whenever some term `t` is successfully matched.
 
 ```clj example
 (let [s (r/match
@@ -1083,12 +1083,12 @@ The `match` strategy is built on top of `meander.match.delta/match`. It succeeds
           {:bar ?bar, :baz ?baz})]
   (s [:baz 1 2]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 #### `find`
 
-The `find` strategy is built on top of `meander.match.delta/find`.
+The `find` strategy is built on top of `meander.match.epsilon/find`.
 
 ```clj example
 (let [s (r/find
@@ -1102,7 +1102,7 @@ The `find` strategy is built on top of `meander.match.delta/find`.
 [b bb bbb]
 ```
 
-Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.delta/*fail*`.
+Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.epsilon/*fail*`.
 
 ```clj example
 (let [s (r/find
@@ -1128,12 +1128,12 @@ nil
        :namespaces {a.core [a aa aaa]
                     b.core [b bb bbb]}}))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 #### `rewrite`
 
-The `rewrite` strategy is built on top of `meander.match.delta/find` and `meander.substitute.delta/substitute` The `rewrite` strategy has the same form as `find`, `match`, and `search`, however, a substitution is performed instead of executing code. This allows for purely symbolic data transformation and is an incredibly powerful tool for syntactic and structural manipulations.
+The `rewrite` strategy is built on top of `meander.match.epsilon/find` and `meander.substitute.epsilon/substitute` The `rewrite` strategy has the same form as `find`, `match`, and `search`, however, a substitution is performed instead of executing code. This allows for purely symbolic data transformation and is an incredibly powerful tool for syntactic and structural manipulations.
 
 ```clj example
 ;; The commutative rule for multiplication.

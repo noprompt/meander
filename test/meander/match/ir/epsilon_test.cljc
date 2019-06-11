@@ -1,11 +1,11 @@
-(ns meander.match.ir.delta-test
+(ns meander.match.ir.epsilon-test
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as s.gen :include-macros true]
             [clojure.test :as t]
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.match.ir.delta :as r.ir]))
+            [meander.match.ir.epsilon :as r.ir]))
 
 (t/deftest op-return-test
   (t/is (= 1

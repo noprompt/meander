@@ -1,8 +1,8 @@
-(ns meander.syntax.delta-test
+(ns meander.syntax.epsilon-test
   (:require
    [clojure.test :as t]
-   [meander.match.delta :as r.match]
-   [meander.syntax.delta :as r.syntax :include-macros true]))
+   [meander.match.epsilon :as r.match]
+   [meander.syntax.epsilon :as r.syntax :include-macros true]))
 
 
 (t/deftest match-bindings-test
@@ -28,7 +28,7 @@
   ;; Test fully qualified symbol resolution.
   (t/is (= [1 '(2 3)]
            (r.match/find '(1 2 3)
-             (meander.syntax.delta-test/$cons ?first ?rest)
+             (meander.syntax.epsilon-test/$cons ?first ?rest)
              [?first ?rest])))
 
   (t/is (= 1
