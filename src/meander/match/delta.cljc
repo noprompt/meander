@@ -219,7 +219,7 @@
     :vec
     (into [] (lit-form (:prt node)))
 
-    :seq
+    (:seq :seqable)
     (if-some [l (seq (lit-form (:prt node)))]
       l
       ())
@@ -1239,6 +1239,26 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
+(defmethod compile-specialized-matrix :seqable
+  [_ [target & targets* :as targets] matrix]
+  (let [targets* (vec targets*)]
+    (mapv
+     (fn [node row]
+       (case (r.syntax/tag node)
+         :any
+         (compile-pass targets [row])
+
+         :seqable
+         (let [seq-target (gensym "target_")]
+           (r.ir/op-check-seqable (r.ir/op-eval target)
+             (r.ir/op-bind seq-target (r.ir/op-eval `(seq ~target))
+               (if (literal? node)
+                 (r.ir/op-check-lit seq-target (r.ir/op-eval (seq (lit-form node)))
+                   (compile targets* [row]))
+                 (binding [*collection-context* :seqable]
+                   (compile (into [seq-target] targets*) [(assoc row :cols `[~(:prt node) ~@(:cols row)])]))))))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
 
 (defmethod compile-specialized-matrix :seq
   [_ [target & targets* :as targets] matrix]
@@ -1897,7 +1917,7 @@
                  :arguments [x* as]}))
            x))
 
-       (:seq :vec)
+       (:seq :vec :seqable)
        (if-some [as (:as x)]
          (f {:tag :cnj
              :arguments [as (dissoc x :as)]})

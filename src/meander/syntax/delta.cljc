@@ -497,9 +497,7 @@
                         {:pattern xs
                          :meta (meta xs)}))
         (parse
-         `(~'pred coll?
-           ;; Will cause compiler to emit a useless seq? check.
-           (~'app seq (~@'(_ ...) ~@(rest xs) ~@'(. _ ...))))
+         `(~'seqable ~@'(_ ...) ~@(rest xs) ~@'(. _ ...))
          env)))
     (parse xs env)))
 
@@ -514,10 +512,7 @@
                         {:pattern xs
                          :meta (meta xs)}))
         (parse
-         `(~'pred coll?
-           ;; Will cause compiler to emit a useless vector?
-           ;; check.
-           (~'app vec [~@'(_ ...) ~@(rest xs) ~@'(. _ ...)]))
+         `(~'app vec (~'seqable ~@'(_ ...) ~@(rest xs) ~@'(. _ ...)))
          env)))
     (parse xs env)))
 
@@ -567,6 +562,12 @@
                    :meta (meta xs)}))))
     (parse xs env)))
 
+
+(defn parse-seqable
+  [xs env]
+  {:tag :seqable
+   :prt (expand-prt (parse-all xs env))})
+
 (defn parse-seq-no-head
   {:private true}
   [xs env]
@@ -608,7 +609,8 @@
     (re <regex-expr>)
     (re <regex-expr> <pattern>)
     (with [%<simple-symbol> <pattern> ...] <pattern>)
-    (clojure.core/unquote <form>) 
+    (seqable <pattern>)
+    (clojure.core/unquote <form>)
     (clojure.core/unquote-splicig <form>)
     (<symbol*> <form_0> ... <form_n>)
 
@@ -692,6 +694,9 @@
 
         with
         (parse-with xs env)
+
+        seqable
+        (parse-seqable (rest xs) env)
 
         clojure.core/unquote
         {:tag :unq
@@ -1463,6 +1468,31 @@
 
 (defmethod max-length :seq [node]
   (max-length (:prt node)))
+
+
+
+;; seqable
+
+(defmethod children :seqable [node]
+  [(:prt node)])
+
+(defmethod ground? :seqable [node]
+  (ground? (:prt node)))
+
+(defmethod unparse :seqable [node]
+  (seq (unparse (:prt node))))
+
+(defmethod search? :seqable [node]
+  (search? (:prt node)))
+
+(defmethod min-length :seqable
+  [node]
+  (min-length (:prt node)))
+
+(defmethod max-length :seqable [node]
+  (max-length (:prt node)))
+
+
 
 ;; :unq
 

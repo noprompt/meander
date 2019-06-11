@@ -222,6 +222,8 @@ compilation decisions."
 
 (defop op-check-seq :check-seq [target then])
 
+(defop op-check-seqable :check-seqable [target then])
+
 (defop op-check-set :check-set [target then])
 
 (defop op-check-vector :check-vector [target then])
@@ -307,6 +309,7 @@ compilation decisions."
           :check-empty
           :check-equal
           :check-map
+          :check-seqable
           :check-seq
           :check-set
           :check-vector
@@ -480,6 +483,9 @@ compilation decisions."
   (merge-check-coll* a b))
 
 (defmethod merge* [:check-seq :check-seq] [a b]
+  (merge-check-coll* a b))
+
+(defmethod merge* [:check-seqable :check-seqable] [a b]
   (merge-check-coll* a b))
 
 (defmethod merge* [:check-set :check-set] [a b]
@@ -783,8 +789,9 @@ compilation decisions."
     :vector
     `(subvec ~target-form ~n)
 
-    :seq
-    `(drop ~n ~target-form)))
+    (:seq :seqable)
+    `(drop ~n ~target-form)
+))
 
 (defn case-clause-quote-symbols
   {:private true}
@@ -1009,7 +1016,7 @@ compilation decisions."
                (:map :set)
                `(<= ~length (count ~target))
 
-               :seq
+               (:seq :seqable)
                `(= (bounded-count (inc ~length) ~target)
                    ~length)
 
@@ -1049,6 +1056,12 @@ compilation decisions."
 (defmethod compile* :check-seq
   [ir fail kind]
   `(if (seq? ~(compile* (:target ir) fail kind))
+     ~(compile* (:then ir) fail kind)
+     ~fail))
+
+(defmethod compile* :check-seqable
+  [ir fail kind]
+  `(if (seqable? ~(compile* (:target ir) fail kind))
      ~(compile* (:then ir) fail kind)
      ~fail))
 
@@ -1326,7 +1339,7 @@ compilation decisions."
         :js-array
         `(run-star-js-array-search ~input-form ~rets ~n ~body-f ~then-f)
 
-        :seq
+        (:seq :seqable)
         `(run-star-seq-search ~input-form ~rets ~n ~body-f ~then-f)
 
         :vector
@@ -1337,7 +1350,7 @@ compilation decisions."
                      :js-array
                      `(run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
 
-                     :seq
+                     (:seq :seqable)
                      `(run-star-seq ~input-form ~rets ~n ~body-f ~then-f)
 
                      :vector
