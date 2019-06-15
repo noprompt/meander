@@ -308,10 +308,21 @@
   {:arglists '([node])}
   #'tag)
 
+(defn unparse-dispatch
+  {:private true}
+  [node]
+  (if (contains? node ::original-form)
+    ::original-form
+    (tag node)))
+
 (defmulti unparse
   "In pre-order fashion rewrite a node into a Clojure form."
   {:arglists '([node])}
-  #'tag)
+  #'unparse-dispatch)
+
+(defmethod unparse ::original-form
+  [node]
+  (::original-form node))
 
 (defn fold
   "Same as clojure.core/reduce but specifically for ASTs. f must be a
@@ -517,41 +528,6 @@
   [xs env]
   xs)
 
-(defn parse-scan
-  {:private true}
-  [xs env]
-  (if (and (seq? xs)
-           (= (first xs) 'scan))
-    (let [nothing (gensym)]
-      (if (identical? (nth xs 1 nothing) nothing)
-        (throw (ex-info "scan expects at least one argument"
-                        {:pattern xs
-                         :meta (meta xs)}))
-        (parse
-         `(~'pred coll?
-           ;; Will cause compiler to emit a useless seq? check.
-           (~'app seq (~@'(_ ...) ~@(rest xs) ~@'(. _ ...))))
-         env)))
-    (parse xs env)))
-
-(defn parse-vscan
-  {:private true}
-  [xs env]
-  (if (and (seq? xs)
-           (= (first xs) 'vscan))
-    (let [nothing (gensym)]
-      (if (identical? (nth xs 1 nothing) nothing)
-        (throw (ex-info "vscan expects at least one argument"
-                        {:pattern xs
-                         :meta (meta xs)}))
-        (parse
-         `(~'pred coll?
-           ;; Will cause compiler to emit a useless vector?
-           ;; check.
-           (~'app vec [~@'(_ ...) ~@(rest xs) ~@'(. _ ...)]))
-         env)))
-    (parse xs env)))
-
 (defn parse-contain
   {:private true}
   [xs env]
@@ -710,16 +686,10 @@
             (let [capture (nth xs 2 nothing)]
               (if (identical? capture nothing)
                 {:tag :rxt
-                 :regex regex}
+                 :regex (parse regex)}
                 {:tag :rxc
-                 :regex regex
+                 :regex (parse regex)
                  :capture (parse capture env)}))))
-
-        scan
-        (parse-scan xs env) 
-
-        vscan
-        (parse-vscan xs env)
 
         with
         (parse-with xs env)
@@ -733,10 +703,12 @@
          :expr (second xs)}
 
         ;; else
-        (let [xs* (expand-seq xs env)]
-          (if (= xs* xs)
-            (parse-seq-no-head xs env)
-            (parse xs* env))))
+        (if-some [macroexpand-1 (::macroexpand-1 env)]
+          (let [xs* (macroexpand-1 xs env)]
+            (if (= xs* xs)
+              (parse-seq-no-head xs env)
+              (assoc (parse xs* env) ::original-form xs)))
+          (parse-seq-no-head xs env)))
       (parse-seq-no-head xs env))))
 
 (defn parse-symbol
@@ -1779,8 +1751,7 @@
             q-sym (symbol (name (ns-name *ns*))
                           (name sym))
             arglist (get data :arglist)
-            body (get data :body)
-            name-key (keyword (name (gensym "name__")))]
+            body (get data :body)]
         ;; When defining new syntax in ClojureScript it is also
         ;; necessary to define the methods which parse and expand the
         ;; syntax in Clojure. This is because the match, search, and

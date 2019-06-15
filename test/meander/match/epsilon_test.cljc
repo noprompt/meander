@@ -707,12 +707,6 @@
              {:?x 1, :?y 2, :!zs [1 2 3 5 6 7 8 9]}
              {:?x 1, :?y 2, :!zs [3 5 6 7 8 9]}})))
 
-(t/deftest vscan-test
-  (t/is (= '([:_1 "_1"] [:_2 "_2"] [:_3 "_3"] [:_4 "_4"])
-           (r.match/search [{:_1 "_1"} {:_2 "_2", :_3 "_3"} {:_4 "_4"}]
-             (vscan {?k ?v})
-             [?k ?v]))))
-
 (t/deftest scan-test
   (t/is (= '([:_1 "_1"] [:_2 "_2"] [:_3 "_3"] [:_4 "_4"])
            (r.match/search [{:_1 "_1"} {:_2 "_2", :_3 "_3"} {:_4 "_4"}]
@@ -729,7 +723,6 @@
            (r.match/search '([1 2] 3 [4 5] 6)
              (scan [?x ?y] ?z)
              [?x ?y ?z]))))
-
 
 (t/deftest separated-test
   ;; Note [1 2 4 5] appears twice in the result set, this is not a

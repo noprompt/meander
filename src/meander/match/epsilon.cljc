@@ -10,6 +10,7 @@
             [meander.match.ir.epsilon :as r.ir]
             [meander.matrix.epsilon :as r.matrix]
             [meander.syntax.epsilon :as r.syntax]
+            [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.util.epsilon :as r.util]
             #?(:cljs [goog.object :as gobj]))
   #?(:clj
@@ -1981,7 +1982,7 @@
   ([x]
    (parse-expand x {}))
   ([x env]
-   (expand-node (r.syntax/parse x env))))
+   (expand-node (r.match.syntax/parse x env))))
 
 
 ;; TODO: Include useless clause analysis.
@@ -2014,7 +2015,7 @@
                        (s/explain-data :meander.match.epsilon.match/args match-args)))
        (let [clauses (map
                       (fn [{:keys [pat rhs]}]
-                        {:pat (r.syntax/parse pat env)
+                        {:pat (r.match.syntax/parse pat env)
                          :rhs rhs})
                       (:clauses data))
              errors (into []
@@ -2046,6 +2047,7 @@
           :exhaustive? (some? final-clause)
           :final-clause final-clause
           :matrix matrix})))))
+
 
 (s/fdef match
   :args (s/cat :expr any?
@@ -2102,7 +2104,7 @@
                        (s/explain-data :meander.match.epsilon.match/args match-args)))
        (let [clauses (mapv
                       (fn [{:keys [pat rhs]}]
-                        {:pat (r.syntax/parse pat env)
+                        {:pat (r.match.syntax/parse pat env)
                          :rhs rhs})
                       (:clauses data))
              errors (into [] (keep
@@ -2185,7 +2187,7 @@
                        (s/explain-data :meander.match.epsilon.match/args match-args)))
        (let [clauses (mapv
                       (fn [{:keys [pat rhs]}]
-                        {:pat (r.syntax/parse pat env)
+                        {:pat (r.match.syntax/parse pat env)
                          :rhs rhs})
                       (:clauses data))
              errors (into [] (keep
@@ -2255,3 +2257,26 @@
   :args (s/cat :expr any?
                :clauses :meander.match.epsilon.match/clauses)
   :ret any?)
+
+;; ---------------------------------------------------------------------
+;; Match operators
+
+(r.match.syntax/defsyntax scan [& args]
+  (let [argc (count args)
+        [as pattern] (drop (- argc 2) args)
+        inner (if (= :as as)
+                `(~@'(_ ...) ~@args ~@'(. _ ...) :as ~pattern)
+                `(~@'(_ ...) ~@args ~@'(. _ ...)))]
+    `(~'or [~@inner]
+      ;; Needed to prevent producing the same search results twice
+      ;; when the target is a vector.
+      (~'and (~'not (~'pred vector?))
+       (~'pred seqable? (~'app seq ~inner))))))
+
+(r.match.syntax/defsyntax separated [& args]
+  (let [inner `(~@'(_ ...) ~@(mapcat cons args (repeat '(. _ ...))))]
+    `(~'or [~@inner]
+      ;; Needed to prevent producing the same search results twice
+      ;; when the target is a vector.
+      (~'and (~'not (~'pred vector?))
+       (~'pred seqable? (~'app seq (~@inner)))))))
