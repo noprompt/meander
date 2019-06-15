@@ -391,14 +391,14 @@
   (let [env* (assoc env :collection-context :seq)]
     (r.match/find node
       {:prt {:left {:tag :cat
-                    :elements (and ?left-elements (not (scan {:tag :uns})))}
+                    :elements (and ?left-elements (not (r.match/scan {:tag :uns})))}
              :right {:tag :cat
-                     :elements (and ?right-elements (not (scan {:tag :uns})))}}}
+                     :elements (and ?right-elements (not (r.match/scan {:tag :uns})))}}}
       `(list ~@(compile-all ?left-elements env*)
              ~@(compile-all ?right-elements env*))
 
       {:prt {:left {:tag :cat
-                    :elements (and ?left-elements (not (scan {:tag :uns})))}
+                    :elements (and ?left-elements (not (r.match/scan {:tag :uns})))}
              :right {:tag :lit
                      :value (_ ... :as ?right-elements)}}}
       `(list ~@(compile-all ?left-elements env*)
@@ -510,8 +510,8 @@
         env* (add-wth-refs env (r.syntax/make-ref-map node))]
     ;; Compile functions only for the references used.
     `(letfn [~@(r.match/search [node ref-set]
-                 [{:bindings (scan {:ref {:symbol ?symbol :as ?ref}
-                                    :pattern ?pattern})}
+                 [{:bindings (r.match/scan {:ref {:symbol ?symbol :as ?ref}
+                                            :pattern ?pattern})}
                   #{?ref}]
                  `(~?symbol []
                    ~(compile-substitute ?pattern env*)))]

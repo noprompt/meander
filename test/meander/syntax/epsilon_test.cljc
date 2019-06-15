@@ -2,6 +2,7 @@
   (:require
    [clojure.test :as t]
    [meander.match.epsilon :as r.match]
+   [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
    [meander.syntax.epsilon :as r.syntax :include-macros true]))
 
 
@@ -13,7 +14,7 @@
            (r.syntax/match-bindings
             (r.syntax/parse '(not (not [?x])))))))
 
-(r.syntax/defsyntax $cons [?head ?tail]
+(r.match.syntax/defsyntax $cons [?head ?tail]
   `(~'pred clojure.core/seq?
     (~'app clojure.core/first ~?head)
     (~'app clojure.core/rest ~?tail)))

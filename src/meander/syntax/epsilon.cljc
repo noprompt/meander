@@ -686,9 +686,9 @@
             (let [capture (nth xs 2 nothing)]
               (if (identical? capture nothing)
                 {:tag :rxt
-                 :regex (parse regex)}
+                 :regex regex}
                 {:tag :rxc
-                 :regex (parse regex)
+                 :regex regex
                  :capture (parse capture env)}))))
 
         with

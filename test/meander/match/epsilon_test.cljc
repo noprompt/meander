@@ -582,7 +582,7 @@
 
   (t/is (= '([2 :_1 1] [2 :_3 3])
            (r.match/search {:_1 1, :_2 2, :_3 3}
-             {:_2 ?2 & (vscan [?k ?v])}
+             {:_2 ?2 & (r.match/scan [?k ?v])}
              [?2 ?k ?v]))))
 
 
@@ -710,18 +710,18 @@
 (t/deftest scan-test
   (t/is (= '([:_1 "_1"] [:_2 "_2"] [:_3 "_3"] [:_4 "_4"])
            (r.match/search [{:_1 "_1"} {:_2 "_2", :_3 "_3"} {:_4 "_4"}]
-             (scan {?k ?v})
+             (r.match/scan {?k ?v})
              [?k ?v])
            (r.match/search '({:_1 "_1"} {:_2 "_2", :_3 "_3"} {:_4 "_4"})
-             (scan {?k ?v})
+             (r.match/scan {?k ?v})
              [?k ?v])))
 
   (t/is (= '([1 2 3] [4 5 6])
            (r.match/search [[1 2] 3 [4 5] 6]
-             (scan [?x ?y] ?z)
+             (r.match/scan [?x ?y] ?z)
              [?x ?y ?z])
            (r.match/search '([1 2] 3 [4 5] 6)
-             (scan [?x ?y] ?z)
+             (r.match/scan [?x ?y] ?z)
              [?x ?y ?z]))))
 
 (t/deftest separated-test

@@ -50,8 +50,8 @@
 
   (let [!1s [:X :O :X :O]
         !2s [1 2 3 4]]
-    (t/is (= [:X 1 :O 2 :X :O 3 4])
-          (r.substitute/substitute [!1s !2s ..2 !1s ... !2s ...]))))
+    (t/is (= [:X 1 :O 2 :X :O 3 4]
+             (r.substitute/substitute [!1s !2s ..2 !1s ... !2s ...])))))
 
 
 (t/deftest unq-test
