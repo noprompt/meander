@@ -703,8 +703,8 @@
          :expr (second xs)}
 
         ;; else
-        (if-some [macroexpand-1 (::macroexpand-1 env)]
-          (let [xs* (macroexpand-1 xs env)]
+        (if-some [syntax-expand (::syntax-expand env)]
+          (let [xs* (syntax-expand xs env)]
             (if (= xs* xs)
               (parse-seq-no-head xs env)
               (assoc (parse xs* env) ::original-form xs)))

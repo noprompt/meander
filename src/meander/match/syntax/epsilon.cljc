@@ -1,5 +1,4 @@
 (ns meander.match.syntax.epsilon
-  (:refer-clojure :exclude [macroexpand-1])
   #?(:clj
      (:require [clojure.walk :as walk]
                [clojure.spec.alpha :as s]
@@ -283,10 +282,10 @@
   [sym env]
   (get (deref macro-registry) (expand-symbol sym env)))
 
-(defn macroexpand-1
+(defn syntax-expand
   {:private true}
   ([form]
-   (macroexpand-1 form {}))
+   (syntax-expand form {}))
   ([form env]
    (let [macro (if (seq? form)
                  (if (symbol? (first form))
@@ -304,9 +303,9 @@
 
 (defn parse
   ([form]
-   (r.syntax/parse form {::r.syntax/macroexpand-1 macroexpand-1}))
+   (r.syntax/parse form {::r.syntax/syntax-expand syntax-expand}))
   ([form env]
-   (r.syntax/parse form (assoc env ::r.syntax/macroexpand-1 macroexpand-1))))
+   (r.syntax/parse form (assoc env ::r.syntax/syntax-expand syntax-expand))))
 
 (defmacro defsyntax [& defn-args]
   (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
