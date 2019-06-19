@@ -4,14 +4,240 @@
      (:require [clojure.walk :as walk]
                [clojure.spec.alpha :as s]
                [clojure.core.specs.alpha :as core.specs]
-               [meander.syntax.epsilon :as r.syntax])
+               [meander.syntax.epsilon :as r.syntax]
+               [meander.util.epsilon :as r.util])
      :cljs
      (:require [clojure.walk :as walk]
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.core.specs.alpha :as core.specs]
-               [meander.syntax.epsilon :as r.syntax]))
+               [meander.syntax.epsilon :as r.syntax]
+               [meander.util.epsilon :as r.util]))
   #?(:cljs
      (:require-macros [meander.syntax.epsilon])))
+
+;; ---------------------------------------------------------------------
+;; Rewriting
+
+(defn expand-as
+  {:private true}
+  [node]
+  (if-some [as (:as node)]
+    {:tag :cnj
+     :arguments [(assoc node :as nil) as]}
+    node))
+
+(defn flatten-cnj
+  [cnj-node]
+  (let [arguments (:arguments cnj-node)
+        arguments* (mapcat
+                    (fn f [node]
+                      (if (= (r.syntax/tag node) :cnj)
+                        (mapcat f (:arguments node))
+                        (list node)))
+                    arguments)]
+    {:tag :cnj
+     :arguments arguments*}))
+
+(defn flatten-dsj
+  [dsj-node]
+  (let [arguments (:arguments dsj-node)
+        arguments* (mapcat
+                    (fn f [node]
+                      (if (= (r.syntax/tag node) :dsj)
+                        (mapcat f (:arguments node))
+                        (list node)))
+                    arguments)]
+    {:tag :dsj
+     :arguments arguments*}))
+
+(defn expand-dsj
+  [node]
+  (let [arguments (:arguments (flatten-dsj node))]
+    (case (count arguments)
+      1
+      (first arguments)
+
+      ;; else
+      (let [[a b] (split-with r.syntax/literal? arguments)]
+        (case (count a)
+          0
+          node
+
+          1
+          {:tag :dsj
+           :arguments [(first a)
+                       {:tag :dsj
+                        :arguments b}]}
+
+          ;; else
+          (let [case-tests (sequence
+                            (comp (map r.syntax/lit-form)
+                                  (distinct)
+                                  (map r.util/case-test-form))
+                            a)
+                pred-form `(fn [x#]
+                             (case x#
+                               (~@case-tests)
+                               true
+                               false))]
+            {:tag :prd
+             :form pred-form
+             :arguments (if (seq b)
+                          [{:tag :dsj
+                            :arguments b}]
+                          [])}))))))
+
+(defn expand-map-rest
+  [node]
+  (if-some [rest-map (:rest-map node)]
+    (let [key-map (into {} (keep (fn [k-node]
+                                   (if (or (r.syntax/ground? k-node)
+                                           (r.syntax/lvr-node? k-node))
+                                     [k-node k-node]
+                                     [k-node {:tag :mut
+                                              :symbol (gensym "*m__")}])))
+                        (keys (:map node)))
+          map* (into {} (map (fn [[k-node v-node]]
+                               (let [node (get key-map k-node)]
+                                 (if (= node k-node)
+                                   [k-node v-node]
+                                   [{:tag :cnj
+                                     :arguments [k-node node]}
+                                    v-node]))))
+                     (:map node))
+          node* (assoc node :rest-map nil)
+          node* (assoc node* :map map*)]
+      {:tag :cnj
+       :arguments [node*
+                   {:tag :app
+                    :fn-expr `(fn [m#]
+                                (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
+                    :arguments [rest-map]}]})
+    node))
+
+(defn expand-map
+  [node]
+  (let [node* (expand-as node)]
+    (if (= node* node)
+      (expand-map-rest node)
+      node*)))
+
+(defn move-seq-rest-to-prt-as
+  "Moves the `:rest` value `rest-node` of a `:seq` node into the `:as`
+  key of its `:prt` provided `rest-node` is not nil.
+
+  Example
+
+      (move-seq-rest-to-prt-as
+       '{:tag :seq
+         :prt {:tag :prt
+               :left {:tag :cat
+                      :elements ({:tag :lit :value 1})}
+               :right {:tag :cat :elements []}}
+         :as nil
+         :rest {:tag :lvr :symbol ?foo}})
+      ;; ------^
+      ;; =>
+      {:tag :seq
+       :prt {:tag :prt
+             :left {:tag :cat
+                    :elements ({:tag :lit :value 1})}
+             :right {:tag :cat
+                     :elements []}
+             :as {:tag :lvr :symbol ?foo}}
+       ;; -------^
+       :as nil
+       :rest nil}"
+  [seq-node]
+  (if-some [rest-node (:rest seq-node)]
+    (merge seq-node
+           {:prt (assoc (:prt seq-node) :as rest-node)
+            :rest nil})
+    seq-node))
+
+(defn expand-not [node]
+  (let [argument (:argument node)]
+    (if (= (r.syntax/tag argument) :not)
+      (:argument argument)
+      node)))
+
+(defn expand-set-rest [node]
+  (if-some [rest-set (:rest node)]
+    (let [elements (:elements node)
+          elem-map (into {}
+                         (map
+                          (fn [node]
+                            (if (or (r.syntax/ground? node)
+                                    (r.syntax/lvr-node? node))
+                              [node node]
+                              [node {:tag :mut
+                                     :symbol (gensym "*m__")}])))
+                         elements)
+          elements* (map
+                     (fn [node]
+                       (let [[n1 n2] (find elem-map node)]
+                         (if (= n1 n2)
+                           n1
+                           {:tag :cnj
+                            :arguments [n1 n2]})))
+                     elements)
+          node* (assoc node :elements elements*)
+          node* (dissoc node* :rest)]
+      {:tag :cnj
+       :arguments [node* {:tag :app
+                          :fn-expr `(fn [s#]
+                                      (disj s# ~@(map r.syntax/unparse (vals elem-map))))
+                          :arguments [rest-set]}]})
+    node))
+
+(defn expand-set
+  [node]
+  (let [node* (expand-as node)]
+    (if (= node* node)
+      (expand-set-rest node)
+      node*)))
+
+(defn expand-seq [node]
+  (expand-as node))
+
+(defn expand-vec [node]
+  (expand-as node))
+
+(defn expand-node
+  "Takes an AST node as returned by `meander.syntax.epsilon/parse` and
+  expands it in such a way that it can either reduce compiled code
+  size, improve compiled code efficiency, or both."
+  [node]
+  (r.syntax/prewalk
+   (fn f [node]
+     (case (r.syntax/tag node)
+       :cnj
+       (flatten-cnj node)
+     
+       :dsj
+       (expand-dsj node)
+
+       :map
+       (expand-map node)
+
+       :not
+       (expand-not node)
+      
+       :set
+       (expand-set node)
+
+       :seq
+       (expand-seq node)
+
+       :vec
+       (expand-vec node)
+
+       ;; else
+       node))
+   (r.syntax/rename-refs node)))
+
+;; ---------------------------------------------------------------------
+;; Syntax extension
 
 
 (def ^{:dynamic true}
@@ -147,6 +373,6 @@
 ;; can't find it, the second time works like a charm. Needless to say,
 ;; we can't have this namespace cause breakage by virtue of requiring
 ;; it and getting this error. Needs investigation.
-#?(:clj 
+#?(:clj
    (s/fdef defsyntax
      :args ::core.specs/defn-args))

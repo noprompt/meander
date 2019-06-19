@@ -2100,6 +2100,45 @@
               [b nil]
               [b (partition-from-nodes rest-p-nodes)])))))))
 
+(defn lit-form
+  [node]
+  (case (tag node)
+    :cat
+    (map lit-form (:elements node))
+
+    :jsa
+    #?(:clj
+       (JSValue. (vec (lit-form (:prt node))))
+       :cljs
+       (into-array (lit-form (:prt node))))
+
+    :lit
+    (:value node)
+
+    :map
+    (into {}
+          (map (fn [[k v]]
+                 [(lit-form k) (lit-form v)]))
+          (:map node))
+
+    :prt
+    (concat (lit-form (:left node))
+            (lit-form (:right node)))
+
+    :quo
+    (:form node)
+
+    :vec
+    (into [] (lit-form (:prt node)))
+
+    :seq
+    (if-some [l (seq (lit-form (:prt node)))]
+      l
+      ())
+
+    :set
+    (into #{} (map lit-form (:elements node)))))
+
 (comment
   (analyze (parse '[(not [?x (not ?x)]) !xs (not [?x ?x])]))
   ;; =>

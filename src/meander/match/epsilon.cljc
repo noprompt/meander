@@ -187,48 +187,6 @@
     :set
     (into #{} (map compile-ground (:elements node)))))
 
-
-(defn lit-form
-  {:private true}
-  [node]
-  (case (r.syntax/tag node)
-    :cat
-    (map lit-form (:elements node))
-
-    :jsa
-    #?(:clj
-       (JSValue. (vec (lit-form (:prt node))))
-       :cljs
-       (into-array (lit-form (:prt node))))
-
-    :lit
-    (:value node)
-
-    :map
-    (into {}
-          (map (fn [[k v]]
-                 [(lit-form k) (lit-form v)]))
-          (:map node))
-
-    :prt
-    (concat (lit-form (:left node))
-            (lit-form (:right node)))
-
-    :quo
-    (:form node)
-
-    :vec
-    (into [] (lit-form (:prt node)))
-
-    :seq
-    (if-some [l (seq (lit-form (:prt node)))]
-      l
-      ())
-
-    :set
-    (into #{} (map lit-form (:elements node)))))
-
-
 (defn compile-pass
   {:private true}
   [targets matrix]
@@ -910,7 +868,9 @@
                ;; Target length symbol
                nsym (gensym "n__")
                ;; Target length symbol minus either the left or right min length
-               msym (gensym* "m__")]
+               msym (gensym* "m__")
+               ;; The optional as node
+               as-node (:as node)]
            (case [(r.syntax/variable-length? left) (r.syntax/variable-length? right)]
              ;; Invariable length.
              [false false]
@@ -923,6 +883,7 @@
 
                (zero? llen)
                (r.ir/op-check-bounds (r.ir/op-eval target) rlen *collection-context*
+
                  (compile targets [(assoc row :cols `[~right ~@(:cols row)])]))
 
                (zero? rlen)
@@ -981,7 +942,7 @@
                      (if right
                        (r.ir/op-search parts-sym `(r.util/partitions 2 ~target)
                          (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
-                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)   
+                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
                              (let [partition-sym (gensym "partition__")]
                                (r.ir/op-search partition-sym (r.ir/op-eval lsym)
                                  (compile `[~partition-sym ~rsym ~@targets*]
@@ -994,7 +955,7 @@
                      (if right
                        (r.ir/op-search parts-sym `(r.util/partitions 2 ~cat-length ~target)
                          (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
-                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)   
+                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
                              (let [partition-sym (gensym "partition__")]
                                (r.ir/op-search partition-sym (r.ir/op-eval `(partition ~cat-length 1 ~lsym))
                                  (compile `[~partition-sym ~rsym ~@targets*]
@@ -1321,7 +1282,7 @@
          :seq
          (r.ir/op-check-seq (r.ir/op-eval target)
            (if (literal? node)
-             (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (lit-form node))
+             (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
                (compile targets* [row]))
              (binding [*collection-context* :seq]
                (compile targets [(assoc row :cols `[~(:prt node) ~@(:cols row)])]))))))
@@ -1355,7 +1316,7 @@
 
        :vec
        (if (literal? node)
-         (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (lit-form node))
+         (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
            (compile targets* [row]))
          (r.ir/op-check-vector (r.ir/op-eval target)
            (let [;; prt needs to be compiled within a :vector
@@ -1827,162 +1788,12 @@
   (s/nilable :meander.matrix.alpha/row))
 
 
-(s/fdef analyze-match-args
-  :args (s/cat :match-args :meander.match.epsilon.match/args)
-  :ret :meander.match.epsilon.match/data)
-
-(defn expand-dsj
-  {:private true}
-  [node]
-  (let [arguments (:arguments node)]
-    (case (count arguments)
-      1
-      (first arguments)
-
-      ;; else
-      (let [[a b] (split-with r.syntax/literal? arguments)]
-        (case (count a)
-          0
-          node
-
-          1
-          {:tag :dsj
-           :arguments [(first a)
-                       {:tag :dsj
-                        :arguments b}]}
-
-          ;; else
-          (let [case-tests (sequence
-                            (comp (map lit-form)
-                                  (distinct)
-                                  (map r.util/case-test-form))
-                            a)
-                pred-form `(fn [x#]
-                             (case x#
-                               (~@case-tests)
-                               true
-                               false))]
-            {:tag :prd
-             :form pred-form
-             :arguments (if (seq b)
-                          [{:tag :dsj
-                            :arguments b}]
-                          [])}))))))
-
-;; TODO: Break this up in to separate functions.
-(defn expand-node
-  "This function takes an AST node as returned by
-  `meander.syntax.epsilon/parse` and rewrites it in ways that can either
-  reduce compiled code size, efficiency, or both."
-  {:private true}
-  [node]
-  (r.syntax/prewalk
-   (fn f [x]
-     (case (r.syntax/tag x)
-       :cnj
-       (let [arguments (:arguments x)
-             arguments* (mapcat
-                         (fn [x]
-                           (if (= (r.syntax/tag x) :cnj)
-                             (:arguments x)
-                             (list x)))
-                         arguments)]
-         (if (= arguments arguments*)
-           x
-           (f {:tag :cnj
-               :arguments arguments*})))
-
-       :dsj
-       (expand-dsj x)
-
-       :map
-       (if-some [rest-map (:rest-map x)]
-         (let [key-map (into {}
-                             (keep (fn [k-node]
-                                     (if (or (r.syntax/ground? k-node)
-                                             (r.syntax/lvr-node? k-node))
-                                       [k-node k-node]
-                                       [k-node {:tag :mut
-                                                :symbol (gensym "*m__")}])))
-                             (keys (:map x)))
-               map* (into {}
-                          (map
-                           (fn [[k-node v-node]]
-                             (let [node (get key-map k-node)]
-                               (if (= node k-node)
-                                 [k-node v-node]
-                                 [{:tag :cnj
-                                   :arguments [k-node node]}
-                                  v-node]))))
-                          (:map x))
-               x* (dissoc x :rest-map)
-               x* (assoc x* :map map*)]
-           (f {:tag :cnj
-               :arguments [x* {:tag :app
-                               :fn-expr `(fn [m#]
-                                           (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
-                               :arguments [rest-map]}]}))
-         (if-some [as (:as x)]
-           (f {:tag :cnj
-               :arguments [(dissoc x :as) as]})
-           x))
-
-       :not
-       (let [argument (:argument x)]
-         (if (= (r.syntax/tag argument) :not)
-           (f (:argument argument))
-           x))
-
-       :set
-       (if-some [rest-set (:rest x)]
-         (let [elements (:elements x)
-               elem-map (into {}
-                              (map
-                               (fn [node]
-                                 (if (or (r.syntax/ground? node)
-                                         (r.syntax/lvr-node? node))
-                                   [node node]
-                                   [node {:tag :mut
-                                          :symbol (gensym "*m__")}])))
-                              elements)
-               elements* (map
-                          (fn [node]
-                            (let [[n1 n2] (clojure/find elem-map node)]
-                              (if (= n1 n2)
-                                n1
-                                {:tag :cnj
-                                 :arguments [n1 n2]})))
-                          elements)
-               x* (assoc x :elements elements*)
-               x* (dissoc x* :rest)]
-           (f {:tag :cnj
-               :arguments [x* {:tag :app
-                               :fn-expr `(fn [s#]
-                                           (disj s# ~@(map r.syntax/unparse (vals elem-map))))
-                               :arguments [rest-set]}]}))
-         (if-some [as (:as x)]
-           (let [x* (dissoc x :as)]
-             (f {:tag :cnj
-                 :arguments [x* as]}))
-           x))
-
-       (:seq :vec)
-       (if-some [as (:as x)]
-         (f {:tag :cnj
-             :arguments [as (dissoc x :as)]})
-         x)
-
-
-       ;; else
-       x))
-   (r.syntax/rename-refs node)))
-
 (defn parse-expand
   {:private true}
   ([x]
    (parse-expand x {}))
   ([x env]
-   (expand-node (r.match.syntax/parse x env))))
+   (r.match.syntax/expand-node (r.match.syntax/parse x env))))
 
 
 ;; TODO: Include useless clause analysis.
@@ -2048,11 +1859,9 @@
           :final-clause final-clause
           :matrix matrix})))))
 
-
-(s/fdef match
-  :args (s/cat :expr any?
-               :clauses :meander.match.epsilon.match/clauses)
-  :ret any?)
+(s/fdef analyze-match-args
+  :args (s/cat :match-args :meander.match.epsilon.match/args)
+  :ret :meander.match.epsilon.match/data)
 
 
 (defmacro match
@@ -2079,6 +1888,12 @@
                               (r.ir/compile (compile [target] [final-clause]) nil :match &env)
                               `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
                ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env))))))))
+
+
+(s/fdef match
+  :args (s/cat :expr any?
+               :clauses :meander.match.epsilon.match/clauses)
+  :ret any?)
 
 
 (defn analyze-search-args
