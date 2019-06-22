@@ -1869,6 +1869,9 @@
 (defmethod walk :seq [inner outer node]
   (outer (assoc node :prt (inner (:prt node)))))
 
+(defmethod walk :tail [inner outer node]
+  (outer (assoc node :pattern (inner (:pattern node)))))
+
 (defmethod walk :vec [inner outer node]
   (outer (assoc node :prt (inner (:prt node)))))
 
