@@ -1852,7 +1852,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(expand-node (:pat clause))]
+                        [(r.match.syntax/expand-node (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
                      clauses)
              final-clause (some
@@ -1944,7 +1944,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(expand-node (:pat clause))]
+                        [(r.match.syntax/expand-node (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
                      clauses)]
          {:errors errors
@@ -2027,7 +2027,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(expand-node (:pat clause))]
+                        [(r.match.syntax/expand-node (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
                      clauses)
              final-clause (some
