@@ -746,50 +746,6 @@
              [?a ?b ?c ?d]))))
 
 ;; ---------------------------------------------------------------------
-;; check
-
-(t/deftest no-value-before-zero-or-more
-  (t/testing "match"
-    (let [error (r.match/check (r.syntax/parse '[... ?x]) false)]
-      (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
-               #?(:clj (.getMessage error)
-                  :cljs (.-message error))))))
-
-  (t/testing "search"
-    (let [error (r.match/check (r.syntax/parse '[... ?x]) true)]
-      (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
-               #?(:clj (.getMessage error)
-                  :cljs (.-message error)))))))
-
-
-(t/deftest no-value-before-one-or-more
-  (t/testing "match"
-    (let [error (r.match/check (r.syntax/parse '[..2 ?x]) false)]
-      (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
-               #?(:clj (.getMessage error)
-                  :cljs (.-message error))))))
-
-  (t/testing "search"
-    (let [error (r.match/check (r.syntax/parse '[..2 ?x]) true)]
-      (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
-               #?(:clj (.getMessage error)
-                  :cljs (.-message error)))))))
-
-
-(t/deftest no-value-after-one-or-more
-  (t/testing "match"
-    (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) false)]
-      (t/is (=  "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
-                #?(:clj (.getMessage error)
-                   :cljs (.-message error))))))
-
-  (t/testing "search"
-    (let [error (r.match/check (r.syntax/parse '[1 .. ?x]) true)]
-      (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
-               #?(:clj (.getMessage error)
-                  :cljs (.-message error)))))))
-
-;; ---------------------------------------------------------------------
 ;; Misc
 
 (t/deftest memory-variables-in-nested-zero-or-more
