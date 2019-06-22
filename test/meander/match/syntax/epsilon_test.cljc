@@ -36,9 +36,8 @@
   (gen-and-form (tc.gen/recursive-gen gen-and-form gen)))
 
 ;; ---------------------------------------------------------------------
-;; Rewriting tests
+;; AST rewriting tests
 
 (t/deftest map-expand-as
-  (= (r.match.syntax/expand-node
-      (r.match.syntax/parse '{:foo :bar :as ?baz}))
+  (= (r.match.syntax/expand-ast (r.match.syntax/parse '{:foo :bar :as ?baz}))
      (r.match.syntax/parse '(and {:foo :bar} ?baz))))

@@ -168,7 +168,7 @@
 (defn expand-vec [node]
   (expand-as node))
 
-(defn expand-node
+(defn expand-ast
   "Takes an AST node as returned by `meander.syntax.epsilon/parse` and
   expands it in such a way that it can either reduce compiled code
   size, improve compiled code efficiency, or both."

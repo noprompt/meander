@@ -1808,7 +1808,7 @@
   ([x]
    (parse-expand x {}))
   ([x env]
-   (r.match.syntax/expand-node (r.match.syntax/parse x env))))
+   (r.match.syntax/expand-ast (r.match.syntax/parse x env))))
 
 
 ;; TODO: Include useless clause analysis.
@@ -1852,7 +1852,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(r.match.syntax/expand-node (:pat clause))]
+                        [(r.match.syntax/expand-ast (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
                      clauses)
              final-clause (some
@@ -1944,7 +1944,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(r.match.syntax/expand-node (:pat clause))]
+                        [(r.match.syntax/expand-ast (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
                      clauses)]
          {:errors errors
@@ -2027,7 +2027,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(r.match.syntax/expand-node (:pat clause))]
+                        [(r.match.syntax/expand-ast (:pat clause))]
                         (r.ir/op-return (:rhs clause))))
                      clauses)
              final-clause (some
