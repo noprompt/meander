@@ -19,6 +19,7 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+
 ;; ---------------------------------------------------------------------
 ;; AST specs and predicates
 
@@ -211,12 +212,24 @@
 (s/def :meander.syntax.epsilon.node.partition/right
   :meander.syntax.epsilon/node)
 
+(s/def :meander.syntax.epsilon.node.partition/right
+  :meander.syntax.epsilon/node)
+
 (s/def :meander.syntax.epsilon.node/partition
   (s/keys :req-un [:meander.syntax.epsilon.node.partition/left
-                   :meander.syntax.epsilon.node.partition/right]))
+                   :meander.syntax.epsilon.node.partition/right]
+          :opt-un [:meander.syntax.epsilon.node.partition/as]))
 
 (defn partition-node? [x]
   (s/valid? :meander.syntax.epsilon.node/partition x))
+
+(defn empty-cat-node? [x]
+  (and (= :cat (:tag x))
+       (not (seq (:elements x)))))
+
+(defn tail-node? [x]
+  (and (= :tail (:tag x))
+       (some? (:pattern x))))
 
 (defn node?
   "true if x is an AST node."
@@ -259,28 +272,55 @@
   [node]
   (rest (subnodes node)))
 
+(defmulti min-length
+  "The minimum possible length the pattern described by `node` can be.
+  Note, this multimethod will throw an error whenever `node` does not
+  have a method to handle it. This behavior is intentional as the
+  implementations should only exist for things which have can have
+  length. The `min-length?` predicate can be used to detect if `node`
+  implements `min-length`."
+  {:arglists '([node])}
+  #'tag)
+
+(s/fdef min-length
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret (s/or :nat nat-int?
+             :inf #{##Inf}))
+
+(defn min-length?
+  "true if `x` implements `min-length`, false otherwise."
+  [x]
+  (and (node? x)
+       (contains? (methods min-length) (tag x))))
+
+(s/fdef min-length?
+  :args (s/cat :x any?)
+  :ret boolean?)
+
+(defmulti max-length
+  "The maximum possible length the pattern described by `node` can
+  be. Note, this multimethod will throw an error whenever `node` does
+  not have a method to handle it. This behavior is intentional as the
+  implementations should only exist for things which have can have
+  length. The `max-length?` predicate can be used to detect if `node`
+  implements `max-length`."
+  {:arglists '([node])}
+  #'tag)
+
 (s/fdef max-length
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/or :nat nat-int?
              :inf #{##Inf}))
 
-(defmulti max-length
-  "The maximum possible length the pattern described by node can
-  be. Note, this mutlimethod will throw an error wheneven node does
-  not have a method to handle it. This behavior is intentional as the
-  implementations should only exist for things which have can have
-  length."
-  {:arglists '([node])}
-  #'tag)
+(defn max-length?
+  "true if `x` implements `max-length`, false otherwise."
+  [x]
+  (and (node? x)
+       (contains? (methods max-length) (tag x))))
 
-(defmulti min-length
-  "The maximum possible length the pattern described by node can be.
-  Note, this mutlimethod will throw an error wheneven node does not
-  have a method to handle it. This behavior is intentional as the
-  implementations should only exist for things which have can have
-  length."
-  {:arglists '([node])}
-  #'tag)
+(s/fdef max-length?
+  :args (s/cat :x any?)
+  :ret boolean?)
 
 (s/fdef variable-length?
   :args (s/cat :node :meander.syntax.epsilon/node)
@@ -351,7 +391,7 @@
                        (merge-with set/union a b)))
                     vars
                     (:bindings node))
-         
+
          ;; else
          vars)))
    {:lvr #{}
@@ -468,7 +508,7 @@
 
                  (nil :dot)
                  {:tag :cat
-                  :elements l}) 
+                  :elements l})
          :right (expand-prt (next r))})
       (if (seq r)
         (let [node (first r)]
@@ -487,10 +527,30 @@
 
                    (nil :dot)
                    {:tag :cat
-                    :elements l}) 
+                    :elements l})
            :right (expand-prt (next r))})
         {:tag :cat
          :elements []}))))
+
+(defn prt-append
+  {:private true}
+  [prt node]
+  (cond
+    (partition-node? prt)
+    (if (partition-node? (:right prt))
+      (update prt :right prt-append node)
+      (if (empty-cat-node? (:right prt))
+        (assoc prt :right node)
+        (assoc prt :right
+               {:tag :prt
+                :left (:right prt)
+                :right node})))
+
+    (empty-cat-node? prt)
+    {:tag :prt
+     :left node
+     :right {:tag :cat
+             :elements []}}))
 
 (defn expand-symbol
   {:private true}
@@ -574,7 +634,7 @@
                    :meta (meta xs)}))))
     (parse xs env)))
 
-(defn parse-seq-no-head
+(defn parse-as
   {:private true}
   [xs env]
   (let [c (count xs)
@@ -586,15 +646,90 @@
             as-node (parse as-pattern env)]
         (case (:tag as-node)
           (:lvr :mvr)
-          {:tag :seq
-           :as as-node
-           :prt (expand-prt (parse-all xs* env))}
+          (let [;; Check for illegal :as pattern.
+                as-result (parse-as xs* env)]
+            (case (nth as-result 0)
+              (:failure :success)
+              [:failure ":as pattern may only occur once"]
+              ;; else
+              [:success xs* as-node]))
           ;; else
-          (throw (ex-info "Seq :as pattern must be a logic variable or memory variable"
-                          {:form xs
-                           :meta (meta xs)}))))
-      {:tag :seq
-       :prt (expand-prt (parse-all xs env))})))
+          [:failure ":as pattern must be a logic variable or memory variable"]))
+      [:nothing xs nil])))
+
+(defn parse-&
+  {:private true}
+  [xs env]
+  (let [c (count xs)
+        &-index (- c 2)]
+    (if (and (<= 2 c)
+             (= (nth xs &-index) '&))
+      (let [xs* (take &-index xs)
+            &-pattern (last xs)
+            &-node (parse &-pattern env)]
+        (let [;; Check for illegal :as pattern.
+              as-result (parse-as xs* env)]
+          (case (nth as-result 0)
+            (:failure :success)
+            [:failure "& pattern must appear be before :as pattern"]
+
+            ;; else
+            (let [;; Check for illegal & pattern.
+                  &-result (parse-& xs* env)]
+              (case (nth &-result 0)
+                (:failure :sucess)
+                [:failure "& pattern may only occur once"]
+
+                ;; else
+                [:success xs* &-node])))))
+      [:success xs nil])))
+
+(defn parse-sequential
+  "Used by `parse-seq-no-head` and `parse-vector` to parse their
+  `:prt` and `:as` nodes."
+  {:private true}
+  [xs env]
+  ;; Check for :as ?x or :as !xs
+  (let [as-result (parse-as xs env)]
+    (case (nth as-result 0)
+      :failure
+      (throw (ex-info (nth as-result 1)
+                      {:form xs
+                       :meta (meta xs)}))
+
+      (:success :nothing)
+      (let [[_ xs* as-node] as-result
+            ;; Check for & ?x or & !xs
+            &-result (parse-& xs* env)]
+        (case (nth &-result 0)
+          :failure
+          &-result
+
+          (:success :nothing)
+          (let [[_ xs** rest-node] &-result
+                prt (expand-prt (parse-all xs** env))
+                prt (if rest-node
+                      (prt-append prt {:tag :tail
+                                       :pattern rest-node})
+                      prt)]
+            [:success prt as-node]))))))
+
+(defn parse-seq-no-head
+  {:private true}
+  [xs env]
+  (let [result (parse-sequential xs env)]
+    (case (nth result 0)
+      :failure
+      (let [[_ error-message] result]
+        (throw (ex-info error-message
+                        {:form xs
+                         :meta (meta xs)})))
+
+      :success
+      (let [[_ prt as-node] result]
+        {:tag :seq
+         :prt prt
+         :as as-node}))))
 
 (defn parse-seq
   "Parses a seq? into a :meander.syntax.epsilon/node.
@@ -615,7 +750,7 @@
     (re <regex-expr>)
     (re <regex-expr> <pattern>)
     (with [%<simple-symbol> <pattern> ...] <pattern>)
-    (clojure.core/unquote <form>) 
+    (clojure.core/unquote <form>)
     (clojure.core/unquote-splicig <form>)
     (<symbol*> <form_0> ... <form_n>)
 
@@ -628,7 +763,7 @@
       (case x
         $
         (parse-contain xs env)
-        
+
         and
         {:tag :cnj
          :arguments (parse-all (rest xs) env)}
@@ -672,7 +807,7 @@
          :form (second xs)
          :arguments (parse-all (nnext xs) env)}
 
-        quote 
+        quote
         {:tag :quo
          :form (second xs)}
 
@@ -806,26 +941,19 @@
 (defn parse-vector
   {:private true}
   [v env]
-  (if (vector? v)
-    (let [c (count v)
-          as-index (- c 2)]
-      (if (and (<= 2 c)
-               (= (nth v as-index) :as))
-        (let [v* (subvec v 0 as-index)
-              [_ as-pattern] (subvec v as-index)
-              as-node (parse as-pattern env)]
-          (case (:tag as-node)
-            (:lvr :mvr)
-            {:tag :vec
-             :as as-node
-             :prt (expand-prt (parse-all v* env))}
-            ;; else
-            (throw (ex-info "Vector :as pattern must be a logic variable or memory variable"
-                            {:form v
-                             :meta (meta v)}))))
+  (let [result (parse-sequential v env)]
+    (case (nth result 0)
+      :failure
+      (let [[_ error-message] result]
+        (throw (ex-info error-message
+                        {:form v
+                         :meta (meta v)})))
+
+      :success
+      (let [[_ prt as-node] result]
         {:tag :vec
-         :prt (expand-prt (parse-all v env))}))
-    (parse v env)))
+         :prt prt
+         :as as-node}))))
 
 (defn parse-map
   {:private true}
@@ -880,7 +1008,6 @@
        :elements (parse-all s env)})
     (parse s env)))
 
-
 (s/fdef parse
   :args (s/alt :a1 (s/cat :x any?)
                :a2 (s/cat :x any? :env map?))
@@ -907,16 +1034,16 @@
    (let [node (cond
                 (seq? x)
                 (parse-seq x env)
-                
+
                 (vector? x)
-                (parse-vector x env) 
+                (parse-vector x env)
 
                 (and (map? x)
                      (not (record? x)))
                 (parse-map x env)
-                
+
                 (set? x)
-                (parse-set x env) 
+                (parse-set x env)
 
                 (symbol? x)
                 (parse-symbol x)
@@ -1148,7 +1275,7 @@
       x
       (if (= (first x) `list)
         (cons (first x) (map unparse-lit (rest x)))
-        (if (seq x) 
+        (if (seq x)
           (cons `list (map unparse-lit x))
           ())))
 
@@ -1296,7 +1423,9 @@
 (defmethod unparse :prt [node]
   `(~@(unparse (:left node))
     ~@(when-some [right (seq (unparse (:right node)))]
-        `(~'. ~@right))))
+        (if (tail-node? (:right node))
+          right
+          `(~'. ~@right)))))
 
 ;; This is not really a good definition. While it is true that finding
 ;; solutions for a series variable length subsequence patterns
@@ -1321,7 +1450,6 @@
 
 (defmethod unparse :quo [node]
   `(quote ~(:form node)))
-
 
 (defmethod search? :quo [_]
   false)
@@ -1515,12 +1643,54 @@
 (defmethod search? :seq [node]
   (search? (:prt node)))
 
-(defmethod min-length :seq
-  [node]
+(defmethod min-length :seq [node]
   (min-length (:prt node)))
 
 (defmethod max-length :seq [node]
   (max-length (:prt node)))
+
+;; :tail
+
+(defmethod children :tail [node]
+  [(:pattern node)])
+
+(defmethod ground? :tail [node]
+  (ground? (:pattern node)))
+
+(defmethod unparse :tail [node]
+  (list '& (unparse (:pattern node))))
+
+(defmethod search? :tail [node]
+  (search? (:pattern node)))
+
+;; To compute the `min-length` and `max-length` for `:tail` depends on
+;; the pattern it originated from. When the pattern looks similar to
+;;
+;;     (_ ... & (1 2 3))
+;;     ---------^^^^^^
+;;
+;; where the underlined pattern is the `:pattern` of the `:tail`, then
+;; `min-length` and `max-length` can be derived from this pattern. When
+;; the pattern looks something like
+;;
+;;     (_ ... & ?x)
+;;     ---------^^
+;;
+;; where the underlined pattern is the `:pattern` of the `:tail, then
+;; we fail back using `0` and `##Inf` for `min-length` and
+;; `max-length` respectively.
+
+(defmethod min-length :tail [node]
+  (let [pattern (:pattern node)]
+    (if (min-length? pattern)
+      (min-length pattern)
+      0)))
+
+(defmethod max-length :tail [node]
+  (let [pattern (:pattern node)]
+    (if (max-length? pattern)
+      (max-length pattern)
+      ##Inf)))
 
 ;; :unq
 
@@ -1846,7 +2016,6 @@
      :bindings (deref state)
      :body node}))
 
-
 (s/def :meander.syntax.epsilon/ref-map
   (s/map-of :meander.syntax.epsilon.node/ref
             :meander.syntax.epsilon/node))
@@ -1980,12 +2149,12 @@
             ;; else
             negated-counter)
           (dec negated-counter))
-        
+
         :occurrences
         (if (variable-node? node)
           (update (:occurrences state) node (fnil inc 0))
           (:occurrences state))
-        
+
         :occurrences-in-not
         (if (and (not (zero? negated-counter))
                  (variable-node? node))

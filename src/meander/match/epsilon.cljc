@@ -1290,6 +1290,21 @@
      (r.matrix/drop-column matrix))))
 
 
+(defmethod compile-specialized-matrix :tail
+  [_ targets matrix]
+  [(compile targets
+            (mapv
+             (fn [node row]
+               (case (r.syntax/tag node)
+                 :any
+                 (r.matrix/prepend-cells row [node])
+
+                 :tail
+                 (r.matrix/prepend-cells row [(:pattern node)])))
+             (r.matrix/first-column matrix)
+             (r.matrix/drop-column matrix)))])
+
+
 (defmethod compile-specialized-matrix :unq
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]

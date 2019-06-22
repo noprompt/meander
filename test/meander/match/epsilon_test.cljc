@@ -149,7 +149,7 @@
              false
              (catch Exception _
                true)))))
- 
+
 (tc.t/defspec let-succeeds
   (tc.prop/for-all [x gen-scalar
                     y gen-scalar]
@@ -788,7 +788,7 @@
       (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                #?(:clj (.getMessage error)
                   :cljs (.-message error)))))))
- 
+
 ;; ---------------------------------------------------------------------
 ;; Misc
 
@@ -962,7 +962,7 @@
                        {:owner ?owner
                         :names !names})))))
 
-(t/deftest find-separated-items 
+(t/deftest find-separated-items
   (t/is (= [:a :v '[[:any _] [:lvr ?a] [:lit "Bill"]]]
            (r.match/find '([:a [[:any _] [:lvr ?a] [:lit "Bill"]]]
                            [:e [[:lvr ?e] [:any _] [:lit "Alice"]]]
@@ -1378,6 +1378,9 @@
   (t/is (= [[1 2 3] [4 5 6]]
            (r.match/find '[1 2 3 4 5 6]
              [!xs ..?n !ys ..?n]
+             [!xs !ys])
+           (r.match/find '(1 2 3 4 5 6)
+             (!xs ..?n !ys ..?n)
              [!xs !ys]))))
 
 
@@ -1385,4 +1388,25 @@
   (t/is (= [[1 2 3 4 5 6] [4 2]]
            (r.match/find '[[1 2 3 4] [5 6]]
              [[!xs ..!ns] [!xs ..!ns]]
+             [!xs !ns])
+           (r.match/find '((1 2 3 4) (5 6))
+             ((!xs ..!ns) (!xs ..!ns))
              [!xs !ns]))))
+
+
+(t/deftest &-patterns-test
+  (t/is (= '#{(2 3) (3) ()}
+           (set (r.match/search '((a 2 3) (b 2 3))
+                  ((_ ... & ?rest) (_ ... & ?rest))
+                  ?rest))
+           (set (r.match/search '([a 2 3] [b 2 3])
+                  ([_ ... & ?rest] [_ ... & ?rest])
+                  ?rest))))
+
+  (t/is (= '#{[2 (3)] [3 ()]}
+           (set (r.match/search '((a 2 3) (b 2 3))
+                  ((_ ... & (?x & ?rest)) (_ ... & (?x & ?rest)))
+                  [?x ?rest]))
+           (set (r.match/search '([a 2 3] [b 2 3])
+                  ([_ ... & [?x & ?rest]] [_ ... & [?x & ?rest]])
+                  [?x ?rest])))))

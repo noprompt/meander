@@ -5,8 +5,7 @@
                [clojure.core.specs.alpha :as core.specs]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util])
-     :cljs
-     (:require [clojure.walk :as walk]
+     :cljs (:require [clojure.walk :as walk]
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.core.specs.alpha :as core.specs]
                [meander.syntax.epsilon :as r.syntax]
@@ -120,39 +119,6 @@
     (if (= node* node)
       (expand-map-rest node)
       node*)))
-
-(defn move-seq-rest-to-prt-as
-  "Moves the `:rest` value `rest-node` of a `:seq` node into the `:as`
-  key of its `:prt` provided `rest-node` is not nil.
-
-  Example
-
-      (move-seq-rest-to-prt-as
-       '{:tag :seq
-         :prt {:tag :prt
-               :left {:tag :cat
-                      :elements ({:tag :lit :value 1})}
-               :right {:tag :cat :elements []}}
-         :as nil
-         :rest {:tag :lvr :symbol ?foo}})
-      ;; ------^
-      ;; =>
-      {:tag :seq
-       :prt {:tag :prt
-             :left {:tag :cat
-                    :elements ({:tag :lit :value 1})}
-             :right {:tag :cat
-                     :elements []}
-             :as {:tag :lvr :symbol ?foo}}
-       ;; -------^
-       :as nil
-       :rest nil}"
-  [seq-node]
-  (if-some [rest-node (:rest seq-node)]
-    (merge seq-node
-           {:prt (assoc (:prt seq-node) :as rest-node)
-            :rest nil})
-    seq-node))
 
 (defn expand-not [node]
   (let [argument (:argument node)]
