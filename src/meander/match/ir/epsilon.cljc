@@ -603,21 +603,32 @@ compilation decisions."
 ;; :case rewriting
 ;; ---------------
 
+(defn ungroup-case
+  [node]
+  (if (op= node :case)
+    (assoc node :clauses
+           (mapcat
+            (fn [[test clause]]
+              (if (set? test)
+                (map vector test (repeat clause))
+                (list [test clause])))
+            (:clauses node)))
+    node))
+
 (defn rewrite-case-duplicate-actions
   [node]
   (if (op= node :case)
-    (let [clauses* (mapv
-                    (fn [[_ clauses]]
-                      [(into #{} (mapcat
-                                  (fn [clause]
-                                    (let [x (first clause)]
-                                      (if (and (coll? x) (not (map? x)))
-                                        x
-                                        (list x)))))
-                             clauses)
-                       (second (first clauses))])
-                    (group-by second (:clauses node)))]
-      (assoc node :clauses clauses*))
+    (let [node* (ungroup-case node)
+          clauses (:clauses node*)
+          tests (mapv first clauses)]
+      (if (= tests (distinct tests))
+        node
+        (let [clauses* (map
+                        (fn [index test]
+                          [test (op-branch (map second (get index test)))])
+                        (repeat (group-by first clauses))
+                        (distinct tests))]
+          (assoc node :clauses clauses*))))
     node))
 
 ;; :def rewriting
