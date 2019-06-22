@@ -364,6 +364,12 @@
     ;; Yield n substitutions.
     `(into [] cat (repeatedly ~?n (fn [] ~(compile-substitute ?cat env))))))
 
+(defmethod compile-substitute :rpl [node env]
+  (r.match/match node
+    {:cat ?cat
+     :lvr ?lvr}
+    `(into [] (repeatedly ~(compile-substitute ?lvr env)
+                          (fn [] ~(compile-substitute ?cat env))))))
 
 (defmethod compile-substitute :rst [node env]
   (r.match/find [node env]
