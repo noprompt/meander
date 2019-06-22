@@ -120,7 +120,7 @@
     (t/is (= #{1 2 3}
              (r.substitute/substitute
               #{1 ^& ?rest-set}))))
-  (let [?a-set #{1 4} 
+  (let [?a-set #{1 4}
         ?b-set #{2 3}]
     (t/is (= #{1 2 3 4}
              (r.substitute/substitute
@@ -152,3 +152,12 @@
     (= (into !ys !xs)
        (r.substitute/substitute [!ys ... !xs ...]))))
 
+
+(t/deftest &-test
+  (let [?rest '(2 3 4)]
+    (t/is (= '(1 2 3 4)
+             (r.substitute/substitute (1 & ?rest)))))
+
+  (let [?rest '[2 3 4]]
+    (t/is (= '[1 2 3 4]
+             (r.substitute/substitute [1 & ?rest])))))

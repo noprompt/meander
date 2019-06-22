@@ -386,6 +386,10 @@
         [(compile-substitute rest env)])))
 
 
+(defmethod compile-substitute :tail [node env]
+  (compile-substitute (:pattern node) env))
+
+
 (defmethod compile-substitute :seq
   [node env]
   (let [env* (assoc env :collection-context :seq)]
@@ -422,7 +426,6 @@
 (defmethod compile-substitute :uns
   [node env]
   (:expr node))
-
 
 (defn compile-vec-prt
   {:private true}
@@ -464,6 +467,28 @@
      `(conj ~vec-form
             ~@(compile-all ?left-elements env)
             ~@?right-elements)
+
+     ;; Compile [1 2 & ?rest] as (into (conj vec-form 1 2) ?rest)
+     {:left {:tag :tail
+             :pattern ?tail}
+      :right ?right}
+     (compile-vec-prt `(into ~vec-form ~(compile-substitute ?tail env))
+                      {:tag :prt
+                       :left ?right
+                       :right {:tag :cat
+                               :elements []}}
+                      env)
+
+     {:left ?left
+      :right {:tag :tail
+              :pattern ?tail}}
+     `(into ~(compile-vec-prt vec-form
+                              {:tag :prt
+                               :left ?left
+                               :right {:tag :cat
+                                       :elements []}}
+                              env)
+            ~(compile-substitute ?tail env))
 
      {:left {:tag :cat
              :elements ?elements}
@@ -534,12 +559,3 @@
 (s/fdef substitute
   :args (s/cat :term any?)
   :ret any?)
-
-(comment
-  (let [!xs [:x1 :x2 :x3]
-        ?x 4
-        ?y 5
-        ?z 6
-        !ys [7 8 9]]
-    (substitute [!xs ..2 !ys ... ?x ?y ?z]))
-  (parse-and-rewrite '[!xs ..2 ?x ?y]))
