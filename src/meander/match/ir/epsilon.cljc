@@ -1101,15 +1101,6 @@ compilation decisions."
   [ir fail kind]
   fail)
 
-(defn run-find [space body-f fail-f]
-  (loop [space space]
-    (if (seq space)
-      (let [result (body-f (first space))]
-        (if (fail? result)
-          (recur (next space))
-          result))
-      (fail-f))))
-
 (defmethod compile* :find
   [ir fail kind]
   (let [search-space (gensym "search_space__")
