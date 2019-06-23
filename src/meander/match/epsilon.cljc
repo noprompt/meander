@@ -12,6 +12,7 @@
             [meander.matrix.epsilon :as r.matrix]
             [meander.syntax.epsilon :as r.syntax]
             [meander.match.syntax.epsilon :as r.match.syntax]
+            [meander.match.runtime.epsilon :as r.match.runtime]
             [meander.util.epsilon :as r.util]
             #?(:cljs [goog.object :as gobj]))
   #?(:clj
@@ -439,7 +440,7 @@
                           (conj %targets loc-sym))
                         (into %targets targets*))]
          (if (some? context)
-           (r.ir/op-search loc-sym (r.ir/op-eval `(r.util/zip-next-seq (r.util/coll-zip ~target)))
+           (r.ir/op-search loc-sym (r.ir/op-eval `(r.match.runtime/zip-next-seq (r.match.runtime/coll-zip ~target)))
              (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
                (compile targets* matrix*)))
            (r.ir/op-search node-sym (r.ir/op-eval `(tree-seq coll? seq ~target))
@@ -941,7 +942,7 @@
 
                      1
                      (if right
-                       (r.ir/op-search parts-sym `(r.util/partitions 2 ~target)
+                       (r.ir/op-search parts-sym `(r.match.runtime/partitions 2 ~target)
                          (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
                            (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
                              (let [partition-sym (gensym "partition__")]
@@ -954,7 +955,7 @@
 
                      ;; else
                      (if right
-                       (r.ir/op-search parts-sym `(r.util/partitions 2 ~cat-length ~target)
+                       (r.ir/op-search parts-sym `(r.match.runtime/partitions 2 ~cat-length ~target)
                          (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
                            (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
                              (let [partition-sym (gensym "partition__")]
@@ -964,7 +965,7 @@
                        (r.ir/op-search parts-sym (r.ir/op-eval `(partition ~cat-length 1 ~target))
                          (compile `[~parts-sym ~@targets*]
                                   [(r.matrix/prepend-cells row [cat-node])])))))
-                 (r.ir/op-search parts-sym (r.ir/op-eval `(r.util/partitions 2 ~target))
+                 (r.ir/op-search parts-sym (r.ir/op-eval `(r.match.runtime/partitions 2 ~target))
                    (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
                      (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
                        (compile `[~lsym ~rsym ~@targets*]
@@ -1244,9 +1245,9 @@
              (r.ir/op-check-set (r.ir/op-eval target)
                (r.ir/op-check-bounds (r.ir/op-eval target) n :set
                  (if (negating?)
-                   (r.ir/op-find perm-sym (r.ir/op-eval `(r.util/k-combinations ~target ~n))
+                   (r.ir/op-find perm-sym (r.ir/op-eval `(r.match.runtime/k-combinations ~target ~n))
                      (compile targets** matrix*))
-                   (r.ir/op-search perm-sym (r.ir/op-eval `(r.util/k-combinations ~target ~n))
+                   (r.ir/op-search perm-sym (r.ir/op-eval `(r.match.runtime/k-combinations ~target ~n))
                      (compile targets** matrix*))))))
 
            (some (comp #{:map :set} r.syntax/tag)
@@ -1257,7 +1258,7 @@
                  perm-sym (gensym* "perm__")]
              (r.ir/op-check-set (r.ir/op-eval target)
                (r.ir/op-check-bounds (r.ir/op-eval target) n :set
-                 (r.ir/op-find perm-sym (r.ir/op-eval `(r.util/k-combinations ~target ~n))
+                 (r.ir/op-find perm-sym (r.ir/op-eval `(r.match.runtime/k-combinations ~target ~n))
                    (compile `[~perm-sym ~@targets*]
                             [(assoc row :cols `[~{:tag :cat
                                                   :elements (vec elements)}

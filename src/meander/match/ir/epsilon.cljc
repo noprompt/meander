@@ -10,6 +10,7 @@
    [clojure.walk :as walk]
    [clojure.zip :as zip]
    [meander.util.epsilon :as r.util]
+   [meander.match.runtime.epsilon :as r.match.runtime]
    [meander.syntax.epsilon :as r.syntax]))
 
 
@@ -596,7 +597,7 @@ compilation decisions."
                                       (op-case target
                                         (map (juxt :value :then) (cons node r1))
                                         (op-branch r2)))))))))
-           (r.util/partitions 2 (:arms node)))
+           (r.match.runtime/partitions 2 (:arms node)))
           node))
     node))
 
@@ -669,7 +670,7 @@ compilation decisions."
          ;; else
          node)))
    node
-   (r.util/zip-next-seq (zipper node))))
+   (r.match.runtime/zip-next-seq (zipper node))))
 
 #_
 (defn rewrite-save
@@ -744,14 +745,6 @@ compilation decisions."
 ;; TODO: Move all vars intended to be used by compiled code to a
 ;; meander.runtime.<greek-letter> namespace.
 
-(def FAIL
-  "Special value signaling a match failure. Generated code will often
-  utilize this value as for control flow purposes."
-  (reify))
-
-(defn fail?
-  [x]
-  (identical? x FAIL))
 
 (defn fail-form
   "Returns `(list FAIL) if kind is :search, `FAIL otherwise. This is
@@ -760,10 +753,10 @@ compilation decisions."
   [kind]
   (case kind
     (:match :find)
-    `FAIL
+    `r.match.runtime/FAIL
 
     :search
-    `(list FAIL)))
+    `(list r.match.runtime/FAIL)))
 
 (defn js-array-equals-form
   "Form used to test if two arrays a and b are equal in
@@ -954,7 +947,7 @@ compilation decisions."
   (case kind
     (:find :match)
     `(let [x# (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))]
-       (if (fail? x#)
+       (if (r.match.runtime/fail? x#)
          ~fail
          (let [[~@(:ret-syms ir)] x#]
            ~(compile* (:then ir) fail kind))))
@@ -962,7 +955,7 @@ compilation decisions."
     :search
     `(mapcat
       (fn [x#]
-        (if (fail? x#)
+        (if (r.match.runtime/fail? x#)
           ~fail
           (let [[~@(:ret-syms ir)] x#]
             ~(compile* (:then ir) fail kind))))
@@ -1109,8 +1102,8 @@ compilation decisions."
     `(loop [~search-space ~(compile* (:value ir) fail kind)]
        (if (seq ~search-space)
          (let [~(:symbol ir) (first ~search-space)
-               ~result-sym ~(compile* (:body ir) `FAIL :find)]
-           (if (fail? ~result-sym)
+               ~result-sym ~(compile* (:body ir) (fail-form :find) :find)]
+           (if (r.match.runtime/fail? ~result-sym)
              (recur (next ~search-space))
              ~result-sym))
          ~fail))))
@@ -1168,7 +1161,7 @@ compilation decisions."
         return-syms (:return-symbols ir)
         n (:n ir)
         m (:m ir)
-        body-form (compile* (:body ir) `FAIL (case kind :search :find kind))
+        body-form (compile* (:body ir) (fail-form :find) (case kind :search :find kind))
         then-form (compile* (:then ir) fail kind)]
     `(loop [i# 0
             ~coll-sym ~(compile* (:input ir) fail kind)
@@ -1176,7 +1169,7 @@ compilation decisions."
        (let [~input-sym ~(take-form n coll-sym (:kind ir))]
          (if (= (count ~input-sym) ~n)
            (let [result# ~body-form]
-             (if (fail? result#)
+             (if (r.match.runtime/fail? result#)
                ~fail
                (recur (inc i#) ~(drop-form n coll-sym (:kind ir)) result#)))
            ;; Failed to consume
@@ -1220,96 +1213,6 @@ compilation decisions."
         ~(compile* (:body ir) fail kind))
       ~(compile* (:value ir) fail kind))))
 
-(defn run-star-seq
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (loop [coll coll
-         rets rets]
-    (let [xs (take n coll)]
-      (if (= (count xs) n)
-        (let [rets (body-f rets xs)]
-          (if (fail? rets)
-            FAIL
-            (recur (drop n coll) rets)))
-        (if (seq coll)
-          FAIL
-          (then-f rets))))))
-
-(defn run-star-seq-search
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (let [xs (take n coll)]
-    (if (= (count xs) n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
-           nil
-           (run-star-seq-search (drop n coll) rets n body-f then-f)))
-       (body-f rets xs))
-      (if (seq coll)
-        nil
-        (then-f rets)))))
-
-(defn run-star-vec
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (loop [coll coll
-         rets rets]
-    (let [xs (subvec coll 0 (min n (count coll)))]
-      (if (= (count xs) n)
-        (let [rets (body-f rets xs)]
-          (if (fail? rets)
-            FAIL
-            (recur (subvec coll (min n (count coll))) rets)))
-        (if (seq coll)
-          FAIL
-          (then-f rets))))))
-
-(defn run-star-vec-search
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (let [xs (subvec coll 0 (min n (count coll)))]
-    (if (= (count xs) n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
-           nil
-           (run-star-vec-search (subvec coll (min n (count coll))) rets n body-f then-f)))
-       (body-f rets xs))
-      (if (seq coll)
-        nil
-        (then-f rets)))))
-
-(defn run-star-js-array
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (loop [coll coll
-         rets rets]
-    (let [xs (.slice coll 0 (min (.-length coll) n))]
-      (if (= (count xs) n)
-        (let [rets (body-f rets xs)]
-          (if (fail? rets)
-            FAIL
-            (recur (.slice coll n) rets)))
-        (if (seq coll)
-          FAIL
-          (then-f rets))))))
-
-(defn run-star-js-array-search
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (let [xs (.slice coll 0 (min n (count coll)))]
-    (if (= (count xs) n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
-           nil
-           (run-star-js-array-search (.slice coll (min n (count coll))) rets n body-f then-f)))
-       (body-f rets xs))
-      (if (seq coll)
-        nil
-        (then-f rets)))))
-
 (defmethod compile* :star
   [ir fail kind]
   (let [coll-sym (gensym "coll__")
@@ -1326,25 +1229,25 @@ compilation decisions."
       :search
       (case (:kind ir)
         :js-array
-        `(run-star-js-array-search ~input-form ~rets ~n ~body-f ~then-f)
+        `(r.match.runtime/run-star-js-array-search ~input-form ~rets ~n ~body-f ~then-f)
 
         :seq
-        `(run-star-seq-search ~input-form ~rets ~n ~body-f ~then-f)
+        `(r.match.runtime/run-star-seq-search ~input-form ~rets ~n ~body-f ~then-f)
 
         :vector
-        `(run-star-vec-search ~input-form ~rets ~n ~body-f ~then-f))
+        `(r.match.runtime/run-star-vec-search ~input-form ~rets ~n ~body-f ~then-f))
 
       ;;else
       `(let [ret# ~(case (:kind ir)
                      :js-array
-                     `(run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
+                     `(r.match.runtime/run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
 
                      :seq
-                     `(run-star-seq ~input-form ~rets ~n ~body-f ~then-f)
+                     `(r.match.runtime/run-star-seq ~input-form ~rets ~n ~body-f ~then-f)
 
                      :vector
-                     `(run-star-vec ~input-form ~rets ~n ~body-f ~then-f))]
-           (if (fail? ret#)
+                     `(r.match.runtime/run-star-vec ~input-form ~rets ~n ~body-f ~then-f))]
+           (if (r.match.runtime/fail? ret#)
              ~fail
              ret#)))))
 
