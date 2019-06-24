@@ -236,14 +236,16 @@
                   (symbol (name (ns-name ns)) (name sym))
                   sym))
               (symbol (name (ns-name *ns*)) (name sym))))
-     :cljs (if (qualified-symbol? sym)
-             (let [ns-sym (symbol (namespace sym))]
-               (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                 (symbol (name ns) (name sym))
+     :cljs (if-some [cljs-ns (:ns env)]
+             (if (qualified-symbol? sym)
+               (let [ns-sym (symbol (namespace sym))]
+                 (if-some [ns (get (:requires cljs-ns) ns-sym)]
+                   (symbol (name ns) (name sym))
+                   sym))
+               (if (contains? (:defs cljs-ns) sym)
+                 (symbol (name (:name cljs-ns)) (name sym))
                  sym))
-             (if (contains? (:defs cljs-ns) sym)
-               (symbol (name (:name cljs-ns)) (name sym))
-               sym))))
+             sym)))
 
 (defn get-macro
   {:private true}
