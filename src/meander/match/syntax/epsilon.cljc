@@ -73,11 +73,13 @@
                                   (distinct)
                                   (map r.util/case-test-form))
                             a)
-                pred-form `(fn [x#]
-                             (case x#
-                               (~@case-tests)
-                               true
-                               false))]
+                pred-form (vary-meta `(fn [x#]
+                                        (case x#
+                                          (~@case-tests)
+                                          true
+                                          false))
+                                     assoc
+                                     :meander.epsilon/beta-reduce true)]
             {:tag :prd
              :form pred-form
              :arguments (if (seq b)

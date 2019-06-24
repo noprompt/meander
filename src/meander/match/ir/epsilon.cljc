@@ -874,8 +874,14 @@ compilation decisions."
 
 (defmethod compile* :apply
   [ir fail kind]
-  `(let [~(:symbol ir) (~(:fn-expr ir) ~(:target ir))]
-     ~(compile* (:then ir) fail kind)))
+  (let [fn-expr (:fn-expr ir)
+        target (:target ir)]
+    `(let [~(:symbol ir) ~(if (:meander.epsilon/beta-reduce (meta fn-expr))
+                            (let [[_fn [arg] & body] fn-expr]
+                              `(let [~arg ~target]
+                                 ~@body))
+                            `(~fn-expr ~target))]
+       ~(compile* (:then ir) fail kind))))
 
 (defmethod compile* :bind
   [ir fail kind]

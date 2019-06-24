@@ -984,8 +984,13 @@
          (compile-pass targets* [row])
 
          :prd
-         (let [arguments (:arguments node)]
-           (r.ir/op-check-boolean (r.ir/op-eval `(~(:form node) ~target))
+         (let [arguments (:arguments node)
+               form (:form node)
+               eval-form (if (:meander.epsilon/beta-reduce (meta form))
+                           (let [[_fn [arg] & body] form]
+                             `(let [~arg ~target] ~@body))
+                           (r.ir/op-eval `(~form ~target)))]
+           (r.ir/op-check-boolean eval-form
              (if (seq arguments)
                (compile targets
                         [(assoc row :cols `[~{:tag :cnj
