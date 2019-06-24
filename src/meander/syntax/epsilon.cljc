@@ -444,10 +444,39 @@
 
 (declare parse)
 
+(s/def :meander.syntax.epsilon.parse-env/parse-special
+  (s/fspec
+   :args (s/cat :form (s/cat :head symbol? :tail (s/* any?)))
+   :ret :meander.syntax.epsilon/node))
+
+(s/def :meander.syntax.epsilon.parse-env/special-form?
+  (s/fspec
+   :args (s/cat :x any?)
+   :ret boolean?))
+
+(s/def :meander.syntax.epsilon.parse-env/syntax-expand
+  (s/fspec
+   :args (s/alt :a1 (s/cat :form any?)
+                :a2 (s/cat :form any?
+                           :env :meander.syntax.epsilon/parse-env))
+   :ret any?))
+
+(s/def :meander.syntax.epsilon/parse-env
+  (s/keys :req-un [:meander.syntax.epsilon.parse-env/parse-special
+                   :meander.syntax.epsilon.parse-env/special-form?
+                   :meander.syntax.epsilon.parse-env/syntax-expand]))
+
 (defn parse-all
-  {:private true}
-  [xs env]
-  (map (fn [x] (parse x env)) xs))
+  "Apply `parse` to all forms in the sequence `forms`."
+  [forms env]
+  (map (fn [form] (parse form env)) forms))
+
+(s/fdef parse-all
+  :args (s/cat :forms (s/coll-of any?
+                                 :kind sequential?)
+               :env :meander.syntax.epsilon/parse-env)
+  :ret (s/coll-of :meander.syntax.epsilon/node
+                  :kind sequential?))
 
 (defn expand-prt
   {:private true}
@@ -739,16 +768,7 @@
 
     ($ <pattern>)
     ($ ?<context-name> <pattern>)
-    (and <pattern_0> ... <pattern_n>)
-    (app <expr> <pattern> ...)
-    (guard <expr>)
-    (let <pattern_0> <expr_0> ... <pattern_n> <expr_n>)
-    (not <pattern>)
-    (or <pattern_0> ... <pattern_n>)
-    (pred <expr> <pattern_0> ... <pattern_n>)
     (quote <form>)
-    (re <regex-expr>)
-    (re <regex-expr> <pattern>)
     (with [%<simple-symbol> <pattern> ...] <pattern>)
     (clojure.core/unquote <form>)
     (clojure.core/unquote-splicig <form>)
@@ -756,7 +776,6 @@
 
   where symbol* is a fully qualified symbol with respect to the
   current namespace."
-  {:private true}
   [xs env]
   (let [x (first xs)]
     (if (symbol? x)
@@ -764,67 +783,9 @@
         $
         (parse-contain xs env)
 
-        and
-        {:tag :cnj
-         :arguments (parse-all (rest xs) env)}
-
-        app
-        {:tag :app
-         :fn-expr (second xs)
-         :arguments (parse-all (nnext xs) env)}
-
-        guard
-        {:tag :grd
-         :expr (second xs)}
-
-        let
-        (let [xs* (rest xs)]
-          (if (odd? (count xs*))
-            (throw (ex-info "let pattern requires an even number of arguments"
-                            {:pattern xs
-                             :meta (meta xs)}))
-            {:tag :let
-             :bindings (map
-                        (fn [[pattern expr]]
-                          {:binding (parse pattern env)
-                           :expr expr})
-                        (partition-all 2 xs*))}))
-
-        not
-        (if (= 1 (bounded-count 2 (drop 1 xs)))
-          {:tag :not
-           :argument (parse (second xs) env)}
-          (throw (ex-info "not pattern requires at one argument"
-                          {:pattern xs
-                           :meta (meta xs)})))
-
-        or
-        {:tag :dsj
-         :arguments (parse-all (rest xs) env)}
-
-        pred
-        {:tag :prd
-         :form (second xs)
-         :arguments (parse-all (nnext xs) env)}
-
         quote
         {:tag :quo
          :form (second xs)}
-
-        re
-        (let [nothing (gensym)
-              regex (nth xs 1 nothing)]
-          (if (identical? regex nothing)
-            (throw (ex-info "re pattern expects at least one argument"
-                            {:pattern xs
-                             :meta (meta xs)}))
-            (let [capture (nth xs 2 nothing)]
-              (if (identical? capture nothing)
-                {:tag :rxt
-                 :regex regex}
-                {:tag :rxc
-                 :regex regex
-                 :capture (parse capture env)}))))
 
         with
         (parse-with xs env)
@@ -838,12 +799,22 @@
          :expr (second xs)}
 
         ;; else
-        (if-some [syntax-expand (::syntax-expand env)]
-          (let [xs* (syntax-expand xs env)]
-            (if (= xs* xs)
-              (parse-seq-no-head xs env)
-              (assoc (parse xs* env) ::original-form xs)))
-          (parse-seq-no-head xs env)))
+        (let [xs* ((::syntax-expand env) xs env)]
+          (if (= xs* xs)
+            ;; Syntax expansion failed, try to parse special form.
+            (if ((::special-form? env) xs)
+              (let [node ((::parse-special env) xs env)]
+                (if (node? node)
+                  ;; Special form, return the node.
+                  (assoc node ::original-form xs)
+                  (throw (ex-info ":meander.syntax.epsilon/parse-special function must return a :meander.syntax.epsilon/node"
+                                  {:form xs
+                                   :parse-env env}))))
+              ;; Not a special form, parse as ordinary seq pattern.
+              (parse-seq-no-head xs env))
+            ;; Syntax expansion successful, recursively parse the
+            ;; result.
+            (assoc (parse xs* env) ::original-form xs))))
       (parse-seq-no-head xs env))))
 
 (defn parse-symbol
@@ -935,7 +906,7 @@
                         (let [k* (if (keyword? k)
                                    (subs (str k) 1)
                                    k)]
-                          [(parse k*) (parse v)])))
+                          [(parse k* env) (parse v env)])))
                      x)})))
 
 (defn parse-vector
@@ -1008,13 +979,8 @@
        :elements (parse-all s env)})
     (parse s env)))
 
-(s/fdef parse
-  :args (s/alt :a1 (s/cat :x any?)
-               :a2 (s/cat :x any? :env map?))
-  :ret :meander.syntax.epsilon/node)
-
 (defn parse
-  "Parse `x` into an abstract syntax tree (AST) optionally with
+  "Parse `form` into an abstract syntax tree (AST) optionally with
   respect to the environment `env`.
 
   (parse '(?x1 ?x2 :as ?xs))
@@ -1028,35 +994,41 @@
                            {:tag :lvr :symbol ?x2})}
          :right {:tag :cat
                  :elements []}}}"
-  ([x]
-   (parse x {}))
-  ([x env]
+  ([form]
+   (parse form {}))
+  ([form env]
    (let [node (cond
-                (seq? x)
-                (parse-seq x env)
+                (seq? form)
+                (parse-seq form env)
 
-                (vector? x)
-                (parse-vector x env)
+                (vector? form)
+                (parse-vector form env)
 
-                (and (map? x)
-                     (not (record? x)))
-                (parse-map x env)
+                (and (map? form)
+                     (not (record? form)))
+                (parse-map form env)
 
-                (set? x)
-                (parse-set x env)
+                (set? form)
+                (parse-set form env)
 
-                (symbol? x)
-                (parse-symbol x)
+                (symbol? form)
+                (parse-symbol form)
 
-                #?@(:clj [(instance? JSValue x)
-                          (parse-js-value x env)])
+                #?@(:clj [(instance? JSValue form)
+                          (parse-js-value form env)])
 
                 :else
                 {:tag :lit
-                 :value x})]
-     (if-some [meta (meta x)]
+                 :value form})]
+     (if-some [meta (meta form)]
        (with-meta node meta)
        node))))
+
+(s/fdef parse
+  :args (s/alt :a1 (s/cat :form any?)
+               :a2 (s/cat :form any?
+                          :env :meander.syntax.epsilon/parse-env))
+  :ret :meander.syntax.epsilon/node)
 
 
 ;; ---------------------------------------------------------------------
@@ -2104,35 +2076,6 @@
       :not)
     ;; else
     nil))
-
-(defn match-bindings
-  "Returns a set of variables which would be bound by a successful
-  pattern match.
-
-  (match-bindings (parse '(not [?x])))
-  ;; =>
-  #{}
-
-  (match-bindings (parse '(not (not [?x]))))
-  ;; =>
-  #{{:tag :lvr, :symbol ?x}}
-  "
-  [node]
-  (variables
-   (prewalk
-    (fn [node]
-      (case (not-tag node)
-        ;; Replace (not (not ?x)) with ?x.
-        :not-not
-        (:argument (:argument node))
-
-        ;; Replace (not ?x) with _.
-        :not
-        {:tag :any, :symbol '_}
-
-        ;; else
-        node))
-    node)))
 
 (defn analyze*
   {:private true}

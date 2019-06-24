@@ -5,15 +5,6 @@
    [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
    [meander.syntax.epsilon :as r.syntax :include-macros true]))
 
-
-(t/deftest match-bindings-test
-  (t/is (= #{}
-           (r.syntax/match-bindings
-            (r.syntax/parse '(not [?x])))))
-  (t/is (= #{{:tag :lvr, :symbol '?x}}
-           (r.syntax/match-bindings
-            (r.syntax/parse '(not (not [?x])))))))
-
 (r.match.syntax/defsyntax $cons [?head ?tail]
   `(~'pred clojure.core/seq?
     (~'app clojure.core/first ~?head)

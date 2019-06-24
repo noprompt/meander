@@ -96,13 +96,17 @@
       rewrite-partitions
       rewrite-coerce-literals-to-lit))
 
+(def parse-env
+  {::r.syntax/parse-special (fn [form env] form)
+   ::r.syntax/special-form? (constantly false)
+   ::r.syntax/syntax-expand (fn [form env] form)})
 
 (defn parse-and-rewrite
   {:private true}
   ([x]
-   (parse-and-rewrite x {}))
+   (parse-and-rewrite x parse-env))
   ([x env]
-   (rewrite-node (r.syntax/parse x env))))
+   (rewrite-node (r.syntax/parse x (merge env parse-env)))))
 
 ;; ---------------------------------------------------------------------
 ;; Environment

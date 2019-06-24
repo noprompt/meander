@@ -271,11 +271,105 @@
           (apply macro (rest form))))
        form))))
 
+(defmulti parse-special
+  (fn [form env]
+    (if (and (seq? form) (symbol? (first form)))
+      (first form)
+      ::not-special))
+  :default ::not-special)
+
+(s/fdef parse-special
+  :args (s/cat :form (s/cat :head symbol? :tail (s/* any?))
+               :parse-env ::r.syntax/pase-env)
+  :ret ::r.syntax/node)
+
+(defmethod parse-special 'and [[_ & args] env]
+  {:tag :cnj
+   :arguments (r.syntax/parse-all args env)})
+
+(defmethod parse-special 'app [[_ fn-expr & args] env]
+  {:tag :app
+   :fn-expr fn-expr
+   :arguments (r.syntax/parse-all args env)})
+
+(defmethod parse-special 'guard [[_ expr] env]
+  {:tag :grd
+   :expr expr})
+
+(defmethod parse-special 'let [[_ & args :as form] env]
+  (if (odd? (count args))
+    (throw (ex-info "let pattern requires an even number of arguments"
+                    {:pattern form
+                     :meta (meta form)}))
+    {:tag :let
+     :bindings (map
+                (fn [[pattern expr]]
+                  {:binding (r.syntax/parse pattern env)
+                   :expr expr})
+                (partition-all 2 args))}))
+
+(defmethod parse-special 'not [[_ & args :as form] env]
+  (if (= 1 (bounded-count 2 args))
+    {:tag :not
+     :argument (r.syntax/parse (first args) env)}
+    (throw (ex-info "not pattern requires at one argument"
+                    {:pattern form
+                     :meta (meta form)}))))
+
+(defmethod parse-special 'or [[_ & args :as form] env]
+  {:tag :dsj
+   :arguments (r.syntax/parse-all args env)})
+
+(defmethod parse-special 'pred [[_ expr & args :as form] env]
+  ;; TODO: check arguments.
+  {:tag :prd
+   :form expr
+   :arguments (r.syntax/parse-all args env)})
+
+(defmethod parse-special 're [[_ & args :as form] env]
+  (case (bounded-count 3 args)
+    1
+    {:tag :rxt
+     :regex (first args)}
+
+    2
+    {:tag :rxc
+     :regex (first args)
+     :capture (r.syntax/parse (second args) env)}
+
+    ;; else
+    (throw (ex-info "re pattern expects at one or two arguments"
+                    {:pattern form
+                     :meta (meta form)}))))
+
+(defn special-form?
+  "`true` if `x` is of the form
+
+      (and <pattern_0> ... <pattern_n>)
+      (app <expr> <pattern> ...)
+      (guard <expr>)
+      (let <pattern_0> <expr_0> ... <pattern_n> <expr_n>)
+      (not <pattern>)
+      (or <pattern_0> ... <pattern_n>)
+      (pred <expr> <pattern_0> ... <pattern_n>)
+      (re <regex-expr>)
+      (re <regex-expr> <pattern>)
+
+  and `false` otherwise."
+  [x]
+  (and (seq? x)
+       (contains? (methods parse-special) (first x))))
+
+(def parse-env
+  {::r.syntax/parse-special parse-special
+   ::r.syntax/special-form? special-form?
+   ::r.syntax/syntax-expand syntax-expand})
+
 (defn parse
   ([form]
-   (r.syntax/parse form {::r.syntax/syntax-expand syntax-expand}))
+   (r.syntax/parse form parse-env))
   ([form env]
-   (r.syntax/parse form (assoc env ::r.syntax/syntax-expand syntax-expand))))
+   (r.syntax/parse form (merge env parse-env))))
 
 (defmacro defsyntax [& defn-args]
   (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
