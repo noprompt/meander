@@ -1607,7 +1607,8 @@
   [(:prt node)])
 
 (defmethod ground? :seq [node]
-  (ground? (:prt node)))
+  (and (ground? (:prt node))
+       (nil? (:as node))))
 
 (defmethod unparse :seq [node]
   (seq (unparse (:prt node))))
@@ -1692,7 +1693,8 @@
   [(:prt node)])
 
 (defmethod ground? :vec [node]
-  (ground? (:prt node)))
+  (and (ground? (:prt node))
+       (nil? (:as node))))
 
 (defmethod min-length :vec [node]
   (min-length (:prt node)))
