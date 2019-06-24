@@ -5,7 +5,8 @@
                [clojure.core.specs.alpha :as core.specs]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util])
-     :cljs (:require [clojure.walk :as walk]
+     :cljs
+     (:require [clojure.walk :as walk]
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.core.specs.alpha :as core.specs]
                [meander.syntax.epsilon :as r.syntax]
