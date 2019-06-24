@@ -5,108 +5,8 @@
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
             [meander.syntax.epsilon :as r.syntax]
+            [meander.substitute.syntax.epsilon :as r.substitute.syntax :include-macros true]
             [meander.util.epsilon :as r.util]))
-
-;; ---------------------------------------------------------------------
-;; Rewrite helpers
-
-(defn rewrite-partition
-  {:private true}
-  [node]
-  (r.match/find node
-    (with [%right (not (or () []))]
-      {:tag :prt
-       :left {:tag :cat
-              :elements ?ls}
-       :right {:tag :cat
-               :elements (and %right ?rs)}
-       :as ?prt})
-    {:tag :prt
-     :left {:tag :cat
-            :elements (vec (concat ?ls ?rs))}
-     :right {:tag :cat
-             :elements []}}
-
-    {:tag :prt
-     :left {:tag :cat
-            :elements ?elements1}
-     :right {:tag :prt
-             :left {:tag :cat
-                    :elements ?elements2}
-             :right ?right}}
-    (rewrite-partition
-     {:tag :prt
-      :left {:tag :cat
-             :elements (vec (concat ?elements1 ?elements2))}
-      :right ?right})
-
-    {:tag :prt
-     :left {:tag :prt,
-            :left ?left,
-            :right {:tag :cat
-                    :elements ?elements-1}},
-     :right {:tag :cat
-             :elements ?elements-2}}
-    (rewrite-partition
-     {:tag :prt
-      :left ?left
-      :right {:tag :cat
-              :elements (vec (concat ?elements-1 ?elements-2))}})
-
-    {:tag :prt
-     :left ?left
-     :right {:tag :prt
-             :left {:tag :cat
-                    :elements ?elements}
-             :right {:tag :cat
-                     :elements (or [] ())}}}
-    {:tag :prt
-     :left ?left
-     :right {:tag :cat
-             :elements ?elements}}
-
-    _
-    node))
-
-(defn rewrite-partitions
-  {:private true}
-  [node]
-  (r.syntax/prewalk rewrite-partition node))
-
-
-(defn rewrite-coerce-literals-to-lit
-  {:private true}
-  [node]
-  (r.syntax/prewalk
-   (fn [node]
-     (if (and (r.syntax/literal? node)
-              (not= (r.syntax/tag node) :cat)
-              (not= (r.syntax/tag node) :prt))
-       {:tag :lit
-        :value (r.syntax/unparse node)}
-       node))
-   node))
-
-
-(defn rewrite-node
-  {:private true}
-  [node]
-  (-> node
-      r.syntax/rename-refs
-      rewrite-partitions
-      rewrite-coerce-literals-to-lit))
-
-(def parse-env
-  {::r.syntax/parse-special (fn [form env] form)
-   ::r.syntax/special-form? (constantly false)
-   ::r.syntax/syntax-expand (fn [form env] form)})
-
-(defn parse-and-rewrite
-  {:private true}
-  ([x]
-   (parse-and-rewrite x parse-env))
-  ([x env]
-   (rewrite-node (r.syntax/parse x (merge env parse-env)))))
 
 ;; ---------------------------------------------------------------------
 ;; Environment
@@ -208,13 +108,6 @@
   (map compile-substitute nodes (repeat env)))
 
 
-(defmethod compile-substitute :app
-  [node env]
-  `(list '~'app
-         '~(:fn-expr node)
-         ~@(map compile-substitute (:arguments node) (repeat env))))
-
-
 (defmethod compile-substitute :cat
   [node env]
   (r.match/find node
@@ -236,11 +129,6 @@
     `[~@(sequence (map compile-substitute) ?elements (repeat env))]))
 
 
-(defmethod compile-substitute :cnj
-  [node env]
-  `(list '~'and ~@(map compile-substitute (:arguments node) (repeat env))))
-
-
 (defmethod compile-substitute :ctn
   [node env]
   (let [pattern (:pattern node)]
@@ -252,11 +140,6 @@
 (defmethod compile-substitute :drp
   [_ _]
   `(list))
-
-
-(defmethod compile-substitute :dsj
-  [node env]
-  `(list '~'or  ~@(map compile-substitute (:arguments node) (repeat env))))
 
 
 (defmethod compile-substitute :lit
@@ -302,18 +185,6 @@
       `(let [~item (nth ~(:symbol mvr) (deref ~mvr-ref-sym) nil)]
          (vswap! ~mvr-ref-sym inc)
          ~item))))
-
-
-(defmethod compile-substitute :not
-  [node env]
-  `(list '~'not ~(compile-substitute (:argument node) env)))
-
-
-(defmethod compile-substitute :prd
-  [node env]
-  `(list '~'pred '~(:form node)
-         ~@(map compile-substitute (:arguments node) (repeat env))))
-
 
 (defmethod compile-substitute :prt
   [node env]
@@ -442,7 +313,7 @@
   ([prt env]
    (compile-vec-prt [] prt env))
   ([vec-form prt env]
-   (r.match/find (rewrite-partition prt)
+   (r.match/find (r.substitute.syntax/rewrite-partition prt)
      ;; Compile [?a ~@xs ?b] as (conj (into [?x] xs) ?b)
      (with [%not-uns (not {:tag :uns})]
        {:left {:tag :cat
@@ -554,7 +425,8 @@
 
 (defmacro substitute
   [x]
-  (let [node (parse-and-rewrite x &env)
+  (let [node (r.substitute.syntax/expand-ast
+              (r.substitute.syntax/parse x &env))
         env (make-env node)
         mvr-ref-bindings (mapcat
                           (fn [[mvr-node ref-sym]]
