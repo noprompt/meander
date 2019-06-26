@@ -1609,12 +1609,17 @@
             (if (some? final-clause)
               (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
               `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
-            `(let [~target ~expr
-                   ~fail (fn []
-                           ~(if (some? final-clause)
-                              (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                              `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
-               ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env))))))))
+
+            (let [fail `(fn []
+                          ~(if (some? final-clause)
+                             (r.ir/compile (compile [target] [final-clause]) nil :match &env)
+                             `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
+
+              (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                              (compile [target] matrix))
+                            `(~ fail)
+                            :match
+                            &env))))))))
 
 
 (s/fdef match
@@ -1783,16 +1788,17 @@
                           :find
                           &env)
             nil)
-          (r.ir/compile
-           (r.ir/op-bind target (r.ir/op-eval expr)
-             (r.ir/op-eval
-               (if (some? final-clause)
-                 `(let [~fail (fn []
-                                ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))]
-                    ~(r.ir/compile (compile [target] matrix) `(~fail) :find &env))
-                 (r.ir/compile (compile [target] matrix) nil :find &env))))
-           nil
-           :find))))))
+          (let [fail (if (some? final-clause)
+                       `(fn []
+                          ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))
+                       `(fn [] nil))]
+
+            (r.ir/compile
+             (r.ir/op-bind target (r.ir/op-eval expr)
+               (compile [target] matrix))
+             `(~fail)
+             :find
+             &env)))))))
 
 
 (s/fdef find
