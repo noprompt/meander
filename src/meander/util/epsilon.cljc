@@ -362,3 +362,10 @@
        (vec y)
        y))
    form))
+
+
+(defn quoted?
+  "`true` if `x` is a quoted form, e.g. `(quote _)`, and `false`
+  otherwise."
+  [x]
+  (and (seq? x) (= (first x) 'quote)))

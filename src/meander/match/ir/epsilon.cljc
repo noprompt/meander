@@ -888,15 +888,13 @@ compilation decisions."
   [env node form]
   (cond
     ;; If it is quoted then a seq can't be a function call so it is a seq
-    (and (seq? form)
-         (= (first form) 'quote)
+    (and (r.util/quoted? form)
          (seq? (second form)))
     (add-type-to-env env (:symbol node) clojure.lang.ISeq)
 
     ;; If it is quoted (and not a seq) then infer the type from the
     ;; thing in the quote
-    (and (seq? form)
-         (= (first form) 'quote))
+    (r.util/quoted? form)
     (recur env node (second form))
 
     ;; if it is a list, it is a seq
