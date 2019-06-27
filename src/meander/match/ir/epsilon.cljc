@@ -732,77 +732,160 @@ compilation decisions."
         node)))
    node))
 
+;; ---------------------------------------------------------------------
+;; Type based rewrites
 
-(def not-found :meander/type-not-found)
+(def
+  ^{:private true}
+  type-not-found
+  :meander.epsilon/type-not-found)
 
-(defn found? [type]
-  (not= type not-found))
-
+(defn type-not-found?
+  {:private true}
+  [type]
+  (not= type type-not-found))
 
 ;; We don't currently track variable rebinding.
 ;; Might be worthwhile in the future
-(defn lookup-type [env sym]
-  (get-in @env [sym :type] not-found))
+(defn lookup-type
+  {:private true}
+  [env sym]
+  (get-in @env [sym :type] type-not-found))
 
 ;; We add :type because it may be worthwhile to store other sorts of
 ;; information (length, known keys, etc).
-(defn add-type-to-env [env sym type]
+(defn add-type-to-env
+  {:private true}
+  [env sym type]
   (swap! env assoc-in [sym :type] type))
 
-(defn eliminate-check-known-type [env node known-type]
+(defn eliminate-check-known-type
+  {:private true}
+  [env node known-type]
   (let [type (lookup-type env (get-in node [:target :form]))]
     (cond
       (isa? type known-type) (:then node)
-      (found? type) (op-fail)
+      (type-not-found? type) (op-fail)
       :else node)))
 
+(def
+  ^{:private true}
+  pred-types
+  #?(:clj
+     {#'clojure.core/coll? clojure.lang.IPersistentCollection
+      #'clojure.core/map? clojure.lang.IPersistentMap
+      #'clojure.core/number? java.lang.Number
+      #'clojure.core/seq? clojure.lang.ISeq
+      #'clojure.core/seqable? clojure.lang.Seqable
+      #'clojure.core/string? java.lang.String
+      #'clojure.core/vector? clojure.lang.IPersistentVector}
+     :cljs
+     {#'clojure.core/vector? cljs.core.PersistentVector
+      #'clojure.core/set? cljs.core.PersistentSet
+      #'clojure.core/number? js/Number
+      #'clojure.core/string? js/String}))
 
-(def preds {#'clojure.core/vector? clojure.lang.IPersistentVector
-            #'clojure.core/map? clojure.lang.IPersistentMap
-            #'clojure.core/number? java.lang.Number
-            #'clojure.core/seq? clojure.lang.ISeq
-            #'clojure.core/seqable? clojure.lang.Seqable
-            #'clojure.core/coll? clojure.lang.IPersistentCollection
-            #'clojure.core/string? java.lang.String})
+(defn eliminate-preds
+  {:private true}
+  [env node]
+  #?(:clj
+     (if (and (= (op (:test node)) :eval)
+              (seq? (:form (:test node))))
+       (let [type (lookup-type env (second (get-in node [:test :form])))
+             pred-value (first (:form (:test node)))
+             pred-type (and (symbol? pred-value)
+                            (get pred-types (resolve *env* pred-value)))]
+         (cond
+           (isa? type pred-type)
+           (:then node)
 
-(defn eliminate-preds [env node]
-  (if (and (= (op (:test node)) :eval)
-           (seq? (:form (:test node))))
-    (let [type (lookup-type env (second (get-in node [:test :form])))
-          pred-value (first (:form (:test node)))
-          pred-type (and (symbol? pred-value) (preds (resolve pred-value)))]
-      (cond
-        (isa? type pred-type) (:then node)
-        (and (found? type) pred-type) (op-fail)
-        :else node))
-    node))
+           (and (type-not-found? type) pred-type)
+           (op-fail)
 
-(defn eliminate-check-op [env node]
-  (case (op node)
-    :check-seq
-    (eliminate-check-known-type env node clojure.lang.ISeq)
-    :check-set
-    (eliminate-check-known-type env node clojure.lang.IPersistentSet)
-    :check-vector
-    (eliminate-check-known-type env node clojure.lang.IPersistentVector)
-    :check-map
-    (eliminate-check-known-type env node clojure.lang.IPersistentMap)
-    :check-boolean
-    (eliminate-preds env node)
-    node))
+           :else node))
+       node)
+     :cljs
+     node))
 
-(defn add-type-if-coerced-bind [env node coercing-function resulting-type]
+(defn eliminate-check-op
+  {:private true}
+  [env node]
+  #?(:clj
+     (case (op node)
+       :check-seq
+       (eliminate-check-known-type env node clojure.lang.ISeq)
+
+       :check-set
+       (eliminate-check-known-type env node clojure.lang.IPersistentSet)
+
+       :check-vector
+       (eliminate-check-known-type env node clojure.lang.IPersistentVector)
+
+       :check-map
+       (eliminate-check-known-type env node clojure.lang.IPersistentMap)
+
+       :check-boolean
+       (eliminate-preds env node)
+
+       ;; else
+       node)
+     ;; ClojureScript requires some brute force due to its lack of
+     ;; interfaces.
+     :cljs
+     (case (op node)
+       :check-seq
+       (reduce
+        (fn [node type]
+          (let [node* (eliminate-check-known-type env node type)]
+            (if (= node* node)
+              node
+              (reduced node*))))
+        node
+        [cljs.core/List
+         cljs.core/LazySeq
+         cljs.core/Range])
+
+       :check-set
+       (eliminate-check-known-type env node cljs.core/PersistentHashSet)
+
+       :check-vector
+       (eliminate-check-known-type env node cljs.core/PersistentVector)
+
+       :check-map
+       (reduce
+        (fn [node type]
+          (let [node* (eliminate-check-known-type env node type)]
+            (if (= node* node)
+              node
+              (reduced node*))))
+        node
+        [cljs.core/PersistentArrayMap
+         cljs.core/PersistentHashMap])
+
+       :check-boolean
+       (eliminate-preds env node)
+
+       ;; else
+       node)))
+
+(defn add-type-if-coerced-bind
+  {:private true}
+  [env node coercing-function resulting-type]
   (let [value (:value node)]
     (when (and (= (op value) :eval)
                (seq? (:form value))
                (= (first (:form value)) coercing-function))
       (add-type-to-env env (:symbol node) resulting-type))))
 
-(defn add-type-if-coerced-apply [env node coercing-function resulting-type]
+(defn add-type-if-coerced-apply
+  {:private true}
+  [env node coercing-function resulting-type]
   (when (= (:fn-expr node) coercing-function)
         (add-type-to-env env (:symbol node) resulting-type)))
 
-(defn infer-type-seq [env node form]
+(defn infer-type-seq
+  {:private true}
+  [env node form]
   (cond
     ;; If it is quoted then a seq can't be a function call so it is a seq
     (and (seq? form)
@@ -830,7 +913,9 @@ compilation decisions."
 
     :else nil))
 
-(defn infer-collection-type [env node]
+(defn infer-collection-type
+  {:private true}
+  [env node]
   (case (op node)
     :apply
     (do
@@ -853,7 +938,9 @@ compilation decisions."
 
     node))
 
-(defn rewrite-with-types [node]
+(defn rewrite-with-types
+  {:private true}
+  [node]
   ;; If we did something better than an atom, we could know the type
   ;; of something a branch after a check-op.
   (let [env (atom {})]
