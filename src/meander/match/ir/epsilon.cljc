@@ -1135,10 +1135,7 @@ compilation decisions."
              arms))))
 
     (:find :match)
-    (let [arms (:arms ir)
-          arms (if (= kind :find)
-                 (remove op-fail? arms)
-                 arms)]
+    (let [arms (remove op-fail? (:arms ir))]
       (case (count arms)
         0
         fail
