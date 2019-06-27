@@ -23,11 +23,29 @@
 ;; ---------------------------------------------------------------------
 ;; AST specs and predicates
 
-(s/def :meander.syntax.epsilon/tag
+;; Every AST node has, at least, the key `:tag`, the value of which is
+;; a `keyword?`.
+
+(s/def :meander.syntax.epsilon.node/tag
   keyword?)
 
+;; Some nodes may have an `::original-form` key, the value of which is
+;; `any?`. This key is populated by forms which have been expanded
+;; during `parse` via `::syntax-expand` and then subsequently parsed
+;; into an AST node.
+
+(s/def :meander.syntax.epsilon.node/original-form
+  any?)
+
 (s/def :meander.syntax.epsilon/node
-  (s/keys :req-un [:meander.syntax.epsilon/tag]))
+  (s/keys :req-un [:meander.syntax.epsilon.node/tag]
+          :opt [:meander.syntax.epsilon.node/original-form]))
+
+;; Any patterns
+;; ------------
+;;
+;; Any patterns are `simple-symbol?`s which start with an `_`. They
+;; match anything.
 
 (defn any-form?
   "true if x is a symbol beginning with _."
@@ -35,7 +53,7 @@
   (and (simple-symbol? x)
        (r.util/re-matches? #"_.*" (name x))))
 
-(s/def :meander.syntax.epsilon/any
+(s/def :meander.syntax.epsilon/any-form
   (s/with-gen
     (s/conformer
      (fn [x]
@@ -53,7 +71,7 @@
   #{:any})
 
 (s/def :meander.syntax.epsilon.node.any/symbol
-  :meander.syntax.epsilon/any)
+  :meander.syntax.epsilon/any-form)
 
 (s/def :meander.syntax.epsilon.node/any
   (s/keys :req-un [:meander.syntax.epsilon.node.any/tag
@@ -64,16 +82,16 @@
   [x]
   (s/valid? :meander.syntax.epsilon.node/any x))
 
-(s/fdef logic-variable-form?
-  :args (s/cat :x any?)
-  :ret boolean?)
-
 (defn logic-variable-form?
   "true if x is in the form of a logic variable i.e. a simple symbol
   with a name beginning with \\?."
   [x]
   (and (simple-symbol? x)
        (r.util/re-matches? #"\?.+" (name x))))
+
+(s/fdef logic-variable-form?
+  :args (s/cat :x any?)
+  :ret boolean?)
 
 (s/def :meander.syntax.epsilon/logic-variable
   (s/with-gen
