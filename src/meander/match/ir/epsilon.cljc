@@ -955,9 +955,6 @@ compilation decisions."
 
 ;; ---------------------------------------------------------------------
 ;; Code generation
-;;
-;; TODO: Move all vars intended to be used by compiled code to a
-;; meander.runtime.<greek-letter> namespace.
 
 
 (defn fail-form
