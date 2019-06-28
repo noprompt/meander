@@ -648,6 +648,134 @@
           _
           false)))
 
+
+
+;; ---------------------------------------------------------------------
+;; seqables
+
+
+(t/deftest basic-seqables
+
+
+  (t/is (r.match/match [1 2 3]
+          (r.match/seqable 1 2 3)
+          true
+          _
+          false))
+
+  (t/is (r.match/match (list 1 2 3)
+          (r.match/seqable 1 2 3)
+          true
+          _
+          false))
+
+  (t/is (r.match/match (range 1 4)
+          (r.match/seqable 1 2 3)
+          true
+          _
+          false))
+
+
+  (t/is (r.match/match [1 2 3]
+          (r.match/seqable ?x ?y ?z)
+          true
+          _
+          false))
+
+  (t/is (r.match/match (list 1 2 3)
+          (r.match/seqable ?x ?y ?z)
+          true
+          _
+          false))
+
+  (t/is (r.match/match #{1 2 3}
+          (r.match/seqable ?x ?y ?z)
+          true
+          _
+          false))
+
+  (t/is (r.match/match #{1 2}
+          (r.match/seqable ?x ?y ?z)
+          false
+          _
+          true))
+
+  (t/is (r.match/match {(list :left) [:right]}
+          (r.match/seqable (r.match/seqable (r.match/seqable ?x) (r.match/seqable ?y)))
+          true
+          _
+          false))
+
+  (t/is (r.match/match [(list :left) [:right]]
+          [(r.match/seqable ?x) (r.match/seqable ?y)]
+          true
+          _
+          false)))
+
+(t/deftest search-seqables
+  (t/is (= 4 (count
+              (r.match/search [[1 2] (list 1 2) #{1 2} {1 2}]
+                (r.match/scan (r.match/seqable ?x ?y))
+                [?x ?y]
+
+                (r.match/scan (r.match/seqable (r.match/seqable ?x ?y)))
+                [?x ?y]))))
+
+  (t/is (= 4 (count
+              (r.match/search {:a [1 2 3]
+                               :b (range 10)
+                               :c #{1 2 3}
+                               :d {:a 1 :b 2}}
+                {?key (r.match/seqable !xs ...)}
+                !xs)))))
+
+
+(defn make-array-list [& args]
+  (java.util.ArrayList. args))
+
+(def ordered-seqable-gen
+  (tc.gen/elements [list vector make-array-list]))
+
+(tc.t/defspec seqable-unquote-patterns-match
+  (tc.prop/for-all [coll ordered-seqable-gen
+                    x gen-scalar
+                    y gen-scalar]
+    (r.match/match (coll x (coll y x) y)
+      (r.match/seqable ~x (r.match/seqable ~y ~x) ~y)
+      true
+
+      _
+      false)))
+
+
+(tc.t/defspec seqable-drop-in-head
+  (tc.prop/for-all [n tc.gen/nat
+                    x gen-scalar]
+    (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
+      (r.match/seqable _ ... ~x ~x)
+      true)))
+
+
+(tc.t/defspec seqable-drop-in-tail
+  (tc.prop/for-all [n tc.gen/nat
+                    x gen-scalar]
+    (r.match/match `[~@(map identity (repeat n x)) ~x ~x]
+      (r.match/seqable~x ~x . _ ...)
+      true)))
+
+
+(tc.t/defspec seqable-mvrs-collect-the-values-they-match
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar]
+    (r.match/match [x [y x] y]
+      (r.match/seqable !xs (r.match/seqable !ys !xs) !ys)
+      (and (= [x x] !xs)
+           (= [y y] !ys))
+
+      _
+      false)))
+
+
 ;; ---------------------------------------------------------------------
 ;; re form
 
