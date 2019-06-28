@@ -1822,3 +1822,7 @@
       ;; when the target is a vector.
       (~'and (~'not (~'pred vector?))
        (~'pred seqable? (~'app seq (~@inner)))))))
+
+
+(r.match.syntax/defsyntax seqable [& args]
+  `(~'pred seqable? (~'app seq ~args)))

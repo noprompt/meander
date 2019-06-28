@@ -36,6 +36,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
     * [`and`](#and)
     * [`or`](#or)
     * [`pred`](#pred)
+    * [`seqable`](#seqable)
     * [`guard`](#guard)
     * [`app`](#app)
     * [`let`](#let)
@@ -346,6 +347,31 @@ Example:
   [(pred even? ?x) (pred odd?)]
   ?x)
 ;; => 42
+```
+
+
+#### `seqable`
+
+Meander by default matches on specific collection types (sequences, vectors, maps, sets). This operator allows you to match on anything that is seqable.
+
+```clj
+(match [1 2 3]
+  (seqable 1 2 3)
+  :yep)
+;; =>
+:yep
+
+(match '(1 2 3)
+  (seqable 1 2 3)
+  :yep)
+;; =>
+:yep
+
+(match '#{1 2 3}
+  (seqable 1 2 3)
+  :yep)
+;; =>
+:yep
 ```
 
 #### `app`
