@@ -12,12 +12,13 @@
   #?(:cljs (:require-macros [meander.strategy.epsilon]))
   (:require
    [clojure.core :as clj]
-   [clojure.spec.alpha :as s]
    [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [meander.match.epsilon :as r.match :include-macros true]
+   [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
    [meander.protocols.epsilon :as r.protocols]
-   [meander.match.epsilon :as r.match]
-   [meander.syntax.epsilon :as r.syntax]
-   [meander.substitute.epsilon :as r.substitute]))
+   [meander.substitute.epsilon :as r.substitute :include-macros true]
+   [meander.syntax.epsilon :as r.syntax :include-macros true]))
 
 
 (def
@@ -1031,7 +1032,7 @@
   "`true` if no variable occurs more than once in `node`."
   {:private true}
   [node]
-  (r.match/find (r.syntax/analyze node)
+  (r.match/find (r.match.syntax/analyze node)
     {:occurrences {_ (not 1)}}
     false
 
@@ -1102,10 +1103,11 @@
     (fn [[lhs rhs]]
       (let [lhs-node (r.syntax/parse lhs)
             rhs-node (r.syntax/parse rhs)
-            rule {:lhs/analysis (r.syntax/analyze lhs-node)
+            rule {:lhs/analysis (r.match.syntax/analyze lhs-node)
                   :lhs/form lhs
                   :lhs/node lhs-node
-                  :rhs/analysis (r.syntax/analyze rhs-node)
+                  ;; Probably should use r.substitute/syntax analyze.
+                  :rhs/analysis (r.match.syntax/analyze rhs-node)
                   :rhs/form rhs
                   :rhs/node rhs-node}]
         (merge rule {:errors (check-rule rule)}))))

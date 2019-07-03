@@ -440,3 +440,73 @@
 #?(:clj
    (s/fdef defsyntax
      :args ::core.specs/defn-args))
+
+;; ---------------------------------------------------------------------
+;; Syntax analysis
+
+(defn not-not?
+  "true if `node` represents the syntax `(not (not <pattern>))`."
+  {:private true}
+  [node]
+  (= (:tag node)
+     (:tag (:argument node))
+     :not))
+
+(defn not-tag
+  "Returns `:not-not` if `node` represents the syntax
+  `(not (not <pattern>))`; `:not` if `node` represents the syntax
+  `(not <pattern>)`; `nil` otherwise."
+  {:private true}
+  [node]
+  (case (:tag node)
+    :not
+    (case (:tag (:argument node))
+      :not
+      :not-not
+      ;; else
+      :not)
+    ;; else
+    nil))
+
+(defn analyze*
+  {:private true}
+  [node]
+  (r.syntax/fold
+   (fn [state node]
+     (let [negated-counter (:negated-counter state)]
+       {:negated-counter
+        (if (zero? negated-counter)
+          (case (not-tag node)
+            :not
+            (+ negated-counter (dec (count (r.syntax/subnodes node))))
+
+            :not-not
+            (+ negated-counter 1)
+
+            ;; else
+            negated-counter)
+          (dec negated-counter))
+
+        :occurrences
+        (if (r.syntax/variable-node? node)
+          (update (:occurrences state) node (fnil inc 0))
+          (:occurrences state))
+
+        :occurrences-in-not
+        (if (and (not (zero? negated-counter))
+                 (r.syntax/variable-node? node))
+          (update (:occurrences-in-not state) node (fnil inc 0))
+          (:occurrences-in-not state))}))
+   {;; The `nat-int?` number of nodes currently under a negation.
+    :negated-counter 0
+    ;; A map from `variable-node?` to `nat-int?`. Keeps track of how
+    ;; many times a `variable-node?` appears.
+    :occurrences {}
+    ;; A map from `variable-node?` to `nat-int?`. Keeps track of how
+    ;; many times a `variable-node?` appears inside a `not` pattern.
+    :occurrences-in-not {}}
+   node))
+
+(defn analyze
+  [node]
+  (dissoc (analyze* node) :negated-counter))
