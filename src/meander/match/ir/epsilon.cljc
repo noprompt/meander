@@ -780,10 +780,10 @@ compilation decisions."
       #'clojure.core/string? java.lang.String
       #'clojure.core/vector? clojure.lang.IPersistentVector}
      :cljs
-     {#'clojure.core/vector? cljs.core.PersistentVector
-      #'clojure.core/set? cljs.core.PersistentSet
-      #'clojure.core/number? js/Number
-      #'clojure.core/string? js/String}))
+     {#'cljs.core/number? js/Number
+      #'cljs.core/set? cljs.core/PersistentSet
+      #'cljs.core/string? js/String
+      #'cljs.core/vector? cljs.core/PersistentVector}))
 
 (defn eliminate-preds
   {:private true}
