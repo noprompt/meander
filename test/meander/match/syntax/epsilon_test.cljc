@@ -39,5 +39,6 @@
 ;; AST rewriting tests
 
 (t/deftest map-expand-as
-  (= (r.match.syntax/expand-ast (r.match.syntax/parse '{:foo :bar :as ?baz}))
-     (r.match.syntax/parse '(and {:foo :bar} ?baz))))
+  (t/is (= (r.match.syntax/expand-ast (r.match.syntax/parse '{:foo :bar :as ?baz}))
+           (dissoc (r.match.syntax/parse '(and {:foo :bar} ?baz))
+                   :meander.syntax.epsilon/original-form))))

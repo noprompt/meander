@@ -181,7 +181,7 @@
      (case (r.syntax/tag node)
        :cnj
        (flatten-cnj node)
-     
+
        :dsj
        (expand-dsj node)
 
@@ -190,7 +190,7 @@
 
        :not
        (expand-not node)
-      
+
        :set
        (expand-set node)
 
@@ -216,6 +216,31 @@
 
 (defonce macro-registry
   (atom {}))
+
+(defonce special-registry
+  (atom {}))
+
+(defn register-special
+  ([symbol var]
+   {:pre [(symbol? symbol) (var? var)]}
+   (swap! special-registry assoc symbol var))
+  ([special-registry symbol var]
+   {:pre [(symbol? symbol) (var? var)]}
+   (swap! special-registry assoc symbol var)))
+
+(s/fdef register-special
+  :args (s/cat :symbol symbol?
+               :var-form (s/cat :var-symbol #{'var}
+                                :symbol symbol?)))
+
+(defn get-special
+  [symbol]
+  (get (deref special-registry) symbol))
+
+(s/fdef resolve-special
+  :args (s/cat :symbol symbol?)
+  :ret (s/or :var var?
+             :not-found nil?))
 
 (defn expand-symbol
   {:private true}
@@ -272,44 +297,84 @@
           (apply macro (rest form))))
        form))))
 
-(defmulti parse-special
-  (fn [form env]
-    (if (and (seq? form) (symbol? (first form)))
-      (first form)
-      ::not-special))
-  :default ::not-special)
+(defn parse-special
+  "Parses a special form e.g. a `seq?` with a special `symbol?` in its
+  first position into a `:meander.syntax.epsilon/node`."
+  [form env]
+  ;; The choice to return keywords in each of the three failure modes
+  ;; is probably not a good long term choice though they will cause
+  ;; parse failures to occur properly. There is enough information in
+  ;; each of the three cases to inform a programmer that either
+  ;;
+  ;; 1. the form type was passed,
+  ;; 2. the value registered under the form symbol was no a var, or
+  ;; 3. the value registered under the form symbol was a var but its
+  ;;    dereferenced value wasa not a function.
+  ;;
+  ;; The keywords should be fine for now, however.
+  (if (and (seq? form) (symbol? (first form)))
+    (let [;; Should this be
+          ;;
+          ;;     (get (::r.syntax/special-registry env) (first form))
+          ;;
+          ;; instead? That might be nicer...
+          x (get-special (first form))]
+      (if (var? x)
+        (if (fn? (deref x))
+          (x form env)
+          :meander.match.syntax.error/invalid-register)
+        :meander.match.syntax.error/invalid-register))
+    :meander.match.syntax.error/invalid-special-form))
 
 (s/fdef parse-special
   :args (s/cat :form (s/cat :head symbol? :tail (s/* any?))
                :parse-env ::r.syntax/pase-env)
-  :ret ::r.syntax/node)
+  :ret (s/or :node ::r.syntax/node
+             :other keyword?))
 
-(defmethod parse-special 'and [[_ & args] env]
+(defn parse-and
+  {:private true}
+  [[_ & args] env]
   {:tag :cnj
    :arguments (r.syntax/parse-all args env)})
 
-(defmethod parse-special 'app [[_ fn-expr & args] env]
+(register-special `meander.epsilon/and #'parse-and)
+(register-special `meander.match.epsilon/and #'parse-and)
+(register-special 'and #'parse-and)
+
+(defn parse-app [[_ fn-expr & args] env]
   {:tag :app
    :fn-expr fn-expr
    :arguments (r.syntax/parse-all args env)})
 
-(defmethod parse-special 'guard [[_ expr] env]
+(register-special `meander.epsilon/app #'parse-app)
+(register-special `meander.match.epsilon/app #'parse-app)
+(register-special 'app #'parse-app)
+
+(defn parse-guard [[_ expr] env]
   {:tag :grd
    :expr expr})
 
-(defmethod parse-special 'let [[_ & args :as form] env]
+(register-special `meander.epsilon/guard #'parse-guard)
+(register-special `meander.match.epsilon/guard #'parse-guard)
+(register-special 'guard #'parse-guard)
+
+(defn parse-let [[_ & args :as form] env]
   (if (odd? (count args))
     (throw (ex-info "let pattern requires an even number of arguments"
                     {:pattern form
                      :meta (meta form)}))
     {:tag :let
-     :bindings (map
-                (fn [[pattern expr]]
-                  {:binding (r.syntax/parse pattern env)
-                   :expr expr})
-                (partition-all 2 args))}))
+     :bindings (map (fn [[pattern expr]]
+                      {:binding (r.syntax/parse pattern env)
+                       :expr expr})
+                    (partition-all 2 args))}))
 
-(defmethod parse-special 'not [[_ & args :as form] env]
+(register-special `meander.epsilon/let #'parse-let)
+(register-special `meander.match.epsilon/let #'parse-let)
+(register-special 'let #'parse-let)
+
+(defn parse-not [[_ & args :as form] env]
   (if (= 1 (bounded-count 2 args))
     {:tag :not
      :argument (r.syntax/parse (first args) env)}
@@ -317,31 +382,41 @@
                     {:pattern form
                      :meta (meta form)}))))
 
-(defmethod parse-special 'or [[_ & args :as form] env]
+(register-special `meander.epsilon/not #'parse-not)
+(register-special `meander.match.epsilon/not #'parse-not)
+(register-special 'not #'parse-not)
+
+(defn parse-or [[_ & args :as form] env]
   {:tag :dsj
    :arguments (r.syntax/parse-all args env)})
 
-(defmethod parse-special 'pred [[_ expr & args :as form] env]
-  ;; TODO: check arguments.
+(register-special `meander.epsilon/or #'parse-or)
+(register-special `meander.match.epsilon/or #'parse-or)
+(register-special 'or #'parse-or)
+
+(defn parse-pred [[_ expr & args :as form] env]
   {:tag :prd
    :form expr
    :arguments (r.syntax/parse-all args env)})
 
-(defmethod parse-special 're [[_ & args :as form] env]
+(register-special `meander.epsilon/pred #'parse-pred)
+(register-special `meander.match.epsilon/pred #'parse-pred)
+(register-special 'pred #'parse-pred)
+
+(defn parse-re [[_ & args :as form] env]
   (case (bounded-count 3 args)
-    1
-    {:tag :rxt
-     :regex (first args)}
-
-    2
-    {:tag :rxc
-     :regex (first args)
-     :capture (r.syntax/parse (second args) env)}
-
-    ;; else
+    1 {:tag :rxt
+       :regex (first args)}
+    2 {:tag :rxc
+       :regex (first args)
+       :capture (r.syntax/parse (second args) env)}
     (throw (ex-info "re pattern expects at one or two arguments"
                     {:pattern form
                      :meta (meta form)}))))
+
+(register-special `meander.epsilon/re #'parse-re)
+(register-special `meander.match.epsilon/re #'parse-re)
+(register-special 're #'parse-re)
 
 (defn special-form?
   "`true` if `x` is of the form
@@ -357,12 +432,15 @@
       (re <regex-expr> <pattern>)
 
   and `false` otherwise."
-  [x]
+  [x] ;; This should take env.
   (and (seq? x)
-       (contains? (methods parse-special) (first x))))
+       (contains? (deref special-registry) (first x))))
 
 (def parse-env
   {::r.syntax/parse-special parse-special
+   ;; Consider replacing this with `::r.syntax/special-registry`. By
+   ;; doing that we can eliminate this predicate and simply answer the
+   ;; question by checking the registry.
    ::r.syntax/special-form? special-form?
    ::r.syntax/syntax-expand syntax-expand})
 
