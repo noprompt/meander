@@ -6,9 +6,9 @@
    [meander.syntax.epsilon :as r.syntax :include-macros true]))
 
 (r.match.syntax/defsyntax $cons [?head ?tail]
-  `(~'pred clojure.core/seq?
-    (~'app clojure.core/first ~?head)
-    (~'app clojure.core/rest ~?tail)))
+  `(r.match/pred clojure.core/seq?
+    (r.match/app clojure.core/first ~?head)
+    (r.match/app clojure.core/rest ~?tail)))
 
 (t/deftest defsyntax-test
   ;; $cons will be fully qualified.

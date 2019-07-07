@@ -71,14 +71,14 @@
 (tc.t/defspec pred-succeeds
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
-      (pred nat-int?)
+      (r.match/pred nat-int?)
       true)))
 
 
 (tc.t/defspec pred-fails
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
-      (pred string?)
+      (r.match/pred string?)
       false
 
       _
@@ -88,14 +88,14 @@
 (tc.t/defspec guard-succeeds
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
-      (guard (= 1 1))
+      (r.match/guard (= 1 1))
       true)))
 
 
 (tc.t/defspec guard-fails
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
-      (guard (= 1 2))
+      (r.match/guard (= 1 2))
       false
 
       _
@@ -105,14 +105,14 @@
 (tc.t/defspec and-succeeds
   (tc.prop/for-all [x tc.gen/nat]
     (r.match/match x
-      (and ~x ?x)
+      (r.match/and ~x ?x)
       (= x ?x))))
 
 
 (tc.t/defspec and-fails
   (tc.prop/for-all [x gen-scalar]
     (r.match/match x
-      (and ~x ?x (guard false))
+      (r.match/and ~x ?x (r.match/guard false))
       false
 
       _
@@ -124,7 +124,7 @@
                     y gen-scalar
                     z gen-scalar]
     (r.match/match x
-      (or ~z ~y ~x)
+      (r.match/or ~z ~y ~x)
       true
 
       _
@@ -136,25 +136,30 @@
                     y gen-scalar
                     z gen-scalar]
     (r.match/match [x y z]
-      (or ~z ~y ~x)
+      (r.match/or ~z ~y ~x)
       false
 
       _
       true)))
 
 #?(:clj
-   (t/deftest or-compilation-fails
-     (t/is (try
-             (macroexpand '(meander.match.epsilon/match 1 (or ?x ?y ?z) false))
+   ;; If this let appears inside the `deftest` form the test fails for
+   ;; unclear reasons.
+   (let [x (try
+             (macroexpand '(meander.match.epsilon/match 1
+                             (r.match/or ?x ?y ?z)
+                             false))
              false
              (catch Exception _
-               true)))))
+               true))]
+     (t/deftest or-compilation-fails
+       (t/is x))))
 
 (tc.t/defspec let-succeeds
   (tc.prop/for-all [x gen-scalar
                     y gen-scalar]
     (r.match/match y
-      (and ?y (let ?x x))
+      (r.match/and ?y (r.match/let ?x x))
       (and (= y ?y)
            (= x ?x)))))
 
@@ -162,7 +167,7 @@
 (tc.t/defspec let-fails
   (tc.prop/for-all [x gen-scalar]
     (r.match/match x
-      (and ?x (let ?x [x]))
+      (r.match/and ?x (r.match/let ?x [x]))
       false
 
       _
@@ -172,7 +177,7 @@
 (t/deftest let-test
   (t/is (= [1 2]
            (r.match/match 42
-             (or [?x ?y] (let [?x ?y] [1 2]))
+             (r.match/or [?x ?y] (r.match/let [?x ?y] [1 2]))
              [?x ?y]))))
 
 ;; Seqs
@@ -269,6 +274,7 @@
       _
       false)))
 
+
 (tc.t/defspec seq-zero-or-more-lvr-previously-bound
   (tc.prop/for-all [n (tc.gen/such-that (complement zero?) tc.gen/nat)
                     x1 gen-scalar
@@ -322,7 +328,7 @@
   (tc.prop/for-all [x gen-scalar
                     y gen-scalar]
     (r.match/match (list x y x)
-      (?x (guard (= ?x ?x)) ?x)
+      (?x (r.match/guard (= ?x ?x)) ?x)
       true
 
       _
@@ -480,7 +486,7 @@
   (tc.prop/for-all [x gen-scalar
                     y gen-scalar]
     (r.match/match [x y x]
-      [?x (guard (= ?x ?x)) ?x]
+      [?x (r.match/guard (= ?x ?x)) ?x]
       true
 
       _
@@ -655,8 +661,6 @@
 
 
 (t/deftest basic-seqables
-
-
   (t/is (r.match/match [1 2 3]
           (r.match/seqable 1 2 3)
           true
@@ -731,7 +735,11 @@
 
 
 (defn make-array-list [& args]
-  (java.util.ArrayList. args))
+  #?(:clj
+     (java.util.ArrayList. args)
+
+     :cljs
+     (into-array args)))
 
 (def ordered-seqable-gen
   (tc.gen/elements [list vector make-array-list]))
@@ -781,13 +789,13 @@
 
 (t/deftest re-test
   (t/is (r.match/match "foo foo foo"
-          (re #"(?:foo ?)+")
+          (r.match/re #"(?:foo ?)+")
           true
           _
           false))
 
   (t/is (r.match/match "Harry Hacker"
-          (re #"([^ ]+) *([^ ]+)" [_ ?Harry ?Hacker])
+          (r.match/re #"([^ ]+) *([^ ]+)" [_ ?Harry ?Hacker])
           (and (= ?Harry "Harry")
                (= ?Hacker "Hacker"))
           _
@@ -823,7 +831,7 @@
 (t/deftest search-or-1-test
   (t/is (= #{[1 2] [2 1]}
            (set (r.match/search [1 2]
-                  (or [?x ?y] [?y ?x])
+                  (r.match/or [?x ?y] [?y ?x])
                   [?x ?y])))))
 
 
@@ -889,17 +897,17 @@
 (t/deftest pred
   (t/is (= [1 2]
            (r.match/match 1
-             (pred odd? ?x (app inc ?y))
+             (r.match/pred odd? ?x (r.match/app inc ?y))
              [?x ?y]))))
 
 
 (t/deftest app
   (t/is (r.match/match {:foo 1}
-          (app (fn [m] (assoc m :baz 2))
-               ?x
-               (app (fn [m] (assoc m :quux 3))
-                    ?y)
-               (let ?z [?x ?y]))
+          (r.match/app (fn [m] (assoc m :baz 2))
+                       ?x
+                       (r.match/app (fn [m] (assoc m :quux 3))
+                                    ?y)
+                       (r.match/let ?z [?x ?y]))
           (= ?z
              [?x ?y]
              [{:foo 1, :baz 2}
@@ -1027,9 +1035,9 @@
                      {:name !names
                       :owners [_ ... ?owner . _ ...]}
                      .
-                     (or {:name !names
-                          :owners [_ ... ?owner . _ ...]}
-                         _)
+                     (r.match/or {:name !names
+                                  :owners [_ ... ?owner . _ ...]}
+                                 _)
                      ...]
                     {:owner ?owner
                      :names !names}))))
@@ -1039,9 +1047,9 @@
                         {:name !names
                          :owners [_ ... ?owner . _ ...]}
                         .
-                        (or {:name !names
-                             :owners [_ ... ?owner . _ ...]}
-                            _)
+                        (r.match/or {:name !names
+                                     :owners [_ ... ?owner . _ ...]}
+                                    _)
                         ...]
                        {:owner ?owner
                         :names !names})))))
@@ -1057,11 +1065,11 @@
 (t/deftest set-negation
   (t/is (= '(1 3)
            (r.match/search [#{1 2 3} #{[2 2]}]
-             [#{?x} (not #{[?x ?x]})]
+             [#{?x} (r.match/not #{[?x ?x]})]
              ?x)))
 
   (let [x (r.match/find [#{1 2 3} #{[2 2]}]
-            [#{?x} (not #{[?x ?x]})]
+            [#{?x} (r.match/not #{[?x ?x]})]
             ?x)]
     (t/is (or (= x 1)
               (= x 3)))))
@@ -1069,26 +1077,31 @@
 (t/deftest unbound-mvrs-in-dsj
   (t/is (= [[0 2 4 6 8] [1 3 5 7 9]]
            (r.match/match (range 10)
-             ((or (pred even? !evens) (pred odd? !odds)) ...)
+             ((r.match/or (r.match/pred even? !evens)
+                          (r.match/pred odd? !odds)) ...)
              [!evens !odds])))
 
   (t/is (= [[2 1 3] []]
            (r.match/match [2 1 3]
-             [(or (pred even? !xs) (pred odd? !ys)) !xs !xs]
+             [(r.match/or (r.match/pred even? !xs)
+                          (r.match/pred odd? !ys))
+              !xs
+              !xs]
              [!xs !ys])))
 
   (t/is (= [[2 4 6 8] [1 3 5 7 9]]
            (r.match/match [1 2 3 4 5 6 7 8 9]
-             [(or (pred even? !xs) (pred odd? !ys)) ...]
+             [(r.match/or (r.match/pred even? !xs) (r.match/pred odd? !ys))
+              ...]
              [!xs !ys]))))
 
 
 (t/deftest dsj-literal-test
   (t/is (r.match/match false
-          (or true false)
+          (r.match/or true false)
           true))
   (t/is (r.match/match nil
-          (or true nil false)
+          (r.match/or true nil false)
           true)))
 
 (t/deftest seq-pattern-matching-with-infinite-sequences
@@ -1109,7 +1122,7 @@
 (t/deftest not-not-test
   (let [x 1]
     (t/is (= x (r.match/find 1
-                 (not (not ?x))
+                 (r.match/not (r.match/not ?x))
                  ?x)))))
 
 ;; ---------------------------------------------------------------------
@@ -1270,7 +1283,7 @@
      (tc.prop/for-all [x gen-scalar
                        y gen-scalar]
        (r.match/match #js [x y x]
-         #js [?x (guard (= ?x ?x)) ?x]
+         #js [?x (r.match/guard (= ?x ?x)) ?x]
          true
 
          _
@@ -1373,7 +1386,7 @@
                (with [%h1 [!tags {:as !attrs} . %hiccup ...]
                       %h2 [!tags . %hiccup ...]
                       %h3 !xs
-                      %hiccup (or %h1 %h2 %h3)]
+                      %hiccup (r.match/or %h1 %h2 %h3)]
                  %hiccup)
                [!tags !attrs !xs])
              [[:div :p :strong :em :u :ul :li :li :li :li]
@@ -1386,7 +1399,7 @@
                                 {:tag :lvr, :symbol ?z}}
                               #{{:tag :lvr, :symbol ?x}}]
               (with [%lvr {:tag :lvr, :symbol ?symbol}]
-                [#{%lvr} #{(not %lvr)}])
+                [#{%lvr} #{(r.match/not %lvr)}])
               ?symbol))
            '#{?y ?z}))
 
@@ -1394,14 +1407,14 @@
   (t/testing "recursive key/val collection"
     (t/is (= [#{:foo :baz} #{"bar" "quux"}]
              (r.match/find {:foo "bar", :baz "quux"}
-               (with [%kvs {!k !v & (or %kvs {})}]
+               (with [%kvs {!k !v & (r.match/or %kvs {})}]
                  %kvs)
                [(set !k) (set !v)]))))
 
   (t/testing "recursive element collection"
     (t/is (= #{"bar" :baz :foo "quux"}
              (r.match/find #{:foo "bar", :baz "quux"}
-               (with [%elems #{!x ^& (or %elems #{})}]
+               (with [%elems #{!x ^& (r.match/or %elems #{})}]
                  %elems)
                (set !x)))))
 
@@ -1411,12 +1424,12 @@
                                    :b {:a 1
                                        :b 2}
                                    :c '(1 2 1 2)}
-                    (with [%1_ (or %1 _)
-                           %1 (or (and 1 !1s)
-                                  {_ %1_ & %1_}
-                                  (%1_ ...)
-                                  [%1_ ...]
-                                  #{%1_})]
+                    (with [%1_ (r.match/or %1 _)
+                           %1 (r.match/or (r.match/and 1 !1s)
+                                          {_ %1_ & %1_}
+                                          (%1_ ...)
+                                          [%1_ ...]
+                                          #{%1_})]
                       %1)
                     !1s))))))
 

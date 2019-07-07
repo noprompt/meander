@@ -143,12 +143,11 @@
 
 (tc.t/defspec rst-behaves-properly-1
   (tc.prop/for-all [!xs (tc.gen/vector tc.gen/int)]
-    (= !xs
-       (r.substitute/substitute [!xs ...]))))
+    (= !xs (r.substitute/substitute [!xs ...]))))
+
 
 (tc.t/defspec rst-behaves-properly-2
-  (tc.prop/for-all [!ys (tc.gen/vector tc.gen/int)
-                    !xs (tc.gen/vector tc.gen/int)]
+  (tc.prop/for-all [!ys (tc.gen/vector tc.gen/int) !xs (tc.gen/vector tc.gen/int)]
     (= (into !ys !xs)
        (r.substitute/substitute [!ys ... !xs ...]))))
 

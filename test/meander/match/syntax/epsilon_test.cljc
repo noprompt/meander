@@ -18,7 +18,7 @@
 (defn gen-or-form
   [gen]
   (tc.gen/fmap
-   (fn [l] (cons 'or l))
+   (fn [l] (cons 'r.match/or l))
    (tc.gen/list gen)))
 
 (defn gen-or-tree
@@ -28,7 +28,7 @@
 (defn gen-and-form
   [gen]
   (tc.gen/fmap
-   (fn [l] (cons 'and l))
+   (fn [l] (cons 'r.match/and l))
    (tc.gen/list gen)))
 
 (defn gen-and-tree
@@ -38,7 +38,17 @@
 ;; ---------------------------------------------------------------------
 ;; AST rewriting tests
 
-(t/deftest map-expand-as
-  (t/is (= (r.match.syntax/expand-ast (r.match.syntax/parse '{:foo :bar :as ?baz}))
-           (dissoc (r.match.syntax/parse '(and {:foo :bar} ?baz))
-                   :meander.syntax.epsilon/original-form))))
+#?(:clj
+   ;; If this let appears inside the `deftest` form the test fails for
+   ;; unclear reasons.
+   (let [a (r.match.syntax/expand-ast (r.match.syntax/parse '{:foo :bar :as ?baz}))
+         b (dissoc (r.match.syntax/parse '(r.match/and {:foo :bar} ?baz))
+                   :meander.syntax.epsilon/original-form)]
+     (t/deftest map-expand-as
+       (t/is (= a b))))
+
+   :cljs
+   (t/deftest map-expand-as
+     (t/is (= (r.match.syntax/expand-ast (r.match.syntax/parse '{:foo :bar :as ?baz}))
+              (dissoc (r.match.syntax/parse '(r.match/and {:foo :bar} ?baz))
+                      :meander.syntax.epsilon/original-form)))))

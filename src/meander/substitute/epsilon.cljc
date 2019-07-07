@@ -191,7 +191,7 @@
   (r.match/match node
     {:left ?left
      :right {:tag :cat
-             :elements (or [] ())}}
+             :elements (r.match/or [] ())}}
     (compile-substitute ?left env)
 
     {:left ?left
@@ -229,8 +229,8 @@
 (defmethod compile-substitute :rp+ [node env]
   (r.match/match node
     {:cat {:tag :cat
-           :elements (or ({:tag :lit} ..1 :as ?elements)
-                         [{:tag :lit} ..1 :as ?elements])}
+           :elements (r.match/or ({:tag :lit} ..1 :as ?elements)
+                                 [{:tag :lit} ..1 :as ?elements])}
      :n ?n}
     (into [] cat (repeat ?n (map compile-substitute ?elements (repeat env))))
 
@@ -270,22 +270,23 @@
 (defmethod compile-substitute :tail [node env]
   (compile-substitute (:pattern node) env))
 
-
 (defmethod compile-substitute :seq
   [node env]
   (let [env* (assoc env :collection-context :seq)]
     (r.match/find node
-      {:prt {:left {:tag :cat
-                    :elements (and ?left-elements (not (r.match/scan {:tag :uns})))}
-             :right {:tag :cat
-                     :elements (and ?right-elements (not (r.match/scan {:tag :uns})))}}}
+      (with [%not-uns (r.match/not (r.match/scan {:tag :uns}))]
+        {:prt {:left {:tag :cat
+                      :elements (r.match/and ?left-elements %not-uns)}
+               :right {:tag :cat
+                       :elements (r.match/and ?right-elements %not-uns)}}})
       `(list ~@(compile-all ?left-elements env*)
              ~@(compile-all ?right-elements env*))
 
-      {:prt {:left {:tag :cat
-                    :elements (and ?left-elements (not (r.match/scan {:tag :uns})))}
-             :right {:tag :lit
-                     :value (_ ... :as ?right-elements)}}}
+      (with [%not-uns (r.match/not (r.match/scan {:tag :uns}))]
+        {:prt {:left {:tag :cat
+                      :elements (r.match/and ?left-elements %not-uns)}
+               :right {:tag :lit
+                       :value (_ ... :as ?right-elements)}}})
       `(list ~@(compile-all ?left-elements env*)
              ~@?right-elements)
 
@@ -317,7 +318,9 @@
      ;; Compile [?a ~@xs ?b] as (conj (into [?x] xs) ?b)
      (with [%not-uns (not {:tag :uns})]
        {:left {:tag :cat
-               :elements [(and %not-uns !1s) ... {:tag :uns :as !uns} ..1 (and %not-uns !2s) ...]}
+               :elements [(r.match/and %not-uns !1s) ...
+                          {:tag :uns :as !uns} ..1
+                          (r.match/and %not-uns !2s) ...]}
         :right ?right})
      (compile-vec-prt `(conj ~(reduce
                                (fn [form compiled-uns]

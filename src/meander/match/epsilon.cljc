@@ -1803,26 +1803,69 @@
 ;; ---------------------------------------------------------------------
 ;; Match operators
 
-(r.match.syntax/defsyntax scan [& args]
-  (let [argc (count args)
-        [as pattern] (drop (- argc 2) args)
+(r.match.syntax/defsyntax all-of
+  "Alias for the `meander.match.epsilon/and` special form."
+  [& patterns]
+  `(meander.match.epsilon/and ~@patterns))
+
+(r.match.syntax/defsyntax one-of
+  "Alias for the `meander.match.epsilon/or` special form."
+  [& patterns]
+  `(meander.match.epsilon/or ~@patterns))
+
+(r.match.syntax/defsyntax none-of
+  "Variadic `meander.match.epsilon/not` pattern."
+  [pattern & patterns]
+  `(meander.match.epsilon/not (one-of ~pattern ~@patterns)))
+
+(r.match.syntax/defsyntax seqable
+  "Pattern matching operator which matches the `seq` of anything that
+  is `seqable?` against
+
+      (p1 ,,, pn)
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  `(meander.match.epsilon/pred seqable? (meander.match.epsilon/app seq ~patterns)))
+
+(r.match.syntax/defsyntax scan
+  "Pattern matching operator which matches the `seq` of `seqable?`
+  forms of the shape
+
+      (_ ... p1 ,,, pn . _ ...)
+
+  or `vectors?` of the form
+
+      [_ ... p1 ,,, pn . _ ...]
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  (let [patternc (count patterns)
+        [as as-pattern] (drop (- patternc 2) patterns)
         inner (if (= :as as)
-                `(~@'(_ ...) ~@args ~@'(. _ ...) :as ~pattern)
-                `(~@'(_ ...) ~@args ~@'(. _ ...)))]
-    `(~'or [~@inner]
-      ;; Needed to prevent producing the same search results twice
-      ;; when the target is a vector.
-      (~'and (~'not (~'pred vector?))
-       (~'pred seqable? (~'app seq ~inner))))))
+                `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
+                `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
+    `(one-of [~@inner]
+             ;; Prevent producing the same search results twice when
+             ;; the target is a vector.
+             (all-of (none-of (meander.match.epsilon/pred vector?))
+                     (seqable ~@inner)))))
 
-(r.match.syntax/defsyntax separated [& args]
-  (let [inner `(~@'(_ ...) ~@(mapcat cons args (repeat '(. _ ...))))]
-    `(~'or [~@inner]
-      ;; Needed to prevent producing the same search results twice
-      ;; when the target is a vector.
-      (~'and (~'not (~'pred vector?))
-       (~'pred seqable? (~'app seq (~@inner)))))))
+(r.match.syntax/defsyntax separated
+  "Pattern matching operator which matches the `seq` of `seqable?`
+  forms of the shape
 
+      (_ ... p1 ,,, . _ ... pn . _ ...)
 
-(r.match.syntax/defsyntax seqable [& args]
-  `(~'pred seqable? (~'app seq ~args)))
+  or `vectors?` of the form
+
+      [_ ... p1 ,,, . _ ... pn . _ ...]
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  (let [inner `(~@'(_ ...) ~@(mapcat cons patterns (repeat '(. _ ...))))]
+    `(one-of [~@inner]
+             ;; Prevent producing the same search results twice when
+             ;; the target is a vector.
+             (all-of (none-of (meander.match.epsilon/pred vector?))
+                     (seqable ~@inner)))))

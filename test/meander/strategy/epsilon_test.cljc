@@ -262,14 +262,14 @@
   (t/is (= {:a 1, :c 2}
            (r/retain (r/pipe
                        (r/match
-                         [?k (pred number? ?v)]
+                         [?k (r.match/pred number? ?v)]
                          [?k (inc ?v)]))
                       {:a 0, :b "B", :c 1, :d "D"})))
 
   (t/is (= {:a 1, :c 2}
            ((r/retain (r/pipe
                         (r/match
-                          [?k (pred number? ?v)]
+                          [?k (r.match/pred number? ?v)]
                           [?k (inc ?v)])))
             {:a 0, :b "B", :c 1, :d "D"}))))
 

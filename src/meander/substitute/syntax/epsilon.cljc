@@ -183,9 +183,10 @@
 
 (defn special-form?
   "`true` if `x` is a special form and `false` otherwise."
-  [x]
+  [x env]
   (and (seq? x)
-       (contains? (methods parse-special) (first x))))
+       (symbol? (first x))
+       (contains? (methods parse-special) (expand-symbol (first x) env))))
 
 (def parse-env
   {::r.syntax/parse-special #'parse-special

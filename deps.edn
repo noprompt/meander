@@ -5,8 +5,11 @@
  :aliases {:test {:extra-paths ["test"]
                   :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner.git"
-                                                          :sha "209b64504cb3bd3b99ecfec7937b358a879f55c1"}}
-                  :main-opts ["-m" "cognitect.test-runner"]}
+                                                          :sha "209b64504cb3bd3b99ecfec7937b358a879f55c1"}
+                               eftest {:mvn/version "0.5.8"}}
+                  :main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]])"
+                              "-e" "(run-tests,(find-tests,\"test\"))"]
+                  #_["-m" "cognitect.test-runner"]}
            :cljs-test {:extra-paths ["test"]
                        :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}

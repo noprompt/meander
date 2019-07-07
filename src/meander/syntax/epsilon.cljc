@@ -469,7 +469,7 @@
 
 (s/def :meander.syntax.epsilon.parse-env/special-form?
   (s/fspec
-   :args (s/cat :x any?)
+   :args (s/cat :x any? :env map?)
    :ret boolean?))
 
 (s/def :meander.syntax.epsilon.parse-env/syntax-expand
@@ -820,7 +820,7 @@
         (let [xs* ((::syntax-expand env) xs env)]
           (if (= xs* xs)
             ;; Syntax expansion failed, try to parse special form.
-            (if ((::special-form? env) xs)
+            (if ((::special-form? env) xs env)
               (let [node ((::parse-special env) xs env)]
                 (if (node? node)
                   ;; Special form, return the node.
