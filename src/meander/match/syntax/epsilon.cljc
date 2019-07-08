@@ -1,4 +1,6 @@
 (ns meander.match.syntax.epsilon
+  "This namespace defines the match syntax special forms, and AST
+  transformations and queries."
   #?(:clj
      (:require [clojure.walk :as walk]
                [clojure.spec.alpha :as s]
