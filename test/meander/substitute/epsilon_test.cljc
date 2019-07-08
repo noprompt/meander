@@ -160,3 +160,20 @@
   (let [?rest '[2 3 4]]
     (t/is (= '[1 2 3 4]
              (r.substitute/substitute [1 & ?rest])))))
+
+(t/deftest app-test
+  (let [?x 1]
+    (t/is (= 2
+             (r.substitute/substitute (r.substitute/app inc ?x)))))
+
+  (let [!xs [1 2 3]]
+    (t/is (= [2 3 4]
+             (r.substitute/substitute [(r.substitute/app inc !xs) ...]))))
+
+  (t/is (let [!xs [1 2 3]]
+          (= 6
+             (r.substitute/substitute (r.substitute/app (partial reduce + 0) [!xs ...])))))
+
+   (t/is (let [!xs [1 2]]
+          (= 3
+             (r.substitute/substitute (r.substitute/app + !xs !xs))))))

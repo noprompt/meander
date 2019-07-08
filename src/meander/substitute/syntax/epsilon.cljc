@@ -181,6 +181,11 @@
                :parse-env ::r.syntax/pase-env)
   :ret ::r.syntax/node)
 
+(defmethod parse-special 'meander.substitute.epsilon/app [[_ fn-expr & args] env]
+  {:tag :app
+   :fn-expr fn-expr
+   :arguments (r.syntax/parse-all args env)})
+
 (defn special-form?
   "`true` if `x` is a special form and `false` otherwise."
   [x env]

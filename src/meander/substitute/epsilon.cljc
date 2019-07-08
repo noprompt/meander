@@ -199,6 +199,12 @@
     `(concat ~(compile-substitute ?left env)
              ~(compile-substitute ?right env))))
 
+(defmethod compile-substitute :app
+  [node env]
+  (r.match/match node
+    {:fn-expr ?fn-expr
+     :arguments ?arguments}
+    `(~?fn-expr ~@(map compile-substitute ?arguments (repeat env)))))
 
 (defmethod compile-substitute :quo
   [node env]
