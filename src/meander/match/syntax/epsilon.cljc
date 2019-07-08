@@ -336,106 +336,6 @@
              :other #{:meander.match.syntax.error/invalid-register
                       :meander.match.syntax.error/invalid-special-form}))
 
-(defn parse-and
-  {:private true}
-  [[_ & args] env]
-  {:tag :cnj
-   :arguments (r.syntax/parse-all args env)})
-
-(register-special `meander.epsilon/and #'parse-and)
-(register-special `meander.match.epsilon/and #'parse-and)
-
-(defn parse-apply [form env]
-  (let [args (rest form)]
-    (if (= 2 (bounded-count 3 args))
-      {:tag ::apply
-       :function (first args)
-       :argument (r.syntax/parse (second args) env)}
-      (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
-
-(register-special `meander.epsilon/apply #'parse-apply)
-
-(defmethod r.syntax/children ::apply [node]
-  [(:argument node)])
-
-(defmethod r.syntax/ground? ::apply [_]
-  false)
-
-(defmethod r.syntax/unparse ::apply [node]
-  `(meander.epsilon/apply
-    ~(:function node)
-    ~(r.syntax/unparse (:argument node))))
-
-(defmethod r.syntax/search? ::apply
-  [_] false)
-
-(defmethod r.syntax/walk ::apply [inner outer node]
-  (outer (assoc node :argument (inner (:argument node)))))
-
-
-(defn parse-guard [[_ expr] env]
-  {:tag :grd
-   :expr expr})
-
-(register-special `meander.epsilon/guard #'parse-guard)
-(register-special `meander.match.epsilon/guard #'parse-guard)
-
-(defn parse-let [[_ & args :as form] env]
-  (if (odd? (count args))
-    (throw (ex-info "let pattern requires an even number of arguments"
-                    {:pattern form
-                     :meta (meta form)}))
-    {:tag :let
-     :bindings (map (fn [[pattern expr]]
-                      {:binding (r.syntax/parse pattern env)
-                       :expr expr})
-                    (partition-all 2 args))}))
-
-(register-special `meander.epsilon/let #'parse-let)
-(register-special `meander.match.epsilon/let #'parse-let)
-
-(defn parse-not [[_ & args :as form] env]
-  (if (= 1 (bounded-count 2 args))
-    {:tag :not
-     :argument (r.syntax/parse (first args) env)}
-    (throw (ex-info "not pattern requires at one argument"
-                    {:pattern form
-                     :meta (meta form)}))))
-
-(register-special `meander.epsilon/not #'parse-not)
-(register-special `meander.match.epsilon/not #'parse-not)
-
-
-(defn parse-or [[_ & args :as form] env]
-  {:tag :dsj
-   :arguments (r.syntax/parse-all args env)})
-
-(register-special `meander.epsilon/or #'parse-or)
-(register-special `meander.match.epsilon/or #'parse-or)
-
-
-(defn parse-pred [[_ expr & args :as form] env]
-  {:tag :prd
-   :form expr
-   :arguments (r.syntax/parse-all args env)})
-
-(register-special `meander.epsilon/pred #'parse-pred)
-(register-special `meander.match.epsilon/pred #'parse-pred)
-
-
-(defn parse-re [[_ & args :as form] env]
-  (case (bounded-count 3 args)
-    1 {:tag :rxt
-       :regex (first args)}
-    2 {:tag :rxc
-       :regex (first args)
-       :capture (r.syntax/parse (second args) env)}
-    (throw (ex-info "re pattern expects at one or two arguments"
-                    {:pattern form
-                     :meta (meta form)}))))
-
-(register-special `meander.epsilon/re #'parse-re)
-(register-special `meander.match.epsilon/re #'parse-re)
 
 (defn special-form?
   "`true` if `x` is of the form
@@ -609,3 +509,127 @@
   [node]
   (dissoc (analyze* node) :negated-counter))
 
+;; ---------------------------------------------------------------------
+;; Special forms
+
+;; and
+;; ---
+
+(defn parse-and
+  {:private true}
+  [[_ & args] env]
+  {:tag :cnj
+   :arguments (r.syntax/parse-all args env)})
+
+(register-special `meander.epsilon/and #'parse-and)
+(register-special `meander.match.epsilon/and #'parse-and)
+
+;; apply
+;; -----
+
+(defn parse-apply [form env]
+  (let [args (rest form)]
+    (if (= 2 (bounded-count 3 args))
+      {:tag ::apply
+       :function (first args)
+       :argument (r.syntax/parse (second args) env)}
+      (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
+
+(register-special `meander.epsilon/apply #'parse-apply)
+
+(defmethod r.syntax/children ::apply [node]
+  [(:argument node)])
+
+(defmethod r.syntax/ground? ::apply [_]
+  false)
+
+(defmethod r.syntax/unparse ::apply [node]
+  `(meander.epsilon/apply
+    ~(:function node)
+    ~(r.syntax/unparse (:argument node))))
+
+(defmethod r.syntax/search? ::apply
+  [_] false)
+
+(defmethod r.syntax/walk ::apply [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))
+
+;; guard
+;; -----
+
+(defn parse-guard [[_ expr] env]
+  {:tag :grd
+   :expr expr})
+
+(register-special `meander.epsilon/guard #'parse-guard)
+(register-special `meander.match.epsilon/guard #'parse-guard)
+
+;; let
+;; ---
+
+(defn parse-let [[_ & args :as form] env]
+  (if (odd? (count args))
+    (throw (ex-info "let pattern requires an even number of arguments"
+                    {:pattern form
+                     :meta (meta form)}))
+    {:tag :let
+     :bindings (map (fn [[pattern expr]]
+                      {:binding (r.syntax/parse pattern env)
+                       :expr expr})
+                    (partition-all 2 args))}))
+
+(register-special `meander.epsilon/let #'parse-let)
+(register-special `meander.match.epsilon/let #'parse-let)
+
+;; not
+;; ---
+
+(defn parse-not [[_ & args :as form] env]
+  (if (= 1 (bounded-count 2 args))
+    {:tag :not
+     :argument (r.syntax/parse (first args) env)}
+    (throw (ex-info "not pattern requires at one argument"
+                    {:pattern form
+                     :meta (meta form)}))))
+
+(register-special `meander.epsilon/not #'parse-not)
+(register-special `meander.match.epsilon/not #'parse-not)
+
+;; or
+;; --
+
+(defn parse-or [[_ & args :as form] env]
+  {:tag :dsj
+   :arguments (r.syntax/parse-all args env)})
+
+(register-special `meander.epsilon/or #'parse-or)
+(register-special `meander.match.epsilon/or #'parse-or)
+
+
+;; pred
+;; ----
+
+(defn parse-pred [[_ expr & args :as form] env]
+  {:tag :prd
+   :form expr
+   :arguments (r.syntax/parse-all args env)})
+
+(register-special `meander.epsilon/pred #'parse-pred)
+(register-special `meander.match.epsilon/pred #'parse-pred)
+
+;; re
+;; --
+
+(defn parse-re [[_ & args :as form] env]
+  (case (bounded-count 3 args)
+    1 {:tag :rxt
+       :regex (first args)}
+    2 {:tag :rxc
+       :regex (first args)
+       :capture (r.syntax/parse (second args) env)}
+    (throw (ex-info "re pattern expects at one or two arguments"
+                    {:pattern form
+                     :meta (meta form)}))))
+
+(register-special `meander.epsilon/re #'parse-re)
+(register-special `meander.match.epsilon/re #'parse-re)
