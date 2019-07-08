@@ -174,7 +174,7 @@
 (defmulti parse-special
   (fn [form env]
     (if (and (seq? form) (symbol? (first form)))
-      (first form)
+      (expand-symbol (first form) env)
       ::not-special))
   :default ::not-special)
 
@@ -260,3 +260,35 @@
     `(do (def ~fn-name (fn ~@body))
          (swap! macro-registry assoc '~qfn-name ~fn-name)
          (var ~fn-name))))
+
+;; ---------------------------------------------------------------------
+;; Special forms
+
+;; apply
+;; -----
+
+(defmethod parse-special 'meander.epsilon/apply
+  [form env]
+  (let [args (rest form)]
+    (if (= 2 (bounded-count 3 args))
+      {:tag ::apply
+       :function (first args)
+       :argument (r.syntax/parse (second args) env)}
+      (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
+
+(defmethod r.syntax/children ::apply [node]
+  [(:argument node)])
+
+(defmethod r.syntax/ground? ::apply [_]
+  false)
+
+(defmethod r.syntax/unparse ::apply [node]
+  `(meander.epsilon/apply
+    ~(:function node)
+    ~(r.syntax/unparse (:argument node))))
+
+(defmethod r.syntax/search? ::apply
+  [_] false)
+
+(defmethod r.syntax/walk ::apply [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))

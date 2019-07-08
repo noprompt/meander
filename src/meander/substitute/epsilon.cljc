@@ -108,6 +108,14 @@
   (map compile-substitute nodes (repeat env)))
 
 
+(defmethod compile-substitute ::r.substitute.syntax/apply
+  [node env]
+  (r.match/match node
+    {:function ?f
+     :argument ?a}
+    `(~?f ~(compile-substitute ?a env))))
+
+
 (defmethod compile-substitute :cat
   [node env]
   (r.match/find node

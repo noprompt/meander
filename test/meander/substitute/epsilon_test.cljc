@@ -3,7 +3,8 @@
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.substitute.epsilon :as r.substitute :include-macros true]))
+            [meander.substitute.epsilon :as r.substitute :include-macros true]
+            [meander.substitute.syntax.epsilon :as r.substitute.syntax :include-macros true]))
 
 (t/deftest lvr-test
   (let [?1 1
@@ -171,3 +172,8 @@
   (let [?rest '[2 3 4]]
     (t/is (= '[1 2 3 4]
              (r.substitute/substitute [1 & ?rest])))))
+
+(t/deftest primitive-apply-test
+  (let [?f inc
+        ?x 10]
+    (t/is (= 11 (r.substitute/substitute (meander.epsilon/apply ?f ?x))))))

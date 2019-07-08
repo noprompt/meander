@@ -329,6 +329,23 @@
    (r.matrix/drop-column matrix)))
 
 
+(defmethod compile-specialized-matrix ::r.match.syntax/apply
+  [_ [target & targets*] matrix]
+  (mapv
+   (fn [node row]
+     (case (r.syntax/tag node)
+       :any
+       (compile-pass targets* [row])
+
+       ::r.match.syntax/apply
+       (r.ir/op-apply target (:function node)
+         (fn [result-target]
+           (compile `[~result-target ~@targets*]
+                    (r.matrix/prepend-column [row] [(:argument node)]))))))
+   (r.matrix/first-column matrix)
+   (r.matrix/drop-column matrix)))
+
+
 (defmethod compile-specialized-matrix :cat
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)
@@ -1869,3 +1886,11 @@
              ;; the target is a vector.
              (all-of (none-of (meander.match.epsilon/pred vector?))
                      (seqable ~@inner)))))
+
+(r.match.syntax/defsyntax app
+  "Pattern matching operator which applies pattern matching the result
+  applying `f` to the current value being matched."
+  ([f pattern]
+   `(meander.epsilon/apply ~f ~pattern))
+  ([f pattern & patterns]
+   `(meander.epsilon/apply ~f (all-of ~pattern ~@patterns))))

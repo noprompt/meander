@@ -325,7 +325,7 @@
   (if (and (seq? form) (symbol? (first form)))
     (let [x (resolve-special-fn (first form) env)]
       (if (fn? x)
-        (x form env) 
+        (x form env)
         :meander.match.syntax.error/invalid-register))
     :meander.match.syntax.error/invalid-special-form))
 
@@ -345,14 +345,32 @@
 (register-special `meander.epsilon/and #'parse-and)
 (register-special `meander.match.epsilon/and #'parse-and)
 
+(defn parse-apply [form env]
+  (let [args (rest form)]
+    (if (= 2 (bounded-count 3 args))
+      {:tag ::apply
+       :function (first args)
+       :argument (r.syntax/parse (second args) env)}
+      (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
 
-(defn parse-app [[_ fn-expr & args] env]
-  {:tag :app
-   :fn-expr fn-expr
-   :arguments (r.syntax/parse-all args env)})
+(register-special `meander.epsilon/apply #'parse-apply)
 
-(register-special `meander.epsilon/app #'parse-app)
-(register-special `meander.match.epsilon/app #'parse-app)
+(defmethod r.syntax/children ::apply [node]
+  [(:argument node)])
+
+(defmethod r.syntax/ground? ::apply [_]
+  false)
+
+(defmethod r.syntax/unparse ::apply [node]
+  `(meander.epsilon/apply
+    ~(:function node)
+    ~(r.syntax/unparse (:argument node))))
+
+(defmethod r.syntax/search? ::apply
+  [_] false)
+
+(defmethod r.syntax/walk ::apply [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))
 
 
 (defn parse-guard [[_ expr] env]
@@ -361,7 +379,6 @@
 
 (register-special `meander.epsilon/guard #'parse-guard)
 (register-special `meander.match.epsilon/guard #'parse-guard)
-
 
 (defn parse-let [[_ & args :as form] env]
   (if (odd? (count args))
@@ -376,7 +393,6 @@
 
 (register-special `meander.epsilon/let #'parse-let)
 (register-special `meander.match.epsilon/let #'parse-let)
-
 
 (defn parse-not [[_ & args :as form] env]
   (if (= 1 (bounded-count 2 args))
@@ -592,3 +608,4 @@
 (defn analyze
   [node]
   (dissoc (analyze* node) :negated-counter))
+
