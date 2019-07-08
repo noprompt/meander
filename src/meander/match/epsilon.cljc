@@ -1182,9 +1182,9 @@
                      :rpl
                      (let [rp*-node {:tag :rp*
                                      :cat (:cat node)}
-                           app-node {:tag :app
-                                     :fn-expr `clojure.core/count
-                                     :arguments [(:lvr node)]}]
+                           app-node {:tag ::r.match.syntax/apply
+                                     :function `clojure.core/count
+                                     :argument (:lvr node)}]
                        ;; If the logic variable is bound we place the `:app` node
                        ;; ahead of the `:rp*` node to verify the `count` is equal
                        ;; before attemping to pattern match on the input.
@@ -1213,9 +1213,9 @@
                      :rpm
                      (let [rp*-node {:tag :rp*
                                      :cat (:cat node)}
-                           app-node {:tag :app
-                                     :fn-expr `clojure.core/count
-                                     :arguments [(:mvr node)]}]
+                           app-node {:tag ::r.match.syntax/apply
+                                     :function `clojure.core/count
+                                     :argument (:mvr node)}]
                        (r.matrix/prepend-cells row [rp*-node app-node]))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))

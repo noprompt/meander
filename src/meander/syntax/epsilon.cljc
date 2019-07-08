@@ -1063,20 +1063,6 @@
 (defmethod search? :any [_]
   false)
 
-;; :app
-
-(defmethod children :app [node]
-  (:arguments node))
-
-(defmethod ground? :app [_]
-  false)
-
-(defmethod unparse :app [node]
-  `(~'app ~(:fn-exp node) ~@(map unparse (:arguments node))))
-
-(defmethod search? :app
-  [_] false)
-
 ;; :cat
 
 (defmethod ground? :cat [node]
@@ -1790,9 +1776,6 @@
 (defn postwalk-replace
   "Same as clojure.walk/postwal-replace but for AST nodes."
   [smap form] (postwalk (fn [x] (if (contains? smap x) (smap x) x)) form))
-
-(defmethod walk :app [inner outer node]
-  (outer (assoc node :arguments (mapv inner (:arguments node)))))
 
 (defmethod walk :cat [inner outer node]
   (outer (assoc node :elements (mapv inner (:elements node)))))
