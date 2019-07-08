@@ -1220,20 +1220,6 @@
     (:object node))))
 
 
-;; :let
-
-(defmethod children :let [node]
-  (map :binding (:bindings node)))
-
-(defmethod ground? :let [_]
-  false)
-
-(defmethod unparse :let [node]
-  `(~'let ~@(sequence (mapcat (juxt (comp unparse :binding) :expr)) (:bindings node))))
-
-(defmethod search? :let [_]
-  false)
-
 ;; :lit
 
 (defmethod ground? :lit [_]
@@ -1798,12 +1784,6 @@
                                 (assoc m (inner k-node) (inner v-node)))
                               {}
                               (:object node)))))
-
-(defmethod walk :let [inner outer node]
-  (outer (assoc node :bindings (mapv
-                                (fn [binding]
-                                  (assoc binding :binding (inner (:binding binding))))
-                                (:bindings node)))))
 
 (defmethod walk :map [inner outer node]
   (outer (assoc node

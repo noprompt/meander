@@ -625,9 +625,9 @@
          (let [entry (:entry node)
                [key-node val-node] entry]
            (if (r.syntax/ground? key-node)
-             (let [node* {:tag :let*
-                          :binding val-node
-                          :expr (list 'js* "(~{}[~{}])" target (compile-ground key-node))}
+             (let [node* {:tag :let
+                          :pattern val-node
+                          :expression (list 'js* "(~{}[~{}])" target (compile-ground key-node))}
                    matrix* (r.matrix/prepend-column [row] [node*])]
                (compile targets matrix*))
              ;; The #js {} reader only allows keys that are strings or
@@ -646,7 +646,7 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :let*
+(defmethod compile-specialized-matrix :let
   [_ [target & targets* :as targets] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -655,34 +655,14 @@
          :any
          (compile-pass targets [row])
 
-         :let*
+         :let
          (let [xsym (gensym* "x__")
                targets* `[~xsym ~@targets*]
-               matrix* (r.matrix/prepend-column [row] [(:binding node)])]
-           (r.ir/op-bind xsym (r.ir/op-eval (:expr node))
+               matrix* (r.matrix/prepend-column [row] [(:pattern node)])]
+           (r.ir/op-bind xsym (r.ir/op-eval (:expression node))
              (compile targets* matrix*)))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
-
-
-(defmethod compile-specialized-matrix :let
-  [_ targets matrix]
-  [(compile targets
-            (r.matrix/prepend-column
-             (r.matrix/drop-column matrix)
-             (mapv
-              (fn [node]
-                (case (r.syntax/tag node)
-                  :let
-                  {:tag :cnj
-                   :arguments (map
-                               (fn [binding]
-                                 {:tag :let*
-                                  :binding (:binding binding)
-                                  :expr (:expr binding)})
-                               (:bindings node))}
-                  node))
-              (r.matrix/first-column matrix))))])
 
 
 (defmethod compile-specialized-matrix :lit
@@ -755,9 +735,9 @@
                                                       {:tag :cat
                                                        :elements [k-node v-node]})
                                                     the-map)}
-                               let-node {:tag :let*
-                                         :binding set-node
-                                         :expr `(set ~target)}]
+                               let-node {:tag :let
+                                         :pattern set-node
+                                         :expression `(set ~target)}]
                            (assoc row :cols `[~let-node
                                               ~@(repeat (dec num-keys)
                                                         '{:tag :any

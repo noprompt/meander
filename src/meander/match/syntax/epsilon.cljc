@@ -336,7 +336,6 @@
              :other #{:meander.match.syntax.error/invalid-register
                       :meander.match.syntax.error/invalid-special-form}))
 
-
 (defn special-form?
   "`true` if `x` is of the form
 
@@ -568,18 +567,53 @@
 ;; ---
 
 (defn parse-let [[_ & args :as form] env]
+  (case (bounded-count 4 args)
+    3
+    (let [[pattern expression then] args]
+      {:tag :cnj
+       :arguments [{:tag :let
+                    :pattern (r.syntax/parse pattern env)
+                    :expression expression}
+                   (r.syntax/parse then env)]})
+
+    ;; else
+    (throw (ex-info "meander.epsilon/let two or three arguments"
+                    {:pattern form
+                     :meta (meta form)}))))
+
+(defn match-syntax-let [& args]
   (if (odd? (count args))
     (throw (ex-info "let pattern requires an even number of arguments"
-                    {:pattern form
-                     :meta (meta form)}))
-    {:tag :let
-     :bindings (map (fn [[pattern expr]]
-                      {:binding (r.syntax/parse pattern env)
-                       :expr expr})
-                    (partition-all 2 args))}))
+                    {:pattern *form*
+                     :meta (meta *form*)}))
+    (let [bindings (reverse (partition 2 args))]
+      (reduce
+       (fn [form [pattern expression]]
+         `(meander.epsilon/let ~pattern ~expression ~form))
+       (let [[pattern expression] (first bindings)]
+         `(meander.epsilon/let ~pattern ~expression ~'_))
+       (rest bindings)))))
+
 
 (register-special `meander.epsilon/let #'parse-let)
-(register-special `meander.match.epsilon/let #'parse-let)
+
+(swap! macro-registry assoc `meander.match.epsilon/let match-syntax-let)
+
+(defmethod r.syntax/children :let [node]
+  [(:pattern node)])
+
+(defmethod r.syntax/ground? :let [_]
+  false)
+
+(defmethod r.syntax/unparse :let [node]
+  `(meander.epsilon/let ~(r.syntax/unparse (:pattern node)) ~(:expression node)))
+
+(defmethod r.syntax/search? :let [_]
+  false)
+
+(defmethod r.syntax/walk :let [inner outer node]
+  (outer (update node :pattern inner)))
+
 
 ;; not
 ;; ---
