@@ -112,10 +112,10 @@
           node* (assoc node* :map map*)]
       {:tag :cnj
        :arguments [node*
-                   {:tag :app
-                    :fn-expr `(fn [m#]
-                                (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
-                    :arguments [rest-map]}]})
+                   {:tag ::apply
+                    :function `(fn [m#]
+                                 (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
+                    :argument rest-map}]})
     node))
 
 (defn expand-map
@@ -154,10 +154,10 @@
           node* (assoc node :elements elements*)
           node* (dissoc node* :rest)]
       {:tag :cnj
-       :arguments [node* {:tag :app
-                          :fn-expr `(fn [s#]
-                                      (disj s# ~@(map r.syntax/unparse (vals elem-map))))
-                          :arguments [rest-set]}]})
+       :arguments [node* {:tag ::apply
+                          :function `(fn [s#]
+                                       (disj s# ~@(map r.syntax/unparse (vals elem-map))))
+                          :argument rest-set}]})
     node))
 
 (defn expand-set
