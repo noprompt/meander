@@ -151,6 +151,17 @@
     (= (into !ys !xs)
        (r.substitute/substitute [!ys ... !xs ...]))))
 
+(t/deftest logical-length-subsequence-test
+  (let [!xs [1 2 3]
+        ?n 3]
+    (t/is (= '[1 2 3]
+             (r.substitute/substitute [!xs ..?n])))))
+
+(t/deftest memory-length-subsequence-test
+  (let [!xs [1 2 3 4 5]
+        !ns [2 1 2]]
+    (t/is (= '[[1 2] [3] [4 5]]
+             (r.substitute/substitute [[!xs ..!ns] [!xs ..!ns] [!xs ..!ns]])))))
 
 (t/deftest &-test
   (let [?rest '(2 3 4)]
