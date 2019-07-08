@@ -243,8 +243,15 @@
   (r.match/match node
     {:cat ?cat
      :lvr ?lvr}
-    `(into [] (repeatedly ~(compile-substitute ?lvr env)
-                          (fn [] ~(compile-substitute ?cat env))))))
+    `(mapcat identity (repeatedly ~(compile-substitute ?lvr env)
+                                  (fn [] ~(compile-substitute ?cat env))))))
+
+(defmethod compile-substitute :rpm [node env]
+  (r.match/match node
+    {:cat ?cat
+     :mvr ?mvr}
+    `(mapcat identity (repeatedly ~(compile-substitute ?mvr env)
+                                  (fn [] ~(compile-substitute ?cat env))))))
 
 (defmethod compile-substitute :rst [node env]
   (r.match/find [node env]
