@@ -443,15 +443,14 @@
                        (if (some? context)
                          (r.matrix/prepend-column %matrix
                                                   [{:tag :let
-                                                    :bindings
-                                                    [{:binding context
-                                                      :expr `(fn [x#]
-                                                               (zip/root (zip/replace ~loc-sym x#)))}]}])
+                                                    :pattern context
+                                                    :expression `(fn [x#]
+                                                                   (zip/root (zip/replace ~loc-sym x#)))}])
                          %matrix)
                        (r.matrix/prepend-column %matrix
                                                 [{:tag :let
-                                                  :bindings [{:binding pattern
-                                                              :expr node-sym}]}]))
+                                                  :pattern pattern
+                                                  :expression node-sym}]))
              targets* (as-> [node-sym] %targets
                         (if (some? context)
                           (conj %targets loc-sym))
