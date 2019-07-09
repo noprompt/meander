@@ -31,7 +31,7 @@
 
 ;; Some nodes may have an `::original-form` key, the value of which is
 ;; `any?`. This key is populated by forms which have been expanded
-;; during `parse` via `::syntax-expand` and then subsequently parsed
+;; during `parse` via `::expand-syntax` and then subsequently parsed
 ;; into an AST node.
 
 (s/def :meander.syntax.epsilon.node/original-form
@@ -462,7 +462,7 @@
 
 (declare parse)
 
-(s/def :meander.syntax.epsilon.parse-env/parse-special
+(s/def :meander.syntax.epsilon.parse-env/parse-syntax
   (s/fspec
    :args (s/cat :form (s/cat :head symbol? :tail (s/* any?)))
    :ret :meander.syntax.epsilon/node))
@@ -472,7 +472,7 @@
    :args (s/cat :x any? :env map?)
    :ret boolean?))
 
-(s/def :meander.syntax.epsilon.parse-env/syntax-expand
+(s/def :meander.syntax.epsilon.parse-env/expand-syntax
   (s/fspec
    :args (s/alt :a1 (s/cat :form any?)
                 :a2 (s/cat :form any?
@@ -480,9 +480,9 @@
    :ret any?))
 
 (s/def :meander.syntax.epsilon/parse-env
-  (s/keys :req-un [:meander.syntax.epsilon.parse-env/parse-special
+  (s/keys :req-un [:meander.syntax.epsilon.parse-env/parse-syntax
                    :meander.syntax.epsilon.parse-env/special-form?
-                   :meander.syntax.epsilon.parse-env/syntax-expand]))
+                   :meander.syntax.epsilon.parse-env/expand-syntax]))
 
 (defn parse-all
   "Apply `parse` to all forms in the sequence `forms`."
@@ -817,15 +817,15 @@
          :expr (second xs)}
 
         ;; else
-        (let [xs* ((::syntax-expand env) xs env)]
+        (let [xs* ((::expand-syntax env) xs env)]
           (if (= xs* xs)
             ;; Syntax expansion failed, try to parse special form.
             (if ((::special-form? env) xs env)
-              (let [node ((::parse-special env) xs env)]
+              (let [node ((::parse-syntax env) xs env)]
                 (if (node? node)
                   ;; Special form, return the node.
                   (assoc node ::original-form xs)
-                  (throw (ex-info ":meander.syntax.epsilon/parse-special function must return a :meander.syntax.epsilon/node"
+                  (throw (ex-info ":meander.syntax.epsilon/parse-syntax function must return a :meander.syntax.epsilon/node"
                                   {:form xs
                                    :parse-env env}))))
               ;; Not a special form, parse as ordinary seq pattern.

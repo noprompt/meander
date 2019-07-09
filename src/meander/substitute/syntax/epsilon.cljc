@@ -113,7 +113,7 @@
 (def ^{:dynamic true}
   *env* {})
 
-(defonce macro-registry
+(defonce expander-registry
   (atom {}))
 
 (defn expand-symbol
@@ -147,19 +147,19 @@
                  sym))
              sym)))
 
-(defn get-macro
+(defn resolve-expander
   {:private true}
   [sym env]
-  (get (deref macro-registry) (expand-symbol sym env)))
+  (get (deref expander-registry) (expand-symbol sym env)))
 
-(defn syntax-expand
+(defn expand-syntax
   {:private true}
   ([form]
-   (syntax-expand form {}))
+   (expand-syntax form {}))
   ([form env]
    (let [macro (if (seq? form)
                  (if (symbol? (first form))
-                   (get-macro (first form) env)))]
+                   (resolve-expander (first form) env)))]
      (if (fn? macro)
        (binding [*form* form
                  *env* env]
@@ -171,14 +171,14 @@
           (apply macro (rest form))))
        form))))
 
-(defmulti parse-special
+(defmulti parse-syntax
   (fn [form env]
     (if (and (seq? form) (symbol? (first form)))
       (expand-symbol (first form) env)
       ::not-special))
   :default ::not-special)
 
-(s/fdef parse-special
+(s/fdef parse-syntax
   :args (s/cat :form (s/cat :head symbol? :tail (s/* any?))
                :parse-env ::r.syntax/pase-env)
   :ret ::r.syntax/node)
@@ -188,12 +188,12 @@
   [x env]
   (and (seq? x)
        (symbol? (first x))
-       (contains? (methods parse-special) (expand-symbol (first x) env))))
+       (contains? (methods parse-syntax) (expand-symbol (first x) env))))
 
 (def parse-env
-  {::r.syntax/parse-special #'parse-special
+  {::r.syntax/parse-syntax #'parse-syntax
    ::r.syntax/special-form? #'special-form?
-   ::r.syntax/syntax-expand #'syntax-expand})
+   ::r.syntax/expand-syntax #'expand-syntax})
 
 (defn parse
   ([form]
@@ -256,9 +256,9 @@
                  (require [ns-name :as alias])))))
          (eval
           `(do (def ~fn-name (fn ~@body))
-               (swap! macro-registry assoc '~qfn-name ~fn-name)))))
+               (swap! expander-registry assoc '~qfn-name ~fn-name)))))
     `(do (def ~fn-name (fn ~@body))
-         (swap! macro-registry assoc '~qfn-name ~fn-name)
+         (swap! expander-registry assoc '~qfn-name ~fn-name)
          (var ~fn-name))))
 
 ;; ---------------------------------------------------------------------
@@ -267,7 +267,7 @@
 ;; apply
 ;; -----
 
-(defmethod parse-special 'meander.epsilon/apply
+(defmethod parse-syntax 'meander.epsilon/apply
   [form env]
   (let [args (rest form)]
     (if (= 2 (bounded-count 3 args))

@@ -216,24 +216,29 @@
 (def ^{:dynamic true}
   *env* {})
 
-(defonce macro-registry
+(defonce expander-registry
   (atom {}))
 
-(defonce special-registry
+(defn register-expander
+  ([symbol f]
+   {:pre [(symbol? symbol)
+          (or (fn? f) (and (var? f) (fn? (deref f))))]}
+   (swap! expander-registry assoc symbol f))
+  ([expander-registry symbol f]
+   {:pre [(symbol? symbol)
+          (or (fn? f) (and (var? f) (fn? (deref f))))]} 
+   (swap! expander-registry assoc symbol f)))
+
+(defonce parser-registry
   (atom {}))
 
 (defn register-special
   ([symbol var]
    {:pre [(symbol? symbol) (var? var)]}
-   (swap! special-registry assoc symbol var))
-  ([special-registry symbol var]
+   (swap! parser-registry assoc symbol var))
+  ([parser-registry symbol var]
    {:pre [(symbol? symbol) (var? var)]}
-   (swap! special-registry assoc symbol var)))
-
-(s/fdef register-special
-  :args (s/cat :symbol symbol?
-               :var-form (s/cat :var-symbol #{'var}
-                                :symbol symbol?)))
+   (swap! parser-registry assoc symbol var)))
 
 (defn expand-symbol
   {:private true}
@@ -266,20 +271,23 @@
                  sym))
              sym)))
 
-(defn get-macro
+(defn resolve-expander
   {:private true}
   [sym env]
-  (get (deref macro-registry) (expand-symbol sym env)))
+  (get (deref expander-registry) (expand-symbol sym env)))
 
-(defn syntax-expand
+(defn expand-syntax
   {:private true}
   ([form]
-   (syntax-expand form {}))
+   (expand-syntax form {}))
   ([form env]
-   (let [macro (if (seq? form)
-                 (if (symbol? (first form))
-                   (get-macro (first form) env)))]
-     (if (fn? macro)
+   (let [expander (if (seq? form)
+                    (if (symbol? (first form))
+                      (resolve-expander (first form) env)))
+         expander (if (var? expander)
+                    (deref expander)
+                    expander)]
+     (if (fn? expander)
        (binding [*form* form
                  *env* env]
          (walk/prewalk
@@ -287,19 +295,19 @@
             (if (seq? x)
               (doall x)
               x))
-          (apply macro (rest form))))
+          (apply expander (rest form))))
        form))))
 
-(defn resolve-special-fn
+(defn resolve-parser
   {:private true
    :style/indent :defn}
   [sym env]
   (let [;; This should be
         ;;
-        ;;     (get (::r.syntax/special-registry env) (expand-symbol form env))
+        ;;     (get (::r.syntax/parser-registry env) (expand-symbol form env))
         ;;
         ;; instead.
-        x (get (deref special-registry) (expand-symbol sym env))]
+        x (get (deref parser-registry) (expand-symbol sym env))]
     (if (var? x)
       (let [y (deref x)]
         (if (fn? y)
@@ -307,7 +315,7 @@
           nil))
       nil)))
 
-(defn parse-special
+(defn parse-syntax
   "Parses a special form e.g. a `seq?` with a special `symbol?` in its
   first position into a `:meander.syntax.epsilon/node`."
   [form env]
@@ -323,13 +331,13 @@
   ;;
   ;; The keywords should be fine for now, however.
   (if (and (seq? form) (symbol? (first form)))
-    (let [x (resolve-special-fn (first form) env)]
+    (let [x (resolve-parser (first form) env)]
       (if (fn? x)
         (x form env)
         :meander.match.syntax.error/invalid-register))
     :meander.match.syntax.error/invalid-special-form))
 
-(s/fdef parse-special
+(s/fdef parse-syntax
   :args (s/cat :form (s/cat :head symbol? :tail (s/* any?))
                :parse-env ::r.syntax/pase-env)
   :ret (s/or :node ::r.syntax/node
@@ -353,15 +361,15 @@
   [x env]
   (and (seq? x)
        (symbol? (first x))
-       (fn? (resolve-special-fn (first x) env))))
+       (fn? (resolve-parser (first x) env))))
 
 (def parse-env
-  {::r.syntax/parse-special #'parse-special
-   ;; Consider replacing this with `::r.syntax/special-registry`. By
+  {::r.syntax/parse-syntax #'parse-syntax
+   ;; Consider replacing this with `::r.syntax/parser-registry`. By
    ;; doing that we can eliminate this predicate and simply answer the
    ;; question by checking the registry.
    ::r.syntax/special-form? #'special-form?
-   ::r.syntax/syntax-expand #'syntax-expand})
+   ::r.syntax/expand-syntax #'expand-syntax})
 
 (defn parse
   ([form]
@@ -424,9 +432,9 @@
                  (require [ns-name :as alias])))))
          (eval
           `(do (def ~fn-name (fn ~@body))
-               (swap! macro-registry assoc '~qfn-name ~fn-name)))))
+               (swap! expander-registry assoc '~qfn-name ~fn-name)))))
     `(do (def ~fn-name (fn ~@body))
-         (swap! macro-registry assoc '~qfn-name ~fn-name)
+         (swap! expander-registry assoc '~qfn-name ~fn-name)
          (var ~fn-name))))
 
 ;; ClojureScript seems to have this weird quirk where we need to ask
@@ -596,8 +604,7 @@
 
 
 (register-special `meander.epsilon/let #'parse-let)
-
-(swap! macro-registry assoc `meander.match.epsilon/let match-syntax-let)
+(register-expander `meander.match.epsilon/let #'match-syntax-let)
 
 (defmethod r.syntax/children :let [node]
   [(:pattern node)])
