@@ -289,8 +289,6 @@
         [:error [{:message "with patterns must have distinct references"
                   :ex-data {:env (unparse-check-env env)
                             :offending-bindings (into #{} (map r.syntax/unparse) (keys ref-freqs))}}]]
-        (let [check-env (add-refs env node)]
-          (check* body check-env search?))))
+        [:okay [body] (add-refs env node)]))
     ;; Nothing to check.
     [:okay [] env]))
-
