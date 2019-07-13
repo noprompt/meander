@@ -167,10 +167,13 @@
   ([form]
    (expand-syntax form {}))
   ([form env]
-   (let [macro (if (seq? form)
-                 (if (symbol? (first form))
-                   (resolve-expander (first form) env)))]
-     (if (fn? macro)
+   (let [expander (if (seq? form)
+                    (if (symbol? (first form))
+                      (resolve-expander (first form) env)))
+         expander (if (var? expander)
+                    (deref expander)
+                    expander)]
+     (if (fn? expander)
        (binding [*form* form
                  *env* env]
          (walk/prewalk
@@ -178,7 +181,7 @@
             (if (seq? x)
               (doall x)
               x))
-          (apply macro (rest form))))
+          (apply expander (rest form))))
        form))))
 
 (defmulti parse-syntax
