@@ -200,41 +200,7 @@
   tag-ranking
   [:mut
    :lit
-   :quo
-   ;; The tags below are toggled off because some of them can break
-   ;; the linear semantics of pattern matching. More investigation is
-   ;; needed.
-   #_:unq
-   #_:any
-   #_:drp
-   #_:mvr
-   #_:rst
-   #_:rxt
-   #_:lvr
-   #_:grd
-   #_:prd
-   #_:vec
-   #_:seq
-   #_:jsa
-   #_:jso
-   #_:cat
-   #_:mkv
-   #_:okv
-   #_:rxc
-   #_:set
-   #_:map
-   #_:prt
-   #_:ctn
-   #_:rp*
-   #_:rp+
-   #_:ref
-   #_:wth
-   #_:app
-   #_:let*
-   #_:let
-   #_:not
-   #_:cnj
-   #_:dsj])
+   :quo])
 
 (defn tag-rank
   "Returns the rank of a tag. Used to compute the score
