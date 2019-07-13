@@ -116,6 +116,16 @@
 (defonce expander-registry
   (atom {}))
 
+(defn register-expander
+  ([symbol f]
+   {:pre [(symbol? symbol)
+          (or (fn? f) (and (var? f) (fn? (deref f))))]}
+   (swap! expander-registry assoc symbol f))
+  ([expander-registry symbol f]
+   {:pre [(symbol? symbol)
+          (or (fn? f) (and (var? f) (fn? (deref f))))]}
+   (swap! expander-registry assoc symbol f)))
+
 (defn expand-symbol
   {:private true}
   [sym env]
