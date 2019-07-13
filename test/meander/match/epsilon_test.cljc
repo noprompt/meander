@@ -1478,8 +1478,48 @@
              [!xs !ys])
            (r.match/find '(1 2 3 4 5 6)
              (!xs ..?n !ys ..?n)
-             [!xs !ys]))))
+             [!xs !ys])))
 
+  (t/is (= 1
+           (r.match/match [1 2 3 4]
+             [_ _ _ _ ..?n]
+             ?n)
+
+           (r.match/match '(1 2 3 4)
+             (_ _ _ _ ..?n)
+             ?n)))
+
+  (t/is (= 2
+           (r.match/match [1 2 3 4]
+             [_ _ ..?n]
+             ?n)
+           (r.match/match '(1 2 3 4)
+             (_ _ ..?n)
+             ?n)))
+
+  (t/is (= :fail
+           (r.match/match [1 2 3 4]
+             [_ _ _ ..?n]
+             ?n
+
+             _
+             :fail)
+
+           (r.match/match '(1 2 3 4)
+             (_ _ _ ..?n)
+             ?n
+
+             _
+             :fail)))
+
+  (t/is (= 4
+           (r.match/match [1 2 3 4]
+             [_ ..?n]
+             ?n)
+
+           (r.match/match '(1 2 3 4)
+             (_ ..?n)
+             ?n))))
 
 (t/deftest memory-length-subsequence-test
   (t/is (= [[1 2 3 4 5 6] [4 2]]
@@ -1488,7 +1528,15 @@
              [!xs !ns])
            (r.match/find '((1 2 3 4) (5 6))
              ((!xs ..!ns) (!xs ..!ns))
-             [!xs !ns]))))
+             [!xs !ns])))
+
+  (t/is (= [[1 3] [2 4] [2]]
+           (r.match/match [1 2 3 4]
+             [!as !bs ..!ns]
+             [!as !bs !ns])
+           (r.match/match [[1 2] [3 4]]
+             [[!as !bs] ..!ns]
+             [!as !bs !ns]))))
 
 
 (t/deftest &-patterns-test

@@ -1125,14 +1125,19 @@
                      (r.matrix/prepend-cells row [node node])
 
                      :rpl
-                     (let [rp*-node {:tag :rp*
-                                     :cat (:cat node)}
+                     (let [cat-node (:cat node)
+                           cat-length (count (:elements cat-node))
+                           rp*-node {:tag :rp*
+                                     :cat cat-node}
                            app-node {:tag ::r.match.syntax/apply
                                      :function `clojure.core/count
-                                     :argument (:lvr node)}]
-                       ;; If the logic variable is bound we place the `:app` node
-                       ;; ahead of the `:rp*` node to verify the `count` is equal
-                       ;; before attemping to pattern match on the input.
+                                     :argument {:tag ::r.match.syntax/apply
+                                                :function `(fn* [~'n] (/ ~'n ~cat-length))
+                                                :argument (:lvr node)}}]
+                       ;; If the logic variable is bound we place the
+                       ;; `::apply` node ahead of the `:rp*` node to
+                       ;; verify the `count` is equal before attemping
+                       ;; to pattern match on the input.
                        (if (r.matrix/get-var row (:lvr node))
                          (r.matrix/prepend-cells row [app-node rp*-node])
                          (r.matrix/prepend-cells row [rp*-node app-node])))))
@@ -1140,7 +1145,6 @@
                  (r.matrix/drop-column matrix))
         targets*  `[~target ~@targets]]
     [(compile targets* matrix*)]))
-
 
 (defmethod compile-specialized-matrix :rpm
   [_ [target :as targets] matrix]
@@ -1150,23 +1154,21 @@
                      :any
                      (r.matrix/prepend-cells row [node node])
 
-                     ;; Here we turn `:rpm` into two nodes: an `:rp*`
-                     ;; and an `:app`. The `:rp*` will proceed against
-                     ;; `target` as usual and then afterwards will
-                     ;; `count` the target `conj`ing the result on to
-                     ;; the memory variable given by the `:rpm`.
                      :rpm
-                     (let [rp*-node {:tag :rp*
-                                     :cat (:cat node)}
+                     (let [cat-node (:cat node)
+                           cat-length (count (:elements cat-node))
+                           rp*-node {:tag :rp*
+                                     :cat cat-node}
                            app-node {:tag ::r.match.syntax/apply
                                      :function `clojure.core/count
-                                     :argument (:mvr node)}]
+                                     :argument {:tag ::r.match.syntax/apply
+                                                :function `(fn* [~'n] (/ ~'n ~cat-length))
+                                                :argument (:mvr node)}}]
                        (r.matrix/prepend-cells row [rp*-node app-node]))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))
         targets* `[~target ~@targets]]
     [(compile targets* matrix*)]))
-
 
 (defmethod compile-specialized-matrix :rst
   [_ [target & targets*] matrix]
