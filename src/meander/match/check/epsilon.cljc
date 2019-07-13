@@ -262,7 +262,7 @@
            (:path env))
         [:okay [] env]
         [:okay [other-node] env]))
-    [:error [{:message (str "Unbound reference" (r.syntax/unparse node))
+    [:error [{:message (str "Unbound reference " (r.syntax/unparse node))
               :ex-data {:env (unparse-check-env env)
                         :reference (r.syntax/unparse node)}}]]))
 
