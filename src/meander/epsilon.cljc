@@ -50,6 +50,7 @@
   [& args] `(r.match/match ~@args))
 
 (defn register-match-expander
+  {:style/indent :defn}
   [sym fn-2args]
   (r.match.syntax/register-expander sym fn-2args))
 
@@ -62,5 +63,6 @@
   [& args] `(r.subst/substitute ~@args))
 
 (defn register-subst-expander
+  {:style/indent :defn}
   [sym fn-2args]
   (r.subst.syntax/register-expander sym fn-2args))
