@@ -303,3 +303,37 @@
      `(r.match.syntax/re ~regex-pattern ~capture-pattern)
      ;; else
      &form)))
+
+(r.syntax/defsyntax $*
+  ([context pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(and (~'$ ?context# (and ~pattern ?pattern#))
+           (let [~context (fn
+                            ([]
+                             (?context# ?pattern#))
+                            ([f#]
+                             (?context# (f# ?pattern#)))
+                            ([f# & args#]
+                             (?context# (apply f# ?pattern# args#))))]))
+     :meander/substitute
+     `(app ~context ~pattern)
+
+     ;; else
+     &form))
+  ([context pattern & patterns]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(and (~'$ ?context# (and ~pattern ~@patterns ?pattern#))
+           (let [~context (fn
+                            ([]
+                             (?context# ?pattern#))
+                            ([f#]
+                             (?context# (f# ?pattern#)))
+                            ([f# & args#]
+                             (?context# (apply f# ?pattern# args#))))]))
+     :meander/substitute
+     `(app ~context ~pattern ~@patterns)
+
+     ;; else
+     &form)))
