@@ -330,7 +330,7 @@ Example:
 
 #### `pred`
 
-`(pred pred-fn pat-0 ,,, pat-n)` matches whenenver `pred-fn` applied to the current value being matched returns a truthy value and all of `pat-0` through `pat-n` match.
+`(pred pred-fn pat-0 ,,, pat-n)` matches whenever `pred-fn` applied to the current value being matched returns a truthy value and all of `pat-0` through `pat-n` match.
 
 Example:
 
