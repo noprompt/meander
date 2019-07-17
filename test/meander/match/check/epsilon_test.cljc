@@ -9,13 +9,13 @@
 
 (t/deftest no-value-before-zero-or-more
   (t/testing "match"
-    (let [error (r.match.check/check (r.match.syntax/parse '[... ?x]) false)]
+    (let [error (r.match.check/check (r.match.syntax/parse '[... ?x] {}) false)]
       (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
                #?(:clj (.getMessage error)
                   :cljs (.-message error))))))
 
   (t/testing "search"
-    (let [error (r.match.check/check (r.match.syntax/parse '[... ?x]) true)]
+    (let [error (r.match.check/check (r.match.syntax/parse '[... ?x] {}) true)]
       (t/is (= "Zero or more (...) is a postfix operator. It must have some value in front of it. (i.e. [1 ... ?x])"
                #?(:clj (.getMessage error)
                   :cljs (.-message error)))))))
@@ -23,13 +23,13 @@
 
 (t/deftest no-value-before-one-or-more
   (t/testing "match"
-    (let [error (r.match.check/check (r.match.syntax/parse '[..2 ?x]) false)]
+    (let [error (r.match.check/check (r.match.syntax/parse '[..2 ?x] {}) false)]
       (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
                #?(:clj (.getMessage error)
                   :cljs (.-message error))))))
 
   (t/testing "search"
-    (let [error (r.match.check/check (r.match.syntax/parse '[..2 ?x]) true)]
+    (let [error (r.match.check/check (r.match.syntax/parse '[..2 ?x] {}) true)]
       (t/is (= "N or more (..N) is a postfix operator. It must have some value in front of it. (i.e. [1 ..2 ?x])"
                #?(:clj (.getMessage error)
                   :cljs (.-message error)))))))
@@ -37,13 +37,13 @@
 
 (t/deftest no-value-after-one-or-more
   (t/testing "match"
-    (let [error (r.match.check/check (r.match.syntax/parse '[1 .. ?x]) false)]
+    (let [error (r.match.check/check (r.match.syntax/parse '[1 .. ?x] {}) false)]
       (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                 #?(:clj (.getMessage error)
                    :cljs (.-message error))))))
 
   (t/testing "search"
-    (let [error (r.match.check/check (r.match.syntax/parse '[1 .. ?x]) true)]
+    (let [error (r.match.check/check (r.match.syntax/parse '[1 .. ?x] {}) true)]
       (t/is (= "Ambiguous ellipsis. Perhaps you meant the n or more operator (..N) or the zero or more operator (...)?"
                #?(:clj (.getMessage error)
                   :cljs (.-message error)))))))
@@ -51,20 +51,20 @@
 (t/deftest with-has-duplicate-references
   (t/testing "match"
     (t/testing "no body"
-      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1])) false)]
+      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1]) {}) false)]
         (t/is (nil? error))))
     (t/testing "body"
-      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1] %1)) false)]
+      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1] %1) {}) false)]
         (t/is (= "with patterns must have distinct references"
                  #?(:clj (.getMessage error)
                     :cljs (.-message error)))))))
 
   (t/testing "search"
     (t/testing "no body"
-      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1])) true)]
+      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1]) {}) true)]
         (t/is (nil? error))))
     (t/testing "body"
-      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1] %1)) true)]
+      (let [error (r.match.check/check (r.match.syntax/parse '(with [%1 1 %1 1] %1) {}) true)]
         (t/is (= "with patterns must have distinct references"
                  #?(:clj (.getMessage error)
                     :cljs (.-message error))))))))

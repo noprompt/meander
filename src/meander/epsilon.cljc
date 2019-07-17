@@ -1,17 +1,21 @@
 (ns meander.epsilon
-  (:refer-clojure :exclude [find])
+  (:refer-clojure :exclude [and or not find let])
   #?(:clj
-     (:require [clojure.spec.alpha :as s]
+     (:require [clojure.core :as clj]
+               [clojure.spec.alpha :as s]
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.strategy.epsilon :as r]
+               [meander.syntax.epsilon :as r.syntax]
                [meander.substitute.epsilon :as r.subst]
                [meander.substitute.syntax.epsilon :as r.subst.syntax])
      :cljs
-     (:require [cljs.spec.alpha :as s :include-macros true]
+     (:require [cljs.core :as clj]
+               [cljs.spec.alpha :as s :include-macros true]
                [meander.match.epsilon :as r.match :include-macros true]
                [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
                [meander.strategy.epsilon :as r :include-macros true]
+               [meander.syntax.epsilon :as r.syntax]
                [meander.substitute.epsilon :as r.subst :include-macros true]
                [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]))
   #?(:cljs (:require-macros [meander.epsilon])))
@@ -23,11 +27,6 @@
   {:arglists '([x & clauses])
    :style/indent :defn}
   [& args] `(r.match/match ~@args))
-
-(defn register-match-expander
-  {:style/indent :defn}
-  [sym fn-2args]
-  (r.match.syntax/register-expander sym fn-2args))
 
 (defmacro find
   {:arglists '([x & clauses])
@@ -47,11 +46,6 @@
    :style/indent :defn}
   [& args] `(r.subst/substitute ~@args))
 
-(defn register-subst-expander
-  {:style/indent :defn}
-  [sym fn-2args]
-  (r.subst.syntax/register-expander sym fn-2args))
-
 ;; ---------------------------------------------------------------------
 ;; Rewrite
 
@@ -60,7 +54,7 @@
   compile-rewrite
   (r/rewrite
    [?x (!match !substitution ...)]
-   (`r.match/find ?x . !match (`r.substitute/substitute !substitution) ...)
+   (`find ?x . !match (`subst !substitution) ...)
 
    _
    [:error "rewrite expects and odd number of arguments"]))
@@ -106,3 +100,206 @@
                :clauses (s/* (s/cat :match any?
                                     :substitution any?)))
   :ret any?)
+
+;; ---------------------------------------------------------------------
+;; Syntax extensions
+
+(r.syntax/defsyntax and
+  [pattern & patterns]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    `(r.match.syntax/and ~pattern ~@patterns)
+    ;; else
+    &form))
+
+(r.syntax/defsyntax or
+  [pattern & patterns]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    `(r.match.syntax/or ~pattern ~@patterns)
+    ;; else
+    &form))
+
+(r.syntax/defsyntax not
+  [pattern]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    `(r.match.syntax/not ~pattern)
+    ;; else
+    &form))
+
+(r.syntax/defsyntax let
+  ([binding-patterns]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     (r.match/match binding-patterns
+       [_ _ ...]
+       (reduce
+        (fn [?inner [?pattern ?expression]]
+          (subst (`r.match.syntax/let ?pattern ?expression ?inner)))
+        '_
+        (reverse (partition 2 binding-patterns)))
+
+       _
+       (throw (ex-info "The second argument to let must be a vector with an number or elements"
+                       {:form &form
+                        :meta (meta &form)}))) 
+     ;; else
+     &form))
+  ([binding-patterns target-pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     (r.match/match binding-patterns
+       [_ _ ...]
+       (reduce
+        (fn [?inner [?pattern ?expression]]
+          (subst (`r.match.syntax/let ?pattern ?expression ?inner)))
+        target-pattern
+        (reverse (partition 2 binding-patterns)))
+
+       _
+       (throw (ex-info "The second argument to let must be a vector with an number or elements"
+                       {:form &form
+                        :meta (meta &form)})))
+
+     ;; else
+     &form)))
+
+(r.syntax/defsyntax pred
+  ([p]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/pred ~p)
+
+     ;; else
+     &form))
+  ([p pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/pred ~p ~pattern)
+
+     ;; else
+     &form))
+  ([p pattern & patterns]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/pred ~p (r.match.syntax/and ~pattern ~@patterns))
+
+     ;; else
+     &form)))
+
+(r.syntax/defsyntax seqable
+  "Pattern matching operator which matches the `seq` of anything that
+  is `seqable?` against
+
+      (p1 ,,, pn)
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    `(r.match.syntax/pred seqable? (r.match.syntax/apply seq ~patterns))
+
+    ;; else
+    &form))
+
+(r.syntax/defsyntax scan
+  "Pattern matching operator which matches the `seq` of `seqable?`
+  forms of the shape
+
+      (_ ... p1 ,,, pn . _ ...)
+
+  or `vectors?` of the form
+
+      [_ ... p1 ,,, pn . _ ...]
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    (clj/let [patternc (count patterns)
+          [as as-pattern] (drop (- patternc 2) patterns)
+          inner (if (= :as as)
+                  `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
+                  `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
+      `(r.match.syntax/or
+        [~@inner]
+        ;; Prevent producing the same search results twice when
+        ;; the target is a vector.
+        (r.match.syntax/and (r.match.syntax/not (r.match.syntax/pred vector?))
+                            (seqable ~@inner))))
+
+    ;; else
+    &form))
+
+(r.syntax/defsyntax separated
+  "Pattern matching operator which matches the `seq` of `seqable?`
+  forms of the shape
+
+      (_ ... p1 ,,, . _ ... pn . _ ...)
+
+  or `vectors?` of the form
+
+      [_ ... p1 ,,, . _ ... pn . _ ...]
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    (clj/let [inner `(~@'(_ ...) ~@(mapcat cons patterns (repeat '(. _ ...))))]
+      `(r.match.syntax/or
+        [~@inner]
+        ;; Prevent producing the same search results twice when
+        ;; the target is a vector.
+        (r.match.syntax/and (r.match.syntax/not (r.match.syntax/pred vector?))
+                            (seqable ~@inner))))
+
+    ;; else
+    &form))
+
+(r.syntax/defsyntax app
+  "Pattern matching operator which applies pattern matching the result
+  applying `f` to the current value being matched."
+  ([f pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/apply ~f ~pattern)
+
+     :meander/substitute
+     `(r.subst.syntax/apply ~f ~pattern)
+
+     ;;
+     &form))
+  ([f pattern & patterns]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/apply ~f (r.match.syntax/and ~pattern ~@patterns))
+
+     :meander/substitute
+     `(r.subst.syntax/apply (partial apply ~f) [~pattern ~@patterns])
+
+     ;; else
+     &form)))
+
+(r.syntax/defsyntax guard
+  ([p]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/guard ~p)
+
+     ;; else
+     &form)))
+
+(r.syntax/defsyntax re
+  ([regex-pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/re ~regex-pattern)
+     ;; else
+     &form))
+  ([regex-pattern capture-pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(r.match.syntax/re ~regex-pattern ~capture-pattern)
+     ;; else
+     &form)))

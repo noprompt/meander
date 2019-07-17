@@ -1,6 +1,7 @@
 (ns meander.match.check.epsilon
   (:require [clojure.set :as set]
             [clojure.spec.alpha :as s]
+            [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.syntax.epsilon :as r.syntax]))
 
 (s/def :meander.match.epsilon.check-env/lvrs
@@ -150,7 +151,7 @@
       nil)))
 
 
-(defmethod check-ast :dsj
+(defmethod check-ast ::r.match.syntax/or
   [node env search?]
   (let [arguments (:arguments node)
         bound-lvrs (:lvrs env)

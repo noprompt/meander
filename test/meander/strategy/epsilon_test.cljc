@@ -4,34 +4,34 @@
    [clojure.test.check.clojure-test :as tc.t :include-macros true]
    [clojure.test.check.generators :as tc.gen :include-macros true]
    [clojure.test.check.properties :as tc.prop :include-macros true]
-   [meander.match.epsilon :as r.match :include-macros true]
+   [meander.epsilon :as r :include-macros true]
    [meander.util.epsilon :as r.util :include-macros true]
-   [meander.strategy.epsilon :as r :include-macros true]))
+   [meander.strategy.epsilon :as r* :include-macros true]))
 
 (t/deftest pipe-fail-test
   (t/testing "If any strategy to pipe fails then so does pipe."
     (run!
      (fn [f]
-       (t/is (r/fail? (f 1))))
+       (t/is (r*/fail? (f 1))))
      (sequence
       (comp (map
              (fn [n]
-               (cons inc (repeat (inc n) r/fail))))
+               (cons inc (repeat (inc n) r*/fail))))
             (mapcat r.util/permutations)
             (map
              (fn [fs]
-               (apply r/pipe fs))))
+               (apply r*/pipe fs))))
       (range 4)))))
 
 (t/deftest choice-fail-test
   (t/testing "If every strategy to choice fails then so does choice."
     (run!
      (fn [f]
-       (t/is (r/fail? (f 1))))
+       (t/is (r*/fail? (f 1))))
      (sequence
       (map
        (fn [n]
-         (apply r/choice (repeat n r/fail))))
+         (apply r*/choice (repeat n r*/fail))))
       (range 6))))
 
   (t/testing "If at least one strategy to choice succeeds then so does choice."
@@ -41,11 +41,11 @@
      (sequence
       (comp (map
              (fn [n]
-               (cons inc (repeat n r/fail))))
+               (cons inc (repeat n r*/fail))))
             (mapcat r.util/permutations)
             (map
              (fn [fs]
-               (apply r/choice fs))))
+               (apply r*/choice fs))))
       (range 5)))))
 
 (defn inc-number
@@ -53,19 +53,19 @@
   [x]
   (if (number? x)
     (inc x)
-    r/*fail*))
+    r*/*fail*))
 
 ;; ---------------------------------------------------------------------
 ;; one
 
 (def inc-number-one
   "inc-number strategy utilizing the one combinator."
-  (r/one inc-number))
+  (r*/one inc-number))
 
 (t/deftest one-seq-test
   (t/testing "one with seq? like objects"
-    (t/is (r/fail? (inc-number-one '())))  
-    (t/is (r/fail? (inc-number-one '(a))))
+    (t/is (r*/fail? (inc-number-one '())))  
+    (t/is (r*/fail? (inc-number-one '(a))))
     (t/is (= '(2)
              (inc-number-one '(1))))
     (t/is (= '(2 a)
@@ -79,8 +79,8 @@
 
 (t/deftest one-vector-test
   (t/testing "one with vector? like objects"
-    (t/is (r/fail? (inc-number-one [])))  
-    (t/is (r/fail? (inc-number-one '[a])))
+    (t/is (r*/fail? (inc-number-one [])))  
+    (t/is (r*/fail? (inc-number-one '[a])))
     (t/is (= '[2]
              (inc-number-one '[1])))
     (t/is (= '[2 a]
@@ -94,8 +94,8 @@
 
 (t/deftest one-set-test
   (t/testing "one with set? like objects"
-    (t/is (r/fail? (inc-number-one #{})))  
-    (t/is (r/fail? (inc-number-one '#{a})))
+    (t/is (r*/fail? (inc-number-one #{})))  
+    (t/is (r*/fail? (inc-number-one '#{a})))
     (t/is (= '#{2}
              (inc-number-one '#{1})))
     (t/is (= '#{2 a}
@@ -109,8 +109,8 @@
 
 (t/deftest one-map-test
   (t/testing "one with map? like objects"
-    (t/is (r/fail? (inc-number-one {})))
-    (t/is (r/fail? (inc-number-one {:a :a})))
+    (t/is (r*/fail? (inc-number-one {})))
+    (t/is (r*/fail? (inc-number-one {:a :a})))
     (t/is (= {:a 2}
              (inc-number-one {:a 1})))))
 
@@ -119,12 +119,12 @@
 
 (def inc-number-some
   "inc-number strategy utilizing the some combinator."
-  (r/some inc-number))
+  (r*/some inc-number))
 
 (t/deftest some-seq-test
   (t/testing "some with seq? like objects"
-    (t/is (r/fail? (inc-number-some '())))  
-    (t/is (r/fail? (inc-number-some '(a))))
+    (t/is (r*/fail? (inc-number-some '())))  
+    (t/is (r*/fail? (inc-number-some '(a))))
     (t/is (= '(2)
              (inc-number-some '(1))))
     (t/is (= '(2 a)
@@ -140,8 +140,8 @@
 
 (t/deftest some-vector-test
   (t/testing "some with vector? like objects"
-    (t/is (r/fail? (inc-number-some [])))  
-    (t/is (r/fail? (inc-number-some '[a])))
+    (t/is (r*/fail? (inc-number-some [])))  
+    (t/is (r*/fail? (inc-number-some '[a])))
     (t/is (= '[2]
              (inc-number-some '[1])))
     (t/is (= '[2 a]
@@ -157,8 +157,8 @@
 
 (t/deftest some-set-test
   (t/testing "some with set? like objects"
-    (t/is (r/fail? (inc-number-some #{})))  
-    (t/is (r/fail? (inc-number-some '#{a})))
+    (t/is (r*/fail? (inc-number-some #{})))  
+    (t/is (r*/fail? (inc-number-some '#{a})))
     (t/is (= '#{2}
              (inc-number-some '#{1})))
     (t/is (= '#{2 a}
@@ -174,8 +174,8 @@
 
 (t/deftest some-map-test
   (t/testing "some with map? like objects"
-    (t/is (r/fail? (inc-number-some {})))
-    (t/is (r/fail? (inc-number-some {:a :a})))
+    (t/is (r*/fail? (inc-number-some {})))
+    (t/is (r*/fail? (inc-number-some {:a :a})))
     (t/is (= {:a 2 :b 3}
              (inc-number-some {:a 1 :b 2})))))
 
@@ -184,15 +184,15 @@
 
 (def inc-number-all
   "inc-number strategy utilizing the all combinator."
-  (r/all inc-number))
+  (r*/all inc-number))
 
 (t/deftest all-seq-test
   (t/testing "all with seq? like objects"
     (t/is (= '()
              (inc-number-all '())))  
-    (t/is (r/fail? (inc-number-all '(a))))
-    (t/is (r/fail? (inc-number-all '(1 a))))
-    (t/is (r/fail? (inc-number-all '(a b 1))))
+    (t/is (r*/fail? (inc-number-all '(a))))
+    (t/is (r*/fail? (inc-number-all '(1 a))))
+    (t/is (r*/fail? (inc-number-all '(a b 1))))
     (t/is (= '(2)
              (inc-number-all '(1))))
     (t/is (= '(2 3 4)
@@ -202,9 +202,9 @@
   (t/testing "all with vector? like objects"
     (t/is (= []
              (inc-number-all [])))  
-    (t/is (r/fail? (inc-number-all '[a])))
-    (t/is (r/fail? (inc-number-all '[1 a])))
-    (t/is (r/fail? (inc-number-all '[a b 1])))
+    (t/is (r*/fail? (inc-number-all '[a])))
+    (t/is (r*/fail? (inc-number-all '[1 a])))
+    (t/is (r*/fail? (inc-number-all '[a b 1])))
     (t/is (= [2]
              (inc-number-all [1])))
     (t/is (= [2 3 4]
@@ -214,9 +214,9 @@
   (t/testing "all with set? like objects"
     (t/is (= #{}
              (inc-number-all #{})))  
-    (t/is (r/fail? (inc-number-all '#{a})))
-    (t/is (r/fail? (inc-number-all '#{1 a})))
-    (t/is (r/fail? (inc-number-all '#{a b 1})))
+    (t/is (r*/fail? (inc-number-all '#{a})))
+    (t/is (r*/fail? (inc-number-all '#{1 a})))
+    (t/is (r*/fail? (inc-number-all '#{a b 1})))
     (t/is (= #{2}
              (inc-number-all #{1})))
     (t/is (= #{2 3 4}
@@ -226,57 +226,54 @@
   (t/testing "all with map? like objects"
     (t/is (= {}
              (inc-number-all {})))
-    (t/is (r/fail? (inc-number-all {:a :a})))
-    (t/is (r/fail? (inc-number-all {:a 1 :b 2})))
+    (t/is (r*/fail? (inc-number-all {:a :a})))
+    (t/is (r*/fail? (inc-number-all {:a 1 :b 2})))
     (t/is (= {1 2 11 12}
              (inc-number-all {0 1 10 11})))))
 
 
 (t/deftest retain-test
   (t/is (= '(2 3 4)
-           (r/retain (r/pipe (r/pred number?) inc)
+           (r*/retain (r*/pipe (r*/pred number?) inc)
                       '(1 :a 2 :b 3 :c))))
 
   (t/is (= '(2 3 4)
-           ((r/retain (r/pipe (r/pred number?) inc))
+           ((r*/retain (r*/pipe (r*/pred number?) inc))
             '(1 :a 2 :b 3 :c))))
 
   (t/is (= [2 3 4]
-           (r/retain (r/pipe (r/pred number?) inc)
+           (r*/retain (r*/pipe (r*/pred number?) inc)
                       [1 :a 2 :b 3 :c])))
 
-  
   (t/is (= [2 3 4]
-           ((r/retain (r/pipe (r/pred number?) inc))
+           ((r*/retain (r*/pipe (r*/pred number?) inc))
             [1 :a 2 :b 3 :c])))
 
   (t/is (= #{2 3 4}
-           (r/retain (r/pipe (r/pred number?) inc)
+           (r*/retain (r*/pipe (r*/pred number?) inc)
                       #{1 :a 2 :b 3 :c})))
 
-  
   (t/is (= #{2 3 4}
-           ((r/retain (r/pipe (r/pred number?) inc))
+           ((r*/retain (r*/pipe (r*/pred number?) inc))
             #{1 :a 2 :b 3 :c})))
 
   (t/is (= {:a 1, :c 2}
-           (r/retain (r/pipe
-                       (r/match
-                         [?k (r.match/pred number? ?v)]
+           (r*/retain (r*/pipe
+                       (r*/match
+                         [?k (r/pred number? ?v)]
                          [?k (inc ?v)]))
                       {:a 0, :b "B", :c 1, :d "D"})))
 
   (t/is (= {:a 1, :c 2}
-           ((r/retain (r/pipe
-                        (r/match
-                          [?k (r.match/pred number? ?v)]
+           ((r*/retain (r*/pipe
+                        (r*/match
+                          [?k (r/pred number? ?v)]
                           [?k (inc ?v)])))
             {:a 0, :b "B", :c 1, :d "D"}))))
 
-
 (t/deftest tuple-test
   (doseq [fs (reductions conj [inc] (map (constantly inc) (range 0 4)))]
-    (let [s (apply r/tuple fs)
+    (let [s (apply r*/tuple fs)
           v (s 1)]
       (t/is (= (count v) (count fs)))
       (t/is (every? #{2} v)))))
@@ -285,7 +282,7 @@
 ;; rewrite
 
 (def fib-identity
-  (r/rewrite
+  (r*/rewrite
    (+ 0 ?x)
    ?x
 
@@ -293,22 +290,22 @@
    ?x))
 
 (def fib-add
-  (r/rewrite
+  (r*/rewrite
    (+ (s ?x) ?y)
    (s (+ ?x ?y))))
 
 (def fib-0
-  (r/rewrite
+  (r*/rewrite
    (fib 0)
    0))
 
 (def fib-1
-  (r/rewrite
+  (r*/rewrite
    (fib (s 0))
    (s 0)))
 
 (def fib-n
-  (r/rewrite
+  (r*/rewrite
    (fib (s (s ?x)))
    (+ (fib (s ?x))
       (fib ?x))))
@@ -339,7 +336,7 @@
               (fib-add '(+ (s 0) 0))))))
 
 (def fib-rules
-  (r/rewrite
+  (r*/rewrite
    (+ 0 ?x)
    ?x
 
@@ -363,7 +360,7 @@
    ?else))
 
 (def fib
-  (r/until = (r/bottom-up fib-rules)))
+  (r*/until = (r*/bottom-up fib-rules)))
 
 (t/deftest fib-rules-test
   (t/testing "Fibs 1 to 8"
@@ -381,8 +378,8 @@
     (t/is (= '(s (s (s (s (s (s (s (s 0)))))))) (fib '(fib (s (s (s (s (s (s 0))))))))))))
 
 (defn replicate-self [n]
-  (r/n-times n
-    (r/rewrite ?x (?x ?x))))
+  (r*/n-times n
+    (r*/rewrite ?x (?x ?x))))
 
 (t/deftest n-times-test
   (t/testing "Apply strategy n-times"

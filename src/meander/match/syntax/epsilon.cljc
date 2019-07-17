@@ -16,44 +16,50 @@
   #?(:cljs
      (:require-macros [meander.syntax.epsilon])))
 
+(defn parse
+  [form env]
+  (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
+                                   ::r.syntax/phase :meander/match
+                                   ::r.syntax/parser-registry (deref r.syntax/global-parser-registry)})))
+
 ;; ---------------------------------------------------------------------
-;; Rewriting
+;; AST rewriting
 
 (defn expand-as
   {:private true}
   [node]
   (if-some [as (:as node)]
-    {:tag :cnj
+    {:tag ::and
      :arguments [(assoc node :as nil) as]}
     node))
 
-(defn flatten-cnj
-  [cnj-node]
-  (let [arguments (:arguments cnj-node)
+(defn flatten-and
+  [and-node]
+  (let [arguments (:arguments and-node)
         arguments* (mapcat
                     (fn f [node]
-                      (if (= (r.syntax/tag node) :cnj)
+                      (if (= (r.syntax/tag node) ::and)
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag :cnj
+    {:tag ::and
      :arguments arguments*}))
 
-(defn flatten-dsj
-  [dsj-node]
-  (let [arguments (:arguments dsj-node)
+(defn flatten-or
+  [or-node]
+  (let [arguments (:arguments or-node)
         arguments* (mapcat
                     (fn f [node]
-                      (if (= (r.syntax/tag node) :dsj)
+                      (if (= (r.syntax/tag node) ::or)
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag :dsj
+    {:tag ::or
      :arguments arguments*}))
 
-(defn expand-dsj
+(defn expand-or
   [node]
-  (let [arguments (:arguments (flatten-dsj node))]
+  (let [arguments (:arguments (flatten-or node))]
     (case (count arguments)
       1
       (first arguments)
@@ -65,9 +71,9 @@
           node
 
           1
-          {:tag :dsj
+          {:tag ::or
            :arguments [(first a)
-                       {:tag :dsj
+                       {:tag ::or
                         :arguments b}]}
 
           ;; else
@@ -82,11 +88,11 @@
                                           true
                                           false))
                                      assoc
-                                     :meander.epsilon/beta-reduce true)]
+                                     :meander.match.syntax.epsilon/beta-reduce true)]
             {:tag :prd
              :form pred-form
              :arguments (if (seq b)
-                          [{:tag :dsj
+                          [{:tag ::or
                             :arguments b}]
                           [])}))))))
 
@@ -104,13 +110,13 @@
                                (let [node (get key-map k-node)]
                                  (if (= node k-node)
                                    [k-node v-node]
-                                   [{:tag :cnj
+                                   [{:tag ::and
                                      :arguments [k-node node]}
                                     v-node]))))
                      (:map node))
           node* (assoc node :rest-map nil)
           node* (assoc node* :map map*)]
-      {:tag :cnj
+      {:tag ::and
        :arguments [node*
                    {:tag ::apply
                     :function `(fn [m#]
@@ -127,7 +133,7 @@
 
 (defn expand-not [node]
   (let [argument (:argument node)]
-    (if (= (r.syntax/tag argument) :not)
+    (if (= (r.syntax/tag argument) ::not)
       (:argument argument)
       node)))
 
@@ -148,12 +154,12 @@
                        (let [[n1 n2] (find elem-map node)]
                          (if (= n1 n2)
                            n1
-                           {:tag :cnj
+                           {:tag ::and
                             :arguments [n1 n2]})))
                      elements)
           node* (assoc node :elements elements*)
           node* (dissoc node* :rest)]
-      {:tag :cnj
+      {:tag ::and
        :arguments [node* {:tag ::apply
                           :function `(fn [s#]
                                        (disj s# ~@(map r.syntax/unparse (vals elem-map))))
@@ -181,16 +187,16 @@
   (r.syntax/prewalk
    (fn f [node]
      (case (r.syntax/tag node)
-       :cnj
-       (flatten-cnj node)
+       ::and
+       (flatten-and node)
 
-       :dsj
-       (expand-dsj node)
+       ::or
+       (expand-or node)
 
        :map
        (expand-map node)
 
-       :not
+       ::not
        (expand-not node)
 
        :set
@@ -207,246 +213,6 @@
    (r.syntax/rename-refs node)))
 
 ;; ---------------------------------------------------------------------
-;; Syntax extension
-
-
-(def ^{:dynamic true}
-  *form* nil)
-
-(def ^{:dynamic true}
-  *env* {})
-
-(defonce expander-registry
-  (atom {}))
-
-(defn register-expander
-  ([symbol f]
-   {:pre [(symbol? symbol)
-          (or (fn? f) (and (var? f) (fn? (deref f))))]}
-   (swap! expander-registry assoc symbol f))
-  ([expander-registry symbol f]
-   {:pre [(symbol? symbol)
-          (or (fn? f) (and (var? f) (fn? (deref f))))]} 
-   (swap! expander-registry assoc symbol f)))
-
-(defonce parser-registry
-  (atom {}))
-
-(defn register-special
-  ([symbol var]
-   {:pre [(symbol? symbol) (var? var)]}
-   (swap! parser-registry assoc symbol var))
-  ([parser-registry symbol var]
-   {:pre [(symbol? symbol) (var? var)]}
-   (swap! parser-registry assoc symbol var)))
-
-(defn expand-symbol
-  {:private true}
-  [sym env]
-  #?(:clj (if-some [cljs-ns (:ns env)]
-            ;; ClojureScript compile-time
-            (if (qualified-symbol? sym)
-              (let [ns-sym (symbol (namespace sym))]
-                (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                  (symbol (name ns) (name sym))
-                  sym))
-              (if (contains? (:defs cljs-ns) sym)
-                (symbol (name (:name cljs-ns)) (name sym))
-                sym))
-            ;; Clojure
-            (if (qualified-symbol? sym)
-              (let [ns-sym (symbol (namespace sym))]
-                (if-some [ns (get (ns-aliases *ns*) ns-sym)]
-                  (symbol (name (ns-name ns)) (name sym))
-                  sym))
-              (symbol (name (ns-name *ns*)) (name sym))))
-     :cljs (if-some [cljs-ns (:ns env)]
-             (if (qualified-symbol? sym)
-               (let [ns-sym (symbol (namespace sym))]
-                 (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                   (symbol (name ns) (name sym))
-                   sym))
-               (if (contains? (:defs cljs-ns) sym)
-                 (symbol (name (:name cljs-ns)) (name sym))
-                 sym))
-             sym)))
-
-(defn resolve-expander
-  {:private true}
-  [sym env]
-  (get (deref expander-registry) (expand-symbol sym env)))
-
-(defn expand-syntax
-  {:private true}
-  ([form]
-   (expand-syntax form {}))
-  ([form env]
-   (let [expander (if (seq? form)
-                    (if (symbol? (first form))
-                      (resolve-expander (first form) env)))
-         expander (if (var? expander)
-                    (deref expander)
-                    expander)]
-     (if (fn? expander)
-       (binding [*form* form
-                 *env* env]
-         (walk/prewalk
-          (fn [x]
-            (if (seq? x)
-              (doall x)
-              x))
-          (apply expander (rest form))))
-       form))))
-
-(defn resolve-parser
-  {:private true
-   :style/indent :defn}
-  [sym env]
-  (let [;; This should be
-        ;;
-        ;;     (get (::r.syntax/parser-registry env) (expand-symbol form env))
-        ;;
-        ;; instead.
-        x (get (deref parser-registry) (expand-symbol sym env))]
-    (if (var? x)
-      (let [y (deref x)]
-        (if (fn? y)
-          y
-          nil))
-      nil)))
-
-(defn parse-syntax
-  "Parses a special form e.g. a `seq?` with a special `symbol?` in its
-  first position into a `:meander.syntax.epsilon/node`."
-  [form env]
-  ;; The choice to return keywords in each of the three failure modes
-  ;; is probably not a good long term choice though they will cause
-  ;; parse failures to occur properly. There is enough information in
-  ;; each of the three cases to inform a programmer that either
-  ;;
-  ;; 1. the form type was passed,
-  ;; 2. the value registered under the form symbol was no a var, or
-  ;; 3. the value registered under the form symbol was a var but its
-  ;;    dereferenced value wasa not a function.
-  ;;
-  ;; The keywords should be fine for now, however.
-  (if (and (seq? form) (symbol? (first form)))
-    (let [x (resolve-parser (first form) env)]
-      (if (fn? x)
-        (x form env)
-        :meander.match.syntax.error/invalid-register))
-    :meander.match.syntax.error/invalid-special-form))
-
-(s/fdef parse-syntax
-  :args (s/cat :form (s/cat :head symbol? :tail (s/* any?))
-               :parse-env ::r.syntax/pase-env)
-  :ret (s/or :node ::r.syntax/node
-             :other #{:meander.match.syntax.error/invalid-register
-                      :meander.match.syntax.error/invalid-special-form}))
-
-(defn special-form?
-  "`true` if `x` is of the form
-
-      (and <pattern_0> ... <pattern_n>)
-      (app <expr> <pattern> ...)
-      (guard <expr>)
-      (let <pattern_0> <expr_0> ... <pattern_n> <expr_n>)
-      (not <pattern>)
-      (or <pattern_0> ... <pattern_n>)
-      (pred <expr> <pattern_0> ... <pattern_n>)
-      (re <regex-expr>)
-      (re <regex-expr> <pattern>)
-
-  and `false` otherwise."
-  [x env]
-  (and (seq? x)
-       (symbol? (first x))
-       (fn? (resolve-parser (first x) env))))
-
-(def parse-env
-  {::r.syntax/parse-syntax #'parse-syntax
-   ;; Consider replacing this with `::r.syntax/parser-registry`. By
-   ;; doing that we can eliminate this predicate and simply answer the
-   ;; question by checking the registry.
-   ::r.syntax/special-form? #'special-form?
-   ::r.syntax/expand-syntax #'expand-syntax})
-
-(defn parse
-  ([form]
-   (r.syntax/parse form parse-env))
-  ([form env]
-   (r.syntax/parse form (merge env parse-env))))
-
-(defmacro defsyntax [& defn-args]
-  (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
-        defn-args (next defn-args)
-        docstring (:docstring conformed-defn-args)
-        defn-args (if docstring
-                    (next defn-args)
-                    defn-args)
-        meta (:meta conformed-defn-args)
-        defn-args (if meta
-                    (next defn-args)
-                    defn-args)
-        meta (if docstring
-               (merge {:doc docstring} meta)
-               meta)
-        variadic? (= (first (:fn-tail conformed-defn-args))
-                     :arity-n)
-        arglists (if variadic?
-                   (map first defn-args)
-                   (list (first defn-args)))
-        meta (assoc meta :arglists (list 'quote arglists))
-        fn-name (:fn-name conformed-defn-args)
-        meta (merge meta (clojure.core/meta fn-name))
-        fn-name (with-meta fn-name meta)
-        body (if variadic?
-               defn-args
-               (list defn-args))
-        body (map
-              (fn [fn-spec]
-                `(~(first fn-spec)
-                  (let [~'&form *form*
-                        ~'&env *env*]
-                    ~@(rest fn-spec))))
-              body)
-        qfn-name (symbol (name (ns-name *ns*))
-                         (name fn-name))]
-    ;; When defining new syntax in ClojureScript it is also necessary
-    ;; to define the methods which parse and expand the syntax in
-    ;; Clojure. This is because the match, search, and find macros (in
-    ;; meander.match.epsilon) are expanded in Clojure which, in turn,
-    ;; rely on these methods.
-    #?(:clj
-       (when-some [cljs-ns (:ns &env)]
-         ;; Visit the namespace.
-         (in-ns (:name cljs-ns))
-         ;; Try to require the namespace or everything in
-         ;; :requires. Both operations can fail.
-         (try
-           (require (:name cljs-ns))
-           (catch Exception _
-             (doseq [[alias ns-name] (:requires cljs-ns)]
-               (if (= alias ns-name)
-                 (require ns-name)
-                 (require [ns-name :as alias])))))
-         (eval
-          `(do (def ~fn-name (fn ~@body))
-               (swap! expander-registry assoc '~qfn-name ~fn-name)))))
-    `(do (def ~fn-name (fn ~@body))
-         (swap! expander-registry assoc '~qfn-name ~fn-name)
-         (var ~fn-name))))
-
-;; ClojureScript seems to have this weird quirk where we need to ask
-;; for the spec twice. The first time blows up with an error saying it
-;; can't find it, the second time works like a charm. Needless to say,
-;; we can't have this namespace cause breakage by virtue of requiring
-;; it and getting this error. Needs investigation.
-#?(:clj
-   (s/fdef defsyntax
-     :args ::core.specs/defn-args))
-
-;; ---------------------------------------------------------------------
 ;; Syntax analysis
 
 (defn not-not?
@@ -455,7 +221,7 @@
   [node]
   (= (:tag node)
      (:tag (:argument node))
-     :not))
+     ::not))
 
 (defn not-tag
   "Returns `:not-not` if `node` represents the syntax
@@ -464,9 +230,9 @@
   {:private true}
   [node]
   (case (:tag node)
-    :not
+    ::not
     (case (:tag (:argument node))
-      :not
+      ::not
       :not-not
       ;; else
       :not)
@@ -519,20 +285,37 @@
 ;; ---------------------------------------------------------------------
 ;; Special forms
 
-;; and
-;; ---
+;;; and
+
+(def and-symbol
+  'meander.match.syntax.epsilon/and)
 
 (defn parse-and
-  {:private true}
   [[_ & args] env]
-  {:tag :cnj
+  {:tag ::and
    :arguments (r.syntax/parse-all args env)})
 
-(register-special `meander.epsilon/and #'parse-and)
-(register-special `meander.match.epsilon/and #'parse-and)
+(r.syntax/register-parser and-symbol #'parse-and)
 
-;; apply
-;; -----
+(defmethod r.syntax/children ::and
+  [node] (:arguments node))
+
+(defmethod r.syntax/ground? ::and
+  [node] false)
+
+(defmethod r.syntax/unparse ::and
+  [node] `(~and-symbol ~@(sequence (map r.syntax/unparse) (:arguments node))))
+
+(defmethod r.syntax/walk ::and [inner outer node]
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
+
+(defmethod r.syntax/search? ::and
+  [node] (boolean (some r.syntax/search? (:arguments node))))
+
+;;; apply
+
+(def apply-symbol
+  'meander.match.syntax.epsilon/apply)
 
 (defn parse-apply [form env]
   (let [args (rest form)]
@@ -540,9 +323,9 @@
       {:tag ::apply
        :function (first args)
        :argument (r.syntax/parse (second args) env)}
-      (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
+      (throw (ex-info "meander.match.syntax.epsilon/apply requires two arguments" {})))))
 
-(register-special `meander.epsilon/apply #'parse-apply)
+(r.syntax/register-parser apply-symbol #'parse-apply)
 
 (defmethod r.syntax/children ::apply [node]
   [(:argument node)])
@@ -551,7 +334,7 @@
   false)
 
 (defmethod r.syntax/unparse ::apply [node]
-  `(meander.epsilon/apply
+  `(~apply-symbol
     ~(:function node)
     ~(r.syntax/unparse (:argument node))))
 
@@ -561,116 +344,196 @@
 (defmethod r.syntax/walk ::apply [inner outer node]
   (outer (assoc node :argument (inner (:argument node)))))
 
-;; guard
-;; -----
+;;; guard
+
+(def guard-symbol
+  'meander.match.syntax.epsilon/guard)
 
 (defn parse-guard [[_ expr] env]
-  {:tag :grd
+  {:tag ::guard
    :expr expr})
 
-(register-special `meander.epsilon/guard #'parse-guard)
-(register-special `meander.match.epsilon/guard #'parse-guard)
+(r.syntax/register-parser guard-symbol #'parse-guard)
 
-;; let
-;; ---
+(defmethod r.syntax/ground? ::guard
+  [node] false)
+
+(defmethod r.syntax/unparse ::guard
+  [node] `(~guard-symbol ~(:expr node)))
+
+(defmethod r.syntax/search? ::guard
+  [node] false)
+
+;;; let
+
+(def let-symbol
+  'meander.match.syntax.epsilon/let)
 
 (defn parse-let [[_ & args :as form] env]
   (case (bounded-count 4 args)
+    2
+    (let [[pattern expression] args]
+      {:tag ::let
+       :pattern (r.syntax/parse pattern env)
+       :expression expression})
+    
     3
     (let [[pattern expression then] args]
-      {:tag :cnj
-       :arguments [{:tag :let
+      {:tag ::and
+       :arguments [{:tag ::let
                     :pattern (r.syntax/parse pattern env)
                     :expression expression}
                    (r.syntax/parse then env)]})
 
     ;; else
-    (throw (ex-info "meander.epsilon/let two or three arguments"
+    (throw (ex-info "meander.match.syntax.epsilon/let expects two or three arguments"
                     {:pattern form
                      :meta (meta form)}))))
 
-(defn match-syntax-let [& args]
-  (if (odd? (count args))
-    (throw (ex-info "let pattern requires an even number of arguments"
-                    {:pattern *form*
-                     :meta (meta *form*)}))
-    (let [bindings (reverse (partition 2 args))]
-      (reduce
-       (fn [form [pattern expression]]
-         `(meander.epsilon/let ~pattern ~expression ~form))
-       (let [[pattern expression] (first bindings)]
-         `(meander.epsilon/let ~pattern ~expression ~'_))
-       (rest bindings)))))
+(r.syntax/register-parser let-symbol #'parse-let)
 
+(defmethod r.syntax/children ::let
+  [node] [(:pattern node)])
 
-(register-special `meander.epsilon/let #'parse-let)
-(register-expander `meander.match.epsilon/let #'match-syntax-let)
+(defmethod r.syntax/ground? ::let
+  [node] false)
 
-(defmethod r.syntax/children :let [node]
-  [(:pattern node)])
+(defmethod r.syntax/unparse ::let
+  [node]
+  `(~let-symbol ~(r.syntax/unparse (:pattern node)) ~(:expression node)))
 
-(defmethod r.syntax/ground? :let [_]
-  false)
+(defmethod r.syntax/search? ::let
+  [node] false)
 
-(defmethod r.syntax/unparse :let [node]
-  `(meander.epsilon/let ~(r.syntax/unparse (:pattern node)) ~(:expression node)))
-
-(defmethod r.syntax/search? :let [_]
-  false)
-
-(defmethod r.syntax/walk :let [inner outer node]
+(defmethod r.syntax/walk ::let
+  [inner outer node]
   (outer (update node :pattern inner)))
 
+;;; not
 
-;; not
-;; ---
+(def not-symbol
+  'meander.match.syntax.epsilon/not)
 
 (defn parse-not [[_ & args :as form] env]
   (if (= 1 (bounded-count 2 args))
-    {:tag :not
+    {:tag ::not
      :argument (r.syntax/parse (first args) env)}
-    (throw (ex-info "not pattern requires at one argument"
+    (throw (ex-info "meander.match.syntax.epsilon/not pattern requires at one argument"
                     {:pattern form
                      :meta (meta form)}))))
 
-(register-special `meander.epsilon/not #'parse-not)
-(register-special `meander.match.epsilon/not #'parse-not)
+(r.syntax/register-parser not-symbol #'parse-not)
 
-;; or
-;; --
+(defmethod r.syntax/children ::not
+  [node] [(:argument node)])
+
+(defmethod r.syntax/ground? ::not
+  [node] false)
+
+(defmethod r.syntax/walk ::not
+  [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))
+
+(defmethod r.syntax/unparse ::not
+  [node] `(~not-symbol ~(r.syntax/unparse (:argument node))))
+
+(defmethod r.syntax/search? ::not
+  [node] (r.syntax/search? (:argument node)))
+
+;;; or
+
+(def or-symbol
+  'meander.match.syntax.epsilon/or)
 
 (defn parse-or [[_ & args :as form] env]
-  {:tag :dsj
+  {:tag ::or
    :arguments (r.syntax/parse-all args env)})
 
-(register-special `meander.epsilon/or #'parse-or)
-(register-special `meander.match.epsilon/or #'parse-or)
+(defmethod r.syntax/children ::or
+  [node] (:arguments node))
 
+(defmethod r.syntax/ground? ::or
+  [node] false)
 
-;; pred
-;; ----
+(defmethod r.syntax/walk ::or
+  [inner outer node]
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
+
+(defmethod r.syntax/unparse ::or
+  [node]
+  `(~or-symbol ~@(sequence (map r.syntax/unparse) (:arguments node))))
+
+(defmethod r.syntax/search? ::or
+  [node]
+  (boolean (some r.syntax/search? (:arguments node))))
+
+(r.syntax/register-parser or-symbol #'parse-or)
+
+;;; pred
+
+(def pred-symbol
+  'meander.match.syntax.epsilon/pred)
 
 (defn parse-pred [[_ expr & args :as form] env]
-  {:tag :prd
+  {:tag ::pred
    :form expr
    :arguments (r.syntax/parse-all args env)})
 
-(register-special `meander.epsilon/pred #'parse-pred)
-(register-special `meander.match.epsilon/pred #'parse-pred)
+(r.syntax/register-parser pred-symbol #'parse-pred)
 
-;; re
-;; --
+(defmethod r.syntax/children ::pred
+  [node] (:arguments node))
+
+(defmethod r.syntax/ground? ::pred [_]
+  false)
+
+(defmethod r.syntax/walk ::pred
+  [inner outer node]
+  (outer (assoc node :arguments (mapv inner (:arguments node)))))
+
+(defmethod r.syntax/unparse ::pred
+  [node] `(~pred-symbol ~(:form node) ~@(map r.syntax/unparse (:arguments node))))
+
+(defmethod r.syntax/search? ::pred [node]
+  (boolean (some r.syntax/search? (:arguments node))))
+
+;;; re
+
+(def re-symbol
+  'meander.match.syntax.epsilon/re)
 
 (defn parse-re [[_ & args :as form] env]
   (case (bounded-count 3 args)
-    1 {:tag :rxt
+    1 {:tag ::rxt
        :regex (first args)}
-    2 {:tag :rxc
+    2 {:tag ::rxc
        :regex (first args)
        :capture (r.syntax/parse (second args) env)}
-    (throw (ex-info "re pattern expects at one or two arguments"
+    (throw (ex-info "meander.match.syntax.epsilon/re expects one or two arguments"
                     {:pattern form
                      :meta (meta form)}))))
 
-(register-special `meander.epsilon/re #'parse-re)
-(register-special `meander.match.epsilon/re #'parse-re)
+(r.syntax/register-parser re-symbol #'parse-re)
+
+(defmethod r.syntax/children ::rxc
+  [node] [(:capture node)])
+
+(defmethod r.syntax/ground? ::rxc
+  [node] (r.syntax/ground? (:capture node)))
+
+(defmethod r.syntax/walk ::rxc
+  [inner outer node]
+  (outer (assoc node :capture (inner (:capture node)))))
+
+(defmethod r.syntax/search? ::rxc
+  [node] (r.syntax/search? (:capture node)))
+
+(defmethod r.syntax/unparse ::rxc
+  [node]
+  `(~re-symbol (r.syntax/unparse (:regex node)) (r.syntax/unparse (:capture node))))
+
+(defmethod r.syntax/ground? ::rxt
+  [node] true)
+
+(defmethod r.syntax/unparse ::rxt
+  [node] `(~re-symbol ~(r.syntax/unparse (:regex node))))

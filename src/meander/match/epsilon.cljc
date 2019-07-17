@@ -277,7 +277,7 @@
   :ret (s/coll-of :meander.match.epsilon/tree))
 
 
-(defmethod compile-specialized-matrix :app
+(defmethod compile-specialized-matrix ::r.match.syntax/apply
   [_ [target & targets*] matrix]
   (mapv
    (fn [node row]
@@ -285,11 +285,11 @@
        :any
        (compile-pass targets* [row])
 
-       :app
+       ::r.match.syntax/apply
        (r.ir/op-apply target (:fn-expr node)
          (fn [result-target]
            (compile `[~result-target ~@targets*]
-                    (r.matrix/prepend-column [row] [{:tag :cnj
+                    (r.matrix/prepend-column [row] [{:tag ::r.match.syntax/and
                                                      :arguments (:arguments node)}]))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
@@ -363,13 +363,13 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :cnj
+(defmethod compile-specialized-matrix ::r.match.syntax/and
   [_ [target & targets*] matrix]
   (let [max-args (reduce
                   (fn [n node]
                     (case (r.syntax/tag node)
                       :any n
-                      :cnj (max n (count (:arguments node)))))
+                      ::r.match.syntax/and (max n (count (:arguments node)))))
                   0
                   (r.matrix/first-column matrix))
         targets* `[~@(repeat max-args target) ~@targets*]
@@ -379,7 +379,7 @@
                      :any
                      (assoc row :cols `[~@(repeat max-args node) ~@(:cols row)])
 
-                     :cnj
+                     ::r.match.syntax/and
                      (let [arguments (:arguments node)]
                        (assoc row :cols `[~@arguments
                                           ~@(repeat (- max-args (count arguments))
@@ -408,13 +408,13 @@
              matrix* (as-> [row] %matrix
                        (if (some? context)
                          (r.matrix/prepend-column %matrix
-                                                  [{:tag :let
+                                                  [{:tag ::r.match.syntax/let
                                                     :pattern context
                                                     :expression `(fn [x#]
                                                                    (zip/root (zip/replace ~loc-sym x#)))}])
                          %matrix)
                        (r.matrix/prepend-column %matrix
-                                                [{:tag :let
+                                                [{:tag ::r.match.syntax/let
                                                   :pattern pattern
                                                   :expression node-sym}]))
              targets* (as-> [node-sym] %targets
@@ -435,26 +435,8 @@
   [_ [target & targets*] matrix]
   [(compile (vec targets*) (r.matrix/drop-column matrix))])
 
-#_
-(defmethod compile-specialized-matrix :dsj
-  [_ targets matrix]
-  (let [matrix* (into []
-                      (mapcat
-                       (fn [node row]
-                         (case (r.syntax/tag node)
-                           :any
-                           [(assoc row :cols `[~node ~@(:cols row)])]
 
-                           :dsj
-                           (map
-                            (fn [argument]
-                              (assoc row :cols `[~argument ~@(:cols row)]))
-                            (:arguments node))))
-                       (r.matrix/first-column matrix)
-                       (r.matrix/drop-column matrix)))]
-    [(compile targets matrix*)]))
-
-(defmethod compile-specialized-matrix :dsj
+(defmethod compile-specialized-matrix ::r.match.syntax/or
   [_ targets matrix]
   (let [targets* (vec (rest targets))]
     (mapv
@@ -463,7 +445,7 @@
          :any
          (compile-pass targets [row])
 
-         :dsj
+         ::r.match.syntax/or
          (let [unbound-mvrs (r.matrix/unbound-mvrs row node)
                row* (r.matrix/add-vars row unbound-mvrs)]
            (reduce
@@ -479,7 +461,7 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :grd
+(defmethod compile-specialized-matrix ::r.match.syntax/guard
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -488,7 +470,7 @@
          :any
          (compile-pass targets* [row])
 
-         :grd
+         ::r.match.syntax/guard
          (r.ir/op-check (r.ir/op-eval (:expr node))
           (compile targets* [row]))))
      (r.matrix/first-column matrix)
@@ -590,7 +572,7 @@
          (let [entry (:entry node)
                [key-node val-node] entry]
            (if (r.syntax/ground? key-node)
-             (let [node* {:tag :let
+             (let [node* {:tag ::r.match.syntax/let
                           :pattern val-node
                           :expression (list 'js* "(~{}[~{}])" target (compile-ground key-node))}
                    matrix* (r.matrix/prepend-column [row] [node*])]
@@ -611,7 +593,7 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :let
+(defmethod compile-specialized-matrix ::r.match.syntax/let
   [_ [target & targets* :as targets] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -620,7 +602,7 @@
          :any
          (compile-pass targets [row])
 
-         :let
+         ::r.match.syntax/let
          (let [xsym (gensym* "x__")
                targets* `[~xsym ~@targets*]
                matrix* (r.matrix/prepend-column [row] [(:pattern node)])]
@@ -700,7 +682,7 @@
                                                       {:tag :cat
                                                        :elements [k-node v-node]})
                                                     the-map)}
-                               let-node {:tag :let
+                               let-node {:tag ::r.match.syntax/let
                                          :pattern set-node
                                          :expression `(set ~target)}]
                            (assoc row :cols `[~let-node
@@ -726,6 +708,7 @@
                  (r.matrix/drop-column matrix))]
     [(r.ir/op-check-map (r.ir/op-eval target)
        (compile `[~@(repeat num-keys target) ~@targets*] matrix*))]))
+
 
 (defmethod compile-specialized-matrix :mkv
   [_ [target & targets* :as targets] matrix]
@@ -787,7 +770,8 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
-(defmethod compile-specialized-matrix :not
+
+(defmethod compile-specialized-matrix ::r.match.syntax/not
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -796,7 +780,7 @@
          :any
          (compile-pass targets* [row])
 
-         :not
+         ::r.match.syntax/not
          (let [save-id (gensym "save__")
                not-matrix [(assoc row
                                   :cols [(:argument node)]
@@ -807,7 +791,6 @@
              (compile targets* [row])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
-
 
 
 (defmethod compile-specialized-matrix :prt
@@ -936,7 +919,7 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :prd
+(defmethod compile-specialized-matrix ::r.match.syntax/pred
   [_ [target & targets* :as targets] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -945,7 +928,7 @@
          :any
          (compile-pass targets* [row])
 
-         :prd
+         ::r.match.syntax/pred
          (let [arguments (:arguments node)
                form (:form node)
                eval-form (if (:meander.epsilon/beta-reduce (meta form))
@@ -955,7 +938,7 @@
            (r.ir/op-check-boolean eval-form
              (if (seq arguments)
                (compile targets
-                        [(assoc row :cols `[~{:tag :cnj
+                        [(assoc row :cols `[~{:tag ::r.match.syntax/and
                                               :arguments arguments}
                                             ~@(:cols row)])])
                (compile targets* [row]))))))
@@ -981,7 +964,7 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :rxt
+(defmethod compile-specialized-matrix ::r.match.syntax/rxt
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -990,7 +973,7 @@
          :any
          (compile-pass targets* [row])
 
-         :rxt
+         ::r.match.syntax/rxt
          (r.ir/op-check-boolean (r.ir/op-eval `(string? ~target))
            (r.ir/op-check-boolean (r.ir/op-eval `(re-matches ~(:regex node) ~target))
              (compile targets* [row])))))
@@ -998,7 +981,7 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :rxc
+(defmethod compile-specialized-matrix ::r.match.syntax/rxc
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
     (mapv
@@ -1007,7 +990,7 @@
          :any
          (compile-pass targets* [row])
 
-         :rxc
+         ::r.match.syntax/rxc
          (let [ret-sym (gensym* "ret__")
                cols* `[~(:capture node) ~@(:cols row)]
                row* (assoc row :cols cols*)]
@@ -1116,6 +1099,7 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
+
 (defmethod compile-specialized-matrix :rpl
   [_ [target :as targets] matrix]
   (let [matrix* (mapv
@@ -1146,6 +1130,7 @@
         targets*  `[~target ~@targets]]
     [(compile targets* matrix*)]))
 
+
 (defmethod compile-specialized-matrix :rpm
   [_ [target :as targets] matrix]
   (let [matrix* (mapv
@@ -1169,6 +1154,7 @@
                  (r.matrix/drop-column matrix))
         targets* `[~target ~@targets]]
     [(compile targets* matrix*)]))
+
 
 (defmethod compile-specialized-matrix :rst
   [_ [target & targets*] matrix]
@@ -1572,12 +1558,12 @@
           (if (r.matrix/empty? matrix)
             (if (some? final-clause)
               (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
-              `(throw (ex-info "non exhaustive pattern match" '~(meta &form))))
+              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
             `(let [~target ~expr
                    ~fail (fn []
                            ~(if (some? final-clause)
                               (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                              `(throw (ex-info "non exhaustive pattern match" '~(meta &form)))))]
+                              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
                ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env))))))))
 
 
@@ -1763,81 +1749,3 @@
   :args (s/cat :expr any?
                :clauses :meander.match.epsilon.match/clauses)
   :ret any?)
-
-;; ---------------------------------------------------------------------
-;; Match operators
-
-(r.match.syntax/defsyntax all-of
-  "Alias for the `meander.match.epsilon/and` special form."
-  [& patterns]
-  `(meander.match.epsilon/and ~@patterns))
-
-(r.match.syntax/defsyntax one-of
-  "Alias for the `meander.match.epsilon/or` special form."
-  [& patterns]
-  `(meander.match.epsilon/or ~@patterns))
-
-(r.match.syntax/defsyntax none-of
-  "Variadic `meander.match.epsilon/not` pattern."
-  [pattern & patterns]
-  `(meander.match.epsilon/not (one-of ~pattern ~@patterns)))
-
-(r.match.syntax/defsyntax seqable
-  "Pattern matching operator which matches the `seq` of anything that
-  is `seqable?` against
-
-      (p1 ,,, pn)
-
-  where the sequence `p1` through `pn` is equal to `patterns`."
-  [& patterns]
-  `(meander.match.epsilon/pred seqable? (meander.match.epsilon/app seq ~patterns)))
-
-(r.match.syntax/defsyntax scan
-  "Pattern matching operator which matches the `seq` of `seqable?`
-  forms of the shape
-
-      (_ ... p1 ,,, pn . _ ...)
-
-  or `vectors?` of the form
-
-      [_ ... p1 ,,, pn . _ ...]
-
-  where the sequence `p1` through `pn` is equal to `patterns`."
-  [& patterns]
-  (let [patternc (count patterns)
-        [as as-pattern] (drop (- patternc 2) patterns)
-        inner (if (= :as as)
-                `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
-                `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
-    `(one-of [~@inner]
-             ;; Prevent producing the same search results twice when
-             ;; the target is a vector.
-             (all-of (none-of (meander.match.epsilon/pred vector?))
-                     (seqable ~@inner)))))
-
-(r.match.syntax/defsyntax separated
-  "Pattern matching operator which matches the `seq` of `seqable?`
-  forms of the shape
-
-      (_ ... p1 ,,, . _ ... pn . _ ...)
-
-  or `vectors?` of the form
-
-      [_ ... p1 ,,, . _ ... pn . _ ...]
-
-  where the sequence `p1` through `pn` is equal to `patterns`."
-  [& patterns]
-  (let [inner `(~@'(_ ...) ~@(mapcat cons patterns (repeat '(. _ ...))))]
-    `(one-of [~@inner]
-             ;; Prevent producing the same search results twice when
-             ;; the target is a vector.
-             (all-of (none-of (meander.match.epsilon/pred vector?))
-                     (seqable ~@inner)))))
-
-(r.match.syntax/defsyntax app
-  "Pattern matching operator which applies pattern matching the result
-  applying `f` to the current value being matched."
-  ([f pattern]
-   `(meander.epsilon/apply ~f ~pattern))
-  ([f pattern & patterns]
-   `(meander.epsilon/apply ~f (all-of ~pattern ~@patterns))))

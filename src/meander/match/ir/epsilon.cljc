@@ -777,13 +777,15 @@ compilation decisions."
       #'clojure.core/number? java.lang.Number
       #'clojure.core/seq? clojure.lang.ISeq
       #'clojure.core/seqable? clojure.lang.Seqable
+      #'clojure.core/set? clojure.lang.PersistentHashSet
       #'clojure.core/string? java.lang.String
       #'clojure.core/vector? clojure.lang.IPersistentVector}
      :cljs
      {#'cljs.core/number? js/Number
-      #'cljs.core/set? cljs.core/PersistentSet
+      #'cljs.core/set? cljs.core/PersistentHashSet
       #'cljs.core/string? js/String
       #'cljs.core/vector? cljs.core/PersistentVector}))
+
 
 (defn eliminate-preds
   {:private true}

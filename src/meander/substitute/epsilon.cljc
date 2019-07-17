@@ -443,8 +443,8 @@
 
 (defmacro substitute
   [x]
-  (let [node (r.substitute.syntax/expand-ast
-              (r.substitute.syntax/parse x &env))
+  (let [node (r.substitute.syntax/parse x &env)
+        node (r.substitute.syntax/expand-ast node)
         env (make-env node)
         mvr-ref-bindings (mapcat
                           (fn [[mvr-node ref-sym]]

@@ -18,6 +18,12 @@
   #?(:cljs
      (:require-macros [meander.substitute.syntax.epsilon])))
 
+(defn parse
+  [form env]
+  (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
+                                   ::r.syntax/phase :meander/substitute
+                                   ::r.syntax/parser-registry (deref r.syntax/global-parser-registry)})))
+
 ;; ---------------------------------------------------------------------
 ;; Rewriting
 
@@ -82,7 +88,6 @@
   [node]
   (r.syntax/prewalk rewrite-partition node))
 
-
 (defn rewrite-coerce-literals-to-lit
   [node]
   (r.syntax/prewalk
@@ -95,7 +100,6 @@
        node))
    node))
 
-
 (defn expand-ast
   [node]
   (-> node
@@ -104,183 +108,14 @@
       rewrite-coerce-literals-to-lit))
 
 ;; ---------------------------------------------------------------------
-;; Syntax extension
-
-
-(def ^{:dynamic true}
-  *form* nil)
-
-(def ^{:dynamic true}
-  *env* {})
-
-(defonce expander-registry
-  (atom {}))
-
-(defn register-expander
-  ([symbol f]
-   {:pre [(symbol? symbol)
-          (or (fn? f) (and (var? f) (fn? (deref f))))]}
-   (swap! expander-registry assoc symbol f))
-  ([expander-registry symbol f]
-   {:pre [(symbol? symbol)
-          (or (fn? f) (and (var? f) (fn? (deref f))))]}
-   (swap! expander-registry assoc symbol f)))
-
-(defn expand-symbol
-  {:private true}
-  [sym env]
-  #?(:clj (if-some [cljs-ns (:ns env)]
-            ;; ClojureScript compile-time
-            (if (qualified-symbol? sym)
-              (let [ns-sym (symbol (namespace sym))]
-                (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                  (symbol (name ns) (name sym))
-                  sym))
-              (if (contains? (:defs cljs-ns) sym)
-                (symbol (name (:name cljs-ns)) (name sym))
-                sym))
-            ;; Clojure
-            (if (qualified-symbol? sym)
-              (let [ns-sym (symbol (namespace sym))]
-                (if-some [ns (get (ns-aliases *ns*) ns-sym)]
-                  (symbol (name (ns-name ns)) (name sym))
-                  sym))
-              (symbol (name (ns-name *ns*)) (name sym))))
-     :cljs (if-some [cljs-ns (:ns env)]
-             (if (qualified-symbol? sym)
-               (let [ns-sym (symbol (namespace sym))]
-                 (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                   (symbol (name ns) (name sym))
-                   sym))
-               (if (contains? (:defs cljs-ns) sym)
-                 (symbol (name (:name cljs-ns)) (name sym))
-                 sym))
-             sym)))
-
-(defn resolve-expander
-  {:private true}
-  [sym env]
-  (get (deref expander-registry) (expand-symbol sym env)))
-
-(defn expand-syntax
-  {:private true}
-  ([form]
-   (expand-syntax form {}))
-  ([form env]
-   (let [expander (if (seq? form)
-                    (if (symbol? (first form))
-                      (resolve-expander (first form) env)))
-         expander (if (var? expander)
-                    (deref expander)
-                    expander)]
-     (if (fn? expander)
-       (binding [*form* form
-                 *env* env]
-         (walk/prewalk
-          (fn [x]
-            (if (seq? x)
-              (doall x)
-              x))
-          (apply expander (rest form))))
-       form))))
-
-(defmulti parse-syntax
-  (fn [form env]
-    (if (and (seq? form) (symbol? (first form)))
-      (expand-symbol (first form) env)
-      ::not-special))
-  :default ::not-special)
-
-(s/fdef parse-syntax
-  :args (s/cat :form (s/cat :head symbol? :tail (s/* any?))
-               :parse-env ::r.syntax/pase-env)
-  :ret ::r.syntax/node)
-
-(defn special-form?
-  "`true` if `x` is a special form and `false` otherwise."
-  [x env]
-  (and (seq? x)
-       (symbol? (first x))
-       (contains? (methods parse-syntax) (expand-symbol (first x) env))))
-
-(def parse-env
-  {::r.syntax/parse-syntax #'parse-syntax
-   ::r.syntax/special-form? #'special-form?
-   ::r.syntax/expand-syntax #'expand-syntax})
-
-(defn parse
-  ([form]
-   (r.syntax/parse form parse-env))
-  ([form env]
-   (r.syntax/parse form (merge env parse-env))))
-
-(defmacro defsyntax [& defn-args]
-  (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
-        defn-args (next defn-args)
-        docstring (:docstring conformed-defn-args)
-        defn-args (if docstring
-                    (next defn-args)
-                    defn-args)
-        meta (:meta conformed-defn-args)
-        defn-args (if meta
-                    (next defn-args)
-                    defn-args)
-        meta (if docstring
-               (merge {:doc docstring} meta)
-               meta)
-        variadic? (= (first (:fn-tail conformed-defn-args))
-                     :arity-n)
-        arglists (if variadic?
-                   (map first defn-args)
-                   (list (first defn-args)))
-        meta (assoc meta :arglists (list 'quote arglists))
-        fn-name (:fn-name conformed-defn-args)
-        meta (merge meta (clojure.core/meta fn-name))
-        fn-name (with-meta fn-name meta)
-        body (if variadic?
-               defn-args
-               (list defn-args))
-        body (map
-              (fn [fn-spec]
-                `(~(first fn-spec)
-                  (let [~'&form *form*
-                        ~'&env *env*]
-                    ~@(rest fn-spec))))
-              body)
-        qfn-name (symbol (name (ns-name *ns*))
-                         (name fn-name))]
-    ;; When defining new syntax in ClojureScript it is also necessary
-    ;; to define the methods which parse and expand the syntax in
-    ;; Clojure. This is because the match, search, and find macros (in
-    ;; meander.match.epsilon) are expanded in Clojure which, in turn,
-    ;; rely on these methods.
-    #?(:clj
-       (when-some [cljs-ns (:ns &env)]
-         ;; Visit the namespace.
-         (in-ns (:name cljs-ns))
-         ;; Try to require the namespace or everything in
-         ;; :requires. Both operations can fail.
-         (try
-           (require (:name cljs-ns))
-           (catch Exception _
-             (doseq [[alias ns-name] (:requires cljs-ns)]
-               (if (= alias ns-name)
-                 (require ns-name)
-                 (require [ns-name :as alias])))))
-         (eval
-          `(do (def ~fn-name (fn ~@body))
-               (swap! expander-registry assoc '~qfn-name ~fn-name)))))
-    `(do (def ~fn-name (fn ~@body))
-         (swap! expander-registry assoc '~qfn-name ~fn-name)
-         (var ~fn-name))))
-
-;; ---------------------------------------------------------------------
 ;; Special forms
 
-;; apply
-;; -----
+;;; apply
 
-(defmethod parse-syntax 'meander.epsilon/apply
+(def apply-symbol
+  'meander.substitute.syntax.epsilon/apply)
+
+(defn parse-apply
   [form env]
   (let [args (rest form)]
     (if (= 2 (bounded-count 3 args))
@@ -289,19 +124,24 @@
        :argument (r.syntax/parse (second args) env)}
       (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
 
-(defmethod r.syntax/children ::apply [node]
+(r.syntax/register-parser apply-symbol #'parse-apply)
+
+(defmethod r.syntax/children ::apply
+  [node]
   [(:argument node)])
 
-(defmethod r.syntax/ground? ::apply [_]
+(defmethod r.syntax/ground? ::apply
+  [node]
   false)
 
-(defmethod r.syntax/unparse ::apply [node]
-  `(meander.epsilon/apply
-    ~(:function node)
-    ~(r.syntax/unparse (:argument node))))
+(defmethod r.syntax/unparse ::apply
+  [node]
+  `(~apply-symbol ~(:function node) ~(r.syntax/unparse (:argument node))))
 
 (defmethod r.syntax/search? ::apply
-  [_] false)
+  [node]
+  false)
 
-(defmethod r.syntax/walk ::apply [inner outer node]
+(defmethod r.syntax/walk ::apply
+  [inner outer node]
   (outer (assoc node :argument (inner (:argument node)))))
