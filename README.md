@@ -8,7 +8,7 @@ Meander is a Clojure/ClojureScript data transformation library which combines hi
 ## Documentation
 
 * [Pattern Matching](#pattern-matching)
-* [Pattern Substituton](#pattern-substitution)
+* [Pattern Substitution](#pattern-substitution)
 * [Rewriting](#rewriting)
 * [Project Status](#project-status)
 
