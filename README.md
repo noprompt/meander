@@ -223,7 +223,7 @@ and bind `?x` to `1` but will not match a value like
 [1 2]
 ```
 
-since the second occurence of `?x` is not equal to `1`.
+since the second occurrence of `?x` is not equal to `1`.
 
 Note that a logic variable in place of a map's value might have a surprising result:
 
@@ -318,7 +318,7 @@ would first bind `*m` to `1`, and then ultimately to `2`.
 
 #### `guard`
 
-`(guard expr)` matches whenenver `expr` is truthy.
+`(guard expr)` matches whenever `expr` is truthy.
 
 Example:
 
@@ -645,7 +645,7 @@ Example:
  {:!ys [2 2]})
 ```
 
-This example demonstrates how `search` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurence of a `3`.
+This example demonstrates how `search` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys ...]` says find every subsequence in the vector being matched after _any_ occurrence of a `3`.
 
 ### Escaping
 
@@ -770,7 +770,7 @@ Logic variables have semantically equivalent behavior to the unquote operator.
 
 ### Memory variables
 
-Memory variables disperse their values throughout a substitution. Each occurence disperses one value from the collection into the expression.
+Memory variables disperse their values throughout a substitution. Each occurrence disperses one value from the collection into the expression.
 
 ```clj
 (let [!xs [1 2 3]]
@@ -790,7 +790,7 @@ This works similarly for subsequence patterns: values are dispersed until one of
 (let* [x 1 y 2] (println x) (println y) (+ x y))
 ```
 
-When an expression has memory variable occurences which exceed the number of available elements in its collection `nil` is dispersed after it is exhausted.
+When an expression has memory variable occurrences which exceed the number of available elements in its collection `nil` is dispersed after it is exhausted.
 
 ```clj
 (let [!xs [1]]
