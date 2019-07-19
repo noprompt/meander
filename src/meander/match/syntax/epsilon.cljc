@@ -89,7 +89,7 @@
                                           false))
                                      assoc
                                      :meander.match.syntax.epsilon/beta-reduce true)]
-            {:tag :prd
+            {:tag ::pred
              :form pred-form
              :arguments (if (seq b)
                           [{:tag ::or
