@@ -4,6 +4,7 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
+            [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.syntax.epsilon :as r.syntax]
             [meander.substitute.syntax.epsilon :as r.substitute.syntax :include-macros true]
             [meander.util.epsilon :as r.util]))
@@ -434,9 +435,10 @@
         env* (add-wth-refs env (r.syntax/make-ref-map node))]
     ;; Compile functions only for the references used.
     `(letfn [~@(r.match/search [node ref-set]
-                 [{:bindings (r.match/scan {:ref {:symbol ?symbol :as ?ref}
-                                            :pattern ?pattern})}
-                  #{?ref}]
+                 (with [%ref {:ref {:symbol ?symbol :as ?ref}
+                              :pattern ?pattern}
+                        %bindings (r.match.syntax/or [_ ... %ref . _ ...] (_ ... %ref . _ ...))]
+                   [{:bindings %bindings} #{?ref}])
                  `(~?symbol []
                    ~(compile-substitute ?pattern env*)))]
        ~(compile-substitute (:body node) env*))))
