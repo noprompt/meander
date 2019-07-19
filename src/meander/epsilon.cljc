@@ -291,6 +291,22 @@
      &form)))
 
 (r.syntax/defsyntax re
+  "Pattern matching operator which matches strings which match the
+   regular expression `regex-pattern` with `re-matches`. Optionally, a
+   second argument `capture-pattern` can be passed which will be
+   matched against the result of the underlying `re-matches` call.
+
+     (match \"foo\"
+       (re #\"...\")
+       true)
+     ;; =>
+     true
+
+     (match \"foo\"
+       (re #\"(.)(.)(.)\" [?0 ?1 ?2 ?3])
+       [?0 ?1 ?2 ?3])
+     ;; =>
+     [\"foo\" \"f\" \"o\" \"o\"]"
   ([regex-pattern]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -303,6 +319,7 @@
      `(r.match.syntax/re ~regex-pattern ~capture-pattern)
      ;; else
      &form)))
+
 
 (r.syntax/defsyntax $*
   ([context pattern]
