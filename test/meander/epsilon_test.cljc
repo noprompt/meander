@@ -679,6 +679,35 @@
       _
       true)))
 
+;;; keyword
+
+(t/deftest match-keyword-succeeds
+  (t/is (= "bar"
+           (r/match :foo/bar
+             (r/keyword ?name)
+             ?name)))
+
+  (t/is (= ["foo" "bar"]
+           (r/match :foo/bar
+             (r/keyword ?namespace ?name)
+             [?namespace ?name]))))
+
+
+(t/deftest match-keyword-fails
+  (t/is (false? (r/match 'foo
+                  (r/keyword ?name)
+                  true
+
+                  _
+                  false)))
+
+  (t/is (false? (r/match 'foo/bar
+                  (r/keyword ?namespace ?name)
+                  true
+
+                  _
+                  false))))
+
 
 ;;; let
 
@@ -975,6 +1004,37 @@
 
       _
       false)))
+
+
+;;; symbol
+
+
+(t/deftest match-symbol-succeeds
+  (t/is (= "bar"
+           (r/match 'foo/bar
+             (r/symbol ?name)
+             ?name)))
+
+  (t/is (= ["foo" "bar"]
+           (r/match 'foo/bar
+             (r/symbol ?namespace ?name)
+             [?namespace ?name]))))
+
+
+(t/deftest match-symbol-fails
+  (t/is (false? (r/match :foo
+                  (r/symbol ?name)
+                  true
+
+                  _
+                  false)))
+
+  (t/is (false? (r/match :foo/bar
+                  (r/symbol ?namespace ?name)
+                  true
+
+                  _
+                  false))))
 
 
 ;;; with
@@ -1755,6 +1815,22 @@
         ?x 10]
     (t/is (= 11
              (r/subst (r/app ?f ?x))))))
+
+
+(t/deftest subst-keyword
+  (t/is (= :foo
+           (r/subst (r/keyword "foo"))))
+
+  (t/is (= :foo/bar
+           (r/subst (r/keyword "foo" "bar")))))
+
+
+(t/deftest subst-symbol
+  (t/is (= 'foo
+           (r/subst (r/symbol "foo"))))
+
+  (t/is (= 'foo/bar
+           (r/subst (r/symbol "foo" "bar")))))
 
 ;; ---------------------------------------------------------------------
 ;; rewrite

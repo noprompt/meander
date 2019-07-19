@@ -1,5 +1,5 @@
 (ns meander.epsilon
-  (:refer-clojure :exclude [and or not find let])
+  (:refer-clojure :exclude [and find keyword let not or symbol])
   #?(:clj
      (:require [clojure.core :as clj]
                [clojure.spec.alpha :as s]
@@ -143,7 +143,7 @@
        _
        (throw (ex-info "The second argument to let must be a vector with an number or elements"
                        {:form &form
-                        :meta (meta &form)}))) 
+                        :meta (meta &form)})))
      ;; else
      &form))
   ([binding-patterns target-pattern]
@@ -334,6 +334,110 @@
                              (?context# (apply f# ?pattern# args#))))]))
      :meander/substitute
      `(app ~context ~pattern ~@patterns)
+
+     ;; else
+     &form)))
+
+(r.syntax/defsyntax symbol
+  "Pattern matching and substitution operator.
+
+   When used as a pattern matching operator it will match a symbol
+   with `name` and, optionally, `namespace`.
+
+     (match 'foo/bar
+       (symbol ?name)
+       ?name)
+     ;; => \"bar\"
+
+     (match :foo/bar
+       (symbol ?namespace ?name)
+       [?namespace ?name])
+     ;; => [\"foo\" \"bar\"]
+
+   When used as a substutition operator it will create a symbol with
+   `name` and, optionally, `namespace` e.g. it behaves the same as
+   `clojure.core/symbol` in the context of normal substitution
+   behavior.
+
+     (subst (symbol \"foo\" \"bar\"))
+     ;; => 'foo/bar
+
+     ;; clojure.core/let
+     (let [!namespaces [\"foo\" \"foo\"]
+           !names [\"bar\" \"baz\"]]
+       (subst [(symbol !namespaces !names) ...]))
+     ;; => ['foo/bar 'foo/baz]"
+  ([name]
+    (case (::r.syntax/phase &env)
+     :meander/match
+     `(and (pred symbol?) (app name ~name))
+
+     :meander/substitute
+     `(app clj/symbol ~name)
+
+     ;; else
+     &form))
+  ([namespace name]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(and (pred symbol?)
+           (app namespace ~namespace)
+           (app name ~name))
+
+     :meander/substitute
+     `(app clj/symbol ~namespace ~name)
+
+     ;; else
+     &form)))
+
+(r.syntax/defsyntax keyword
+  "Pattern matching and substitution operator.
+
+   When used as a pattern matching operator it will match a keyword
+   with `name` and, optionally, `namespace`.
+
+     (match :foo/bar
+       (keyword ?name)
+       ?name)
+     ;; => \"bar\"
+
+     (match :foo/bar
+       (keyword ?namespace ?name)
+       [?namespace ?name])
+     ;; => [\"foo\" \"bar\"]
+
+   When used as a substutition operator it will create a keyword with
+   `name` and, optionally, `namespace` e.g. it behaves the same as
+   `clojure.core/keyword` in the context of normal substitution
+   behavior.
+
+     (subst (keyword \"foo\" \"bar\"))
+     ;; => :foo/bar
+
+     ;; clojure.core/let
+     (let [!namespaces [\"foo\" \"foo\"]
+           !names [\"bar\" \"baz\"]]
+       (subst [(keyword !namespaces !names) ...]))
+     ;; => [:foo/bar :foo/baz]"
+  ([name]
+    (case (::r.syntax/phase &env)
+     :meander/match
+     `(and (pred keyword?) (app name ~name))
+
+     :meander/substitute
+     `(app clj/keyword ~name)
+
+     ;; else
+     &form))
+  ([namespace name]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(and (pred keyword?)
+           (app namespace ~namespace)
+           (app name ~name))
+
+     :meander/substitute
+     `(app clj/keyword ~namespace ~name)
 
      ;; else
      &form)))
