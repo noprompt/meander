@@ -282,10 +282,12 @@
      &form)))
 
 (r.syntax/defsyntax guard
-  ([p]
+  "Pattern matching operator which succeeds whenever `pred-expr`
+  returns a truthy result. `pred-expr` is evaluated by Clojure."
+  ([pred-expr]
    (case (::r.syntax/phase &env)
      :meander/match
-     `(r.match.syntax/guard ~p)
+     `(r.match.syntax/guard ~pred-expr)
 
      ;; else
      &form)))
