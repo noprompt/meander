@@ -803,7 +803,10 @@
     ((pipe (attempt (one rec)) s) t)))
 
 
-(defn breadth-first [s]
+(defn breadth-first
+  "Build a strategy which applies `s` to each subterm of `t` in a
+  breadth-first order."
+  [s]
   (fn rec [t]
     ((pipe (all s) (all rec)) t)))
 
