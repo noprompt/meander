@@ -165,6 +165,11 @@
      ;; else
      &form)))
 
+(s/fdef let
+  :args (s/cat :binding-patterns (s/and vector? (s/cat :pattern any? :expression any?))
+               :target-pattern (s/? any?))
+  :ret seq?)
+
 (r.syntax/defsyntax pred
   ([p]
    (case (::r.syntax/phase &env)
