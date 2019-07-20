@@ -1824,6 +1824,12 @@
 (defmethod walk :rp+ [inner outer node]
   (outer (assoc node :cat (inner (:cat node)))))
 
+(defmethod walk :rpl [inner outer node]
+  (outer (assoc node :cat (inner (:cat node)))))
+
+(defmethod walk :rpm [inner outer node]
+  (outer (assoc node :cat (inner (:cat node)))))
+
 (defmethod walk :set [inner outer node]
   (outer (assoc node
                 :rest (if-some [rest-set (:rest node)]
