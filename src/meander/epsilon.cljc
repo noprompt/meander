@@ -80,7 +80,7 @@
   compile-rewrites
   (r/rewrite
    [?x (!match !substitution ...)]
-   (`r.match/search ?x . !match (`r.substitute/substitute !substitution) ...)
+   (`r.match/search ?x . !match (`r.subst/substitute !substitution) ...)
 
    _
    [:error "rewrite expects and odd number of arguments"]))
