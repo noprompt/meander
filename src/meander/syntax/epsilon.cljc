@@ -64,8 +64,7 @@
 
 ;; Some nodes may have an `::original-form` key, the value of which is
 ;; `any?`. This key is populated by forms which have been expanded
-;; during `parse` via `::expand-syntax` and then subsequently parsed
-;; into an AST node.
+;; during `parse` and then subsequently parsed into an AST node.
 
 (s/def :meander.syntax.epsilon.node/original-form
   any?)
