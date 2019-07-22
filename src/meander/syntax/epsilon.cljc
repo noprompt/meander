@@ -2066,7 +2066,10 @@
 ;; ---------------------------------------------------------------------
 ;; defsyntax
 
-(defmacro defsyntax [& defn-args]
+(defmacro defsyntax
+  {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
+               [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])}
+  [& defn-args]
   (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
         defn-args (next defn-args)
         docstring (:docstring conformed-defn-args)
@@ -2100,7 +2103,14 @@
                     ~@(rest fn-spec))))
               body)
         qfn-name (symbol (name (ns-name *ns*))
-                         (name fn-name))]
+                         (name fn-name))
+        expander-definition-body-form
+        `(do (def ~fn-name (fn ~@body))
+             (let [expander# (fn expander# [form# env#]
+                               (binding [*form* form#
+                                         *env* env#]
+                                 (apply ~fn-name (rest form#))))]
+               (swap! global-expander-registry assoc '~qfn-name expander#)))]
     ;; When defining new syntax in ClojureScript it is also necessary
     ;; to define the methods which parse and expand the syntax in
     ;; Clojure. This is because the match, search, and find macros (in
@@ -2119,19 +2129,8 @@
                (if (= alias ns-name)
                  (require ns-name)
                  (require [ns-name :as alias])))))
-         (eval
-          `(do (def ~fn-name (fn ~@body))
-               (let [expander# (fn expander# [form# env#]
-                                 (binding [*form* form#
-                                           *env* env#]
-                                   (apply ~fn-name (rest form#))))]
-                 (swap! global-expander-registry assoc '~qfn-name expander#))))))
-    `(do (def ~fn-name (fn ~@body))
-         (let [expander# (fn expander# [form# env#]
-                           (binding [*form* form#
-                                     *env* env#]
-                             (apply ~fn-name (rest form#))))]
-           (swap! global-expander-registry assoc '~qfn-name expander#))
+         (eval expander-definition-body-form)))
+    `(do ~expander-definition-body-form
          (var ~fn-name))))
 
 ;; ClojureScript seems to have this weird quirk where we need to ask
