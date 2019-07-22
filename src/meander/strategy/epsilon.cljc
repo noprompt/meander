@@ -349,6 +349,21 @@
     ~t))
 
 
+(defmacro irecord-all-body
+  {:private true}
+  [t s]
+  `(reduce-kv
+    (fn [t*# k# v#]
+      (let [k*# (~s k#)]
+        (if (fail? k*#)
+          *fail*
+          (let [v*# (~s v#)]
+            (if (fail? v*#)
+              *fail*
+              (assoc t*# k*# v*#))))))
+    ~t
+    ~t))
+
 (defmacro iset-all-body
   {:private true}
   [t s]
@@ -379,15 +394,19 @@
 (defn all [s]
   #?(:clj
      (fn [t]
-       (if (iall? t)
-         (r.protocols/-all t s)
-         t))
+       (cond
+         (record? t) (irecord-all-body t s)
+         (iall? t) (r.protocols/-all t s)
+         :else t))
 
      :cljs
      (fn [t]
        (cond
          (iall? t)
          (r.protocols/-all t s)
+
+         (satisfies? cljs.core/IRecord t)
+         (meander.strategy.epsilon/irecord-all-body t s)
 
          (satisfies? cljs.core/ISeq t)
          (meander.strategy.epsilon/iseq-all-body t s)

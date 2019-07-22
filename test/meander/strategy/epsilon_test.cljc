@@ -232,6 +232,12 @@
              (inc-number-all {0 1 10 11})))))
 
 
+(defrecord MyRecord [x])
+
+(t/deftest all-record-test
+  (t/testing "all with record? like objects"
+    (t/is (= MyRecord (type ((r*/all identity) (MyRecord. 1)))))))
+
 (t/deftest retain-test
   (t/is (= '(2 3 4)
            (r*/retain (r*/pipe (r*/pred number?) inc)
