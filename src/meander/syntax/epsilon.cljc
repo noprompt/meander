@@ -53,8 +53,6 @@
   (swap! global-parser-registry assoc symbol f)
   nil)
 
-
-
 ;; ---------------------------------------------------------------------
 ;; AST specs and predicates
 
