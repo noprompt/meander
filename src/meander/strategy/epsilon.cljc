@@ -1149,3 +1149,17 @@
 (s/fdef rewrite
   :args :meander.match.epsilon.match/clauses
   :ret any?)
+
+(defmacro rewrites
+  [& rules]
+  `(search
+     ~@(mapcat
+        (fn [[pat rhs]]
+          [pat `(r.substitute/substitute ~rhs)])
+        (partition 2 rules))
+     ~'_
+     *fail*))
+
+(s/fdef rewrites
+  :args :meander.match.epsilon.match/clauses
+  :ret any?)
