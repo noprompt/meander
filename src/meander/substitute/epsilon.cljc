@@ -161,32 +161,26 @@
   (:symbol node))
 
 (defmethod compile-substitute :map [node env]
-  (let [as (:as node)
-        rest-map (:rest-map node)
-        compiled-kvs (sequence
-                      (comp (mapcat identity)
-                            (map (fn [x]
-                                   (compile-substitute x env))))
-                      (:map node))]
-    (if-some [rest-map (:rest-map node)]
-      (let [compiled-rest-map `(let [x# ~(compile-substitute rest-map env)]
-                                 (if (map? x#)
-                                   x#
-                                   (into {} x#)))]
-        (if (seq compiled-kvs)
-          `(assoc ~compiled-rest-map
-                  ;; Specified keys have a higher precedence than the rest
-                  ;; map. When matching, we dissoc values to derive the
-                  ;; rest map. When substituting we assoc values into the
-                  ;; rest map.
-                  ~@(if (some? as)
-                      [:as (compile-substitute as env)])
-                  ~@compiled-kvs)
-          compiled-rest-map))
-      `(hash-map ~@(concat (if (some? as)
-                             [:as (compile-substitute as env)])
-                           compiled-kvs)))))
-
+  (let [as-node (:as node)
+        form (if (r.syntax/node? as-node)
+               (let [as-form (compile-substitute as-node env)]
+                 (if (map? as-form)
+                   as-form
+                   `(into {} ~as-form)))
+               {})
+        map-data (:map node)
+        form (if (map? map-data)
+               `(merge ~form
+                       ~(into {} (r.match/search map-data
+                                   {?k ?v}
+                                   [(compile-substitute ?k env)
+                                    (compile-substitute ?v env)])))
+               form)
+        rest-node (:rest-map node)
+        rest-form (if (r.syntax/node? rest-node)
+                    `(merge ~form ~(compile-substitute rest-node env))
+                    form)]
+    form))
 
 (defmethod compile-substitute :mvr [mvr env]
   (let [mvr-ref-sym (get-mvr-ref-sym env mvr)]
