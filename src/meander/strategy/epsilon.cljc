@@ -491,7 +491,6 @@
     *fail*
     ~t))
 
-
 (defmacro iset-one-body
   {:private true}
   [t s]
@@ -632,6 +631,33 @@
        *fail*)))
 
 
+(defmacro irecord-some-body
+  {:private true}
+  [t s]
+  `(let [[t*# pass?#]
+         (reduce-kv
+          (fn [[t*# pass?#] k# v#]
+            (let [k*# (~s k#)
+                  v*# (~s v#)]
+              (case [(fail? k*#) (fail? v*#)]
+                [true true]
+                [(assoc t*# k# v#) pass?#]
+
+                [true false]
+                [(assoc t*# k# v*#) true]
+
+                [false true]
+                [(assoc t*# k*# v#) true]
+
+                [false false]
+                [(assoc t*# k*# v*#) true])))
+          [~t false]
+          ~t)]
+     (if pass?#
+       t*#
+       *fail*)))
+
+
 (defmacro iset-some-body
   {:private true}
   [t s]
@@ -670,15 +696,23 @@
   [s]
   #?(:clj
      (fn [t]
-       (if (isome? t)
+       (cond
+         (record? t)
+         (irecord-some-body t s)
+         
+         (isome? t)
          (r.protocols/-some t s)
-         t))
+         
+         :else t))
 
      :cljs
      (fn [t]
        (cond
          (isome? t)
          (r.protocols/-some t s)
+
+         (satisfies? cljs.core/IRecord t)
+         (meander.strategy.epsilon/irecord-some-body t s)
 
          (satisfies? cljs.core/ISeq t)
          (meander.strategy.epsilon/iseq-some-body t s)
