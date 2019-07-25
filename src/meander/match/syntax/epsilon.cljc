@@ -30,7 +30,7 @@
   [node]
   (if-some [as (:as node)]
     {:tag ::and
-     :arguments [(assoc node :as nil) as]}
+     :arguments [as (assoc node :as nil)]}
     node))
 
 (defn flatten-and
