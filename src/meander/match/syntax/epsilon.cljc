@@ -532,8 +532,11 @@
   [node]
   `(~re-symbol (r.syntax/unparse (:regex node)) (r.syntax/unparse (:capture node))))
 
+(defmethod r.syntax/search? ::rxt
+  [node] false)
+
 (defmethod r.syntax/ground? ::rxt
-  [node] true)
+  [node] false)
 
 (defmethod r.syntax/unparse ::rxt
   [node] `(~re-symbol ~(r.syntax/unparse (:regex node))))
