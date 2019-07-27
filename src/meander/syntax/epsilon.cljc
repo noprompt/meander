@@ -1853,6 +1853,18 @@
 ;; ---------------------------------------------------------------------
 ;; Other useful utilities
 
+(defn make-variable-rename-map
+  [node]
+  (reduce
+   (fn [index [i node]]
+     (if (variable-node? node)
+       (if (contains? index node)
+         index
+         (assoc index node (assoc node :symbol (symbol (str "?v__" i)))))
+       index))
+   {}
+   (map vector (range) (subnodes node))))
+
 (defn genref
   {:private true}
   []
