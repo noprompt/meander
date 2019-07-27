@@ -20,13 +20,6 @@
 
 (def
   ^{:dynamic true
-    :private true
-    :doc ""}
-  *env* {})
-
-
-(def
-  ^{:dynamic true
     :doc ""}
   *negating* false)
 
@@ -1545,21 +1538,20 @@
         matrix (:matrix match-data)
         final-clause (:final-clause match-data)
         errors (:errors match-data)]
-    (binding [*env* &env]
-      (if-some [error (first errors)]
-        (throw error)
-        (let [target (gensym "target__")
-              fail (gensym "fail__")]
-          (if (r.matrix/empty? matrix)
-            (if (some? final-clause)
-              (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
-              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
-            `(let [~target ~expr
-                   ~fail (fn []
-                           ~(if (some? final-clause)
-                              (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
-               ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env))))))))
+    (if-some [error (first errors)]
+      (throw error)
+      (let [target (gensym "target__")
+            fail (gensym "fail__")]
+        (if (r.matrix/empty? matrix)
+          (if (some? final-clause)
+            (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
+            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
+          `(let [~target ~expr
+                 ~fail (fn []
+                         ~(if (some? final-clause)
+                            (r.ir/compile (compile [target] [final-clause]) nil :match &env)
+                            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
+             ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env)))))))
 
 
 (s/fdef match
@@ -1632,17 +1624,16 @@
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
-    (binding [*env* &env]
-      (if-some [error (first errors)]
-        (throw error)
-        (let [target (gensym "target__")]
-          (if (r.matrix/empty? matrix)
-            nil
-            (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                            (compile [target] matrix))
-                          nil
-                          :search
-                          &env)))))))
+    (if-some [error (first errors)]
+      (throw error)
+      (let [target (gensym "target__")]
+        (if (r.matrix/empty? matrix)
+          nil
+          (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                          (compile [target] matrix))
+                        nil
+                        :search
+                        &env))))))
 
 
 (s/fdef search
@@ -1717,27 +1708,26 @@
         final-clause (:final-clause match-data)
         target (gensym "target__")
         fail (gensym "fail__")]
-    (binding [*env* &env]
-      (if-some [error (first errors)]
-        (throw error)
-        (if (r.matrix/empty? matrix)
-          (if (some? final-clause)
-            (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                            (compile [target] [final-clause]))
-                          nil
-                          :find
-                          &env)
-            nil)
-          (r.ir/compile
-           (r.ir/op-bind target (r.ir/op-eval expr)
-             (r.ir/op-eval
-               (if (some? final-clause)
-                 `(let [~fail (fn []
-                                ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))]
-                    ~(r.ir/compile (compile [target] matrix) `(~fail) :find &env))
-                 (r.ir/compile (compile [target] matrix) nil :find &env))))
-           nil
-           :find))))))
+    (if-some [error (first errors)]
+      (throw error)
+      (if (r.matrix/empty? matrix)
+        (if (some? final-clause)
+          (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                          (compile [target] [final-clause]))
+                        nil
+                        :find
+                        &env)
+          nil)
+        (r.ir/compile
+         (r.ir/op-bind target (r.ir/op-eval expr)
+           (r.ir/op-eval
+             (if (some? final-clause)
+               `(let [~fail (fn []
+                              ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))]
+                  ~(r.ir/compile (compile [target] matrix) `(~fail) :find &env))
+               (r.ir/compile (compile [target] matrix) nil :find &env))))
+         nil
+         :find)))))
 
 
 (s/fdef find
