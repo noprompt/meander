@@ -248,6 +248,10 @@
           _n
           true)))
 
+(t/deftest seq-any-test
+  (t/is (r/match '(1 2 3) (_ 2 3) true))
+  (t/is (r/match '(1 2 3) (1 _ 3) true))
+  (t/is (r/match '(1 2 3) (1 2 _) true)))
 
 ;;; Vectors
 
@@ -413,6 +417,12 @@
     (t/is (r/match xs
             [?x ?y ?z :as ?xs]
             (= [?x ?y ?z] ?xs xs)))))
+
+
+(t/deftest vec-any-test
+  (t/is (r/match [1 2 3] [_ 2 3] true))
+  (t/is (r/match [1 2 3] [1 _ 3] true))
+  (t/is (r/match [1 2 3] [1 2 _] true)))
 
 
 ;;; Maps

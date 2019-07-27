@@ -830,7 +830,6 @@
 
                (zero? llen)
                (r.ir/op-check-bounds (r.ir/op-eval target) rlen *collection-context*
-
                  (compile targets [(assoc row :cols `[~right ~@(:cols row)])]))
 
                (zero? rlen)
@@ -1391,41 +1390,37 @@
   tree."
   [targets matrix]
   (cond
+    ;; Nothing in the matrix; fail.
     (= (count matrix) 0)
     (r.ir/op-fail)
 
-    (every? r.syntax/any-node? (mapcat identity (r.matrix/columns (take 1 matrix))))
+    ;; _ is in every cell of the first row; return the action.
+    (r.matrix/any-row? (first matrix))
     (r.matrix/action (first matrix))
 
+    ;; _ is in every cell of the first column; drop the first column,
+    ;; recurse.
+    (r.matrix/any-column? matrix 0)
+    (compile (rest targets) (r.matrix/drop-column matrix))
+
     :else
-    (let [i (some (fn [[i column]]
-                    (when (not-every? r.syntax/any-node? column)
-                      i))
-                  (map-indexed vector (r.matrix/columns matrix)))]
-      (if (= 0 i)
-        (let [[targets* matrix*] (prioritize-matrix targets matrix)
-              tags (into []
-                         (comp (map r.syntax/tag)
-                               (remove #{:any})
-                               (distinct))
-                         (r.matrix/first-column matrix*))
-              arms (into [] (mapcat
-                             (fn [tag]
-                               (let [s-matrix (specialize-matrix tag matrix*)]
-                                 (compile-specialized-matrix tag targets* s-matrix))))
-                         tags)
-              arms (if (and (some (fn [op]
-                                    (= (:type op) :test))
-                                  arms)
-                            (not (some (fn [op]
-                                         (= (:op op) :pass))
-                                       arms)))
-                     (conj arms (r.ir/op-fail))
-                     arms)]
-          (r.ir/op-branch arms))
-        (let [targets* (r.matrix/swap targets 0 i)
-              matrix* (r.matrix/swap-column matrix 0 i)]
-          (compile targets* matrix*))))))
+    (let [[targets* matrix*] (prioritize-matrix targets matrix)
+          tags (into []
+                     (comp (map r.syntax/tag)
+                           (remove #{:any})
+                           (distinct))
+                     (r.matrix/first-column matrix*))
+          arms (into [] (mapcat
+                         (fn [tag]
+                           (let [s-matrix (specialize-matrix tag matrix*)]
+                             (compile-specialized-matrix tag targets* s-matrix))))
+                     tags)
+          arms (if (not (some (fn [op]
+                                (= (:op op) :pass))
+                              arms))
+                 (conj arms (r.ir/op-fail))
+                 arms)]
+      (r.ir/op-branch arms))))
 
 
 ;; ---------------------------------------------------------------------

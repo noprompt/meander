@@ -64,6 +64,9 @@
         :row :meander.matrix.epsilon/row
         :unknown any?))
 
+(s/def :meander.matrix.epsilon/column
+  (s/coll-of ::r.syntax/node :kind sequential? :into []))
+
 
 ;; ---------------------------------------------------------------------
 ;; Matrix
@@ -76,8 +79,15 @@
    :ref-specs {}})
 
 (defn make-row
-  [cols rhs]
-  (assoc empty-row :cols cols :rhs rhs))
+  "Given a sequence of `nodes` and some form `action-form`, return a
+  matrix row."
+  [nodes action-form]
+  (assoc empty-row :cols nodes :rhs action-form))
+
+(s/fdef make-row
+  :args (s/cat :columns :meander.matrix.epsilon/columns
+               :action any?)
+  :ret :meander.matrix.epsilon/row)
 
 (defn action [row]
   (:rhs row))
@@ -349,3 +359,24 @@
   (set/difference
    (r.syntax/memory-variables (r.syntax/substitute-refs node (:refs row)))
    (bound-mvrs row)))
+
+(defn any-row?
+  "`true` if every column in `row` is an `any-node?`, `false`
+  otherwise."
+  [row]
+  (every? r.syntax/any-node? (:cols row)))
+
+(s/fdef any-row?
+  :args (s/cat :row :meander.syntax.epsilon/row)
+  :ret boolean?)
+
+(defn any-column?
+  "`true` if every cell in the nth-column `index` of `matrix` is an
+  `any-node?`, `false` otherwise."
+  [matrix index]
+  (every? r.syntax/any-node? (nth-column matrix index)))
+
+(s/fdef any-row?
+  :args (s/cat :matrix :meander.syntax.epsilon/matrix
+               :index nat-int?)
+  :ret boolean?)
