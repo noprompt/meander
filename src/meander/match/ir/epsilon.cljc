@@ -489,23 +489,6 @@ compilation decisions."
 (defmethod merge* [:check-vector :check-vector] [a b]
   (merge-check-coll* a b))
 
-(defmulti can-merge?
-  "DEPRECATED: `true` if two nodes `a` and `b` can be merged, `false`
-  otherwise."
-  {:deprecated true}
-  (fn [a b]
-    [(op a) (op b)])
-  :default ::default)
-
-(defmethod can-merge? ::default [a b]
-  (= (op a) (op b)))
-
-(defmethod can-merge? [:bind :bind] [a b]
-  (= (:value a) (:value b)))
-
-(defmethod can-merge? [:case :check-lit] [a b]
-  (= (:target a) (:target b)))
-
 (defmulti merge
   "Attempt to merge the nodes `a` and `b`. Returns the result of the merge
   if the merge succeeds. Returns a `:branch` node with `:arms` `[a b]`
