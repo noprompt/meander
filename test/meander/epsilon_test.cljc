@@ -762,6 +762,15 @@
       _
       true)))
 
+(tc.t/defspec or-captures
+  (tc.prop/for-all [x gen-scalar
+                    y gen-scalar
+                    z gen-scalar]
+        (= [[x y z]]
+           (r/match [x y z]
+             (r/or ~z ~y ~x !xs)
+             !xs))))
+
 
 #?(:clj
    ;; If this let appears inside the `deftest` form the test fails for
