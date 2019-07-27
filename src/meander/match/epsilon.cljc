@@ -279,24 +279,6 @@
        (compile-pass targets* [row])
 
        ::r.match.syntax/apply
-       (r.ir/op-apply target (:fn-expr node)
-         (fn [result-target]
-           (compile `[~result-target ~@targets*]
-                    (r.matrix/prepend-column [row] [{:tag ::r.match.syntax/and
-                                                     :arguments (:arguments node)}]))))))
-   (r.matrix/first-column matrix)
-   (r.matrix/drop-column matrix)))
-
-
-(defmethod compile-specialized-matrix ::r.match.syntax/apply
-  [_ [target & targets*] matrix]
-  (mapv
-   (fn [node row]
-     (case (r.syntax/tag node)
-       :any
-       (compile-pass targets* [row])
-
-       ::r.match.syntax/apply
        (r.ir/op-apply target (:function node)
          (fn [result-target]
            (compile `[~result-target ~@targets*]
