@@ -142,6 +142,17 @@
       _
       true)))
 
+
+
+(tc.t/defspec or-captures
+  (tc.prop/for-all [x gen-scalar
+                     y gen-scalar
+                     z gen-scalar]
+    (= [[x y z]]
+       (r.match/match [x y z]
+         (or ~z ~y ~x !xs)
+         !xs))))
+
 #?(:clj
    (t/deftest or-compilation-fails
      (t/is (try

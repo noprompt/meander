@@ -1805,11 +1805,23 @@
                                   (distinct)
                                   (map r.util/case-test-form))
                             a)
-                pred-form `(fn [x#]
-                             (case x#
-                               (~@case-tests)
-                               true
-                               false))]
+
+                ;; If we have other arguments, then we should try the
+                ;; rest of our disjuncts if the case-tests fail. If
+                ;; there are no arguments, we should continue matching
+                ;; if we pass the case-tests. That is why we have true
+                ;; and false switched based on b below.
+                pred-form (if (seq b)
+                            `(fn [x#]
+                               (case x#
+                                 (~@case-tests)
+                                 false
+                                 true))
+                            `(fn [x#]
+                               (case x#
+                                 (~@case-tests)
+                                 true
+                                 false)))]
             {:tag :prd
              :form pred-form
              :arguments (if (seq b)
