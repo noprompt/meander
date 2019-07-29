@@ -115,6 +115,8 @@
     &form))
 
 (r.syntax/defsyntax or
+  "Pattern matching operator which matches when either `pattern` or,
+  opitionally, one of `patterns` match."
   [pattern & patterns]
   (case (::r.syntax/phase &env)
     :meander/match
