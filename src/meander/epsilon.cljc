@@ -125,6 +125,8 @@
     &form))
 
 (r.syntax/defsyntax not
+  "Pattern matching operator which matches when `pattern` does not
+  match."
   [pattern]
   (case (::r.syntax/phase &env)
     :meander/match
