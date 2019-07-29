@@ -105,6 +105,8 @@
 ;; Syntax extensions
 
 (r.syntax/defsyntax and
+  "Pattern matching operator which matches when `pattern` and,
+  optionally, all of `patterns` match."
   [pattern & patterns]
   (case (::r.syntax/phase &env)
     :meander/match
