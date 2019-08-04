@@ -58,8 +58,8 @@
          (defproject ?project-name ?project-version
            :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
            :url "https://github.com/noprompt/meander"
-           :license {:name "Eclipse Public License"
-                     :url "http://www.eclipse.org/legal/epl-v10.html"}
+           :license {:name "MIT"
+                     :url "https://opensource.org/licenses/MIT"}
            :paths ?paths
            :dependencies ?deps))
         (fn [project-file]
@@ -73,8 +73,8 @@
   (defproject meander/beta "0.0.496"
     :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
     :url "https://github.com/noprompt/meander"
-    :license {:name "Eclipse Public License",
-              :url "http://www.eclipse.org/legal/epl-v10.html"}
+    :license {:name "MIT",
+              :url "https://opensource.org/licenses/MIT"}
     :paths ["src"]
     :dependencies ([org.clojure/test.check "0.10.0-alpha3"]
                    [org.clojure/clojurescript "1.10.439"]
