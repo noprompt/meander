@@ -490,6 +490,7 @@
      &form)))
 
 (defn do-with
+  {:private true}
   [form]
   (clj/let [[_ pattern-bindings body] form]
     (meander.epsilon/find pattern-bindings
