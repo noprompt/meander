@@ -2130,8 +2130,7 @@
              (doseq [[alias ns-name] (:requires cljs-ns)]
                (if (= alias ns-name)
                  (require ns-name)
-                 (require [ns-name :as alias])))))
-         (eval expander-definition-body-form)))
+                 (require [ns-name :as alias])))))))
     `(do ~expander-definition-body-form
          (var ~fn-name))))
 
