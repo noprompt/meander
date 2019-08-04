@@ -179,6 +179,14 @@
     (t/is (= {:a 2 :b 3}
              (inc-number-some {:a 1 :b 2})))))
 
+(defrecord MyRecord [x])
+
+(t/deftest record-map-test
+  (t/testing "some with record? like objects"
+    (t/is (= MyRecord
+             (type
+              (inc-number-some (MyRecord. 1)))))))
+
 ;; ---------------------------------------------------------------------
 ;; all
 
@@ -231,6 +239,9 @@
     (t/is (= {1 2 11 12}
              (inc-number-all {0 1 10 11})))))
 
+(t/deftest all-record-test
+  (t/testing "all with record? like objects"
+    (t/is (= MyRecord (type ((r*/all identity) (MyRecord. 1)))))))
 
 (t/deftest retain-test
   (t/is (= '(2 3 4)
