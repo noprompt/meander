@@ -1050,7 +1050,7 @@
   {:private true}
   [rule]
   (r.match/find rule
-    (with [%variables (app keys (app set ?variables))]
+    (r.syntax/with [%variables (r.match.syntax/apply keys (r.match.syntax/apply set ?variables))]
       {:lhs/analysis {:occurrences %variables}
        :rhs/analysis {:occurrences %variables}})
     true
@@ -1077,9 +1077,9 @@
   {:private true}
   [rule]
   (r.match/find rule
-    (and {:rhs/analysis {:occurrences {?variable ?m}}}
-         {:lhs/analysis {:occurrences {?variable ?n}}}
-         (guard (< ?n ?m)))
+    (r.match.syntax/and {:rhs/analysis {:occurrences {?variable ?m}}}
+                        {:lhs/analysis {:occurrences {?variable ?n}}}
+                        (r.match.syntax/guard (< ?n ?m)))
     true
 
     _
@@ -1092,8 +1092,9 @@
   (r.match/search rule
     ;; Find all occurences of variables on the right that are not on
     ;; the left.
-    (and {:rhs/analysis {:occurrences {{:symbol ?symbol :as ?node} _}}}
-         {:lhs/analysis {:occurrences (not {?node _})}})
+    (r.match.syntax/and
+     {:rhs/analysis {:occurrences {{:symbol ?symbol :as ?node} _}}}
+     {:lhs/analysis {:occurrences (r.match.syntax/not {?node _})}})
     [:error {:message (str "The variable " ?symbol " must also appear in the match if it appears in the substitution")
              :ex-data {:variable ?symbol}}]))
 

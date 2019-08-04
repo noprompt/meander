@@ -35,7 +35,6 @@
           '[a . b . c .. d ..2]
           true)))
 
-
 (tc.t/defspec unquote-any-x-matches-any-x
   (tc.prop/for-all [x gen-scalar]
     (r/match x
@@ -1071,10 +1070,10 @@
                  [:li "Pork"]
                  [:li "Chicken"]]]]
     (t/is (= (r/find hiccup
-               (with [%h1 [!tags {:as !attrs} . %hiccup ...]
-                      %h2 [!tags . %hiccup ...]
-                      %h3 !xs
-                      %hiccup (r/or %h1 %h2 %h3)]
+               (r/with [%h1 [!tags {:as !attrs} . %hiccup ...]
+                        %h2 [!tags . %hiccup ...]
+                        %h3 !xs
+                        %hiccup (r/or %h1 %h2 %h3)]
                  %hiccup)
                [!tags !attrs !xs])
              [[:div :p :strong :em :u :ul :li :li :li :li]
@@ -1086,7 +1085,7 @@
                           {:tag :lvr, :symbol ?x}
                           {:tag :lvr, :symbol ?z}}
                         #{{:tag :lvr, :symbol ?x}}]
-              (with [%lvr {:tag :lvr, :symbol ?symbol}]
+              (r/with [%lvr {:tag :lvr, :symbol ?symbol}]
                 [#{%lvr} #{(r/not %lvr)}])
               ?symbol))
            '#{?y ?z}))
@@ -1095,14 +1094,14 @@
   (t/testing "recursive key/val collection"
     (t/is (= [#{:foo :baz} #{"bar" "quux"}]
              (r/find {:foo "bar", :baz "quux"}
-               (with [%kvs {!k !v & (r/or %kvs {})}]
+               (r/with [%kvs {!k !v & (r/or %kvs {})}]
                  %kvs)
                [(set !k) (set !v)]))))
 
   (t/testing "recursive element collection"
     (t/is (= #{"bar" :baz :foo "quux"}
              (r/find #{:foo "bar", :baz "quux"}
-               (with [%elems #{!x ^& (r/or %elems #{})}]
+               (r/with [%elems #{!x ^& (r/or %elems #{})}]
                  %elems)
                (set !x)))))
 
@@ -1112,12 +1111,12 @@
                              :b {:a 1
                                  :b 2}
                              :c '(1 2 1 2)}
-                    (with [%1_ (r/or %1 _)
-                           %1 (r/or (r/and 1 !1s)
-                                    {_ %1_ & %1_}
-                                    (%1_ ...)
-                                    [%1_ ...]
-                                    #{%1_})]
+                    (r/with [%1_ (r/or %1 _)
+                             %1 (r/or (r/and 1 !1s)
+                                      {_ %1_ & %1_}
+                                      (%1_ ...)
+                                      [%1_ ...]
+                                      #{%1_})]
                       %1)
                     !1s))))))
 
@@ -1247,7 +1246,7 @@
                        b (s/gen simple-symbol?)
                        v gen-scalar]
        (r/match (list* `let (into-array (into [] (mapcat identity) (repeat n [b v])))
-                             (repeat n b))
+                       (repeat n b))
          (`let #js [!bs !vs ...] . !body ...)
          (and (= !bs (repeat n b))
               (= !vs (repeat n v))
@@ -1758,11 +1757,11 @@
                    [1 hole 2])
         ?value 3
         !values [:A :B :C]]
-    (t/is (= (r/subst ($ ?context ?value))
+    (t/is (= (r/subst (r/$ ?context ?value))
              [1 3 2]))
-    (t/is (= (r/subst ($ ?value))
+    (t/is (= (r/subst (r/$ ?value))
              3))
-    (t/is (r/subst [($ ?context !values) ...])
+    (t/is (r/subst [(r/$ ?context !values) ...])
           [[1 :A 2]
            [1 :B 2]
            [1 :C 2]])))
@@ -1782,15 +1781,15 @@
   (let [!tags [1 2 3]]
     (t/is (= [1 [2 [3]]]
              (r/subst
-               (with [%h1 [!tags . %h1 ...]]
+               (r/with [%h1 [!tags . %h1 ...]]
                  %h1)))))
   (let [!xs [11 12 14]
         ?y 12
         ?z 13]
     (t/is (= [[11 13] [12 13] [14 13]]
              (r/subst
-               (with [%foo [%bar ..3]
-                      %bar [!xs ?z]]
+               (r/with [%foo [%bar ..3]
+                        %bar [!xs ?z]]
                  %foo))))))
 
 (tc.t/defspec subst-rst-behaves-properly-1

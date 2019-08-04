@@ -18,6 +18,7 @@
                [meander.syntax.epsilon :as r.syntax]
                [meander.substitute.epsilon :as r.subst :include-macros true]
                [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]))
+  #?(:clj (:import (clojure.lang ExceptionInfo)))
   #?(:cljs (:require-macros [meander.epsilon])))
 
 ;; ---------------------------------------------------------------------
@@ -135,6 +136,7 @@
     &form))
 
 (r.syntax/defsyntax let
+  {:style/indent 1}
   ([binding-patterns]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -333,6 +335,21 @@
      ;; else
      &form)))
 
+(r.syntax/defsyntax $
+  ([pattern]
+   (case (::r.syntax/phase &env)
+     (:meander/match :meander/substitute)
+     `(r.syntax/$ ~pattern)
+
+     ;; else
+     &form))
+  ([context-pattern pattern]
+   (case (::r.syntax/phase &env)
+     (:meander/match :meander/substitute)
+     `(r.syntax/$ ~context-pattern ~pattern)
+
+     ;; else
+     &form)))
 
 (r.syntax/defsyntax $*
   ([context pattern]
@@ -450,7 +467,7 @@
        (subst [(keyword !namespaces !names) ...]))
      ;; => [:foo/bar :foo/baz]"
   ([name]
-    (case (::r.syntax/phase &env)
+   (case (::r.syntax/phase &env)
      :meander/match
      `(and (pred keyword?) (app name ~name))
 
@@ -469,5 +486,41 @@
      :meander/substitute
      `(app clj/keyword ~namespace ~name)
 
+     ;; else
+     &form)))
+
+(defn do-with
+  [form]
+  (clj/let [[_ pattern-bindings body] form]
+    (meander.epsilon/find pattern-bindings
+      ;; Even number of syntactically valid bindings.
+      [(meander.epsilon/symbol nil (meander.epsilon/re #"%.+")) _ ...]
+      `(r.syntax/with ~pattern-bindings ~body)
+      
+      ;; Even number of bindings; one is invalid.
+      (r.syntax/with [%invalid-name (not (symbol nil (re #"%.+")))
+                      %invalid-namespace (symbol (not nil) _)
+                      %invalid-binding (or %invalid-name %invalid-namespace)]
+        [_ _ ... (and %invalid-binding ?x) _ . _ _ ...])
+      (ex-info "with binding form must be a simple symbol the name of which begins with \"%\""
+               {:invalid-binding ?x
+                :form form})
+
+      ;; Invalid binding form.
+      (not [_ _ ...])
+      (ex-info "first argument to with must be a vector of the form [%<name> <pattern> ...]"
+               {:invalid-bindings pattern-bindings
+                :form form}))))
+
+(r.syntax/defsyntax with
+  {:style/indent 1}
+  ([pattern-bindings body]
+   (case (::r.syntax/phase &env)
+     (:meander/match :meander/substitute)
+     (clj/let [x (do-with &form)]
+       (if (instance? ExceptionInfo x)
+         (throw x)
+         x))
+     
      ;; else
      &form)))

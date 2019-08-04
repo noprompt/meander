@@ -508,9 +508,7 @@
                 (if-some [ns (get (:requires cljs-ns) ns-sym)]
                   (symbol (name ns) (name sym))
                   sym))
-              (if (contains? (:defs cljs-ns) sym)
-                (symbol (name (:name cljs-ns)) (name sym))
-                sym))
+              (symbol (name (:name cljs-ns)) (name sym)))
             ;; Clojure
             (if (qualified-symbol? sym)
               (let [ns-sym (symbol (namespace sym))]
@@ -524,9 +522,7 @@
                  (if-some [ns (get (:requires cljs-ns) ns-sym)]
                    (symbol (name ns) (name sym))
                    sym))
-               (if (contains? (:defs cljs-ns) sym)
-                 (symbol (name (:name cljs-ns)) (name sym))
-                 sym))
+               (symbol (name (:name cljs-ns)) (name sym)))
              sym)))
 
 (s/fdef expand-symbol
@@ -747,7 +743,9 @@
 (defn parse-contain
   {:private true}
   [xs env]
-  (if (and (seq? xs) (= (first xs) '$))
+  (if (and (seq? xs)
+           (= (first xs)
+              'meander.syntax.epsilon/$))
     (case (long (bounded-count 2 (rest xs)))
       1
       {:tag :ctn
@@ -764,31 +762,34 @@
                        :meta (meta xs)})))
     (parse xs env)))
 
+(swap! global-parser-registry assoc `$ parse-contain)
+
 (defn parse-with
   {:private true}
   [xs env]
-  (if (and (seq? xs) (= 'with (first xs)))
-    (let [bindings (nth xs 1)]
-      (if (and (vector? bindings)
-               (even? (count bindings))
-               (every? ref-sym? (take-nth 2 bindings)))
-        {:tag :wth
-         :bindings (map
-                    (fn [[ref-sym x]]
-                      {:ref {:tag :ref
-                             :symbol ref-sym}
-                       :pattern (parse x env)})
-                    (partition 2 bindings))
-         :body (let [nothing (gensym)
-                     x (nth xs 2 nothing)]
-                 (if (identical? x nothing)
-                   nil
-                   (parse x env)))}
-        (throw
-         (ex-info "second argument to with must be vector of the form [%ref-name pattern ...]"
-                  {:form xs
-                   :meta (meta xs)}))))
-    (parse xs env)))
+  {:pre [(seq? xs)]}
+  (let [bindings (nth xs 1)]
+    (if (and (vector? bindings)
+             (even? (count bindings))
+             (every? ref-sym? (take-nth 2 bindings)))
+      {:tag :wth
+       :bindings (map
+                  (fn [[ref-sym x]]
+                    {:ref {:tag :ref
+                           :symbol ref-sym}
+                     :pattern (parse x env)})
+                  (partition 2 bindings))
+       :body (let [nothing (gensym)
+                   x (nth xs 2 nothing)]
+               (if (identical? x nothing)
+                 nil
+                 (parse x env)))}
+      (throw
+       (ex-info "second argument to with must be vector of the form [%ref-name pattern ...]"
+                {:form xs
+                 :meta (meta xs)})))))
+
+(swap! global-parser-registry assoc `with parse-with)
 
 (defn parse-as
   {:private true}
@@ -893,10 +894,7 @@
   seqs? of the following form are handled specially, all other seqs
   are parsed as :seq nodes.
 
-    ($ <pattern>)
-    ($ ?<context-name> <pattern>)
     (quote <form>)
-    (with [%<simple-symbol> <pattern> ...] <pattern>)
     (clojure.core/unquote <form>)
     (clojure.core/unquote-splicig <form>)
     (<symbol*> <form_0> ... <form_n>)
@@ -907,15 +905,9 @@
   (let [x (first xs)]
     (if (symbol? x)
       (case x
-        $
-        (parse-contain xs env)
-
         quote
         {:tag :quo
          :form (second xs)}
-
-        with
-        (parse-with xs env)
 
         clojure.core/unquote
         {:tag :unq
@@ -1125,7 +1117,8 @@
          :right {:tag :cat
                  :elements []}}}"
   ([form]
-   (parse form {}))
+   (parse form {::expander-registry @global-expander-registry
+                ::parser-registry @global-parser-registry}))
   ([form env]
    (let [node (cond
                 (seq? form)

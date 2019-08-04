@@ -6,6 +6,7 @@
                [clojure.spec.alpha :as s]
                [clojure.core.specs.alpha :as core.specs]
                [meander.match.epsilon :as r.match]
+               [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util])
      :cljs
@@ -13,6 +14,7 @@
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.core.specs.alpha :as core.specs]
                [meander.match.epsilon :as r.match]
+               [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util]))
   #?(:cljs
@@ -30,12 +32,12 @@
 (defn rewrite-partition
   [node]
   (r.match/find node
-    (with [%right (not (or () []))]
+    (r.syntax/with [%right (r.match.syntax/not (or () []))]
       {:tag :prt
        :left {:tag :cat
               :elements ?ls}
        :right {:tag :cat
-               :elements (and %right ?rs)}
+               :elements (r.match.syntax/and %right ?rs)}
        :as ?prt})
     {:tag :prt
      :left {:tag :cat
@@ -75,7 +77,7 @@
              :left {:tag :cat
                     :elements ?elements}
              :right {:tag :cat
-                     :elements (or [] ())}}}
+                     :elements (r.match.syntax/or [] ())}}}
     {:tag :prt
      :left ?left
      :right {:tag :cat

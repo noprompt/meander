@@ -194,7 +194,7 @@
   (r.match/match node
     {:left ?left
      :right {:tag :cat
-             :elements (r.match/or [] ())}}
+             :elements (r.match.syntax/or [] ())}}
     (compile-substitute ?left env)
 
     {:left ?left
@@ -232,8 +232,8 @@
 (defmethod compile-substitute :rp+ [node env]
   (r.match/match node
     {:cat {:tag :cat
-           :elements (r.match/or ({:tag :lit} ..1 :as ?elements)
-                                 [{:tag :lit} ..1 :as ?elements])}
+           :elements (r.match.syntax/or ({:tag :lit} ..1 :as ?elements)
+                                        [{:tag :lit} ..1 :as ?elements])}
      :n ?n}
     (into [] cat (repeat ?n (map compile-substitute ?elements (repeat env))))
 
@@ -284,17 +284,21 @@
   [node env]
   (let [env* (assoc env :collection-context :seq)]
     (r.match/find node
-      (with [%not-uns (r.match/not (r.match/scan {:tag :uns}))]
+      (r.syntax/with [%1 [_ ... {:tag :uns} . _ ...]
+                      %2 (_ ... {:tag :uns} . _ ...)
+                      %not-uns (r.match.syntax/not (r.match.syntax/or %1 %2))]
         {:prt {:left {:tag :cat
-                      :elements (r.match/and ?left-elements %not-uns)}
+                      :elements (r.match.syntax/and ?left-elements %not-uns)}
                :right {:tag :cat
-                       :elements (r.match/and ?right-elements %not-uns)}}})
+                       :elements (r.match.syntax/and ?right-elements %not-uns)}}})
       `(list ~@(compile-all ?left-elements env*)
              ~@(compile-all ?right-elements env*))
 
-      (with [%not-uns (r.match/not (r.match/scan {:tag :uns}))]
+      (r.syntax/with [%1 [_ ... {:tag :uns} . _ ...]
+                      %2 (_ ... {:tag :uns} . _ ...)
+                      %not-uns (r.match.syntax/not (r.match.syntax/or %1 %2))]
         {:prt {:left {:tag :cat
-                      :elements (r.match/and ?left-elements %not-uns)}
+                      :elements (r.match.syntax/and ?left-elements %not-uns)}
                :right {:tag :lit
                        :value (_ ... :as ?right-elements)}}})
       `(list ~@(compile-all ?left-elements env*)
@@ -326,11 +330,11 @@
   ([vec-form prt env]
    (r.match/find (r.substitute.syntax/rewrite-partition prt)
      ;; Compile [?a ~@xs ?b] as (conj (into [?x] xs) ?b)
-     (with [%not-uns (not {:tag :uns})]
+     (r.syntax/with [%not-uns (r.match.syntax/not {:tag :uns})]
        {:left {:tag :cat
-               :elements [(r.match/and %not-uns !1s) ...
+               :elements [(r.match.syntax/and %not-uns !1s) ...
                           {:tag :uns :as !uns} ..1
-                          (r.match/and %not-uns !2s) ...]}
+                          (r.match.syntax/and %not-uns !2s) ...]}
         :right ?right})
      (compile-vec-prt `(conj ~(reduce
                                (fn [form compiled-uns]
@@ -429,9 +433,9 @@
         env* (add-wth-refs env (r.syntax/make-ref-map node))]
     ;; Compile functions only for the references used.
     `(letfn [~@(r.match/search [node ref-set]
-                 (with [%ref {:ref {:symbol ?symbol :as ?ref}
-                              :pattern ?pattern}
-                        %bindings (r.match.syntax/or [_ ... %ref . _ ...] (_ ... %ref . _ ...))]
+                 (r.syntax/with [%ref {:ref {:symbol ?symbol :as ?ref}
+                                       :pattern ?pattern}
+                                 %bindings (r.match.syntax/or [_ ... %ref . _ ...] (_ ... %ref . _ ...))]
                    [{:bindings %bindings} #{?ref}])
                  `(~?symbol []
                    ~(compile-substitute ?pattern env*)))]
