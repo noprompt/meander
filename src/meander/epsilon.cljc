@@ -489,39 +489,30 @@
      ;; else
      &form)))
 
-(defn do-with
-  {:private true}
-  [form]
-  (clj/let [[_ pattern-bindings body] form]
-    (meander.epsilon/find pattern-bindings
-      ;; Even number of syntactically valid bindings.
-      [(meander.epsilon/symbol nil (meander.epsilon/re #"%.+")) _ ...]
-      `(r.syntax/with ~pattern-bindings ~body)
-      
-      ;; Even number of bindings; one is invalid.
-      (r.syntax/with [%invalid-name (not (symbol nil (re #"%.+")))
-                      %invalid-namespace (symbol (not nil) _)
-                      %invalid-binding (or %invalid-name %invalid-namespace)]
-        [_ _ ... (and %invalid-binding ?x) _ . _ _ ...])
-      (ex-info "with binding form must be a simple symbol the name of which begins with \"%\""
-               {:invalid-binding ?x
-                :form form})
-
-      ;; Invalid binding form.
-      (not [_ _ ...])
-      (ex-info "first argument to with must be a vector of the form [%<name> <pattern> ...]"
-               {:invalid-bindings pattern-bindings
-                :form form}))))
-
 (r.syntax/defsyntax with
   {:style/indent 1}
   ([pattern-bindings body]
    (case (::r.syntax/phase &env)
      (:meander/match :meander/substitute)
-     (clj/let [x (do-with &form)]
-       (if (instance? ExceptionInfo x)
-         (throw x)
-         x))
-     
+     (meander.epsilon/find pattern-bindings
+       ;; Even number of syntactically valid bindings.
+       [(meander.epsilon/symbol nil (meander.epsilon/re #"%.+")) _ ...]
+       `(r.syntax/with ~pattern-bindings ~body)
+
+       ;; Even number of bindings; one is invalid.
+       (r.syntax/with [%invalid-name (not (symbol nil (re #"%.+")))
+                       %invalid-namespace (symbol (not nil) _)
+                       %invalid-binding (or %invalid-name %invalid-namespace)]
+         [_ _ ... (and %invalid-binding ?x) _ . _ _ ...])
+       (ex-info "with binding form must be a simple symbol the name of which begins with \"%\""
+                {:invalid-binding ?x
+                 :form &form})
+
+       ;; Invalid binding form.
+       (not [_ _ ...])
+       (ex-info "first argument to with must be a vector of the form [%<name> <pattern> ...]"
+                {:invalid-bindings pattern-bindings
+                 :form &form}))
+
      ;; else
      &form)))
