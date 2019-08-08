@@ -179,6 +179,15 @@
   :ret seq?)
 
 (r.syntax/defsyntax pred
+  {:arglists '([expr] [expr & patterns])}
+  "Pattern matching operator which successfully matches whenever the
+  target of pattern matching applied to `expr` returns a truthy
+  value.
+
+      (match 1
+        (pred odd?)
+        :okay)
+      ;; => :okay"
   ([p]
    (case (::r.syntax/phase &env)
      :meander/match
