@@ -359,6 +359,26 @@
      &form)))
 
 (r.syntax/defsyntax $
+  "Pattern matching and substitution operator.
+
+  When used as a pattern matching operator will attempt match
+  `pattern` against some value that is a subtree of the target of
+  pattern matching. Optionally, `context-pattern` (should be a
+  variable pattern) can be passed and will be applied against a
+  function. This function accepts one argument and when invoked with
+  some value `x` will return the original, root target updated with
+  the `x` installed at the place where `pattern` matched successfully.
+
+
+      (match [:A 2]
+        ($ (pred number? ?x))
+        ?x)
+      ;; => 2
+
+      (match [:A 2]
+        ($ ?context (pred number? ?x))
+        (?context 3))
+      ;; => [:A 3]"
   ([pattern]
    (case (::r.syntax/phase &env)
      (:meander/match :meander/substitute)
