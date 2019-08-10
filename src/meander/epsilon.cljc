@@ -186,7 +186,21 @@
       (match 1
         (pred odd?)
         :okay)
-      ;; => :okay"
+      ;; => :okay
+
+  Optionally, additional patterns `patterns` may be passed in which
+  case they will be treated as an `and` pattern against the target of
+  pattern matching.
+
+      (match 1
+        (pred odd? ?x)
+        :okay)
+
+  is the same as
+
+      (match 1
+        (and (pred odd?) ?x)
+        :okay)"
   {:arglists '([expr] [expr & patterns])}
   ([p]
    (case (::r.syntax/phase &env)
