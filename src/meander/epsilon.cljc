@@ -533,6 +533,24 @@
      &form)))
 
 (r.syntax/defsyntax with
+  "Pattern matching and substitution operator.
+
+   Syntax
+
+       (with [%pattern-name pattern ...]
+         target-pattern)
+
+   Allows for patterns to be referenced by %pattern-name in
+   target-pattern.
+
+   Example
+
+       (match [[1 2] [1 2]]
+         (with [%x-y [?x ?y]]
+           [%x-y %x-y])
+         {:x ?x, :y ?y})
+       ;; =>
+       {:x 1, :y 2}"
   {:style/indent 1}
   ([pattern-bindings body]
    (case (::r.syntax/phase &env)
