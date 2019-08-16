@@ -25,6 +25,34 @@
 ;; Match, Find, Search
 
 (defmacro match
+  "Traditional pattern matching operator.
+
+  Syntax
+
+      (match x
+        pattern_1 expr_1
+        ,,,
+        pattern_n expr_n)
+
+  Attempts to pattern match `x` against one of patterns `pattern_1`
+  through `pattern_n`. If some pattern `pattern_i` matches
+  successfully, `expr_i` will be executed. If none of the patterns
+  match successfully an error will be thrown indicating the pattern
+  match failed.
+
+  This operator restricts patterns which may have several possible
+  solutions. For example, the pattern
+
+      #{?x ?y}
+
+  matches any set with at least two elements. However, with
+  consideration to the property that Clojure sets are unordered, there
+  are many possible ways we could bind values for `?x` and
+  `?y`. Because there is no obvious way to know which solution to
+  pick, patterns which have this property are illegal in the context
+  of this operator.
+
+  For operators which relax this restriction, see `find` and `search`."
   {:arglists '([x & clauses])
    :style/indent :defn}
   [& args] `(r.match/match ~@args))
@@ -43,9 +71,11 @@
 ;; Substitute
 
 (defmacro subst
-  {:arglists '([x & clauses])
-   :style/indent :defn}
-  [& args] `(r.subst/substitute ~@args))
+  ;; TODO: This is not enough documentation.
+  "Substitution operator, the inverse of pattern matching. Evaluates
+  `pattern` in the Clojure environment."
+  {:style/indent :defn}
+  [pattern] `(r.subst/substitute ~pattern))
 
 ;; ---------------------------------------------------------------------
 ;; Rewrite

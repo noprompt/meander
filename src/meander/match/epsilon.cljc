@@ -1514,6 +1514,34 @@
 
 
 (defmacro match
+  "Traditional pattern matching operator.
+
+  Syntax
+
+      (match x
+        pattern_1 expr_1
+        ,,,
+        pattern_n expr_n)
+
+  Attempts to pattern match `x` against one of patterns `pattern_1`
+  through `pattern_n`. If some pattern `pattern_i` matches
+  successfully, `expr_i` will be executed. If none of the patterns
+  match successfully an error will be thrown indicating the pattern
+  match failed.
+
+  This operator restricts patterns which may have several possible
+  solutions. For example, the pattern
+
+      #{?x ?y}
+
+  matches any set with at least two elements. However, with
+  consideration to the property that Clojure sets are unordered, there
+  are many possible ways we could bind values for `?x` and
+  `?y`. Because there is no obvious way to know which solution to
+  pick, patterns which have this property are illegal in the context
+  of this operator.
+
+  For operators which relax this restriction, see `find` and `search`." 
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
@@ -1586,21 +1614,29 @@
 
 
 (defmacro search
-  "Like match but allows for patterns which may match x in more than
-  one way. Returns a lazy sequence of clause action values.
+  "Like `match` but allows for patterns which may match `x` in more
+  than one way. Returns a lazy sequence of expression values in
+  depth-first order.
 
-  Example:
+  Example
 
-  (search [1 2 3]
-    [!xs ... !ys ...]
-    {'!xs !xs, '!ys !ys})
-  ;; =>
-  ({!xs [], !ys [1 2 3]}
-   {!xs [1], !ys [2 3]}
-   {!xs [1 2], !ys [3]}
-   {!xs [1 2 3], !ys []})
+      (search [1 2 3]
+        [!xs ... !ys ...]
+        {'!xs !xs, '!ys !ys})
+      ;; =>
+      ({!xs [], !ys [1 2 3]}
+       {!xs [1], !ys [2 3]}
+       {!xs [1 2], !ys [3]}
+       {!xs [1 2 3], !ys []})
 
-  Note: If only the first value is needed, use find instead."
+  Note, if only the first value is needed, use `find` instead. The
+  expression
+
+      (first (search x ,,,))
+
+  can be significantly slower than
+
+      (find x ,,,)"
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
@@ -1681,7 +1717,7 @@
 
 
 (defmacro find
-  "Like search but returns only the first successful match."
+  "Like `search` but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
