@@ -9,6 +9,7 @@
 (def partitions r.util/partitions)
 (def coll-zip r.util/coll-zip)
 (def zip-next-seq r.util/zip-next-seq)
+(def knit r.util/knit)
 
 (def FAIL
   "Special value signaling a match failure. Generated code will often
