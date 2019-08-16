@@ -369,3 +369,19 @@
   otherwise."
   [x]
   (and (seq? x) (= (first x) 'quote)))
+
+(defn knit
+  [colls]
+  (case (bounded-count 2 colls)
+    0 ()
+
+    1 (if (seq (first colls))
+        (first colls)
+        ())
+
+    ;; else
+    (concat
+     (sequence (comp (keep seq)
+                     (map first))
+               colls)
+     (lazy-seq (knit (keep next colls))))))
