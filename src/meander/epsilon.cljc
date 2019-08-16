@@ -58,11 +58,35 @@
   [& args] `(r.match/match ~@args))
 
 (defmacro find
+  "Like `search` but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent :defn}
   [& args] `(r.match/find ~@args))
 
 (defmacro search
+  "Like `match` but allows for patterns which may match `x` in more
+  than one way. Returns a lazy sequence of expression values in
+  depth-first order.
+
+  Example
+
+      (search [1 2 3]
+        [!xs ... !ys ...]
+        {'!xs !xs, '!ys !ys})
+      ;; =>
+      ({!xs [], !ys [1 2 3]}
+       {!xs [1], !ys [2 3]}
+       {!xs [1 2], !ys [3]}
+       {!xs [1 2 3], !ys []})
+
+  Note, if only the first value is needed, use `find` instead. The
+  expression
+
+      (first (search x ,,,))
+
+  can be significantly slower than
+
+      (find x ,,,)"
   {:arglists '([x & clauses])
    :style/indent :defn}
   [& args] `(r.match/search ~@args))
