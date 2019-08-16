@@ -61,6 +61,12 @@
    [:error "rewrite expects and odd number of arguments"]))
 
 (defmacro rewrite
+  "Syntactic sugar for
+
+      (find x
+        p_1 (subst p_2)
+        ,,,
+        p_n-1 (subst p_n))"
   {:style/indent :defn}
   [x & clauses]
   (r.match/match (compile-rewrite [x clauses])
