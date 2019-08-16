@@ -74,7 +74,7 @@ thrown.
 Example:
 
 ```clj
-(require '[meander.core.delta :refer [match]])
+(require '[meander.match.delta :refer [match]])
 
 (match [1 2 1]
   ;; Pair of equivalent objects.
