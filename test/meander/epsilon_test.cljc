@@ -825,6 +825,9 @@
               ...]
              [!xs !ys]))))
 
+(t/deftest or-test
+  (t/is (= :okay (r/find 1 (r/or {} _) :okay)))
+  (t/is (= :okay (r/find 1 (r/or _ {}) :okay))))
 
 ;;; not
 

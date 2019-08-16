@@ -642,48 +642,50 @@
         key-sort (sort-by (comp - (frequencies all-keys))
                           (distinct all-keys))
         num-keys (count key-sort)
+        no-keys? (zero? num-keys)
         matrix* (mapv
                  (fn [node row]
                    (case (r.syntax/tag node)
                      :any
-                     (assoc row :cols `[~@(repeat num-keys node) ~@(:cols row)])
+                     (r.matrix/prepend-cells row (repeat (max 1 num-keys) node))
 
                      :map
-                     (let [the-map (:map node)]
-                       (if (r.syntax/search? node)
-                         (let [set-node {:tag :set
-                                         :elements (map
-                                                    (fn [[k-node v-node]]
-                                                      {:tag :cat
-                                                       :elements [k-node v-node]})
-                                                    the-map)}
-                               let-node {:tag ::r.match.syntax/let
-                                         :pattern set-node
-                                         :expression `(set ~target)}]
-                           (assoc row :cols `[~let-node
-                                              ~@(repeat (dec num-keys)
-                                                        '{:tag :any
-                                                          :symbol _})
-                                              ~@(:cols row)]))
-                         (let [new-cols (sort-by
-                                         (fn [node]
-                                           (if (= (r.syntax/tag node) :mkv)
-                                             0
-                                             1))
-                                         (map
-                                          (fn [key]
-                                            (if-some [entry (clojure/find the-map key)]
-                                              {:tag :mkv
-                                               :entry entry}
-                                              {:tag :any
-                                               :symbol '_}))
-                                          key-sort))]
-                           (assoc row :cols `[~@new-cols ~@(:cols row)]))))))
+                     (if no-keys?
+                       (r.matrix/prepend-cells row [{:tag :any, :symbol (gensym "_")}])
+                       (let [the-map (:map node)]
+                         (if (r.syntax/search? node)
+                           (let [set-node {:tag :set
+                                           :elements (map
+                                                      (fn [[k-node v-node]]
+                                                        {:tag :cat
+                                                         :elements [k-node v-node]})
+                                                      the-map)}
+                                 let-node {:tag ::r.match.syntax/let
+                                           :pattern set-node
+                                           :expression `(set ~target)}]
+                             (assoc row :cols `[~let-node
+                                                ~@(repeat (dec num-keys)
+                                                          '{:tag :any
+                                                            :symbol _})
+                                                ~@(:cols row)]))
+                           (let [new-cols (sort-by
+                                           (fn [node]
+                                             (if (= (r.syntax/tag node) :mkv)
+                                               0
+                                               1))
+                                           (map
+                                            (fn [key]
+                                              (if-some [entry (clojure/find the-map key)]
+                                                {:tag :mkv
+                                                 :entry entry}
+                                                {:tag :any
+                                                 :symbol '_}))
+                                            key-sort))]
+                             (assoc row :cols `[~@new-cols ~@(:cols row)])))))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))]
     [(r.ir/op-check-map (r.ir/op-eval target)
-       (compile `[~@(repeat num-keys target) ~@targets*] matrix*))]))
-
+       (compile `[~@(repeat (max 1 num-keys) target) ~@targets*] matrix*))]))
 
 (defmethod compile-specialized-matrix :mkv
   [_ [target & targets* :as targets] matrix]
