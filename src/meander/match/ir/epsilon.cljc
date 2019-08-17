@@ -1108,11 +1108,14 @@ compilation decisions."
         (compile* (first arms) fail kind)
 
         ;; else
-        `(concat
-          ~@(map
-             (fn [ir]
-               (compile* ir fail kind))
-             arms))))
+        (let [breadth-first? false
+              compiled-arms (mapv
+                             (fn [ir]
+                               (compile* ir fail kind))
+                             arms)]
+          (if breadth-first?
+            `(r.match.runtime/knit ~compiled-arms)
+            `(concat ~@compiled-arms)))))
 
     (:find :match)
     (let [arms (remove op-fail? (:arms ir))]
