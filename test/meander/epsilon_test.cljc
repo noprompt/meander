@@ -1,10 +1,13 @@
 (ns meander.syntax.epsilon-test
   (:require [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.test.alpha :as st :include-macros true]
             [clojure.test :as t]
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
             [meander.epsilon :as r :include-macros true]))
+
+(st/instrument)
 
 ;; ---------------------------------------------------------------------
 ;; Helpers
@@ -34,6 +37,7 @@
   (t/is (r/match '[a . b . c .. d ..2]
           '[a . b . c .. d ..2]
           true)))
+
 
 (tc.t/defspec unquote-any-x-matches-any-x
   (tc.prop/for-all [x gen-scalar]
@@ -246,6 +250,7 @@
 
           _n
           true)))
+
 
 (t/deftest seq-any-test
   (t/is (r/match '(1 2 3) (_ 2 3) true))
@@ -771,6 +776,7 @@
       _
       true)))
 
+
 (tc.t/defspec or-captures
   (tc.prop/for-all [x gen-scalar
                     y gen-scalar
@@ -825,9 +831,11 @@
               ...]
              [!xs !ys]))))
 
+
 (t/deftest or-test
   (t/is (= :okay (r/match 1 (r/or {} _) :okay)))
   (t/is (= :okay (r/match 1 (r/or _ {}) :okay))))
+
 
 ;;; not
 

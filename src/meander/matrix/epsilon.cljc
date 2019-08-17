@@ -55,8 +55,8 @@
 
 
 (s/def :meander.matrix.epsilon.row/env
-  (s/coll-of (s/or :lvr :meander.syntax.epsilon/logic-variable
-                   :mvr :meander.syntax.epsilon/memory-variable)
+  (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
+                   :mvr :meander.syntax.epsilon.node/mvr)
              :kind set?
              :into #{}))
 
@@ -319,9 +319,9 @@
 
 (s/fdef add-vars
   :args (s/cat :row :meander.matrix.epsilon/row
-               :vars (s/coll-of (s/or :meander.syntax.epsilon.node/lvr
-                                      :meander.syntax.epsilon.node/mvr)
-                                :kind sequential?
+               :vars (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
+                                      :mvr :meander.syntax.epsilon.node/mvr)
+                                :kind set?
                                 :into #{}))
   :ret :meander.matrix.epsilon/row)
 
@@ -331,20 +331,19 @@
   [row vars]
   (update row :env (fnil into #{}) vars))
 
-
-(s/fdef get-var
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :var (s/or :meander.syntax.epsilon.node/lvr
-                          :meander.syntax.epsilon.node/mvr))
-  :ret (s/nilable
-        (s/or :meander.syntax.epsilon.node/lvr
-              :meander.syntax.epsilon.node/mvr)))
-
-
 (defn get-var
   "Get var from the environment in row."
   [row var]
   (get (:env row) var))
+
+
+(s/fdef get-var
+  :args (s/cat :row :meander.matrix.epsilon/row
+               :var (s/or :lvr :meander.syntax.epsilon.node/lvr
+                          :mvr :meander.syntax.epsilon.node/mvr))
+  :ret (s/nilable
+        (s/or :lvr :meander.syntax.epsilon.node/lvr
+              :mvr :meander.syntax.epsilon.node/mvr)))
 
 ;; TODO: Make mvrs it's own part of the map.
 (defn bound-mvrs

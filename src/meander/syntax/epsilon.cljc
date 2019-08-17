@@ -389,7 +389,7 @@
   {:arglists '([node])}
   #'tag)
 
-(s/fdef search?
+(s/fdef ground?
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret boolean?)
 
@@ -397,6 +397,10 @@
   "true if node represents a search, false otherwise."
   {:arglists '([node])}
   #'tag)
+
+(s/fdef search?
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret boolean?)
 
 (defn unparse-dispatch
   {:private true}
@@ -617,8 +621,7 @@
   (map (fn [form] (parse form env)) forms))
 
 (s/fdef parse-all
-  :args (s/cat :forms (s/coll-of any?
-                                 :kind sequential?)
+  :args (s/cat :forms (s/nilable (s/coll-of any? :kind sequential?))
                :env :meander.syntax.epsilon/env)
   :ret (s/coll-of :meander.syntax.epsilon/node
                   :kind sequential?))

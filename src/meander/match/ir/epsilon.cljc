@@ -45,7 +45,7 @@ compilation decisions."
   op :op)
 
 (s/fdef op
-  :args ::node
+  :args (s/cat :node ::node)
   :ret ::op)
 
 (defn child-keys
@@ -1066,6 +1066,7 @@ compilation decisions."
   {:arglists '([ir fail kind])}
   (fn [ir fail kind]
     (:op ir)))
+
 
 (defmethod compile* :apply
   [ir fail kind]
