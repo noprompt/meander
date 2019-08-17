@@ -36,8 +36,7 @@ compilation decisions."
   (and (map? x) (contains? x :op)))
 
 (s/fdef node?
-  :args (s/or :node ::node
-              :any any?)
+  :args (s/cat :x any?)
   :ret boolean?)
 
 (def

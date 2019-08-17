@@ -33,6 +33,8 @@
   (s/map-of :meander.syntax.epsilon.node/ref
             :meander.matrix.epsilon/ref-map))
 
+(s/def :meander.matrix.epsilon/ref-map
+  map?)
 
 (s/def :meander.matrix.epsilon/row
   (s/keys :req-un [:meander.matrix.epsilon.row/cols
@@ -64,7 +66,7 @@
         :row :meander.matrix.epsilon/row
         :unknown any?))
 
-(s/def :meander.matrix.epsilon/column
+(s/def :meander.matrix.epsilon/columns
   (s/coll-of ::r.syntax/node :kind sequential? :into []))
 
 
@@ -173,11 +175,6 @@
   (count (:cols (first matrix))))
 
 
-(s/fdef nth-column
-  :args (s/cat :matrix :meander.matrix.epsilon/matrix)
-  :ret (s/coll-of :meander.syntax.epsilon/node))
-
-
 (defn nth-column
   ([matrix index]
    (into [] (comp (map :cols)
@@ -191,6 +188,15 @@
                    (fn [col]
                      (nth col index not-found))))
          matrix)))
+
+
+(s/fdef nth-column
+  :args (s/alt :a2 (s/cat :matrix :meander.matrix.epsilon/matrix
+                          :index nat-int?)
+               :a3 (s/cat :matrix :meander.matrix.epsilon/matrix
+                          :index nat-int?
+                          :not-found any?))
+  :ret (s/coll-of :meander.syntax.epsilon/node))
 
 
 (defn first-column
@@ -367,7 +373,7 @@
   (every? r.syntax/any-node? (:cols row)))
 
 (s/fdef any-row?
-  :args (s/cat :row :meander.syntax.epsilon/row)
+  :args (s/cat :row :meander.matrix.epsilon/row)
   :ret boolean?)
 
 (defn any-column?
@@ -376,7 +382,7 @@
   [matrix index]
   (every? r.syntax/any-node? (nth-column matrix index)))
 
-(s/fdef any-row?
-  :args (s/cat :matrix :meander.syntax.epsilon/matrix
+(s/fdef any-column?
+  :args (s/cat :matrix :meander.matrix.epsilon/matrix
                :index nat-int?)
   :ret boolean?)

@@ -533,7 +533,7 @@
 ;;; Syntax expansion
 
 (s/def :meander.syntax.epsilon/expander-registry
-  (s/map-of symbol? fn?))
+  (s/map-of symbol? (s/or :fn fn? :var var?)))
 
 (defn expander-registry
   "Return the `::expander-registry` of the environment `env` or `nil`
@@ -579,7 +579,7 @@
 ;;; Syntax parsing
 
 (s/def :meander.syntax.epsilon/parser-registry
-  (s/map-of symbol? fn?))
+  (s/map-of symbol? (s/or :fn fn? :var var?)))
 
 (defn parser-registry
   "Return the `::parser-registry` of the environment `env` or `nil` if
@@ -607,9 +607,9 @@
               :nil nil?))
 
 (s/def :meander.syntax.epsilon/env
-  (s/keys :req-un [:meander.syntax.epsilon/expander-registry
-                   :meander.syntax.epsilon/parser-registry]
-          :opt-un [:meander.syntax.epsilon/phase]))
+  (s/keys :req [:meander.syntax.epsilon/expander-registry
+                :meander.syntax.epsilon/parser-registry]
+          :opt [:meander.syntax.epsilon/phase]))
 
 (defn parse-all
   "Apply `parse` to all forms in the sequence `forms`."
@@ -619,7 +619,7 @@
 (s/fdef parse-all
   :args (s/cat :forms (s/coll-of any?
                                  :kind sequential?)
-               :env :meander.syntax.epsilon/parse-env)
+               :env :meander.syntax.epsilon/env)
   :ret (s/coll-of :meander.syntax.epsilon/node
                   :kind sequential?))
 
@@ -931,7 +931,7 @@
                     (assoc node ::original-form xs)
                     (throw (ex-info ":meander.syntax.epsilon/parse-syntax function must return a :meander.syntax.epsilon/node"
                                     {:form xs
-                                     :parse-env env}))))
+                                     :env env}))))
                 ;; Not a special form, parse as ordinary seq pattern.
                 (parse-seq-no-head xs env)))
             ;; Syntax expansion successful, recursively parse the
@@ -1150,7 +1150,7 @@
 (s/fdef parse
   :args (s/alt :a1 (s/cat :form any?)
                :a2 (s/cat :form any?
-                          :env :meander.syntax.epsilon/parse-env))
+                          :env :meander.syntax.epsilon/env))
   :ret :meander.syntax.epsilon/node)
 
 

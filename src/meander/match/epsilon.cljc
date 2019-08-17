@@ -222,7 +222,7 @@
    column))
 
 (s/fdef score-column
-  :args (s/cat :column (s/coll-of :r.syntax/node :kind sequential?))
+  :args (s/cat :column (s/coll-of ::r.syntax/node :kind sequential?))
   :ret nat-int?)
 
 
@@ -1516,9 +1516,10 @@
           :matrix matrix})))))
 
 (s/fdef analyze-match-args
-  :args (s/cat :match-args :meander.match.epsilon.match/args)
+  :args (s/alt :a1 (s/cat :match-args :meander.match.epsilon.match/args)
+               :a2 (s/cat :match-args :meander.match.epsilon.match/args
+                          :env any?))
   :ret :meander.match.epsilon.match/data)
-
 
 (defmacro match
   "Traditional pattern matching operator.
