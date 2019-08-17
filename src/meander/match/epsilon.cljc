@@ -93,19 +93,19 @@
                              :rets rets
                              :node node}]
                            (comp
-                       (mapcat
-                        (fn [i]
-                          (r.util/k-combinations vars i)))
-                       (map set)
-                       (distinct)
-                       (map vec)
-                       (map (fn [reqs]
-                              {:symbol (gensym* "def__")
-                               :vars (set reqs)
-                               :reqs reqs
-                               :rets rets
-                               :node node})))
-                      (range 1 (inc (count vars))))])))
+                            (mapcat
+                             (fn [i]
+                               (r.util/k-combinations vars i)))
+                            (map set)
+                            (distinct)
+                            (map vec)
+                            (map (fn [reqs]
+                                   {:symbol (gensym* "def__")
+                                    :vars (set reqs)
+                                    :reqs reqs
+                                    :rets rets
+                                    :node node})))
+                           (range 1 (inc (count vars))))])))
         ref-map))
 
 (declare compile)
@@ -319,14 +319,14 @@
          (if (literal? node)
            (if (js-array-context?)
              (r.ir/op-check-array-equals
-              (r.ir/op-eval target)
-              (r.ir/op-eval (compile-ground
-                             {:tag :jsa
-                              :prt {:tag :prt
-                                    :left node
-                                    :right {:tag :cat
-                                            :elements []}}}))
-              (compile targets* [row]))
+               (r.ir/op-eval target)
+               (r.ir/op-eval (compile-ground
+                              {:tag :jsa
+                               :prt {:tag :prt
+                                     :left node
+                                     :right {:tag :cat
+                                             :elements []}}}))
+               (compile targets* [row]))
              (r.ir/op-check-equal
                (r.ir/op-eval target)
                (r.ir/op-eval (vec (compile-ground node)))
@@ -455,7 +455,7 @@
 
          ::r.match.syntax/guard
          (r.ir/op-check (r.ir/op-eval (:expr node))
-          (compile targets* [row]))))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -471,22 +471,22 @@
        :jsa
        (if (literal? node)
          (r.ir/op-check-array-equals
-          (r.ir/op-eval target)
-          (r.ir/op-eval (compile-ground node))
-          (compile targets* [row]))
+           (r.ir/op-eval target)
+           (r.ir/op-eval (compile-ground node))
+           (compile targets* [row]))
          (r.ir/op-check-array (r.ir/op-eval target)
-          (let [;; prt needs to be compiled within a :js-array
-                ;; collection-context separately from the targets*
-                ;; to the right. The targets* on the right need to
-                ;; be compiled in an environment including variables
-                ;; bound by compiling prt.
-                prt (:prt node)
-                rhs*-env (into (get row :env) (r.syntax/variables prt))
-                rhs*-row (assoc row :env rhs*-env)
-                rhs* (compile targets* [rhs*-row])
-                row* (assoc row :cols [prt] :rhs rhs*)]
-            (binding [*collection-context* :js-array]
-              (compile [target] [row*])))))))
+           (let [;; prt needs to be compiled within a :js-array
+                 ;; collection-context separately from the targets*
+                 ;; to the right. The targets* on the right need to
+                 ;; be compiled in an environment including variables
+                 ;; bound by compiling prt.
+                 prt (:prt node)
+                 rhs*-env (into (get row :env) (r.syntax/variables prt))
+                 rhs*-row (assoc row :env rhs*-env)
+                 rhs* (compile targets* [rhs*-row])
+                 row* (assoc row :cols [prt] :rhs rhs*)]
+             (binding [*collection-context* :js-array]
+               (compile [target] [row*])))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
@@ -568,9 +568,9 @@
                    matrix* (r.matrix/prepend-column [row] [node*])
                    search-target (gensym* "okv__")]
                (r.ir/op-search search-target (r.ir/op-eval
-                                              `(map (fn [k#]
-                                                      [k# (gobj/get ~target k#)])
-                                                    (gobj/getKeys ~target)))
+                                               `(map (fn [k#]
+                                                       [k# (gobj/get ~target k#)])
+                                                     (gobj/getKeys ~target)))
                  (compile `[~search-target ~@targets*] matrix*)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
