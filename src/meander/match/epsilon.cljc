@@ -243,7 +243,7 @@
 
 
 (defn specialize-matrix
-  "Retains rows of the matrix whose tag is tag or :any."
+  "Retains rows of the matrix whose tag is tag or `:any`."
   [tag matrix]
   (into []
         (keep-indexed
