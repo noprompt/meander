@@ -298,15 +298,16 @@
 ;; children
 ;; --------
 
-(s/fdef children
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret (s/coll-of :meander.syntax.epsilon/node
-                  :kind sequential?))
-
 (defmulti children
   "Return a sequential? of all children of node."
   {:arglists '([node])}
   #'tag)
+
+#_
+(s/fdef children
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret (s/coll-of :meander.syntax.epsilon/node
+                  :kind sequential?))
 
 (defmethod children :default
   [node]
@@ -332,6 +333,7 @@
   {:arglists '([node])}
   #'tag)
 
+#_
 (s/fdef min-length
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/or :nat nat-int?
@@ -343,6 +345,7 @@
   (and (node? x)
        (contains? (methods min-length) (tag x))))
 
+#_
 (s/fdef min-length?
   :args (s/cat :x any?)
   :ret boolean?)
@@ -357,6 +360,7 @@
   {:arglists '([node])}
   #'tag)
 
+#_
 (s/fdef max-length
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/or :nat nat-int?
@@ -368,12 +372,9 @@
   (and (node? x)
        (contains? (methods max-length) (tag x))))
 
+#_
 (s/fdef max-length?
   :args (s/cat :x any?)
-  :ret boolean?)
-
-(s/fdef variable-length?
-  :args (s/cat :node :meander.syntax.epsilon/node)
   :ret boolean?)
 
 (defn variable-length?
@@ -383,12 +384,18 @@
   [node]
   (not (= (min-length node) (max-length node))))
 
+#_
+(s/fdef variable-length?
+  :args (s/cat :node :meander.syntax.epsilon/node)
+  :ret boolean?)
+
 (defmulti ground?
   "true if node is ground i.e. it contains no variables or is not a
   match operator."
   {:arglists '([node])}
   #'tag)
 
+#_
 (s/fdef ground?
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret boolean?)
@@ -398,6 +405,7 @@
   {:arglists '([node])}
   #'tag)
 
+#_
 (s/fdef search?
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret boolean?)
@@ -474,16 +482,16 @@
   (:lvr (variables* node)))
 
 
+(defn references
+  "Return all :ref nodes in node."
+  [node]
+  (:ref (variables* node)))
+
 (s/fdef references
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/coll-of :meander.syntax.epsilon.node/ref
                   :kind set?
                   :into #{}))
-
-(defn references
-  "Return all :ref nodes in node."
-  [node]
-  (:ref (variables* node)))
 
 (defn top-level
   [node]
@@ -1101,7 +1109,7 @@
              (parse as-form env))
        :rest (if (some? rest-form)
                (parse rest-form env))
-       :elements (parse-all s env)})
+       :elements (parse-all (seq s) env)})
     (parse s env)))
 
 (defn parse
@@ -1924,12 +1932,6 @@
     (into {} (map (juxt :ref :pattern)) (:bindings node))
     {}))
 
-(s/fdef substitute-refs
-  :args (s/alt :a1 (s/cat :node :meander.syntax.epsilon/node)
-               :a2 (s/cat :node :meander.syntax.epsilon/node
-                          :ref-map :meander.syntax.epsilon/ref-map))
-  :ret :meander.syntax.epsilon/node)
-
 (defn substitute-refs
   "Given node and an optional ref-map "
   ([node]
@@ -1960,6 +1962,12 @@
         :else
         node))
     node)))
+
+(s/fdef substitute-refs
+  :args (s/alt :a1 (s/cat :node :meander.syntax.epsilon/node)
+               :a2 (s/cat :node :meander.syntax.epsilon/node
+                          :ref-map :meander.syntax.epsilon/ref-map))
+  :ret :meander.syntax.epsilon/node)
 
 (defn literal?
   "true if node is ground and does not contain :map or :set subnodes,

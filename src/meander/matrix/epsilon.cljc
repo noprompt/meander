@@ -317,19 +317,27 @@
                           :mvr :meander.syntax.epsilon.node/mvr))
   :ret :meander.matrix.epsilon/row)
 
-(s/fdef add-vars
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :vars (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
-                                      :mvr :meander.syntax.epsilon.node/mvr)
-                                :kind set?
-                                :into #{}))
-  :ret :meander.matrix.epsilon/row)
-
-
 (defn add-vars
   "Add vars to the environment in row."
   [row vars]
   (update row :env (fnil into #{}) vars))
+
+
+(s/fdef add-vars
+  :args (s/cat :row :meander.matrix.epsilon/row
+               :vars (s/or
+                      :set
+                      (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
+                                       :mvr :meander.syntax.epsilon.node/mvr)
+                                 :kind set?
+                                 :into #{})
+
+                      :sequential
+                      (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
+                                      :mvr :meander.syntax.epsilon.node/mvr)
+                                :kind sequential?
+                                :into #{})))
+  :ret :meander.matrix.epsilon/row)
 
 (defn get-var
   "Get var from the environment in row."
