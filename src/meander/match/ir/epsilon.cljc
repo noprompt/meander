@@ -20,6 +20,12 @@ compilation decisions."
        :private true}
   *env* {})
 
+(defn breadth-first?
+  "`true` if the current IR compilation environment `*env*` specifies
+  a `:search-order` of `:breadth-first`."
+  []
+  (= (get *env* :search-order) :breadth-first))
+
 ;; ---------------------------------------------------------------------
 ;; AST API
 
@@ -1108,12 +1114,11 @@ compilation decisions."
         (compile* (first arms) fail kind)
 
         ;; else
-        (let [breadth-first? false
-              compiled-arms (mapv
+        (let [compiled-arms (mapv
                              (fn [ir]
                                (compile* ir fail kind))
                              arms)]
-          (if breadth-first?
+          (if (breadth-first?)
             `(r.match.runtime/knit ~compiled-arms)
             `(concat ~@compiled-arms)))))
 

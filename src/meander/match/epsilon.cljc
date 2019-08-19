@@ -1648,7 +1648,8 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-search-args match-args &env)
+  (let [env (merge (meta &form) &env)
+        match-data (analyze-search-args match-args env)
         expr (:expr match-data)
         matrix (:matrix match-data)
         errors (:errors match-data)]
@@ -1661,7 +1662,7 @@
                           (compile [target] matrix))
                         nil
                         :search
-                        &env))))))
+                        env))))))
 
 
 (s/fdef search

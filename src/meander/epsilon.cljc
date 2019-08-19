@@ -89,7 +89,7 @@
       (find x ,,,)"
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] `(r.match/search ~@args))
+  [& args] (with-meta `(r.match/search ~@args) (meta &form)))
 
 ;; ---------------------------------------------------------------------
 ;; Substitute
