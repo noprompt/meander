@@ -306,16 +306,16 @@
   (or (:env row) #{}))
 
 
-(s/fdef add-var
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :var (s/or :meander.syntax.epsilon.node/lvr
-                          :meander.syntax.epsilon.node/mvr))
-  :ret :meander.matrix.epsilon/row)
-
 (defn add-var
   "Add var to the environment in row."
   [row var]
   (update row :env (fnil conj #{}) var))
+
+(s/fdef add-var
+  :args (s/cat :row :meander.matrix.epsilon/row
+               :var (s/or :lvr :meander.syntax.epsilon.node/lvr
+                          :mvr :meander.syntax.epsilon.node/mvr))
+  :ret :meander.matrix.epsilon/row)
 
 (s/fdef add-vars
   :args (s/cat :row :meander.matrix.epsilon/row
