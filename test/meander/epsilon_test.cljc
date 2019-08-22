@@ -708,6 +708,11 @@
              (r/gather (r/pred even? !xs) ...)
              !xs)))
 
+  (t/is (= [2 4 6]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs) ..3)
+             !xs)))
+
   (t/is (= [[2 4 6] 3]
            (r/match [1 2 3 4 5 6]
              (r/gather (r/pred even? !xs) ..?n)
