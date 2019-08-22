@@ -2081,7 +2081,8 @@
 
 (defmacro defsyntax
   {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
-               [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])}
+               [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
+   :style/indent :defn}
   [& defn-args]
   (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
         defn-args (next defn-args)

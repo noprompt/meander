@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [and find keyword let not or symbol])
   #?(:clj
      (:require [clojure.core :as clj]
+               [clojure.core.specs.alpha :as core.specs]
                [clojure.spec.alpha :as s]
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
@@ -11,6 +12,7 @@
                [meander.substitute.syntax.epsilon :as r.subst.syntax])
      :cljs
      (:require [cljs.core :as clj]
+               [cljs.core.specs.alpha :as core.specs]
                [cljs.spec.alpha :as s :include-macros true]
                [meander.match.epsilon :as r.match :include-macros true]
                [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
@@ -19,7 +21,7 @@
                [meander.substitute.epsilon :as r.subst :include-macros true]
                [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]))
   #?(:clj (:import (clojure.lang ExceptionInfo)))
-  #?(:cljs (:require-macros [meander.epsilon])))
+  #?(:cljs (:require-macros [meander.epsilon :refer [defsyntax]])))
 
 ;; ---------------------------------------------------------------------
 ;; Match, Find, Search
@@ -165,7 +167,18 @@
 ;; ---------------------------------------------------------------------
 ;; Syntax extensions
 
-(r.syntax/defsyntax and
+(defmacro defsyntax
+  {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
+               [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
+   :style/indent :defn}
+  [& args]
+  `(r.syntax/defsyntax ~@args))
+
+#?(:clj
+   (s/fdef defsyntax
+     :args ::core.specs/defn-args))
+
+(defsyntax and
   "Pattern matching operator which matches when `pattern` and,
   optionally, all of `patterns` match."
   [pattern & patterns]
@@ -175,7 +188,7 @@
     ;; else
     &form))
 
-(r.syntax/defsyntax or
+(defsyntax or
   "Pattern matching operator which matches when either `pattern` or,
   opitionally, one of `patterns` match."
   [pattern & patterns]
@@ -185,7 +198,7 @@
     ;; else
     &form))
 
-(r.syntax/defsyntax not
+(defsyntax not
   "Pattern matching operator which matches when `pattern` does not
   match."
   [pattern]
@@ -195,7 +208,7 @@
     ;; else
     &form))
 
-(r.syntax/defsyntax let
+(defsyntax let
   {:style/indent 1}
   ([binding-patterns]
    (case (::r.syntax/phase &env)
@@ -238,7 +251,7 @@
                :target-pattern (s/? any?))
   :ret seq?)
 
-(r.syntax/defsyntax pred
+(defsyntax pred
   "Pattern matching operator which successfully matches whenever the
   target of pattern matching applied to `expr` returns a truthy
   value.
@@ -284,7 +297,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax seqable
+(defsyntax seqable
   "Pattern matching operator which matches the `seq` of anything that
   is `seqable?` against
 
@@ -299,7 +312,7 @@
     ;; else
     &form))
 
-(r.syntax/defsyntax scan
+(defsyntax scan
   "Pattern matching operator which matches the `seq` of `seqable?`
   forms of the shape
 
@@ -314,10 +327,10 @@
   (case (::r.syntax/phase &env)
     :meander/match
     (clj/let [patternc (count patterns)
-          [as as-pattern] (drop (- patternc 2) patterns)
-          inner (if (= :as as)
-                  `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
-                  `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
+              [as as-pattern] (drop (- patternc 2) patterns)
+              inner (if (= :as as)
+                      `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
+                      `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
       `(r.match.syntax/or
         [~@inner]
         ;; Prevent producing the same search results twice when
@@ -328,7 +341,7 @@
     ;; else
     &form))
 
-(r.syntax/defsyntax separated
+(defsyntax separated
   "Pattern matching operator which matches the `seq` of `seqable?`
   forms of the shape
 
@@ -353,7 +366,7 @@
     ;; else
     &form))
 
-(r.syntax/defsyntax app
+(defsyntax app
   "Pattern matching operator which applies pattern matching the result
   applying `f` to the current value being matched."
   ([f pattern]
@@ -377,7 +390,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax guard
+(defsyntax guard
   "Pattern matching operator which succeeds whenever `pred-expr`
   returns a truthy result. `pred-expr` is evaluated by Clojure."
   ([pred-expr]
@@ -388,7 +401,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax re
+(defsyntax re
   "Pattern matching operator which matches strings which match the
    regular expression `regex-pattern` with `re-matches`. Optionally, a
    second argument `capture-pattern` can be passed which will be
@@ -418,7 +431,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax $
+(defsyntax $
   "Pattern matching and substitution operator.
 
   When used as a pattern matching operator will attempt match
@@ -454,7 +467,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax $*
+(defsyntax $*
   ([context pattern]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -488,7 +501,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax symbol
+(defsyntax symbol
   "Pattern matching and substitution operator.
 
    When used as a pattern matching operator it will match a symbol
@@ -518,7 +531,7 @@
        (subst [(symbol !namespaces !names) ...]))
      ;; => ['foo/bar 'foo/baz]"
   ([name]
-    (case (::r.syntax/phase &env)
+   (case (::r.syntax/phase &env)
      :meander/match
      `(and (pred symbol?) (app name ~name))
 
@@ -540,7 +553,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax keyword
+(defsyntax keyword
   "Pattern matching and substitution operator.
 
    When used as a pattern matching operator it will match a keyword
@@ -592,7 +605,7 @@
      ;; else
      &form)))
 
-(r.syntax/defsyntax with
+(defsyntax with
   "Pattern matching and substitution operator.
 
    Syntax
