@@ -674,6 +674,77 @@
              [{:foo 1, :baz 2}
               {:foo 1, :baz 2, :quux 3}]))))
 
+;;; gather
+
+
+(t/deftest gather-succeeds-test
+  (t/is (= [2 4 6]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs))
+             !xs)))
+
+  (t/is (= [[2 4 6] 3]
+           (r/match [[1 2 3 4 5 6] 3]
+             (r/gather (r/pred even? !xs) ?n)
+             [!xs ?n])))
+
+  (t/is (= [2 4 6]
+           (r/match [[1 2 3 4 5 6] 3]
+             (r/gather (r/pred even? !xs) 3)
+             !xs)))
+
+  (t/is (= [[2 4 6] [3]]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs) !n)
+             [!xs !n])))
+
+  (t/is (= [2 4 6]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs) _)
+             !xs)))
+
+  (t/is (= [2 4 6]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs) ...)
+             !xs)))
+
+  (t/is (= [[2 4 6] 3]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs) ..?n)
+             [!xs ?n])))
+
+  (t/is (= [[2 4 6] [3]]
+           (r/match [1 2 3 4 5 6]
+             (r/gather (r/pred even? !xs) ..!n)
+             [!xs !n]))))
+
+(t/deftest gather-fails-test
+  (t/is (= :fail
+           (r/match [1 2 3]
+             (r/gather !xs 4)
+             :okay
+
+             _
+             :fail)))
+
+  (t/is (= :fail
+           (r/match [1 2 3]
+             (let [?n 4]
+               (r/gather !xs ?n))
+             :okay
+
+             _
+             :fail)))
+
+  (t/is (= :fail
+           (r/match [1 2 3]
+             (let [?n 4]
+               (r/gather !xs ?n))
+             :okay
+
+             _
+             :fail))))
+
 ;;; guard
 
 
@@ -1776,6 +1847,7 @@
                 {:foo 2, :bar 5}
                 {:foo 3, :bar 6}])))))
 
+
 (t/deftest subst-$-test
   (let [?context (fn [hole]
                    [1 hole 2])
@@ -1790,6 +1862,7 @@
            [1 :B 2]
            [1 :C 2]])))
 
+
 (t/deftest subst-set-test
   (let [?rest-set #{2 3}]
     (t/is (= #{1 2 3}
@@ -1798,7 +1871,6 @@
         ?b-set #{2 3}]
     (t/is (= #{1 2 3 4}
              (r/subst #{^:as ?a-set ^& ?b-set})))))
-
 
 
 (t/deftest subst-with-test
@@ -1815,6 +1887,7 @@
                (r/with [%foo [%bar ..3]
                         %bar [!xs ?z]]
                  %foo))))))
+
 
 (tc.t/defspec subst-rst-behaves-properly-1
   (tc.prop/for-all [!xs (tc.gen/vector tc.gen/int)]

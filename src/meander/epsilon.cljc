@@ -21,7 +21,7 @@
                [meander.substitute.epsilon :as r.subst :include-macros true]
                [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]))
   #?(:clj (:import (clojure.lang ExceptionInfo)))
-  #?(:cljs (:require-macros [meander.epsilon :refer [defsyntax]])))
+  #?(:cljs (:require-macros [meander.epsilon :refer [defsyntax find match search]])))
 
 ;; ---------------------------------------------------------------------
 ;; Match, Find, Search
@@ -647,6 +647,45 @@
        (throw (ex-info "first argument to with must be a vector of the form [%<name> <pattern> ...]"
                        {:invalid-bindings pattern-bindings
                         :form &form})))
+
+     ;; else
+     &form)))
+
+(defsyntax gather
+  ([pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     `(seqable (or ~pattern _#) ...)
+     ;; else
+     &form))
+  ([pattern count-pattern]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     (match (r.syntax/parse count-pattern)
+       (or {:tag :dtl, :lvr {:symbol ?var}}
+           {:tag :lvr :symbol ?var}
+           {:tag :dtm, :mvr {:symbol ?var}}
+           {:tag :mvr :as ?var})
+       `(let [?counter# (volatile! 0)]
+          (and (seqable (or (and ~pattern
+                                 (let [_# (vswap! ?counter# inc)]))
+                            _#)
+                        ...)
+               (let [~?var (deref ?counter#)])))
+
+
+       (or {:tag :lit, :value (pred nat-int? ?n)}
+           {:tag :dt+, :n ?n})
+       (clj/let [ellipsis (clj/symbol (str ".." ?n))]
+         `(let [?counter# (volatile! 0)]
+            (and (seqable (or (and ~pattern
+                                   (let [_# (vswap! ?counter# inc)]))
+                              _#)
+                          ~ellipsis)
+                 (guard (<= ~?n (deref ?counter#))))))
+
+       {:tag (or :any :dt*)}
+       `(seqable (or ~pattern _#) ...))
 
      ;; else
      &form)))
