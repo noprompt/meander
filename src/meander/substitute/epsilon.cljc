@@ -177,9 +177,9 @@
                                     (compile-substitute ?v env)])))
                form)
         rest-node (:rest-map node)
-        rest-form (if (r.syntax/node? rest-node)
-                    `(merge ~form ~(compile-substitute rest-node env))
-                    form)]
+        form (if (r.syntax/node? rest-node)
+               `(into ~form ~(compile-substitute rest-node env))
+               form)]
     form))
 
 (defmethod compile-substitute :mvr [mvr env]
