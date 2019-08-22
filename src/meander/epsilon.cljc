@@ -662,6 +662,7 @@
    (case (::r.syntax/phase &env)
      :meander/match
      (match (r.syntax/parse count-pattern)
+       ;; Logic variables, memory variables, `..?v`, and `..!v`.
        (or {:tag :dtl, :lvr {:symbol ?var}}
            {:tag :lvr :symbol ?var}
            {:tag :dtm, :mvr {:symbol ?var}}
@@ -674,6 +675,7 @@
                (let [~?var (deref ?counter#)])))
 
 
+       ;; Natural numbers and  `..n`
        (or {:tag :lit, :value (pred nat-int? ?n)}
            {:tag :dt+, :n ?n})
        (clj/let [ellipsis (clj/symbol (str ".." ?n))]
@@ -684,8 +686,14 @@
                           ~ellipsis)
                  (guard (<= ~?n (deref ?counter#))))))
 
-       {:tag (or :any :dt*)}
-       `(seqable (or ~pattern _#) ...))
+       ;; `_` and `...`
+       (or {:tag :any}
+           {:tag :dt*})
+       `(seqable (or ~pattern _#) ...)
+
+       _
+       (throw (ex-info "second argument to gather must be logic variable, memory variable, _ pattern, or an ellipsis"
+                       {:form &form})))
 
      ;; else
      &form)))
