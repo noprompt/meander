@@ -625,15 +625,15 @@
                        %invalid-namespace (symbol (not nil) _)
                        %invalid-binding (or %invalid-name %invalid-namespace)]
          [_ _ ... (and %invalid-binding ?x) _ . _ _ ...])
-       (ex-info "with binding form must be a simple symbol the name of which begins with \"%\""
-                {:invalid-binding ?x
-                 :form &form})
+       (throw (ex-info "with binding form must be a simple symbol the name of which begins with \"%\""
+                       {:invalid-binding ?x
+                        :form &form}))
 
        ;; Invalid binding form.
        (not [_ _ ...])
-       (ex-info "first argument to with must be a vector of the form [%<name> <pattern> ...]"
-                {:invalid-bindings pattern-bindings
-                 :form &form}))
+       (throw (ex-info "first argument to with must be a vector of the form [%<name> <pattern> ...]"
+                       {:invalid-bindings pattern-bindings
+                        :form &form})))
 
      ;; else
      &form)))
