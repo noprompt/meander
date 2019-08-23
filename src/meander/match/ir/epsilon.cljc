@@ -298,8 +298,15 @@ compilation decisions."
   [x k]
   (and (node? x) (= (op x) k)))
 
-(defn op-fail? [x]
+(defn op-fail?
+  "`true` if `x` is an :fail node, `false` otherwise."
+  [x]
   (op= x :fail))
+
+(defn op-pass?
+  "`true` if `x` is an :pass node, `false` otherwise."
+  [x]
+  (op= x :pass))
 
 (defn check?
   [x]
