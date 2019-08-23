@@ -91,7 +91,16 @@
       (find x ,,,)"
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] (with-meta `(r.match/search ~@args) (meta &form)))
+  [& args] `(r.match/search ~@args))
+
+(defmacro breadth-first-search
+  "Like `search` but traverses the search space in breadth first
+  order."
+  {:arglists '([x & clauses])
+   :style/indent :defn}
+  [& args]
+  (with-meta `(r.match/search ~@args)
+    (assoc (meta &form) :search-order :breadth-first)))
 
 ;; ---------------------------------------------------------------------
 ;; Substitute
