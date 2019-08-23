@@ -1593,19 +1593,18 @@
 ;; ---------------------------------------------------------------------
 ;; search
 
-(t/deftest search-order-test
-  (= '([:a :b] [1 2] [:a :c] [1 3])
-     ^{:search-order :breadth-first}
-     (r/search [1 2]
-       (let [?s :a]
-         (or (let [?t :b])
-             (let [?t :c])))
-       [?s ?t]
+(t/deftest breadth-first-search-test
+  (t/is (= '([:a :b] [1 2] [:a :c] [1 3])
+           (r/breadth-first-search [1 2]
+             (let [?s :a]
+               (or (let [?t :b])
+                   (let [?t :c])))
+             [?s ?t]
 
-       (let [?s 1]
-         (or (let [?t 2])
-             (let [?t 3])))
-       [?s ?t])))
+             (let [?s 1]
+               (or (let [?t 2])
+                   (let [?t 3])))
+             [?s ?t]))))
 
 (t/deftest search-map-1-test
   (t/is (= #{["v1" "v2"]}
