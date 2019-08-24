@@ -20,11 +20,6 @@
 
 (def
   ^{:dynamic true
-    :doc "true if we are matching, false if we are searching"}
-  *matching* true)
-
-(def
-  ^{:dynamic true
     :doc ""}
   *negating* false)
 
@@ -652,6 +647,14 @@
    (r.matrix/first-column matrix)))
 
 
+(defn search-map? [node env]
+  (if (not= (r.syntax/tag node) :map)
+    (r.syntax/search? node)
+    (let [the-map (:map node)
+          value-lvars (set (filter (comp #{:lvr} :tag) (vals the-map)))
+          search-keys (remove value-lvars (remove env (remove r.syntax/ground? (keys the-map))))]
+      (seq search-keys))))
+
 (defmethod compile-specialized-matrix :map
   [_ [target & targets*] matrix]
   (let [all-keys (map-matrix-all-keys matrix)
@@ -669,7 +672,7 @@
                      (if no-keys?
                        (r.matrix/prepend-cells row [{:tag :any, :symbol (gensym "_")}])
                        (let [the-map (:map node)]
-                         (if (and (not *matching*) (r.syntax/search? node))
+                         (if (search-map? node (:env row))
                            (let [set-node {:tag :set
                                            :elements (map
                                                       (fn [[k-node v-node]]
@@ -1665,14 +1668,13 @@
     (if-some [error (first errors)]
       (throw error)
       (let [target (gensym "target__")]
-        (binding [*matching* false]
-          (if (r.matrix/empty? matrix)
-            nil
-            (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                            (compile [target] matrix))
-                          nil
-                          :search
-                          env)))))))
+        (if (r.matrix/empty? matrix)
+          nil
+          (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                          (compile [target] matrix))
+                        nil
+                        :search
+                        env))))))
 
 
 (s/fdef search
@@ -1749,25 +1751,24 @@
         fail (gensym "fail__")]
     (if-some [error (first errors)]
       (throw error)
-      (binding [*matching* false]
-        (if (r.matrix/empty? matrix)
-          (if (some? final-clause)
-            (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                            (compile [target] [final-clause]))
-                          nil
-                          :find
-                          &env)
-            nil)
-          (r.ir/compile
-           (r.ir/op-bind target (r.ir/op-eval expr)
-             (r.ir/op-eval
-               (if (some? final-clause)
-                 `(let [~fail (fn []
-                                ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))]
-                    ~(r.ir/compile (compile [target] matrix) `(~fail) :find &env))
-                 (r.ir/compile (compile [target] matrix) nil :find &env))))
-           nil
-           :find))))))
+      (if (r.matrix/empty? matrix)
+        (if (some? final-clause)
+          (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                          (compile [target] [final-clause]))
+                        nil
+                        :find
+                        &env)
+          nil)
+        (r.ir/compile
+         (r.ir/op-bind target (r.ir/op-eval expr)
+           (r.ir/op-eval
+             (if (some? final-clause)
+               `(let [~fail (fn []
+                              ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))]
+                  ~(r.ir/compile (compile [target] matrix) `(~fail) :find &env))
+               (r.ir/compile (compile [target] matrix) nil :find &env))))
+         nil
+         :find)))))
 
 
 (s/fdef find
