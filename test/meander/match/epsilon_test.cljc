@@ -11,9 +11,7 @@
 ;; ---------------------------------------------------------------------
 ;; match macro tests
 
-#_
-;; TODO: This should pass because ?x in the nested map can be bound
-;; previously.
+
 (t/deftest map-can-have-variable-bound-lvr-keys
   (r.match/match {:k1 "v1"
                   :k2 {"v1" "v2"}}
