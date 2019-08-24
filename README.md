@@ -122,21 +122,18 @@ good code, clarity is. But just to see how Meander allows us to build
 our own extensions let's look at how we can shorten things up.
 
 ```clojure
-(m/defsyntax num?
-  ([]
-    (if (m/match-syntax? &env)
-      `(m/pred number?)
-      &form))
+(m/defsyntax number
+  ([] `(number _#))
   ([pattern]
     (if (m/match-syntax? &env)
       `(m/pred number? ~pattern)
      &form)))
 
 (m/find point
-  [(num?) (num? ?y)]
+  [(number) (number ?y)]
   ?y
 
-  [(num?) (num? ?y) (num?)]
+  [(number) (number ?y) (number)]
   ?y)
 ```
 
