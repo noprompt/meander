@@ -123,8 +123,14 @@ our own extensions let's look at how we can shorten things up.
 
 ```clojure
 (m/defsyntax num?
-  ([] `(m/pred number?))
-  ([pattern] `(m/pred number? ~pattern)))
+  ([]
+    (if (m/match-syntax? &env)
+      `(m/pred number?)
+      &form))
+  ([pattern]
+    (if (m/match-syntax? &env)
+      `(m/pred number? ~pattern)
+     &form)))
 
 (m/find point
   [(num?) (num? ?y)]
