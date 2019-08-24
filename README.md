@@ -127,7 +127,7 @@ our own extensions let's look at how we can shorten things up.
   ([pattern]
     (if (m/match-syntax? &env)
       `(m/pred number? ~pattern)
-     &form)))
+      &form)))
 
 (m/find point
   [(number) (number ?y)]
