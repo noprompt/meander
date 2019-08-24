@@ -176,6 +176,24 @@
 ;; ---------------------------------------------------------------------
 ;; Syntax extensions
 
+(defn match-syntax?
+  [env]
+  (match env
+    {::r.syntax/phase :meander/match}
+    true
+
+    _
+    false))
+
+(defn subst-syntax?
+  [env]
+  (match env
+    {::r.syntax/phase :meander/substitute}
+    true
+
+    _
+    false))
+
 (defmacro defsyntax
   {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
                [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
