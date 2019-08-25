@@ -4,6 +4,7 @@
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
+            [meander.epsilon :as m :include-macros true]
             [meander.match.check.epsilon :as r.match.check :include-macros true]
             [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
             [meander.syntax.epsilon :as r.syntax :include-macros true]))
@@ -95,3 +96,25 @@
              (t/is (= "with patterns must have distinct references"
                       #?(:clj (.getMessage error)
                          :cljs (.-message error))))))))))
+
+
+(t/deftest match-doesnt-allow-maps-where-we-would-need-to-search
+  (t/are [x] (not (nil? x))
+    (r.match.check/check (r.match.syntax/parse '{?x ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{(m/pred number?) ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{(m/scan 0) ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{!xs ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{_ ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{[_] ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{{:a ?x} ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '(m/with [%x (m/pred number?)] {%x ?y}) {}) false))
+
+  (t/are [x] (nil? x)
+    (r.match.check/check (r.match.syntax/parse '{:a ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '[?x {?x ?y}] {}) false)
+    (r.match.check/check (r.match.syntax/parse '{:x (m/pred number?)} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{:x [_ ... 0]} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{:x !xs} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{:name ?name
+                                                 :thing {?name ?y}} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{{:a :b} ?y} {}) false)))
