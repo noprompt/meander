@@ -599,6 +599,7 @@
 (defmacro substitute
   [pattern]
   (let [node (r.subst.syntax/parse pattern &env)
+        node (r.subst.syntax/expand-ast node)
         env (make-env node)]
     (compile node env)))
 
