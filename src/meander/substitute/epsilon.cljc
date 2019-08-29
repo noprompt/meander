@@ -205,15 +205,15 @@
 (defmethod compile* :mvr
   [node env]
   (r.match/find [node env]
-    ;; Check for an associated iterator.
     [{:symbol ?symbol}
      {:data #{{:memory-variable/symbol ?symbol
                :memory-variable/state :finished}}}]
     [nil env]
 
+    ;; Check for an associated iterator.
     [{:symbol ?symbol}
      {:data #{{:memory-variable/symbol ?symbol
-               :iterator/symbol ?iterator-symbol}}}]
+               :iterator/symbol (r.match.syntax/pred symbol? ?iterator-symbol)}}}]
     [(iterator-next-form ?iterator-symbol) env]
 
     ;; Check for an associated counter.
