@@ -124,7 +124,7 @@
       {:tag ::apply
        :function (first args)
        :argument (r.syntax/parse (second args) env)}
-      (throw (ex-info "meander.epsilon/apply requires two arguments" {})))))
+      (throw (ex-info "meander.substitute.syntax.epsilon/apply requires two arguments" {})))))
 
 (r.syntax/register-parser apply-symbol #'parse-apply)
 
