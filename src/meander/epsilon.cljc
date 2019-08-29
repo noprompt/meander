@@ -1,5 +1,5 @@
 (ns meander.epsilon
-  (:refer-clojure :exclude [and find keyword let not or symbol])
+  (:refer-clojure :exclude [and find keyword let not or some symbol])
   #?(:clj
      (:require [clojure.core :as clj]
                [clojure.core.specs.alpha :as core.specs]
@@ -723,4 +723,26 @@
                        {:form &form})))
 
      ;; else
+     &form)))
+
+(defsyntax number
+  "Pattern matching operator which matches a `number?`. Optionally
+  `pattern` may be passed to further pattern match on the value."
+  ([] `(number _#))
+  ([pattern]
+   (if (match-syntax? &env)
+     `(pred number? ~pattern)
+     &form)))
+
+(defsyntax some
+  "Pattern matching operator which matches a non `nil`
+  value. Optionally, `pattern` may be passed to further match on the
+  value."
+  ([]
+   (if (match-syntax? &env)
+     `(not nil)
+     &form))
+  ([pattern]
+   (if (match-syntax? &env)
+     `(and (not nil) ~pattern)
      &form)))
