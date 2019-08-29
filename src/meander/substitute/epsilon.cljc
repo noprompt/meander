@@ -1,4 +1,5 @@
 (ns meander.substitute.epsilon
+  (:refer-clojure :exclude [compile])
   #?(:cljs (:require-macros [meander.substitute.epsilon]))
   (:require [clojure.set :as set]
             [clojure.spec.alpha :as s]
@@ -6,44 +7,42 @@
             [meander.match.epsilon :as r.match]
             [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.syntax.epsilon :as r.syntax]
-            [meander.substitute.syntax.epsilon :as r.substitute.syntax :include-macros true]
+            [meander.substitute.runtime.epsilon :as r.subst.runtime]
+            [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]
             [meander.util.epsilon :as r.util]))
 
 ;; ---------------------------------------------------------------------
-;; Environment
+;; Environment utilities
+
+(defn stateful-memory-variables
+  {:private true}
+  [node]
+  (distinct
+   (r.match/search node
+     (meander.syntax.epsilon/$
+      {:tag (r.match.syntax/or :rp* :rp+ :rpl :rpm)
+       :cat (meander.syntax.epsilon/$ {:tag :mvr :as ?mvr-node})})
+     ?mvr-node
+
+     (meander.syntax.epsilon/$
+      {:tag :rpm
+       :mvr {:tag :mvr :as ?mvr-node}})
+     ?mvr-node)))
+
+(defn memory-variable-data
+  {:private true}
+  [node]
+  (r.match/search (stateful-memory-variables node)
+    (_ ... {:symbol ?symbol} . _ ...)
+    {:memory-variable/symbol ?symbol
+     :memory-variable/state :iterating
+     :iterator/symbol (symbol (str (name ?symbol) "__counter"))}))
 
 (defn make-env
-  "Derives a map of
-
-  {:collection-context nil
-   :mvr-refs {mvr mvr-ref-sym}
-   :wth-refs {ref pattern}}
-
-  from the pattern node where mvr is a memory variable node, and
-  mvr-ref-sym is a memory varable symbol with the suffix
-  _idx__<digits> e.g. !xs_idx__234. The mvr-ref-sym will be bound to
-  a volatile interger."
   {:private true}
-  [pat]
-  {:collection-context nil
-   :wth-refs {}
-   :mvr-refs (into {} (map
-                       (fn [mvr-node]
-                         [mvr-node (gensym (str (:symbol mvr-node) "_idx__"))]))
-                   (r.syntax/memory-variables pat))})
-
-
-(defn get-mvr-ref-sym
-  "Gets the reference symbol for mvr-sym from env. Throws if
-  the symbol is not found (sanity check)."
-  {:private true}
-  [env mvr-node]
-  (if-some [[_ mvr-ref-sym] (find (:mvr-refs env) mvr-node)]
-    mvr-ref-sym
-    (throw
-     (ex-info (str "No state symbol found for memory variable " (:symbol mvr-node))
-              {:env env
-               :mvr mvr-node}))))
+  [node]
+  {:wth-refs {}
+   :data (into #{} (memory-variable-data node))})
 
 (defn get-wth-refs
   {:private true}
@@ -60,12 +59,11 @@
   [env ref-map]
   (update env :wth-refs merge ref-map))
 
-
 ;; ---------------------------------------------------------------------
 ;; Compilation
 
-
 (defn compile-ground
+  "This function is used to compile the `:value` of `:lit` nodes."
   {:private true}
   [x]
   (cond
@@ -94,334 +92,366 @@
     :else
     x))
 
+(defn iterator-has-next-form
+  {:private true}
+  [iterator-form]
+  `(.hasNext ~iterator-form))
 
-(defn compile-substitute-dispatch
-  [node env]
-  (r.syntax/tag node))
+(defn iterator-next-form
+  {:private true}
+  [iterator-form]
+  `(if (.hasNext ~iterator-form)
+     (.next ~iterator-form)))
 
+(defn iterator-rest-form
+  {:private true}
+  [iterator-form]
+  `(vec (iterator-seq iterator-form)))
 
-(defmulti compile-substitute
+(defmulti compile*
+  ""
   {:arglists '([node env])}
-  #'compile-substitute-dispatch)
+  (fn [node _] (:tag node)))
 
+(defn compile-all*
+  [nodes env]
+  (reduce
+   (fn [[forms env] node]
+     (let [[form env*] (compile* node env)]
+       [(conj forms form) env*]))
+   [[] env]
+   nodes))
 
-(defn compile-all [nodes env]
-  (map compile-substitute nodes (repeat env)))
-
-
-(defmethod compile-substitute ::r.substitute.syntax/apply
+(defmethod compile* ::r.subst.syntax/apply
   [node env]
   (r.match/match node
-    {:function ?f
-     :argument ?a}
-    `(~?f ~(compile-substitute ?a env))))
+    {:function ?function
+     :argument ?argument}
+    (let [[form env] (compile* ?argument env)]
+      [`(~?function ~form) env])))
 
-
-(defmethod compile-substitute :cat
-  [node env]
-  (r.match/find node
-    {:elements (_ ... {:tag :uns} . _ ... :as ?elements)}
-    `(concat ~@(sequence
-                (map
-                 (fn [node env]
-                   (let [form (compile-substitute node env)]
-                     (r.match/find node
-                       {:tag :uns}
-                       form
-
-                       _
-                       `(list ~form)))))
-                ?elements
-                (repeat env)))
-
-    {:elements ?elements}
-    `[~@(sequence (map compile-substitute) ?elements (repeat env))]))
-
-
-(defmethod compile-substitute :ctn
+(defmethod compile* :ctn
   [node env]
   (let [pattern (:pattern node)]
     (if-some [context (:context node)]
-      `(~(compile-substitute context env) ~(compile-substitute pattern env))
-      (compile-substitute pattern env))))
+      (let [[pattern-form env] (compile* pattern env)
+            [context-form env] (compile* context env)]
+        [`(~context-form ~pattern-form)] env)
+      (compile* (:pattern node) env))))
 
-
-(defmethod compile-substitute :drp
-  [_ _]
-  `(list))
-
-
-(defmethod compile-substitute :lit
+(defmethod compile* :cat
   [node env]
-  (compile-ground (:value node)))
+  (r.match/match node
+    ;; Base case 1.
+    {:elements []}
+    [() env]
 
+    ;; Base case 2.
+    {:elements ()}
+    [() env]
 
-(defmethod compile-substitute :lvr
+    ;; Normalize elements to vector and recur.
+    {:elements (& _ :as ?elements)}
+    (compile* {:tag :cat :elements (vec ?elements)} env)
+
+    ;; Process each element in the sequence from left to right.
+
+    ;; Handle unquote splicing.
+    {:elements [{:tag :uns, :expr ?expr} & ?tail]}
+    (r.match/match (compile* ?expr env)
+      [?expr-form ?expr-env]
+      (r.match/match (compile* {:tag :cat
+                                :elements ?tail}
+                               ?expr-env)
+        [?tail-form ?tail-env]
+        [`(concat ~?expr-form ~?tail-form) ?tail-env]))
+
+    ;; Handle anything else.
+    {:elements [?head & ?tail]}
+    (r.match/match (compile* ?head env)
+      [?head-form ?head-env]
+      (r.match/match (compile* {:tag :cat
+                                :elements ?tail}
+                               ?head-env)
+        [?tail-form ?tail-env]
+        [`(cons ~?head-form ~?tail-form) ?tail-env]))))
+
+(defmethod compile* :drp
+  [_ env]
+  [() env])
+
+(defmethod compile* :lit
   [node env]
-  (:symbol node))
+  [(compile-ground (:value node)) env])
 
-(defmethod compile-substitute :map [node env]
-  (let [as-node (:as node)
-        form (if (r.syntax/node? as-node)
-               (let [as-form (compile-substitute as-node env)]
-                 (if (map? as-form)
-                   as-form
-                   `(into {} ~as-form)))
-               {})
-        map-data (:map node)
-        form (if (map? map-data)
-               `(merge ~form
-                       ~(into {} (r.match/search map-data
-                                   {?k ?v}
-                                   [(compile-substitute ?k env)
-                                    (compile-substitute ?v env)])))
-               form)
-        rest-node (:rest-map node)
-        form (if (r.syntax/node? rest-node)
-               `(into ~form ~(compile-substitute rest-node env))
-               form)]
-    form))
+(defmethod compile* :lvr
+  [node env]
+  [(:symbol node) env])
 
-(defmethod compile-substitute :mvr [mvr env]
-  (let [mvr-ref-sym (get-mvr-ref-sym env mvr)]
-    (let [item (gensym "item__")]
-      `(let [~item (nth ~(:symbol mvr) (deref ~mvr-ref-sym) nil)]
-         (vswap! ~mvr-ref-sym inc)
-         ~item))))
+(defmethod compile* :map
+  [node env]
+  (let [[form env] (if-some [as-node (:as node)]
+                     (let [[form env] (compile* as-node env)]
+                       [`(into {} ~form) env])
+                     [{} env])
+        [forms env] (compile-all* (into [] cat (:map node)) env)
+        form `(merge ~form ~(into {} (map vec (partition 2 forms))))
+        [form env] (if-some [rest-node (:rest-map node)]
+                     (let [[rest-form env] (compile* rest-node env)]
+                       [`(into ~form ~rest-form) env])
+                     [form env])]
+    [form env]))
 
-(defmethod compile-substitute :prt
+(defmethod compile* :mvr
+  [node env]
+  (r.match/find [node env]
+    ;; Check for an associated iterator.
+    [{:symbol ?symbol}
+     {:data #{{:memory-variable/symbol ?symbol
+               :memory-variable/state :finished}}}]
+    [nil env]
+
+    [{:symbol ?symbol}
+     {:data #{{:memory-variable/symbol ?symbol
+               :iterator/symbol ?iterator-symbol}}}]
+    [(iterator-next-form ?iterator-symbol) env]
+
+    ;; Check for an associated counter.
+    [{:symbol ?symbol}
+     {:data #{{:memory-variable/symbol ?symbol
+               :counter/memory-variable-symbol ?symbol
+               :counter/value ?value
+               :as ?element}
+              ^& ?rest-data}}]
+    (let [element* (update ?element :counter/value inc)
+          data* (conj ?rest-data element*)
+          env* (assoc env :data data*)]
+      [`(nth ~?symbol ~?value nil) env*])
+
+    ;; Associate a counter.
+    [{:symbol ?symbol}
+     {:data #{{:memory-variable/symbol ?symbol
+               :as ?value}
+              ^:as ?data}}]
+    (let [value* (merge ?value {:counter/memory-variable-symbol ?symbol
+                                :counter/value 1})
+          data* (conj ?data value*)
+          env* (assoc env :data data*)]
+      [`(nth ~?symbol 0 nil) env*])
+
+    [{:symbol ?symbol}
+     {:data #{^:as ?data}}]
+    (let [memory-variable {:memory-variable/symbol ?symbol
+                           :counter/memory-variable-symbol ?symbol
+                           :counter/value 1}
+          data* (conj ?data memory-variable)
+          env* (assoc env :data data*)]
+      [`(nth ~?symbol 0 nil) env*])))
+
+(defmethod compile* :prt
   [node env]
   (r.match/match node
     {:left ?left
-     :right {:tag :cat
-             :elements (r.match.syntax/or [] ())}}
-    (compile-substitute ?left env)
-
-    {:left ?left
      :right ?right}
-    `(concat ~(compile-substitute ?left env)
-             ~(compile-substitute ?right env))))
+    (r.match/match (compile* ?left env)
+      [?left-form ?left-env]
+      (r.match/match (compile* ?right ?left-env)
+        [?right-form ?right-env]
+        [`(concat ~?left-form ~?right-form) ?right-env]))))
 
-
-(defmethod compile-substitute :quo
+(defmethod compile* :quo
   [node env]
-  `(quote ~(:form node)))
+  [`(quote ~(:form node)) env])
 
+(defmethod compile* :ref
+  [node env]
+  [`(~(:symbol node)) env])
 
-(defmethod compile-substitute :rp* [node env]
-  (let [cat-node (:cat node)
-        mvrs (r.syntax/memory-variables
+(defmethod compile* :rp*
+  [node env]
+  (let [mvrs (r.syntax/memory-variables
               (r.syntax/substitute-refs node (get-wth-refs env)))]
+    ;; If there are memory variables, compile a while loop that runs
+    ;; until one of them has exauhsted its values.
     (if (seq mvrs)
-      ;; If there are mem-vars, loop until one of them is
-      ;; exhausted.
-      `(let [ret# (transient [])]
-         (loop []
-           (if (and ~@(map
-                       (fn [mvr]
-                         `(find ~(:symbol mvr) (deref ~(get-mvr-ref-sym env mvr))))
-                       mvrs))
-             (do
-               (run! (fn [x#] (conj! ret# x#)) ~(compile-substitute cat-node env))
-               (recur))
-             (persistent! ret#))))
+      (let [;; Compile a conjunction of checks which will be performed
+            ;; at the top of each loop. Each check verifies a memory
+            ;; variable still has values to retrieve.
+            checks (r.match/search [mvrs env]
+                     [#{{:symbol ?symbol}}
+                      {:data #{{:memory-variable/symbol ?symbol
+                                :iterator/symbol ?iterator-symbol}}}]
+                     (iterator-has-next-form ?iterator-symbol))
+            ;; Compile each element of the corresponding `:cat` node
+            ;; one at a time.
+            [element-forms elements-env] (compile-all* (:elements (:cat node)) env)
+            return-symbol (gensym "return__")]
+        [`(let [~return-symbol (transient [])]
+            (while (and ~@checks)
+              ~@(map (fn [form]
+                       `(conj! ~return-symbol ~form))
+                     element-forms))
+            (persistent! ~return-symbol))
+         elements-env])
+      ;; This should happen in a separate check phase.
       (throw (ex-info "No memory variables found for operator (...)"
                       {:node (r.syntax/unparse node)
                        :env env})))))
 
-(defmethod compile-substitute :rp+ [node env]
+(defmethod compile* :rp+
+  [node env]
   (r.match/match node
-    {:cat {:tag :cat
-           :elements (r.match.syntax/or ({:tag :lit} ..1 :as ?elements)
-                                        [{:tag :lit} ..1 :as ?elements])}
+    {:cat {:elements ?elements}
      :n ?n}
-    (into [] cat (repeat ?n (map compile-substitute ?elements (repeat env))))
+    (let [[forms env] (compile-all* ?elements env)
+          n-symbol (gensym "n__")
+          return-symbol (gensym "return__")
+          form `(let [~return-symbol (transient [])]
+                  ;; Yield n substitutions.
+                  (dotimes [~n-symbol ~?n]
+                    ~@(map
+                       (fn [form]
+                         `(conj! ~return-symbol ~form))
+                       forms))
+                  (persistent! ~return-symbol))]
+      [form env])))
 
-    {:cat ?cat
-     :n ?n}
-    ;; Yield n substitutions.
-    `(into [] cat (repeatedly ~?n (fn [] ~(compile-substitute ?cat env))))))
-
-(defmethod compile-substitute :rpl [node env]
+(defmethod compile* :rpl [node env]
   (r.match/match node
-    {:cat ?cat
+    {:cat {:elements ?elements}
      :lvr ?lvr}
-    `(mapcat identity (repeatedly ~(compile-substitute ?lvr env)
-                                  (fn [] ~(compile-substitute ?cat env))))))
+    (let [[forms env] (compile-all* ?elements env)
+          [n-form env] (compile* ?lvr env)
+          n-symbol (gensym "n__")
+          return-symbol (gensym "return__")
+          form `(let [~return-symbol (transient [])]
+                  ;; Yield ?n substitutions.
+                  (dotimes [~n-symbol ~n-form]
+                    ~@(map
+                       (fn [form]
+                         `(conj! ~return-symbol ~form))
+                       forms))
+                  (persistent! ~return-symbol))]
+      [form env])))
 
-(defmethod compile-substitute :rpm [node env]
+(defmethod compile* :rpm [node env]
   (r.match/match node
-    {:cat ?cat
+    {:cat {:elements ?elements}
      :mvr ?mvr}
-    `(mapcat identity (repeatedly ~(compile-substitute ?mvr env)
-                                  (fn [] ~(compile-substitute ?cat env))))))
+    (let [[forms env] (compile-all* ?elements env)
+          [n-form env] (compile* ?mvr env)
+          n-symbol (gensym "n__")
+          return-symbol (gensym "return__")
+          form `(let [~return-symbol (transient [])]
+                  ;; Yield !n substitutions. Note that unlike `:rpl`
+                  ;; and `:rp+` we need to guard against the
+                  ;; possibility of a `nil` value in the case the
+                  ;; memory variable has been exauhsted.
+                  (dotimes [~n-symbol (or ~n-form 0)]
+                    ~@(map
+                       (fn [form]
+                         `(conj! ~return-symbol ~form))
+                       forms))
+                  (persistent! ~return-symbol))]
+      [form env])))
 
-(defmethod compile-substitute :rst [node env]
+(defmethod compile* :rst
+  [node env]
   (r.match/find [node env]
-    [{:mvr {:symbol ?symbol :as ?mvr}}
-     {:mvr-refs {?mvr ?ref-sym}}]
-    `(let [xs# (subvec ~?symbol (max (min (deref ~?ref-sym) (dec (count ~?symbol))) 0))]
-       (vreset! ~?ref-sym (count ~?symbol))
-       xs#)))
+    ;; Check for associated memory variable in a `:finished` state.
+    [{:mvr {:symbol ?symbol}}
+     {:data #{{:memory-variable/symbol ?symbol
+               :memory-variable/state :finished}}}]
+    [nil env]
 
-(defmethod compile-substitute :set [node env]
-  `(set/union
-    (hash-set
-     ~@(map
-        (fn [x]
-          (compile-substitute x env))
-        (:elements node)))
-    ~@(if-some [as (:as node)]
-        [(compile-substitute as env)])
-    ~@(if-some [rest (:rest node)]
-        [(compile-substitute rest env)])))
+    ;; Check for associated iterator that is not in a `:finished`
+    ;; state.
+    [{:mvr {:symbol ?symbol}}
+     {:data #{{:memory-variable/symbol ?symbol
+               :iterator/symbol (r.match.syntax/pred symbol? ?iterator-symbol)
+               :as ?memory-variable}
+              ^& ?rest-data}}]
+    (let [memory-variable* (assoc ?memory-variable :memory-variable/state :finished)
+          data* (conj ?rest-data memory-variable*)
+          env* (assoc env :data data*)]
+      [(iterator-rest-form ?iterator-symbol) env*])
 
+    ;; Check for associated counter.
+    [{:mvr {:symbol ?symbol}}
+     {:data #{{:memory-variable/symbol ?symbol
+               :counter/value ?value
+               :as ?memory-variable}
+              ^& ?rest-data}}]
+    (let [memory-variable* (assoc ?memory-variable :memory-variable/state :finished)
+          data* (conj ?rest-data memory-variable*)
+          env* (assoc env :data data*)]
+      [`(subvec ~?symbol (min ~?value (count ~?symbol)))
+       env*])
 
-(defmethod compile-substitute :tail [node env]
-  (compile-substitute (:pattern node) env))
+    ;; Update existing memory variable state.
+    [{:mvr {:symbol ?symbol}}
+     {:data #{{:memory-variable/symbol ?symbol
+               :as ?memory-variable}
+              ^& ?rest-data}}]
+    (let [memory-variable* (assoc ?memory-variable :memory-variable/state :finished)
+          data* (conj ?rest-data memory-variable*)
+          env* (assoc env :data data*)]
+      [?symbol env*])
 
-(defmethod compile-substitute :seq
+    ;; Insert memory variable in a finished state.
+    [{:mvr {:symbol ?symbol}}
+     {:data #{^:as ?data}}]
+    (let [memory-variable {:memory-variable/symbol ?symbol
+                           :memory-variable/state :finished}
+          data* (conj ?data memory-variable)
+          env* (assoc env :data data*)]
+      [?symbol env*])))
+
+(defmethod compile* :set
   [node env]
-  (let [env* (assoc env :collection-context :seq)]
-    (r.match/find node
-      (r.syntax/with [%1 [_ ... {:tag :uns} . _ ...]
-                      %2 (_ ... {:tag :uns} . _ ...)
-                      %not-uns (r.match.syntax/not (r.match.syntax/or %1 %2))]
-        {:prt {:left {:tag :cat
-                      :elements (r.match.syntax/and ?left-elements %not-uns)}
-               :right {:tag :cat
-                       :elements (r.match.syntax/and ?right-elements %not-uns)}}})
-      `(list ~@(compile-all ?left-elements env*)
-             ~@(compile-all ?right-elements env*))
+  (let [[forms env] (compile-all* (:elements node) env)
+        form (into #{} forms)
+        [form env] (if-some [as-node (:as node)]
+                     (let [[as-form as-env] (compile* as-node env)]
+                       [`(into ~form ~as-form) as-env])
+                     [form env])
+        [form env] (if-some [rest-node (:rest node)]
+                     (let [[rest-form rest-env] (compile* rest-node env)]
+                       [`(into ~form ~rest-form) rest-env])
+                     [form env])]
+    [form env]))
 
-      (r.syntax/with [%1 [_ ... {:tag :uns} . _ ...]
-                      %2 (_ ... {:tag :uns} . _ ...)
-                      %not-uns (r.match.syntax/not (r.match.syntax/or %1 %2))]
-        {:prt {:left {:tag :cat
-                      :elements (r.match.syntax/and ?left-elements %not-uns)}
-               :right {:tag :lit
-                       :value (_ ... :as ?right-elements)}}})
-      `(list ~@(compile-all ?left-elements env*)
-             ~@?right-elements)
-
-      ;; Default
-      {:prt {:left ?left
-             :right ?right
-             :as ?prt}}
-      (if (or (r.syntax/variable-length? ?left)
-              (r.syntax/variable-length? ?right))
-        `(or (seq ~(compile-substitute ?prt env*)) (list))
-        (compile-substitute ?prt env*)))))
-
-
-(defmethod compile-substitute :unq
+(defmethod compile* :seq
   [node env]
-  (:expr node))
+  (r.match/match node
+    {:prt ?prt
+     :as nil}
+    (r.match/match (compile* ?prt env)
+      [?form ?env]
+      [`(list* ~?form) ?env])))
 
-
-(defmethod compile-substitute :uns
+(defmethod compile* :tail
   [node env]
-  (:expr node))
+  (compile* (:pattern node) env))
 
-(defn compile-vec-prt
-  {:private true}
-  ([prt env]
-   (compile-vec-prt [] prt env))
-  ([vec-form prt env]
-   (r.match/find (r.substitute.syntax/rewrite-partition prt)
-     ;; Compile [?a ~@xs ?b] as (conj (into [?x] xs) ?b)
-     (r.syntax/with [%not-uns (r.match.syntax/not {:tag :uns})]
-       {:left {:tag :cat
-               :elements [(r.match.syntax/and %not-uns !1s) ...
-                          {:tag :uns :as !uns} ..1
-                          (r.match.syntax/and %not-uns !2s) ...]}
-        :right ?right})
-     (compile-vec-prt `(conj ~(reduce
-                               (fn [form compiled-uns]
-                                 `(into ~form ~compiled-uns))
-                               `(conj ~vec-form ~@(compile-all !1s env))
-                               (compile-all !uns env))
-                             ~@(compile-all !2s env))
-                      {:tag :prt
-                       :left ?right
-                       :right {:tag :cat
-                               :elements []}}
-                      env)
-
-     ;; Compile [?x ?y . ?z] as (conj vec-form ?x ?y ?z)
-     {:left {:tag :cat
-             :elements ?left-elements}
-      :right {:tag :cat
-              :elements ?right-elements}}
-     `(conj ~vec-form
-            ~@(compile-all ?left-elements env)
-            ~@(compile-all ?right-elements env))
-
-     ;; Compile [1 2 . 3 4] as (conj vec-form 1 2 3 4)
-     {:left {:tag :cat
-             :elements ?left-elements}
-      :right {:tag :lit
-              :value (_ ... :as ?right-elements)}}
-     `(conj ~vec-form
-            ~@(compile-all ?left-elements env)
-            ~@?right-elements)
-
-     ;; Compile [1 2 & ?rest] as (into (conj vec-form 1 2) ?rest)
-     {:left {:tag :tail
-             :pattern ?tail}
-      :right ?right}
-     (compile-vec-prt `(into ~vec-form ~(compile-substitute ?tail env))
-                      {:tag :prt
-                       :left ?right
-                       :right {:tag :cat
-                               :elements []}}
-                      env)
-
-     {:left ?left
-      :right {:tag :tail
-              :pattern ?tail}}
-     `(into ~(compile-vec-prt vec-form
-                              {:tag :prt
-                               :left ?left
-                               :right {:tag :cat
-                                       :elements []}}
-                              env)
-            ~(compile-substitute ?tail env))
-
-     {:left {:tag :cat
-             :elements ?elements}
-      :right ?right}
-     (compile-vec-prt `(conj ~vec-form ~@(compile-all ?elements env))
-                      {:tag :prt
-                       :left ?right
-                       :right {:tag :cat
-                               :elements []}}
-                      env)
-
-     ;; Compile [!xs ...] as (into vec-form !xs)
-     {:left {:tag (or :rst :rp+ :rp*) :as ?rep}
-      :right ?right}
-     (compile-vec-prt `(into ~vec-form ~(compile-substitute ?rep env))
-                      {:tag :prt
-                       :left ?right
-                       :right {:tag :cat
-                               :elements []}}
-                      env)
-     _
-     `(into ~vec-form ~(compile-substitute prt env)))))
-
-
-(defmethod compile-substitute :vec
+(defmethod compile* :unq
   [node env]
-  (compile-vec-prt (:prt node) (assoc env :collection-context :vector)))
+  [(:expr node) env])
 
-
-(defmethod compile-substitute :ref
+(defmethod compile* :uns
   [node env]
-  `(~(:symbol node)))
+  [(:expr node) env])
 
+(defmethod compile* :vec
+  [node env]
+  (r.match/match node
+    {:prt ?prt
+     :as nil}
+    (r.match/match (compile* ?prt env)
+      [?form ?env]
+      [`(into [] ~?form) ?env])))
 
-(defmethod compile-substitute :wth
+(defmethod compile* :wth
   [node env]
   (let [;; Get all of the references used in the body and in the
         ;; bindings.
@@ -430,32 +460,148 @@
                             (mapcat r.syntax/references))
                       (:bindings node))
         ;; Update the compilation environment for subnodes.
-        env* (add-wth-refs env (r.syntax/make-ref-map node))]
+        env* (add-wth-refs env (r.syntax/make-ref-map node))
+        [body-form env**] (compile* (:body node) env*)
+        ;; Restore the original refs.
+        env** (assoc env** :wth-refs (:wth-refs env))]
     ;; Compile functions only for the references used.
-    `(letfn [~@(r.match/search [node ref-set]
-                 (r.syntax/with [%ref {:ref {:symbol ?symbol :as ?ref}
-                                       :pattern ?pattern}
-                                 %bindings (r.match.syntax/or [_ ... %ref . _ ...] (_ ... %ref . _ ...))]
-                   [{:bindings %bindings} #{?ref}])
-                 `(~?symbol []
-                   ~(compile-substitute ?pattern env*)))]
-       ~(compile-substitute (:body node) env*))))
+    [`(letfn [~@(r.match/search [node ref-set]
+                  (r.syntax/with [%ref {:ref {:symbol ?symbol :as ?ref}
+                                        :pattern ?pattern}
+                                  %bindings (r.match.syntax/or [_ ... %ref . _ ...] (_ ... %ref . _ ...))]
+                                 [{:bindings %bindings} #{?ref}])
+                  (let [[form _] (compile* ?pattern env*)]
+                    `(~?symbol [] ~form)))]
+        ~body-form)
+     env**]))
+
+(defn rewrite-clojure*
+  {:private true}
+  [form]
+  (clojure.walk/prewalk
+   (fn f [form]
+     (r.match/match form
+       ;; concat rules
+       ;; ------------
+
+       (clojure.core/concat ?x)
+       ?x
+
+       (clojure.core/concat ?x ())
+       ?x
+
+       (clojure.core/concat () ?x)
+       ?x
+
+       (clojure.core/concat (clojure.core/list & ?args1) (clojure.core/list & ?args2) & ?rest-args)
+       `(clojure.core/concat (clojure.core/list ~@?args1 ~@?args2) ~@ ?rest-args)
+
+       (clojure.core/concat (clojure.core/list & _ :as ?list))
+       ?list
+
+       ;; cons rules
+       ;; ----------
+
+       (clojure.core/cons ?x ())
+       `(list ~?x)
+
+       (clojure.core/cons ?x (clojure.core/list . !xs ...))
+       `(list ~?x ~@!xs)
+
+       ;; conj rules
+       ;; ----------
+
+       (clojure.core/conj [!ys ...] . !xs ...)
+       `[~@!ys ~@!xs]
+
+       ;; list* rules
+       ;; -----------
+
+       (clojure.core/list* (clojure.core/list & _ :as ?list-form))
+       ?list-form
+
+       (clojure.core/list* . !list*-args ... (clojure.core/list* & ?last-list*-args))
+       `(clojure.core/list* ~@!list*-args ~@?last-list*-args)
+
+       ;; merge rules
+       ;; -----------
+
+       (clojure.core/merge {:as ?m1} {:as ?m2})
+       (merge ?m1 ?m2)
+
+       ;; or rules
+       ;; --------
+       (clojure.core/or (if ?test ?then) ?else)
+       `(if ~?test ~?then ~?else)
+
+       (clojure.core/or (if ?test ?then nil) ?else)
+       `(if ~?test ~?then ~?else)
+
+       ;; into rules
+       ;; ----------
+
+       (clojure.core/into [!xs ...] (clojure.core/cons ?x ?y))
+       `(clojure.core/into (conj ~!xs ~?x) ~?y)
+
+       (clojure.core/into [!xs ...] (clojure.core/list . !ys ...))
+       `[~@!xs ~@!ys]
+
+       (clojure.core/into [:as ?vector] nil)
+       ?vector
+
+       (clojure.core/into [] (clojure.core/subvec & _ :as ?subvec-form))
+       ?subvec-form
+
+       (clojure.core/into [] (clojure.core/let [?ret (clojure.core/transient [])]
+                               . _ ... .
+                               (clojure.core/persistent! ?ret)
+                               :as ?let-form))
+       ?let-form
+
+       (clojure.core/into {:as ?m1} {:as ?m2})
+       (merge ?m1 ?m2) 
+
+       (clojure.core/into {:as ?m} [[_ _] ... :as ?v])
+       (into ?m ?v)
+
+       (clojure.core/into #{^:as ?s1} #{^:as ?s2})
+       (into ?s1 ?s2) 
+
+       (clojure.core/into (clojure.core/into #{^:as ?s1} ?x) #{^:as ?s2})
+       `(clojure.core/into ~(into ?s1 ?s2) ~?x) 
+
+       ;; else
+       ;; ----
+
+       ?x
+       ?x))
+   form))
+
+(defn rewrite-clojure
+  {:private true}
+  [form]
+  (let [form* (rewrite-clojure* form)]
+    (if (= form form*)
+      form
+      (recur form*))))
+
+(defn compile [node env]
+  (let [[form _env] (compile* node env)
+        form* (rewrite-clojure form)
+        iter-bindings (into [] cat (r.match/search env
+                                     {:data #{{:memory-variable/symbol ?memory-variable-symbol
+                                               :iterator/symbol ?iterator-symbol}}}
+                                     [?iterator-symbol `(r.subst.runtime/iterator ~?memory-variable-symbol)]))]
+    (if (seq iter-bindings)
+      `(let ~iter-bindings ~form*)
+      form*)))
 
 (defmacro substitute
-  [x]
-  (let [node (r.substitute.syntax/parse x &env)
-        node (r.substitute.syntax/expand-ast node)
-        env (make-env node)
-        mvr-ref-bindings (mapcat
-                          (fn [[mvr-node ref-sym]]
-                            [ref-sym `(volatile! 0)])
-                          (:mvr-refs env))
-        compiled (compile-substitute node env)]
-    (if (seq mvr-ref-bindings)
-      `(let [~@mvr-ref-bindings]
-         ~compiled)
-      compiled)))
+  [pattern]
+  (let [node (r.subst.syntax/parse pattern &env)
+        env (make-env node)]
+    (compile node env)))
 
 (s/fdef substitute
-  :args (s/cat :term any?)
+  :args (s/cat :pattern any?)
   :ret any?)
