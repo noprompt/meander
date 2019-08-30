@@ -101,18 +101,18 @@
 (t/deftest match-doesnt-allow-maps-where-we-would-need-to-search
   (t/are [x] (not (nil? x))
     (r.match.check/check (r.match.syntax/parse '{?x ?y} {}) false)
-    (r.match.check/check (r.match.syntax/parse '{(m/pred number?) ?y} {}) false)
-    (r.match.check/check (r.match.syntax/parse '{(m/scan 0) ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{(meander.epsilon/pred number?) ?y} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{(meander.epsilon/scan 0) ?y} {}) false)
     (r.match.check/check (r.match.syntax/parse '{!xs ?y} {}) false)
     (r.match.check/check (r.match.syntax/parse '{_ ?y} {}) false)
     (r.match.check/check (r.match.syntax/parse '{[_] ?y} {}) false)
     (r.match.check/check (r.match.syntax/parse '{{:a ?x} ?y} {}) false)
-    (r.match.check/check (r.match.syntax/parse '(m/with [%x (m/pred number?)] {%x ?y}) {}) false))
+    (r.match.check/check (r.match.syntax/parse '(meander.epsilon/with [%x (m/pred number?)] {%x ?y}) {}) false))
 
   (t/are [x] (nil? x)
     (r.match.check/check (r.match.syntax/parse '{:a ?y} {}) false)
     (r.match.check/check (r.match.syntax/parse '[?x {?x ?y}] {}) false)
-    (r.match.check/check (r.match.syntax/parse '{:x (m/pred number?)} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{:x (meander.epsilon/pred number?)} {}) false)
     (r.match.check/check (r.match.syntax/parse '{:x [_ ... 0]} {}) false)
     (r.match.check/check (r.match.syntax/parse '{:x !xs} {}) false)
     (r.match.check/check (r.match.syntax/parse '{:name ?name
