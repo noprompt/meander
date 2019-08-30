@@ -647,7 +647,9 @@
    (r.matrix/first-column matrix)))
 
 
-(defn search-map? [node env]
+(defn search-map?
+  {:private true}
+  [node env]
   (if (not= (r.syntax/tag node) :map)
     (r.syntax/search? node)
     (let [the-map (:map node)
