@@ -106,7 +106,7 @@
 (defn iterator-rest-form
   {:private true}
   [iterator-form]
-  `(vec (iterator-seq iterator-form)))
+  `(vec (iterator-seq ~iterator-form)))
 
 (defmulti compile*
   ""
