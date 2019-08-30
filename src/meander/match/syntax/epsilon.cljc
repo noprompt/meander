@@ -193,10 +193,8 @@
 (defn expand-vec [node]
   (expand-as node))
 
-(defn expand-ast
-  "Takes an AST node as returned by `meander.syntax.epsilon/parse` and
-  expands it in such a way that it can either reduce compiled code
-  size, improve compiled code efficiency, or both."
+(defn expand-ast-top-down
+  {:private true}
   [node]
   (r.syntax/prewalk
    (fn f [node]
@@ -224,7 +222,39 @@
 
        ;; else
        node))
-   (r.syntax/rename-refs node)))
+   node))
+
+(defn expand-ast-bottom-up
+  {:private true}
+  [node]
+  (r.syntax/postwalk
+   (fn [node]
+     (case (r.syntax/tag node)
+       :rp+
+       (let [n (:n node)]
+         (if (= 0 n)
+           {:tag :prt
+            :left (:cat node)
+            :right {:tag :rp*
+                    :cat (:cat node)}}
+           {:tag :prt
+            :left (:cat node)
+            :right {:tag :rp+
+                    :cat (:cat node)
+                    :n (dec n)}}))
+
+       ;; else
+       node))
+   node))
+
+(defn expand-ast
+  "Takes an AST node as returned by `meander.syntax.epsilon/parse` and
+  expands it in such a way that it can either reduce compiled code
+  size, improve compiled code efficiency, or both."
+  [node]
+  (expand-ast-bottom-up
+   (expand-ast-top-down
+    (r.syntax/rename-refs node))))
 
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis
@@ -390,7 +420,7 @@
       {:tag ::let
        :pattern (r.syntax/parse pattern env)
        :expression expression})
-    
+
     3
     (let [[pattern expression then] args]
       {:tag ::and
