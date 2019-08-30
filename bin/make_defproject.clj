@@ -2,15 +2,14 @@
   (:require
    [clojure.java.shell :as shell]
    [clojure.string :as string]
-   [meander.match.delta :as r.match :include-macros true]
-   [meander.strategy.delta :as r]
-   [meander.syntax.delta :as r.syntax :include-macros true]))
+   [meander.epsilon :as m]
+   [meander.strategy.epsilon :as m*]))
 
 
 (defn git-branch-name
   "Attempts to get the current branch name via the shell."
   []
-  (r.match/match (shell/sh "git" "rev-parse" "--abbrev-ref" "HEAD")
+  (m/match (shell/sh "git" "rev-parse" "--abbrev-ref" "HEAD")
     {:exit 0, :out ?out}
     [:okay (string/trim ?out)]
 
@@ -19,13 +18,13 @@
 
 (def git-commit-count-start
   "Starting SHA to count commits from."
-  "9dc4210d563512de04e48e10f3a842fb270823db")
+  "6c9083a9e75a3ac451edd3514030d6baa7e04a9c")
 
 (defn git-branch-commit-count
   "Attempts to get the current number of commits on the current branch
   via the shell."
   []
-  (r.match/match (shell/sh "git" "rev-list" (str git-commit-count-start "...") "--count")
+  (m/match (shell/sh "git" "rev-list" (str git-commit-count-start "...") "--count")
     {:exit 0, :out ?out}
     [:okay (string/trim ?out)]
 
@@ -35,7 +34,7 @@
 (defn -main
   "Creates and writes the project.clj file for this project."
   [& args]
-  (r.match/match [(git-branch-name) (git-branch-commit-count)]
+  (m/match [(git-branch-name) (git-branch-commit-count)]
     [[:error ?error] _]
     (throw ?error)
 
@@ -46,17 +45,17 @@
     (let [?project-name (symbol "meander" ?branch-name)
           ?project-version (format "0.0.%s" ?branch-commit-count)
           deps-edn (read-string (slurp "deps.edn"))]
-      ((r/pipe
-        (r/tuple (r/match
-                   {:paths ?paths}
-                   ?paths)
-                 (r/search
-                   {:deps {?dep {:mvn/version ?version}}}
-                   [?dep ?version]))
-        (r/rewrite
+      ((m*/pipe
+        (m*/tuple (m*/match
+                    {:paths ?paths}
+                    ?paths)
+                  (m*/search
+                    {:deps {?dep {:mvn/version ?version}}}
+                    [?dep ?version]))
+        (m*/rewrite
          [?paths ?deps]
          (defproject ?project-name ?project-version
-           :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
+           :description "A library that enables transparent data manipulation through pattern matching, substitution, and rewriting."
            :url "https://github.com/noprompt/meander"
            :license {:name "MIT"
                      :url "https://opensource.org/licenses/MIT"}
@@ -71,7 +70,7 @@
   (-main)
   ;; => Writes something like
   (defproject meander/beta "0.0.496"
-    :description "Data transformation library combining higher order functional programming with concepts from term rewriting."
+    :description "A library that enables transparent data manipulation through pattern matching, substitution, and rewriting."
     :url "https://github.com/noprompt/meander"
     :license {:name "MIT",
               :url "https://opensource.org/licenses/MIT"}
