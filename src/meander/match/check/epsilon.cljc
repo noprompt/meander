@@ -229,9 +229,10 @@
   (if search?
     [:okay (r.syntax/children node) env]
     (let [the-map (:map node)
-          invalid-keys (remove r.syntax/ground? (keys the-map))]
+          value-lvars (set (filter (comp #{:lvr} :tag) (vals the-map)))
+          invalid-keys (remove value-lvars (remove (:lvrs env) (remove r.syntax/ground? (keys the-map))))]
       (if (seq invalid-keys)
-        [:error [{:message "When matching, map patterns may not contain variables in their keys."
+        [:error [{:message "When matching, map patterns may not contain variables in their keys that would make it so there is more than one match possible."
                   :ex-data {:keys (mapv r.syntax/unparse invalid-keys)}}]]
         [:okay (vals the-map) env]))))
 

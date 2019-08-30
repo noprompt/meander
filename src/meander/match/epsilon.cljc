@@ -154,6 +154,9 @@
     :lit
     (r.syntax/unparse node)
 
+    :lvr
+    (r.syntax/unparse node)
+
     :map
     (into {}
           (map (fn [[k v]]
@@ -644,6 +647,14 @@
    (r.matrix/first-column matrix)))
 
 
+(defn search-map? [node env]
+  (if (not= (r.syntax/tag node) :map)
+    (r.syntax/search? node)
+    (let [the-map (:map node)
+          value-lvars (set (filter (comp #{:lvr} :tag) (vals the-map)))
+          search-keys (remove value-lvars (remove env (remove r.syntax/ground? (keys the-map))))]
+      (seq search-keys))))
+
 (defmethod compile-specialized-matrix :map
   [_ [target & targets*] matrix]
   (let [all-keys (map-matrix-all-keys matrix)
@@ -661,7 +672,7 @@
                      (if no-keys?
                        (r.matrix/prepend-cells row [{:tag :any, :symbol (gensym "_")}])
                        (let [the-map (:map node)]
-                         (if (r.syntax/search? node)
+                         (if (search-map? node (:env row))
                            (let [set-node {:tag :set
                                            :elements (map
                                                       (fn [[k-node v-node]]
@@ -1562,16 +1573,17 @@
       (throw error)
       (let [target (gensym "target__")
             fail (gensym "fail__")]
-        (if (r.matrix/empty? matrix)
-          (if (some? final-clause)
-            (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
-            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
-          `(let [~target ~expr
-                 ~fail (fn []
-                         ~(if (some? final-clause)
-                            (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
-             ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env)))))))
+        (binding [*matching* true]
+          (if (r.matrix/empty? matrix)
+            (if (some? final-clause)
+              (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
+              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
+            `(let [~target ~expr
+                   ~fail (fn []
+                           ~(if (some? final-clause)
+                              (r.ir/compile (compile [target] [final-clause]) nil :match &env)
+                              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
+               ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env))))))))
 
 
 (s/fdef match
