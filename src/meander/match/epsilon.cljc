@@ -1575,17 +1575,16 @@
       (throw error)
       (let [target (gensym "target__")
             fail (gensym "fail__")]
-        (binding [*matching* true]
-          (if (r.matrix/empty? matrix)
-            (if (some? final-clause)
-              (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
-              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
-            `(let [~target ~expr
-                   ~fail (fn []
-                           ~(if (some? final-clause)
-                              (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
-               ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env))))))))
+        (if (r.matrix/empty? matrix)
+          (if (some? final-clause)
+            (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
+            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
+          `(let [~target ~expr
+                 ~fail (fn []
+                         ~(if (some? final-clause)
+                            (r.ir/compile (compile [target] [final-clause]) nil :match &env)
+                            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
+             ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env)))))))
 
 
 (s/fdef match
