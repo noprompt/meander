@@ -257,6 +257,7 @@
   (t/is (r/match '(1 2 3) (1 _ 3) true))
   (t/is (r/match '(1 2 3) (1 2 _) true)))
 
+
 (t/deftest seq-rp+
   (t/is (= '[a b c d]
            (r/match '((a (b (c d)))
@@ -264,6 +265,7 @@
                       (a (b (c d))))
              ((?1 (?2 (?3 ?4))) ..1)
              [?1 ?2 ?3 ?4]))))
+
 
 ;;; Vectors
 
@@ -436,6 +438,7 @@
   (t/is (r/match [1 2 3] [1 _ 3] true))
   (t/is (r/match [1 2 3] [1 2 _] true)))
 
+
 (t/deftest vec-rp+
   (t/is (= '[a b c d]
            (r/match '[(a (b (c d)))
@@ -443,6 +446,7 @@
                       (a (b (c d)))]
              [(?1 (?2 (?3 ?4))) ..1]
              [?1 ?2 ?3 ?4]))))
+
 ;;; Maps
 
 
