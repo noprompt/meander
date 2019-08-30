@@ -1,0 +1,4 @@
+{:cljdoc.doc/tree
+ [["Readme" {:file "README.md"}]
+  ["Pattern Matching"] {:file "doc/pattern-matching.md"}
+  ["Substitution"] {:file "doc/substitution.md"}]}
