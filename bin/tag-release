@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 branch_name=`git rev-parse --abbrev-ref HEAD`
-commit_count=`git rev-list 9dc4210d563512de04e48e10f3a842fb270823db... --count`
+commit_count=`git rev-list 6c9083a9e75a3ac451edd3514030d6baa7e04a9c... --count`
 
 git tag "v0.0.$commit_count-$branch_name"
 git push origin --tags
