@@ -558,6 +558,13 @@
                                :as ?let-form))
        ?let-form
 
+       (clojure.core/into {} (clojure.core/let [?ret (clojure.core/transient [])]
+                               . !forms ... .
+                               (clojure.core/persistent! ?ret)))
+       `(clojure.core/let [~?ret (clojure.core/transient {})]
+          ~@!forms
+          (clojure.core/persistent! ~?ret))
+
        (clojure.core/into {:as ?m1} {:as ?m2})
        (merge ?m1 ?m2) 
 
