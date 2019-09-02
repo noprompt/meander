@@ -117,4 +117,6 @@
     (r.match.check/check (r.match.syntax/parse '{:x !xs} {}) false)
     (r.match.check/check (r.match.syntax/parse '{:name ?name
                                                  :thing {?name ?y}} {}) false)
+    (r.match.check/check (r.match.syntax/parse '{:thing {?name ?y}
+                                                 :name ?name} {}) false)
     (r.match.check/check (r.match.syntax/parse '{{:a :b} ?y} {}) false)))

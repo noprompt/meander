@@ -223,18 +223,55 @@
   [node env _]
   [:okay [] (update env :lvrs conj node)])
 
+(defn non-search-lvars
+  {:private true}
+  [node env]
+  (set/union
+   env
+   (reduce (fn [acc node]
+             (case (r.syntax/tag node)
+               :lvr (conj acc node)
+               :map (set/union acc (non-search-lvars node env))
+               nil))
+           #{}
+           (map second
+                (filter (fn [[k v]] (r.syntax/ground? k)) (:map node))))))
+
+(defn find-search-keys
+  {:private true}
+  [node env]
+  (set/difference
+   (set (remove r.syntax/ground? (keys (:map node))))
+   env))
+
+(defn all-search-keys
+  {:private true}
+  [node env]
+  (set/difference
+   (find-search-keys node env)
+   (non-search-lvars node env)))
+
+(defn find-search-keys-recursive [env [k v]]
+  (concat
+   (find-search-keys {:tag :map :map {k v}} env)
+   (if (map? k) (mapcat (partial find-search-keys-recursive env) (:map k)) '())
+   (if (map? v) (mapcat (partial find-search-keys-recursive env) (:map v)) '())))
+
+(defn sort-by-search-keys [the-map env]
+  (sort-by
+   (comp count (partial find-search-keys-recursive env))
+   the-map))
 
 (defmethod check-ast :map
   [node env search?]
   (if search?
     [:okay (r.syntax/children node) env]
     (let [the-map (:map node)
-          value-lvars (set (filter (comp #{:lvr} :tag) (vals the-map)))
-          invalid-keys (remove value-lvars (remove (:lvrs env) (remove r.syntax/ground? (keys the-map))))]
-      (if (seq invalid-keys)
+          invalid-keys (seq (all-search-keys node (:lvrs env)))]
+      (if invalid-keys
         [:error [{:message "When matching, map patterns may not contain variables in their keys that would make it so there is more than one match possible."
                   :ex-data {:keys (mapv r.syntax/unparse invalid-keys)}}]]
-        [:okay (vals the-map) env]))))
+        [:okay (vals (sort-by-search-keys the-map (:lvrs env))) env]))))
 
 
 (defmethod check-ast :mvr

@@ -9,9 +9,10 @@ the input and output of these transformations.
 ```clojure
 (require '[meander.epsilon :as m])
 
+
 (defn favorite-food-info [user foods-by-name]
-  (m/find {:user user
-           :foods-by-name foods-by-name}
+  (m/match {:user user
+            :foods-by-name foods-by-name}
     {:user
      {:name ?name
       :favorite-food {:name ?food}}
@@ -21,9 +22,10 @@ the input and output of these transformations.
      :favorite {:food ?food
                 :popularity ?popularity
                 :calories ?calories}}))
+
 ```
 
-Meander's `find` macro allows us to pattern match on a data structure
+Meander's `match` macro allows us to pattern match on a data structure
 and return the answer that matches our pattern. We use logic variables
 (symbols that start with `?`) to extract values from our input and
 return them in our output. Logic variable also let us join across
