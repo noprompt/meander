@@ -34,8 +34,14 @@
        :ks {?k {:valid ?valid}}}
       ?valid)
 
-    (r/search {:k1 :k2
+    (r/match {:k1 :k2
               :ks {:k2 {:valid true}}}
+      {:ks {?k {:valid ?valid}}
+       :k1 ?k}
+      ?valid)
+
+    (r/search {:k1 :k2
+               :ks {:k2 {:valid true}}}
       {:k1 ?k
        :ks {?k {:valid ?valid}}}
       ?valid)

@@ -7,6 +7,7 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
+            [clojure.set :as set]
             [meander.match.check.epsilon :as r.match.check]
             [meander.match.ir.epsilon :as r.ir]
             [meander.matrix.epsilon :as r.matrix]
@@ -646,22 +647,52 @@
        (keys (:map node))))
    (r.matrix/first-column matrix)))
 
+(defn non-search-lvars
+  {:private true}
+  [node env]
+  (set/union
+   env
+   (reduce (fn [acc node]
+             (case (r.syntax/tag node)
+               :lvr (conj acc node)
+               :map (set/union acc (non-search-lvars node env))
+               nil))
+           #{}
+           (map second
+                (filter (fn [[k v]] (r.syntax/ground? k)) (:map node))))))
+
+(defn find-search-keys
+  {:private true}
+  [node env]
+  (set/difference
+   (set (remove r.syntax/ground? (keys (:map node))))
+   env))
 
 (defn search-map?
   {:private true}
   [node env]
-  (if (not= (r.syntax/tag node) :map)
-    (r.syntax/search? node)
-    (let [the-map (:map node)
-          value-lvars (set (filter (comp #{:lvr} :tag) (vals the-map)))
-          search-keys (remove value-lvars (remove env (remove r.syntax/ground? (keys the-map))))]
-      (seq search-keys))))
+  (not (empty? (set/difference
+                (find-search-keys node env)
+                (non-search-lvars node env)))))
+
+
+(defn find-search-keys-recursive [env [k v]]
+  (concat
+   (find-search-keys {:tag :map :map {k v}} env)
+   (if (map? k) (mapcat (partial find-search-keys-recursive env) (:map k)) '())
+   (if (map? v) (mapcat (partial find-search-keys-recursive env) (:map v)) '())))
+
+
+(defn sort-by-search-keys [the-map env]
+  (sort-by
+   (comp count (partial find-search-keys-recursive env))
+   the-map))
+
 
 (defmethod compile-specialized-matrix :map
   [_ [target & targets*] matrix]
   (let [all-keys (map-matrix-all-keys matrix)
-        key-sort (sort-by (comp - (frequencies all-keys))
-                          (distinct all-keys))
+        key-sort (sort-by (complement r.syntax/ground?) all-keys)
         num-keys (count key-sort)
         no-keys? (zero? num-keys)
         matrix* (mapv
@@ -680,7 +711,7 @@
                                                       (fn [[k-node v-node]]
                                                         {:tag :cat
                                                          :elements [k-node v-node]})
-                                                      the-map)}
+                                                      (sort-by-search-keys the-map (:env row)))}
                                  let-node {:tag ::r.match.syntax/let
                                            :pattern set-node
                                            :expression `(set ~target)}]
@@ -701,7 +732,7 @@
                                                  :entry entry}
                                                 {:tag :any
                                                  :symbol '_}))
-                                            key-sort))]
+                                            (keys (sort-by-search-keys the-map (:env row)))))]
                              (assoc row :cols `[~@new-cols ~@(:cols row)])))))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))]
