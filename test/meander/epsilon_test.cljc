@@ -267,6 +267,20 @@
              [?1 ?2 ?3 ?4]))))
 
 
+(t/deftest seq-prt
+  (let [x (rand)
+        y (rand)
+        l (list x y x y x)]
+    (t/is (= [x y]
+             (r/match l
+               (_ _ . ?x ?y ?x)
+               [?x ?y])))
+    (t/is (= false
+             (r/match l
+               (_ _ . ?x ?y ?x)
+               [?x ?y]
+               _ false)))))
+
 ;;; Vectors
 
 

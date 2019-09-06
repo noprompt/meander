@@ -151,6 +151,21 @@
       (:argument argument)
       node)))
 
+(defn expand-prt [node]
+  (let [left (get node :left)
+        right (get node :right)]
+    (if (= (r.syntax/tag right) :prt)
+      (let [right-left (get right :left)
+            right-right (get right :right)]
+        (if (and (= (r.syntax/tag left) :cat)
+                 (= (r.syntax/tag right-left) :cat))
+          (merge node {:left {:tag :cat
+                              :elements (concat (get left :elements)
+                                                (get right-left :elements))}
+                       :right right-right})
+          node))
+      node)))
+
 (defn expand-set-rest [node]
   (if-some [rest-set (:rest node)]
     (let [elements (:elements node)
@@ -210,6 +225,9 @@
 
        ::not
        (expand-not node)
+
+       :prt
+       (expand-prt node)
 
        :set
        (expand-set node)
