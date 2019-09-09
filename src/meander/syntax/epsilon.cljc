@@ -3,16 +3,16 @@
      (:require [clojure.core.specs.alpha :as core.specs]
                [clojure.set :as set]
                [clojure.spec.alpha :as s]
-               [clojure.spec.gen.alpha :as s.gen]
                [clojure.string :as string]
                [cljs.tagged-literals]
+               [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util])
      :cljs
      (:require [cljs.core.specs.alpha :as core.specs]
                [cljs.spec.alpha :as s :include-macros true]
-               [cljs.spec.gen.alpha :as s.gen :include-macros true]
                [clojure.set :as set]
                [clojure.string :as string]
+               [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util]))
   #?(:cljs
      (:require-macros [meander.syntax.epsilon]))
@@ -21,168 +21,24 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-
-;; ---------------------------------------------------------------------
-;; 
-
-(def ^{:dynamic true}
-  *form* nil)
-
-(def ^{:dynamic true}
-  *env* {})
-
-(defonce global-expander-registry
-  (atom {}))
-
-(defn register-expander
-  [symbol f]
-  {:pre [(symbol? symbol)
-         (or (fn? f)
-             (and (var? f) (fn? (deref f))))]}
-  (swap! global-expander-registry assoc symbol f)
-  nil)
-
-(defonce global-parser-registry
-  (atom {}))
-
-(defn register-parser
-  [symbol f]
-  {:pre [(symbol? symbol)
-         (or (fn? f)
-             (and (var? f) (fn? (deref f))))]}
-  (swap! global-parser-registry assoc symbol f)
-  nil)
-
-;; ---------------------------------------------------------------------
-;; AST specs and predicates
-
-;; Every AST node has, at least, the key `:tag`, the value of which is
-;; a `keyword?`.
-
-(s/def :meander.syntax.epsilon.node/tag
-  keyword?)
-
-;; Some nodes may have an `::original-form` key, the value of which is
-;; `any?`. This key is populated by forms which have been expanded
-;; during `parse` and then subsequently parsed into an AST node.
-
-(s/def :meander.syntax.epsilon.node/original-form
-  any?)
-
-(s/def :meander.syntax.epsilon/node
-  (s/keys :req-un [:meander.syntax.epsilon.node/tag]
-          :opt [:meander.syntax.epsilon.node/original-form]))
-
-;; Any patterns
-;; ------------
-;;
-;; Any patterns are `simple-symbol?`s which start with an `_`. They
-;; match anything.
-
-(defn any-form?
-  "true if x is a symbol beginning with _."
+(defn node?
+  "true if x is an AST node."
   [x]
-  (and (simple-symbol? x)
-       (r.util/re-matches? #"_.*" (name x))))
+  (s/valid? :meander.syntax.epsilon/node x))
 
-(s/def :meander.syntax.epsilon/any-form
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (any-form? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [sym]
-         (symbol (str "_" (name sym))))
-       (s.gen/symbol)))))
-
-(s/def :meander.syntax.epsilon.node.any/tag
-  #{:any})
-
-(s/def :meander.syntax.epsilon.node.any/symbol
-  :meander.syntax.epsilon/any-form)
-
-(s/def :meander.syntax.epsilon.node/any
-  (s/keys :req-un [:meander.syntax.epsilon.node.any/tag
-                   :meander.syntax.epsilon.node.any/symbol]))
+(defn tag
+  "Return the tag of node."
+  [node]
+  (s/assert :meander.syntax.epsilon/node node)
+  (:tag node))
 
 (defn any-node?
-  "true if x is an :any node, false otherwise."
   [x]
   (s/valid? :meander.syntax.epsilon.node/any x))
-
-(defn logic-variable-form?
-  "true if x is in the form of a logic variable i.e. a simple symbol
-  with a name beginning with \\?."
-  [x]
-  (and (simple-symbol? x)
-       (r.util/re-matches? #"\?.+" (name x))))
-
-(s/fdef logic-variable-form?
-  :args (s/cat :x any?)
-  :ret boolean?)
-
-(s/def :meander.syntax.epsilon/logic-variable
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (logic-variable-form? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [x]
-         (symbol (str \? (name x))))
-       (s/gen simple-symbol?)))))
-
-(s/def :meander.syntax.epsilon.node.lvr/tag
-  #{:lvr})
-
-(s/def :meander.syntax.epsilon.node.lvr/symbol
-  :meander.syntax.epsilon/logic-variable)
-
-(s/def :meander.syntax.epsilon.node/lvr
-  (s/keys :req-un [:meander.syntax.epsilon.node.lvr/tag
-                   :meander.syntax.epsilon.node.lvr/symbol]))
 
 (defn lvr-node?
   [x]
   (s/valid? :meander.syntax.epsilon.node/lvr x))
-
-(defn memory-variable-form?
-  "true if x is in the form of a memory variable i.e. a simple symbol
-  with a name beginning with \\!."
-  [x]
-  (and (simple-symbol? x)
-       (r.util/re-matches? #"!.+" (name x))))
-
-(s/def :meander.syntax.epsilon/memory-variable
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (memory-variable-form? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [x]
-         (symbol (str \! (name x))))
-       (s/gen simple-symbol?)))))
-
-(s/def :meander.syntax.epsilon.node.mvr/tag
-  #{:mvr})
-
-(s/def :meander.syntax.epsilon.node.mvr/symbol
-  :meander.syntax.epsilon/memory-variable)
-
-(s/def :meander.syntax.epsilon.node/mvr
-  (s/keys :req-un [:meander.syntax.epsilon.node.mvr/tag
-                   :meander.syntax.epsilon.node.mvr/symbol]))
 
 (defn mvr-node?
   [x]
@@ -190,85 +46,15 @@
 
 (defn variable-node?
   [x]
-  (or (mvr-node? x)
-      (lvr-node? x)))
-
-(defn ref-sym?
-  [x]
-  (and (simple-symbol? x)
-       (boolean (re-matches #"%.+" (name x)))))
-
-(s/def :meander.syntax.epsilon/reference
-  (s/with-gen
-    (s/conformer
-     (fn [x]
-       (if (ref-sym? x)
-         x
-         ::s/invalid))
-     identity)
-    (fn []
-      (s.gen/fmap
-       (fn [x]
-         (symbol (str \% (name x))))
-       (s/gen simple-symbol?)))))
-
-(s/def :meander.syntax.epsilon.node.ref/tag
-  #{:ref})
-
-(s/def :meander.syntax.epsilon.node.ref/symbol
-  :meander.syntax.epsilon/reference)
-
-(s/def :meander.syntax.epsilon.node/ref
-  (s/keys :req-un [:meander.syntax.epsilon.node.ref/symbol
-                   :meander.syntax.epsilon.node.ref/tag]))
+  (or (mvr-node? x) (lvr-node? x)))
 
 (defn ref-node?
   "true if x is a :ref node, false otherwise."
   [x]
   (s/valid? :meander.syntax.epsilon.node/ref x))
 
-(s/def :meander.syntax.epsilon.node.with/tag
-  #{:wth})
-
-(s/def :meander.syntax.epsilon.node.with.binding/ref
-  :meander.syntax.epsilon.node/ref)
-
-(s/def :meander.syntax.epsilon.node.with.binding/pattern
-  :meander.syntax.epsilon/node)
-
-(s/def :meander.syntax.epsilon.node.with/binding
-  (s/keys :req-un [:meander.syntax.epsilon.node.with.binding/pattern
-                   :meander.syntax.epsilon.node.with.binding/ref]))
-
-(s/def :meander.syntax.epsilon.node.with/bindings
-  (s/coll-of :meander.syntax.epsilon.node.with/binding
-             :kind sequential?))
-
-(s/def :meander.syntax.epsilon.node.with/body
-  (s/nilable :meander.syntax.epsilon/node))
-
-(s/def :meander.syntax.epsilon.node/with
-  (s/keys :req-un [:meander.syntax.epsilon.node.with/tag
-                   :meander.syntax.epsilon.node.with/bindings]
-          :opt-un [:meander.syntax.epsilon.node.with/body]))
-
 (defn with-node? [x]
   (s/valid? :meander.syntax.epsilon.node/with x))
-
-
-(s/def :meander.syntax.epsilon.node.partition/left
-  :meander.syntax.epsilon/node)
-
-(s/def :meander.syntax.epsilon.node.partition/right
-  :meander.syntax.epsilon/node)
-
-(s/def :meander.syntax.epsilon.node.partition/right
-  :meander.syntax.epsilon/node)
-
-(s/def :meander.syntax.epsilon.node/partition
-  (s/keys :req-un [:meander.syntax.epsilon.node.partition/left
-                   :meander.syntax.epsilon.node.partition/right]
-          :opt-un [:meander.syntax.epsilon.node.partition/as]))
 
 (defn partition-node? [x]
   (s/valid? :meander.syntax.epsilon.node/partition x))
@@ -281,33 +67,10 @@
   (and (= :tail (:tag x))
        (some? (:pattern x))))
 
-(defn node?
-  "true if x is an AST node."
-  [x]
-  (s/valid? :meander.syntax.epsilon/node x))
-
-;; ---------------------------------------------------------------------
-;; AST API
-
-(defn tag
-  "Return the tag of node."
-  [node]
-  (s/assert :meander.syntax.epsilon/node node)
-  (:tag node))
-
-;; children
-;; --------
-
 (defmulti children
   "Return a sequential? of all children of node."
   {:arglists '([node])}
   #'tag)
-
-#_
-(s/fdef children
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret (s/coll-of :meander.syntax.epsilon/node
-                  :kind sequential?))
 
 (defmethod children :default
   [node]
@@ -333,22 +96,11 @@
   {:arglists '([node])}
   #'tag)
 
-#_
-(s/fdef min-length
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret (s/or :nat nat-int?
-             :inf #{##Inf}))
-
 (defn min-length?
   "true if `x` implements `min-length`, false otherwise."
   [x]
   (and (node? x)
        (contains? (methods min-length) (tag x))))
-
-#_
-(s/fdef min-length?
-  :args (s/cat :x any?)
-  :ret boolean?)
 
 (defmulti max-length
   "The maximum possible length the pattern described by `node` can
@@ -360,22 +112,11 @@
   {:arglists '([node])}
   #'tag)
 
-#_
-(s/fdef max-length
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret (s/or :nat nat-int?
-             :inf #{##Inf}))
-
 (defn max-length?
   "true if `x` implements `max-length`, false otherwise."
   [x]
   (and (node? x)
        (contains? (methods max-length) (tag x))))
-
-#_
-(s/fdef max-length?
-  :args (s/cat :x any?)
-  :ret boolean?)
 
 (defn variable-length?
   "true if node may have a variable length, false otherwise. Note this
@@ -384,10 +125,6 @@
   [node]
   (not (= (min-length node) (max-length node))))
 
-#_
-(s/fdef variable-length?
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret boolean?)
 
 (defmulti ground?
   "true if node is ground i.e. it contains no variables or is not a
@@ -395,20 +132,10 @@
   {:arglists '([node])}
   #'tag)
 
-#_
-(s/fdef ground?
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret boolean?)
-
 (defmulti search?
   "true if node represents a search, false otherwise."
   {:arglists '([node])}
   #'tag)
-
-#_
-(s/fdef search?
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret boolean?)
 
 (defn unparse-dispatch
   {:private true}
@@ -467,31 +194,24 @@
   [node]
   (s/assert :meander.syntax.epsilon/node node)
   (let [vars (variables* node)]
-    (set/union (:lvr vars) (:mvr vars))))
+    (set/union (get vars :lvr) (get vars :mvr))))
 
 (defn memory-variables
   "Return all :mvr nodes in node."
   [node]
   (s/assert :meander.syntax.epsilon/node node)
-  (:mvr (variables* node)))
+  (get (variables* node) :mvr))
 
 (defn logic-variables
   "Return all :lvr nodes in node."
   [node]
   (s/assert :meander.syntax.epsilon/node node)
-  (:lvr (variables* node)))
-
+  (get (variables* node) :lvr))
 
 (defn references
   "Return all :ref nodes in node."
   [node]
-  (:ref (variables* node)))
-
-(s/fdef references
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret (s/coll-of :meander.syntax.epsilon.node/ref
-                  :kind set?
-                  :into #{}))
+  (get (variables* node) :ref))
 
 (defn top-level
   [node]
@@ -502,13 +222,37 @@
     [node]))
 
 ;; ---------------------------------------------------------------------
-;; Parse implementation
+;; Parse
 
 (declare parse)
 
 (def default-env
   {::expander-registry {}
    ::parser-registry {}})
+
+(defonce global-expander-registry
+  (atom {}))
+
+(defn register-expander
+  [symbol f]
+  {:pre [(symbol? symbol)
+         (or (fn? f)
+             (and (var? f) (fn? (deref f))))]}
+  (swap! global-expander-registry assoc symbol f)
+  nil)
+
+(defonce global-parser-registry
+  (atom {}))
+
+(defn register-parser
+  [symbol f]
+  {:pre [(symbol? symbol)
+         (or (fn? f)
+             (and (var? f) (fn? (deref f))))]}
+  (swap! global-parser-registry assoc symbol f)
+  nil)
+
+;;; Syntax expansion
 
 (defn expand-symbol
   {:private true}
@@ -537,16 +281,6 @@
                (symbol (name (:name cljs-ns)) (name sym)))
              sym)))
 
-(s/fdef expand-symbol
-  :args (s/cat :sym symbol?
-               :env :meander.syntax.epsilon/env)
-  :ret symbol?)
-
-;;; Syntax expansion
-
-(s/def :meander.syntax.epsilon/expander-registry
-  (s/map-of symbol? (s/or :fn fn? :var var?)))
-
 (defn expander-registry
   "Return the `::expander-registry` of the environment `env` or `nil`
   if it cannot be found."
@@ -563,12 +297,6 @@
     (if (fn? x)
       x)))
 
-(s/fdef resolve-expander
-  :args (s/cat :sym symbol?
-               :env :meander.syntax.epsilon/env)
-  :ret (s/alt :fn fn?
-              :nil nil?))
-
 (defn expand-form
   "Expand `form` with respect to `env` if possible. Returns the result
   of expanding `form` or `form` unchanged."
@@ -583,15 +311,7 @@
         form))
     form))
 
-(s/fdef expand-form
-  :args (s/cat :form any?
-               :env :meander.syntax.epsilon/env)
-  :ret any?)
-
 ;;; Syntax parsing
-
-(s/def :meander.syntax.epsilon/parser-registry
-  (s/map-of symbol? (s/or :fn fn? :var var?)))
 
 (defn parser-registry
   "Return the `::parser-registry` of the environment `env` or `nil` if
@@ -612,27 +332,10 @@
     (if (fn? x)
       x)))
 
-(s/fdef resolver-parser
-  :args (s/cat :sym symbol?
-               :env :meander.syntax.epsilon/env)
-  :ret (s/alt :fn fn?
-              :nil nil?))
-
-(s/def :meander.syntax.epsilon/env
-  (s/keys :req [:meander.syntax.epsilon/expander-registry
-                :meander.syntax.epsilon/parser-registry]
-          :opt [:meander.syntax.epsilon/phase]))
-
 (defn parse-all
   "Apply `parse` to all forms in the sequence `forms`."
   [forms env]
   (map (fn [form] (parse form env)) forms))
-
-(s/fdef parse-all
-  :args (s/cat :forms (s/nilable (s/coll-of any? :kind sequential?))
-               :env :meander.syntax.epsilon/env)
-  :ret (s/coll-of :meander.syntax.epsilon/node
-                  :kind sequential?))
 
 (defn expand-prt
   {:private true}
@@ -782,7 +485,7 @@
   (let [bindings (nth xs 1)]
     (if (and (vector? bindings)
              (even? (count bindings))
-             (every? ref-sym? (take-nth 2 bindings)))
+             (every? m.syntax.specs/reference-symbol? (take-nth 2 bindings)))
       {:tag :wth
        :bindings (map
                   (fn [[ref-sym x]]
@@ -1065,8 +768,8 @@
   (if (and (map? m)
            (not (record? m)))
     (let [as (if-some [[_ y] (find m :as)]
-               (if (or (logic-variable-form? y)
-                       (memory-variable-form? y))
+               (if (or (m.syntax.specs/logic-variable-symbol? y)
+                       (m.syntax.specs/memory-variable-symbol? y))
                  (parse y env)))
           m (if (some? as)
               (dissoc m :as)
@@ -1158,13 +861,6 @@
        (with-meta node meta)
        node))))
 
-(s/fdef parse
-  :args (s/alt :a1 (s/cat :form any?)
-               :a2 (s/cat :form any?
-                          :env :meander.syntax.epsilon/env))
-  :ret :meander.syntax.epsilon/node)
-
-
 ;; ---------------------------------------------------------------------
 ;; AST method implementations
 
@@ -1187,10 +883,10 @@
 (defmethod children :cat [node]
   (:elements node))
 
-(defmethod min-length :cat [node]
+(defmethod max-length :cat [node]
   (count (:elements node)))
 
-(defmethod max-length :cat [node]
+(defmethod min-length :cat [node]
   (count (:elements node)))
 
 (defmethod unparse :cat [node]
@@ -1915,14 +1611,6 @@
      :bindings (deref state)
      :body node}))
 
-(s/def :meander.syntax.epsilon/ref-map
-  (s/map-of :meander.syntax.epsilon.node/ref
-            :meander.syntax.epsilon/node))
-
-(s/fdef make-ref-map
-  :args (s/cat :node :meander.syntax.epsilon/node)
-  :ret :meander.syntax.epsilon/ref-map)
-
 (defn make-ref-map
   "If node is a node repesenting a with pattern, return a map from
   reference to pattern node derived from it's bindings, otherwise
@@ -1963,12 +1651,6 @@
         node))
     node)))
 
-(s/fdef substitute-refs
-  :args (s/alt :a1 (s/cat :node :meander.syntax.epsilon/node)
-               :a2 (s/cat :node :meander.syntax.epsilon/node
-                          :ref-map :meander.syntax.epsilon/ref-map))
-  :ret :meander.syntax.epsilon/node)
-
 (defn literal?
   "true if node is ground and does not contain :map or :set subnodes,
   false otherwise.
@@ -1976,9 +1658,7 @@
   The constraint that node may not contain :map or :set subnodes is
   due to the semantics of map and set patterns: they express submap
   and subsets respectively. Compiling these patterns to literals as
-  part of an equality check would result in false negative matches.
-
-  See also: compile-ground"
+  part of an equality check would result in false negative matches."
   [node]
   (and (ground? node)
        (not-any? (comp #{:map :unq :set} tag)
@@ -2078,6 +1758,12 @@
 
 ;; ---------------------------------------------------------------------
 ;; defsyntax
+
+(def ^{:dynamic true}
+  *form* nil)
+
+(def ^{:dynamic true}
+  *env* {})
 
 (defmacro defsyntax
   {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
