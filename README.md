@@ -48,8 +48,8 @@ The `search` macro performs exactly this job.
                 :calories ?calories}}))
 ```
 
-There is actually very little that is different here.
-Some names have been pluralized, line 2 changed to use `search` instead of `find`, and on line 6 added we're using the `scan` *pattern matching operator*.
+There is actually very little that is different here. Some names have been pluralized, line 2 changed to use `search` instead of `match`, and
+on line 6 added we're using the `scan` *pattern matching operator*.
 That is all we need to find all of a users favorite foods and look up the information about them.
 
 ### Remembering Values

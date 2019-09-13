@@ -1316,8 +1316,9 @@
 
        :vec
        (if (literal? node)
-         (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
-           (compile targets* [row]))
+         (r.ir/op-check-vector (r.ir/op-eval target)
+           (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
+             (compile targets* [row])))
          (r.ir/op-check-vector (r.ir/op-eval target)
            (let [;; prt needs to be compiled within a :vector
                  ;; collection-context separately from the targets*
