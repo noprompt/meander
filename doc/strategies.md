@@ -1,4 +1,4 @@
-# Rewriting
+# Strategies
 
 * [Rewriting Overview](#rewriting-overview)
 * [Strategy Combinators](#strategy-combinators)
