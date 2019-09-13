@@ -48,8 +48,8 @@ The `search` macro performs exactly this job.
                 :calories ?calories}}))
 ```
 
-There is actually very little that is different here. Some names have been pluralized, line 2 changed to use `search` instead of `match`, and
-on line 6 added we're using the `scan` *pattern matching operator*.
+There is actually very little that is different here.
+Some names have been pluralized, line 2 changed to use `search` instead of `match`, and on line 6 added we're using the `scan` *pattern matching operator*.
 That is all we need to find all of a users favorite foods and look up the information about them.
 
 ### Remembering Values
@@ -171,36 +171,24 @@ We are happy to help.
 
 ## Project Status
 
-Meander is younge, active, and ambitious project. Unless there is a
-reason to surrender, the project will continue to be regularly
-improved.
+Meander is younge, active, and ambitious project.
+Unless there is a reason to surrender, the project will continue to be regularly improved.
 
 ### Release schedule
 
-Releases can be expected most weeks. Prompt releases can be expected
-when bugs are fixed or there are significant performance
-enchancements.
+Releases can be expected most weeks.
+Prompt releases can be expected when bugs are fixed or there are significant performance enchancements.
 
 ### Versioning semantics
 
-This project uses an unorthodox method of versioning in that *any*
-change that could break compatibility with the current
-`meander/artifactID` must occur at a new `meander/artifactID`. For
-instance, a change in syntax could cause matches to now fail. In this
-case we do not want a new version of the software i.e. we do not wish
-to go from `0.0.N` to `1.N.N` etc. Instead we create a new
-`meander/artifactID` update the namespaces accordingly and continue to
-progress from there. This might sound strange at first but this method
-allows the project to progress in a way that is much more free than
-then traditional approach with semantic versioning with the following
-advantages:
+This project uses an unorthodox method of versioning in that *any* change that could break compatibility with the current `meander/artifactID` must occur at a new `meander/artifactID`.
+For instance, a change in syntax could cause matches to now fail.
+In this case we do not want a new version of the software i.e. we do not wish to go from `0.0.N` to `1.N.N` etc.
+Instead we create a new `meander/artifactID` update the namespaces accordingly and continue to progress from there.
+This might sound strange at first but this method allows the project to progress in a way that is much more free than then traditional approach with semantic versioning with the following advantages:
 
 1. A version of a `meander/artifactID` will always be safe to uprade.
-1. When a new `meander/artifactID` is created you can depend on both
-   without conflict when or if you decide to transition.
-1. It promotes project growth because it gives the library the ability
-   grow and change without the fear of breaking users.
+1. When a new `meander/artifactID` is created you can depend on both without conflict when or if you decide to transition.
+1. It promotes project growth because it gives the library the ability grow and change without the fear of breaking users.
 
-Like anything, there are drawbacks to this approach, however, as the
-project matures it should stabilize and be more like a "regular"
-project.
+Like anything, there are drawbacks to this approach, however, as the project matures it should stabilize and be more like a "regular" project.
