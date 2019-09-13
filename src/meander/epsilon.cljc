@@ -128,10 +128,10 @@
 (defmacro rewrite
   "Syntactic sugar for
 
-      (find x
-        p_1 (subst p_2)
-        ,,,
-        p_n-1 (subst p_n))"
+       (find x
+         p_1 (subst p_2)
+         ,,,
+         p_n-1 (subst p_n))"
   {:style/indent :defn}
   [x & clauses]
   (r.match/match (compile-rewrite [x clauses])
@@ -434,17 +434,17 @@
    second argument `capture-pattern` can be passed which will be
    matched against the result of the underlying `re-matches` call.
 
-     (match \"foo\"
-       (re #\"...\")
-       true)
-     ;; =>
-     true
+       (match \"foo\"
+         (re #\"...\")
+         true)
+       ;; =>
+       true
 
-     (match \"foo\"
-       (re #\"(.)(.)(.)\" [?0 ?1 ?2 ?3])
-       [?0 ?1 ?2 ?3])
-     ;; =>
-     [\"foo\" \"f\" \"o\" \"o\"]"
+       (match \"foo\"
+         (re #\"(.)(.)(.)\" [?0 ?1 ?2 ?3])
+         [?0 ?1 ?2 ?3])
+       ;; =>
+       [\"foo\" \"f\" \"o\" \"o\"]"
   ([regex-pattern]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -534,29 +534,29 @@
    When used as a pattern matching operator it will match a symbol
    with `name` and, optionally, `namespace`.
 
-     (match 'foo/bar
-       (symbol ?name)
-       ?name)
-     ;; => \"bar\"
+       (match 'foo/bar
+         (symbol ?name)
+         ?name)
+       ;; => \"bar\"
 
-     (match :foo/bar
-       (symbol ?namespace ?name)
-       [?namespace ?name])
-     ;; => [\"foo\" \"bar\"]
+       (match :foo/bar
+         (symbol ?namespace ?name)
+         [?namespace ?name])
+       ;; => [\"foo\" \"bar\"]
 
    When used as a substutition operator it will create a symbol with
    `name` and, optionally, `namespace` e.g. it behaves the same as
    `clojure.core/symbol` in the context of normal substitution
    behavior.
 
-     (subst (symbol \"foo\" \"bar\"))
-     ;; => 'foo/bar
-
-     ;; clojure.core/let
-     (let [!namespaces [\"foo\" \"foo\"]
-           !names [\"bar\" \"baz\"]]
-       (subst [(symbol !namespaces !names) ...]))
-     ;; => ['foo/bar 'foo/baz]"
+       (subst (symbol \"foo\" \"bar\"))
+       ;; => 'foo/bar
+  
+       ;; clojure.core/let
+       (let [!namespaces [\"foo\" \"foo\"]
+             !names [\"bar\" \"baz\"]]
+         (subst [(symbol !namespaces !names) ...]))
+       ;; => ['foo/bar 'foo/baz]"
   ([name]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -586,29 +586,29 @@
    When used as a pattern matching operator it will match a keyword
    with `name` and, optionally, `namespace`.
 
-     (match :foo/bar
-       (keyword ?name)
-       ?name)
-     ;; => \"bar\"
-
-     (match :foo/bar
-       (keyword ?namespace ?name)
-       [?namespace ?name])
-     ;; => [\"foo\" \"bar\"]
+       (match :foo/bar
+         (keyword ?name)
+         ?name)
+       ;; => \"bar\"
+  
+       (match :foo/bar
+         (keyword ?namespace ?name)
+         [?namespace ?name])
+       ;; => [\"foo\" \"bar\"]
 
    When used as a substutition operator it will create a keyword with
    `name` and, optionally, `namespace` e.g. it behaves the same as
    `clojure.core/keyword` in the context of normal substitution
    behavior.
 
-     (subst (keyword \"foo\" \"bar\"))
-     ;; => :foo/bar
-
-     ;; clojure.core/let
-     (let [!namespaces [\"foo\" \"foo\"]
-           !names [\"bar\" \"baz\"]]
-       (subst [(keyword !namespaces !names) ...]))
-     ;; => [:foo/bar :foo/baz]"
+       (subst (keyword \"foo\" \"bar\"))
+       ;; => :foo/bar
+  
+       ;; clojure.core/let
+       (let [!namespaces [\"foo\" \"foo\"]
+             !names [\"bar\" \"baz\"]]
+         (subst [(keyword !namespaces !names) ...]))
+       ;; => [:foo/bar :foo/baz]"
   ([name]
    (case (::r.syntax/phase &env)
      :meander/match
