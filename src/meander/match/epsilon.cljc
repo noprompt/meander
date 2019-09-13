@@ -1,4 +1,4 @@
-(ns meander.match.epsilon
+(ns ^:no-doc meander.match.epsilon
   (:refer-clojure :exclude [compile find])
   #?(:cljs (:require-macros [meander.match.epsilon]))
   (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]

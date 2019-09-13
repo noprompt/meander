@@ -1,4 +1,4 @@
-(ns meander.substitute.syntax.epsilon
+(ns ^:no-doc meander.substitute.syntax.epsilon
   "This namespace defines the substition syntax special forms, and AST
   transformations and queries."
   #?(:clj

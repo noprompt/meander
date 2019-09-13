@@ -1,4 +1,4 @@
-(ns meander.util.epsilon
+(ns ^:no-doc meander.util.epsilon
   (:require [clojure.walk :as walk]
             [clojure.zip :as zip]))
 

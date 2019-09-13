@@ -1,4 +1,4 @@
-(ns meander.match.syntax.epsilon
+(ns ^:no-doc meander.match.syntax.epsilon
   "This namespace defines the match syntax special forms, and AST
   transformations and queries."
   #?(:clj

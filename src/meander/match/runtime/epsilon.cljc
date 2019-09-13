@@ -1,4 +1,4 @@
-(ns meander.match.runtime.epsilon
+(ns ^:no-doc meander.match.runtime.epsilon
   "Functions used by the pattern matcher at runtime."
   (:require [meander.util.epsilon :as r.util]
             [clojure.walk :as walk]

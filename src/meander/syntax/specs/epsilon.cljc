@@ -1,4 +1,4 @@
-(ns meander.syntax.specs.epsilon
+(ns ^:no-doc meander.syntax.specs.epsilon
   #?(:clj
      (:require [clojure.spec.alpha :as s]
                [clojure.spec.gen.alpha :as s.gen]

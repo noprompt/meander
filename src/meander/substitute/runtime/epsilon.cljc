@@ -1,4 +1,4 @@
-(ns meander.substitute.runtime.epsilon)
+(ns ^:no-doc meander.substitute.runtime.epsilon)
 
 (defn iterator [coll]
   #?(:clj (clojure.lang.RT/iter coll)

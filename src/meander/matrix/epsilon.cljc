@@ -1,4 +1,4 @@
-(ns meander.matrix.epsilon
+(ns ^:no-doc meander.matrix.epsilon
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
   (:require [clojure.spec.alpha :as s]

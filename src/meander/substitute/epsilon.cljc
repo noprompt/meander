@@ -1,4 +1,4 @@
-(ns meander.substitute.epsilon
+(ns ^:no-doc meander.substitute.epsilon
   (:refer-clojure :exclude [compile])
   #?(:cljs (:require-macros [meander.substitute.epsilon]))
   (:require [clojure.set :as set]

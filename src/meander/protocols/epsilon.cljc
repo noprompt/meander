@@ -1,4 +1,4 @@
-(ns meander.protocols.epsilon)
+(ns ^:no-doc meander.protocols.epsilon)
 
 
 (defprotocol IAll

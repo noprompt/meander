@@ -1,4 +1,4 @@
-(ns meander.match.ir.epsilon
+(ns ^:no-doc meander.match.ir.epsilon
   "Functions for working with the Meander's match compiler
   intermediate representation (IR)."
   (:refer-clojure :exclude [compile merge])
