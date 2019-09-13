@@ -176,7 +176,6 @@ Unless there is a reason to surrender, the project will continue to be regularly
 
 ### Release schedule
 
-Releases can be expected most weeks.
 Prompt releases can be expected when bugs are fixed or there are significant performance enchancements.
 
 ### Versioning semantics
