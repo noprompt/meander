@@ -95,18 +95,18 @@ In the term rewriting world this is achieved with _strategies_ and _strategy com
 A _strategy_ is a function of one argument, a term `t`, and returns the term rewritten `t*`.
 A _strategy combinator_ is a function which accepts, as arguments, one or more _strategies_ and returns a _strategy_.
 
-Meander's strategy combinators can be found in the `meander.strategy.delta` namespace.
+Meander's strategy combinators can be found in the `meander.strategy.epsilon` namespace.
 
 ```
-(require '[meander.strategy.delta :as r])
+(require '[meander.strategy.epsilon :as r])
 ```
 
 The alias `r` stands for "rewrite" and will be used throughout the following examples.
 
 Before diving into the combinators themselves it's important to understand how combinators fail.
-When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.delta/*fail*` which is printed as `#meander.delta/fail[]`.
+When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.epsilon/*fail*` which is printed as `#meander.epsilon/fail[]`.
 This value is at the heart of strategy control flow.
-You can detect this value in your with `meander.strategy.delta/fail?`, however, you should rarely need to reach for this function outside of combinators.
+You can detect this value in your with `meander.strategy.epsilon/fail?`, however, you should rarely need to reach for this function outside of combinators.
 
 ## Basic Combinators
 
@@ -117,7 +117,7 @@ Strategy which always fails.
 ```clj
 (r/fail 10)
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 ### `build`
@@ -148,7 +148,7 @@ Strategy combinator which takes two (or more) strategies `p` and `q` and returns
 (let [s (r/pipe inc r/fail)]
   (s 10))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 Note: `pipe` actually takes zero or more strategies as arguments and has behavior analogous to `and` e.g. `((pipe) t)` and `((pipe s) t)` is the equivalent to `(identity t)` and `(s t)` respectively.
@@ -213,7 +213,7 @@ If there is no child term for which `s` succeeds then `(one s)` fails.
       one-s (r/one s)]
   (s ["a" "b" "c"]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 ### `some`
@@ -240,7 +240,7 @@ If there is no child term for which `s` succeeds then `(some s)` fails.
       some-s (r/some s)]
   (some-s ["a" "b" "c"]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 ### `all`
@@ -267,14 +267,14 @@ If there is one child term for which `s` fails then `(all s)` fails.
       all-s (r/all s)]
   (all-s [1 2 "c"]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 ## Matching Combinators
 
 ### `match`
 
-The `match` strategy is built on top of `meander.match.delta/match`.
+The `match` strategy is built on top of `meander.match.epsilon/match`.
 It succeeds whenever some term `t` is successfully matched.
 
 ```clj example
@@ -292,12 +292,12 @@ It succeeds whenever some term `t` is successfully matched.
           {:bar ?bar, :baz ?baz})]
   (s [:baz 1 2]))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 ### `find`
 
-The `find` strategy is built on top of `meander.match.delta/find`.
+The `find` strategy is built on top of `meander.match.epsilon/find`.
 
 ```clj example
 (let [s (r/find
@@ -311,7 +311,7 @@ The `find` strategy is built on top of `meander.match.delta/find`.
 [b bb bbb]
 ```
 
-Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.delta/*fail*`.
+Like the macro it is built on top of, the `find` strategy will always succeed unless it explicitly returns `meander.match.epsilon/*fail*`.
 
 ```clj example
 (let [s (r/find
@@ -337,12 +337,12 @@ nil
        :namespaces {a.core [a aa aaa]
                     b.core [b bb bbb]}}))
 ;; =>
-#meander.delta/fail[]
+#meander.epsilon/fail[]
 ```
 
 #### `rewrite`
 
-The `rewrite` strategy is built on top of `meander.match.delta/find` and `meander.substitute.delta/substitute` and has the same form as `find`, `match`, and `search`, however, a substitution is performed instead of executing code.
+The `rewrite` strategy is built on top of `meander.match.epsilon/find` and `meander.substitute.epsilon/substitute` and has the same form as `find`, `match`, and `search`, however, a substitution is performed instead of executing code.
 This allows for purely symbolic data transformation and is an incredibly powerful tool for syntactic and structural manipulations.
 
 ```clj example

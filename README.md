@@ -7,7 +7,6 @@ Meander is a Clojure/ClojureScript library that empowers you to write transparen
 ```clojure
 (require '[meander.epsilon :as m])
 
-
 (defn favorite-food-info [user foods-by-name]
   (m/match {:user user
             :foods-by-name foods-by-name}
