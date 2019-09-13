@@ -89,7 +89,19 @@
        ?k3 {(r/scan 0) ?k4}}
       (= -2 (- ?k4 ?k3 ?k2 ?k1)))))
 
+(t/deftest vector-literals-check-type
+  (t/is (= :ok (r/match [:literal]
+                 [:literal] :ok)))
+  (t/is (= :fail (r/match (list :literal)
+                   [:literal] :ok
+                   _ :fail))))
 
+(t/deftest seq-literals-check-type
+  (t/is (= :ok (r/match (list :literal)
+                 (:literal) :ok)))
+  (t/is (= :fail (r/match [:literal]
+                   (literal) :ok
+                   _ :fail))))
 
 #_
 ;; TODO: This should pass because ?x and ?y can be matched before
