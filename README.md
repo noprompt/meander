@@ -176,8 +176,7 @@ checkout [Applying Meander Strategies]()
 
 ## Going Further
 
-To explore Meander further checkout all of our [documentation](/doc), visit the [#meander room]() on slack, or read the [contributing
-guide]().
+To explore Meander further checkout all of our [documentation](/doc), or visit the [#meander room]() on Slack.
 You can also checkout things made by the community.
 Below we have a list of blogs posts and talks about Meander as well as libraries that are using or build on to Meander.
 If you have any questions don't hesitate to ask them in slack or file an issue.
