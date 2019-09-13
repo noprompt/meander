@@ -1,8 +1,6 @@
 # Meander<sup>ε</sup>
 
-Meander is a Clojure/ClojureScript library that empowers you to write
-transparent data transformation code that allows you to plainly see
-the input and output of these transformations.
+Meander is a Clojure/ClojureScript library that empowers you to write transparent data transformation code that allows you to plainly see the input and output of these transformations.
 
 ## What can Meander do?
 
@@ -22,21 +20,18 @@ the input and output of these transformations.
      :favorite {:food ?food
                 :popularity ?popularity
                 :calories ?calories}}))
-
 ```
 
-Meander's `match` macro allows us to pattern match on a data structure
-and return the answer that matches our pattern. We use logic variables
-(symbols that start with `?`) to extract values from our input and
-return them in our output. Logic variable also let us join across
-values. In this example, we do that using the `?food` variable to
-lookup our users favorite foods in the `foods-by-name` collection.
+Meander's `match` macro allows us to pattern match on a data structure and return the answer that matches our pattern.
+We use logic variables (symbols that start with `?`) to extract values from our input and return them in our output.
+Logic variable also let us join across values.
+In this example, we do that using the `?food` variable to lookup our users favorite foods in the `foods-by-name` collection.
 
 ### Finding More than One Answer
 
 What if instead of a user having one favorite food, they had many?
-And suppose we wanted to return the information for all of them. The
-`search` macro performs exactly this job.
+And suppose we wanted to return the information for all of them.
+The `search` macro performs exactly this job.
 
 ```clojure
 (defn favorite-foods-info [user foods-by-name]
@@ -53,17 +48,14 @@ And suppose we wanted to return the information for all of them. The
                 :calories ?calories}}))
 ```
 
-There is actually very little that is different here. Some names have
-been pluralized, line 2 changed to use `search` instead of `find`, and
-on line 6 added we're using the `scan` *pattern matching
-operator*. That is all we need to find all of a users favorite foods
-and look up the information about them.
+There is actually very little that is different here.
+Some names have been pluralized, line 2 changed to use `search` instead of `find`, and on line 6 added we're using the `scan` *pattern matching operator*.
+That is all we need to find all of a users favorite foods and look up the information about them.
 
 ### Remembering Values
 
-Let's shift gears. What if a user has all sorts of different foods
-scattered through out their information and we want to collect them
-all? Here we can use *memory variables*.
+Let's shift gears. What if a user has all sorts of different foods scattered through out their information and we want to collect them all?
+Here we can use *memory variables*.
 
 ```clojure
 (defn grab-all-foods [user]
@@ -77,20 +69,15 @@ all? Here we can use *memory variables*.
     !foods))
 ```
 
-This code example is a little contrived, but it does immediately show
-you how you can grab values from all sorts of places in your data
-structure. This combination of a `!memory-variable` and the *zero or
-more* postfix operator `...` is a fairly common one. Using them
-together allows you to gather up many values. If you want to ensure
-that a certain number of elements exist you can also use the *n or
-more* postfix operator i.e. `..2`.
+This code example is a little contrived, but it does immediately show you how you can grab values from all sorts of places in your data structure.
+This combination of a `!memory-variable` and the *zero or more* postfix operator `...` is a fairly common one.
+Using them together allows you to gather up many values.
+If you want to ensure that a certain number of elements exist you can also use the *n or more* postfix operator i.e. `..2`.
 
 ### Conditional Matches
 
-Stepping away from food examples, we can see a few of Meanders more
-traditional pattern matching abilities. Imagine that we have
-coordinates that can either include be `[x y]` or `[x y z]` and we
-want a pattern to that extracts `y`.
+Stepping away from food examples, we can see a few of Meanders more traditional pattern matching abilities.
+Imagine that we have coordinates that can either include be `[x y]` or `[x y z]` and we want a pattern to that extracts `y`.
 
 ```clojure
 (def point [1 2])
@@ -101,13 +88,10 @@ want a pattern to that extracts `y`.
 ;; => 2
 ```
 
-Here we used `find` to check against multiple patterns. Meander checks
-this in a top to bottom ordering. One thing to note is that since we
-didn't use `?x` or `?z` we could have replaced them with a wildcard
-match, a simple symbol which starts with `_`. The above pattern
-accomplishes the task, but imagine that for some reason people keep
-passing things that aren't numbers into our match, so we want to
-restrict our matches to only numbers.
+Here we used `find` to check against multiple patterns.
+Meander checks this in a top to bottom ordering.
+One thing to note is that since we didn't use `?x` or `?z` we could have replaced them with a wildcard match, a simple symbol which starts with `_`.
+The above pattern accomplishes the task, but imagine that for some reason people keep passing things that aren't numbers into our match, so we want to restrict our matches to only numbers.
 
 ```clojure
 (m/find point
@@ -118,10 +102,9 @@ restrict our matches to only numbers.
   ?y)
 ```
 
-This ensures things that aren't number fail to match, but is a little
-verbose. Honestly, that isn't a problem. Length is not the measure of
-good code, clarity is. But just to see how Meander allows us to build
-our own extensions let's look at how we can shorten things up.
+This ensures things that aren't number fail to match, but is a little verbose.
+Honestly, that isn't a problem. Length is not the measure of good code, clarity is.
+But just to see how Meander allows us to build our own extensions let's look at how we can shorten things up.
 
 ```clojure
 (m/defsyntax number
@@ -139,17 +122,14 @@ our own extensions let's look at how we can shorten things up.
   ?y)
 ```
 
-Here we use `defsyntax` to essentially build our own macros for
-Meander.
+Here we use `defsyntax` to essentially build our own macros for Meander.
 
 To learn more check out the [Extending Meander]() article.
 
 ### Gaining Control
 
-Sometimes we have a multistep process where we want to transform
-nested data in place. This is an area that Meander continues to
-explore, but one powerful way of solving this problem is using
-Meander's strategies.
+Sometimes we have a multistep process where we want to transform nested data in place.
+This is an area that Meander continues to explore, but one powerful way of solving this problem is using Meander's strategies.
 
 ```clojure
 (require '[meander.strategies.epsilon :as m*])
@@ -167,12 +147,10 @@ Meander's strategies.
 ;; => (+ 3 2)
 ```
 
-Using our strategies we can make rewrite rules and then say how they
-ought to be applied. Here we use the attempt strategy, which just says
-if the match fails, then return whatever was passed in. And the bottom
-up strategies which applies our match to the most deep value, and
-replaces values that match all the way up the tree. To learn more
-checkout [Applying Meander Strategies]()
+Using our strategies we can make rewrite rules and then say how they ought to be applied.
+Here we use the attempt strategy, which just says if the match fails, then return whatever was passed in.
+And the bottom up strategies which applies our match to the most deep value, and replaces values that match all the way up the tree.
+To learn more checkout [Applying Meander Strategies]()
 
 ## Going Further
 
