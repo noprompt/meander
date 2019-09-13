@@ -150,7 +150,7 @@ This is an area that Meander continues to explore, but one powerful way of solvi
 Using our strategies we can make rewrite rules and then say how they ought to be applied.
 Here we use the attempt strategy, which just says if the match fails, then return whatever was passed in.
 And the bottom up strategies which applies our match to the most deep value, and replaces values that match all the way up the tree.
-To learn more checkout [Applying Meander Strategies]()
+To learn more checkout how to apply meander [strategies](doc/strategies.md)
 
 ## Going Further
 
