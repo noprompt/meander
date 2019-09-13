@@ -2,6 +2,8 @@
 
 Meander is a Clojure/ClojureScript library that empowers you to write transparent data transformation code that allows you to plainly see the input and output of these transformations.
 
+[![Clojars Project](https://img.shields.io/clojars/v/meander/epsilon.svg)](https://clojars.org/meander/epsilon)
+
 ## What can Meander do?
 
 ```clojure
