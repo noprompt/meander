@@ -136,7 +136,7 @@
     (if-some [context (:context node)]
       (let [[pattern-form env] (compile* pattern env)
             [context-form env] (compile* context env)]
-        [`(~context-form ~pattern-form)] env)
+        [`(~context-form ~pattern-form) env])
       (compile* (:pattern node) env))))
 
 (defmethod compile* :cat
