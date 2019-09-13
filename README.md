@@ -103,7 +103,8 @@ The above pattern accomplishes the task, but imagine that for some reason people
 ```
 
 This ensures things that aren't number fail to match, but is a little verbose.
-Honestly, that isn't a problem. Length is not the measure of good code, clarity is.
+Honestly, that isn't a problem.
+Length is not the measure of good code, clarity is.
 But just to see how Meander allows us to build our own extensions let's look at how we can shorten things up.
 
 ```clojure
