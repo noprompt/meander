@@ -11,7 +11,8 @@
    [clojure.zip :as zip]
    [meander.util.epsilon :as r.util]
    [meander.match.runtime.epsilon :as r.match.runtime]
-   [meander.syntax.epsilon :as r.syntax]))
+   [meander.syntax.epsilon :as r.syntax]
+   #?(:cljs [goog.array])))
 
 
 (def ^{:doc "A macro &env map. Used to make platform specific
