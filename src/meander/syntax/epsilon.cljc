@@ -1644,7 +1644,7 @@
                               (assoc ref-map k v)))
                           (make-ref-map node)
                           ref-map)]
-             (substitute-refs body ref-map))
+             (assoc node :body (substitute-refs body ref-map)))
            node))
 
         :else
