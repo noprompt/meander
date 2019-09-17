@@ -165,7 +165,7 @@ We are happy to help.
 ### Blog Posts
 
 * [Meander: The answer to map fatigue](http://timothypratley.blogspot.com/2019/01/meander-answer-to-map-fatigue.html)
-* [Meander for Practical Data Transformation](https://jimmyhmiller.github.io/meander-practical/)
+* [Meander for Practical Data Transformation](https://jimmyhmiller.github.io/meander-practical)
 
 ### Talks
 
