@@ -169,7 +169,7 @@ We are happy to help.
 
 ### Talks
 
-* [Strangeloop 2019 (Video available after conference)](https://thestrangeloop.com/2019/meander-declarative-explorations-at-the-limits-of-fp.html)
+* [Strangeloop 2019](https://www.youtube.com/watch?v=9fhnJpCgtUw)
 
 ## Project Status
 
