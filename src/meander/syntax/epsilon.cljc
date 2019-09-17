@@ -13,7 +13,8 @@
                [clojure.set :as set]
                [clojure.string :as string]
                [meander.syntax.specs.epsilon :as m.syntax.specs]
-               [meander.util.epsilon :as r.util]))
+               [meander.util.epsilon :as r.util]
+               [goog.object]))
   #?(:cljs
      (:require-macros [meander.syntax.epsilon]))
   #?(:clj
