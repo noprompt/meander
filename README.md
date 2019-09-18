@@ -165,11 +165,11 @@ We are happy to help.
 ### Blog Posts
 
 * [Meander: The answer to map fatigue](http://timothypratley.blogspot.com/2019/01/meander-answer-to-map-fatigue.html)
-* [Meander for Practical Data Transformation](https://jimmyhmiller.github.io/meander-practical/)
+* [Meander for Practical Data Transformation](https://jimmyhmiller.github.io/meander-practical)
 
 ### Talks
 
-* [Strangeloop 2019 (Video available after conference)](https://thestrangeloop.com/2019/meander-declarative-explorations-at-the-limits-of-fp.html)
+* [Strangeloop 2019](https://www.youtube.com/watch?v=9fhnJpCgtUw)
 
 ## Project Status
 
