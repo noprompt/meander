@@ -21,7 +21,8 @@
 
 (def
   ^{:dynamic true
-    :doc ""}
+    :doc "true if currently compiling a matrix derived from a not pattern,
+  false otherwise."}
   *negating* false)
 
 
