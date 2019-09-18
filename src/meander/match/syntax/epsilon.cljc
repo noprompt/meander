@@ -101,14 +101,14 @@
                                             true
                                             false)))
                                      assoc
-                                     :meander.match.syntax.epsilon/beta-reduce true)]
+                                     :meander.epsilon/beta-reduce true)]
 
-          {:tag ::pred
-           :form pred-form
-           :arguments (if (seq b)
-                        [{:tag ::or
-                          :arguments b}]
-                        [])}))))))
+            {:tag ::pred
+             :form pred-form
+             :arguments (if (seq b)
+                          [{:tag ::or
+                            :arguments b}]
+                          [])}))))))
 
 (defn expand-map-rest
   [node]
@@ -133,10 +133,11 @@
       {:tag ::and
        :arguments [node*
                    {:tag ::apply
-                    :function (with-meta
-                                `(fn [m#]
-                                   (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
-                                {:meander.epsilon/beta-reduce true})
+                    :function (vary-meta
+                               `(fn [m#]
+                                  (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
+                               assoc
+                               :meander.epsilon/beta-reduce true)
                     :argument rest-map}]})
     node))
 
@@ -223,8 +224,11 @@
           node* (dissoc node* :rest)]
       {:tag ::and
        :arguments [node* {:tag ::apply
-                          :function `(fn [s#]
-                                       (disj s# ~@(map r.syntax/unparse (vals elem-map))))
+                          :function (vary-meta
+                                     `(fn [s#]
+                                        (disj s# ~@(map r.syntax/unparse (vals elem-map))))
+                                     assoc
+                                     :meander.epsilon/beta-reduce true)
                           :argument rest-set}]})
     node))
 
