@@ -133,17 +133,50 @@
       {:tag ::and
        :arguments [node*
                    {:tag ::apply
-                    :function `(fn [m#]
-                                 (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
+                    :function (with-meta
+                                `(fn [m#]
+                                   (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
+                                {:meander.epsilon/beta-reduce true})
                     :argument rest-map}]})
     node))
 
+(defn expand-map-keys
+  [node]
+  (let [literal-keys (r.syntax/literal-keys node)
+        non-literal-keys (r.syntax/non-literal-keys node)
+        the-map (get node :map)]
+    (cond
+      (seq literal-keys)
+      (let [rest-the-map (reduce dissoc the-map literal-keys)]
+        (merge node
+               {:map (select-keys the-map literal-keys)
+                :rest-map (if (seq rest-the-map)
+                            {:tag :map
+                             :as nil
+                             :map rest-the-map
+                             :rest-map (get node :rest-map)}
+                            (get node :rest-map))}))
+
+
+      (< 1 (count non-literal-keys))
+      (merge node
+             {:map {(first non-literal-keys) (get the-map (first non-literal-keys))}
+              :rest-map {:tag :map
+                         :as nil
+                         :map (select-keys the-map (next non-literal-keys))
+                         :rest-map (get node :rest-map)}})
+
+      :else node)))
+
 (defn expand-map
   [node]
-  (let [node* (expand-as node)]
-    (if (= node* node)
-      (expand-map-rest node)
-      node*)))
+  (let [node* (expand-map-keys node)]
+    (if (= node node*)
+      (let [node* (expand-as node)]
+        (if (= node node*)
+          (expand-map-rest node)
+          node*))
+      (expand-map-rest node*))))
 
 (defn expand-not [node]
   (let [argument (:argument node)]

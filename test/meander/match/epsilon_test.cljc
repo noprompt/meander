@@ -77,8 +77,13 @@
       {(r/pred keyword?) ?b ?b (r/pred number?)}
       (= ?b :b))
 
-    (r/search {:a :b :b 4 :c :d :d 6 :e 5}
-      {(r/pred keyword?) ?b ?b (r/pred even? ?num)}
+    (r/search {:a :b
+               :b 4
+               :c :d
+               :d 6
+               :e 5}
+      {(r/pred keyword?) ?b
+       ?b (r/pred number? (r/pred even? ?num))}
       (boolean (and (#{:b :d} ?b)
                     (#{4 6} ?num))))
 

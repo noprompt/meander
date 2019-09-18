@@ -1222,15 +1222,20 @@
                  ;; Symbol for each permutation of target.
                  perm-sym (gensym* "perm__")
                  targets** `[~perm-sym ~@targets*]
-                 matrix*  [(assoc row :cols `[~{:tag :cat
-                                                :elements (vec elements)}
-                                              ~@(:cols row)])]]
+                 matrix* (if (= n 1)
+                           [(assoc row :cols `[~(first elements) ~@(:cols row)])]
+                           [(assoc row :cols `[~{:tag :cat
+                                                 :elements (vec elements)}
+                                               ~@(:cols row)])])
+                 search-space (if (= n 1)
+                                `(seq ~target)
+                                `(r.match.runtime/k-combinations ~target ~n))]
              (r.ir/op-check-set (r.ir/op-eval target)
                (r.ir/op-check-bounds (r.ir/op-eval target) n :set
                  (if (negating?)
-                   (r.ir/op-find perm-sym (r.ir/op-eval `(r.match.runtime/k-combinations ~target ~n))
+                   (r.ir/op-find perm-sym (r.ir/op-eval search-space)
                      (compile targets** matrix*))
-                   (r.ir/op-search perm-sym (r.ir/op-eval `(r.match.runtime/k-combinations ~target ~n))
+                   (r.ir/op-search perm-sym (r.ir/op-eval search-space)
                      (compile targets** matrix*))))))
 
            (some (comp #{:map :set} r.syntax/tag)
@@ -1238,14 +1243,20 @@
            (let [elements (:elements node)
                  n (count elements)
                  ;; Symbol for each permutation of target.
-                 perm-sym (gensym* "perm__")]
+                 perm-sym (gensym* "perm__")
+                 targets** `[~perm-sym ~@targets*]
+                 matrix* (if (= n 1)
+                           [(assoc row :cols `[~(first elements) ~@(:cols row)])]
+                           [(assoc row :cols `[~{:tag :cat
+                                                 :elements (vec elements)}
+                                               ~@(:cols row)])])
+                 search-space (if (= n 1)
+                                `(seq ~target)
+                                `(r.match.runtime/k-combinations ~target ~n))]
              (r.ir/op-check-set (r.ir/op-eval target)
                (r.ir/op-check-bounds (r.ir/op-eval target) n :set
-                 (r.ir/op-find perm-sym (r.ir/op-eval `(r.match.runtime/k-combinations ~target ~n))
-                   (compile `[~perm-sym ~@targets*]
-                            [(assoc row :cols `[~{:tag :cat
-                                                  :elements (vec elements)}
-                                                ~@(:cols row)])])))))
+                 (r.ir/op-find perm-sym (r.ir/op-eval search-space)
+                   (compile targets** matrix*)))))
 
            :else
            (r.ir/op-check-set (r.ir/op-eval target)

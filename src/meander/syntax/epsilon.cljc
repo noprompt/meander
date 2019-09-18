@@ -68,6 +68,9 @@
   (and (= :tail (:tag x))
        (some? (:pattern x))))
 
+(defn map-node? [x]
+  (and (map? x) (= (get x :tag) :map)))
+
 (defmulti children
   "Return a sequential? of all children of node."
   {:arglists '([node])}
@@ -1756,6 +1759,16 @@
 
     :set
     (into #{} (map lit-form (:elements node)))))
+
+(defn literal-keys [map-node]
+  {:pre [(map-node? map-node)]}
+  (filter literal?
+          (keys (get map-node :map))))
+
+(defn non-literal-keys [map-node]
+  {:pre [(map-node? map-node)]}
+  (filter (complement literal?)
+          (keys (get map-node :map))))
 
 ;; ---------------------------------------------------------------------
 ;; defsyntax
