@@ -232,12 +232,38 @@
                           :argument rest-set}]})
     node))
 
+(defn expand-set-elements [node]
+  (let [literal-elements (r.syntax/literal-elements node)
+        non-literal-elements (r.syntax/non-literal-elements node)]
+    (cond
+      (seq literal-elements)
+      (merge node
+             {:elements literal-elements
+              :rest (if (seq non-literal-elements)
+                      {:tag :set
+                       :as nil
+                       :elements non-literal-elements}
+                      (get node :rest))})
+
+      (< 1 (count non-literal-elements))
+      (merge node
+             {:elements [(first non-literal-elements)]
+              :rest {:tag :set
+                     :as nil
+                     :elements (next non-literal-elements)
+                     :rest (get node :rest)}})
+
+      :else node)))
+
 (defn expand-set
   [node]
-  (let [node* (expand-as node)]
-    (if (= node* node)
-      (expand-set-rest node)
-      node*)))
+  (let [node* (expand-set-elements node)]
+    (if (= node node*)
+      (let [node* (expand-as node)]
+        (if (= node* node)
+          (expand-set-rest node)
+          node*))
+      (expand-set-rest node*))))
 
 (defn expand-seq [node]
   (expand-as node))

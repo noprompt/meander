@@ -60,6 +60,9 @@
 (defn partition-node? [x]
   (s/valid? :meander.syntax.epsilon.node/partition x))
 
+(defn cat-node? [x]
+  (and (map? x) (= (get x :tag) :cat)))
+
 (defn empty-cat-node? [x]
   (and (= :cat (:tag x))
        (not (seq (:elements x)))))
@@ -70,6 +73,9 @@
 
 (defn map-node? [x]
   (and (map? x) (= (get x :tag) :map)))
+
+(defn set-node? [x]
+  (and (map? x) (= (get x :tag) :set)))
 
 (defmulti children
   "Return a sequential? of all children of node."
@@ -1762,13 +1768,21 @@
 
 (defn literal-keys [map-node]
   {:pre [(map-node? map-node)]}
-  (filter literal?
-          (keys (get map-node :map))))
+  (filter literal? (keys (get map-node :map))))
 
 (defn non-literal-keys [map-node]
   {:pre [(map-node? map-node)]}
-  (filter (complement literal?)
-          (keys (get map-node :map))))
+  (remove literal? (keys (get map-node :map))))
+
+(defn literal-elements [node]
+  {:pre [(or (set-node? node)
+             (cat-node? node))]}
+  (filter literal? (get node :elements)))
+
+(defn non-literal-elements [node]
+  {:pre [(or (set-node? node)
+             (cat-node? node))]}
+  (remove literal? (get node :elements)))
 
 ;; ---------------------------------------------------------------------
 ;; defsyntax
