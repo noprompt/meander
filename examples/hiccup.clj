@@ -7,8 +7,8 @@
 (defn html [hiccup]
   (m/rewrite hiccup
     ;; Borrow :<> from Reagent.
-    [:<> . !content ...]
-    (m/app str* ((m/app html !content) ...))
+    [:<> . (m/cata !content) ...]
+    (m/app str* (!content ...))
 
     ;; Void tags.
     (m/with [%attributes {(m/keyword !attr) !val & (m/or %attributes _)}]
@@ -18,15 +18,16 @@
     (m/app str* ("<" ?tag . " " !attr "=\"" !val "\"" ... "/>"))
 
     ;; Normal tags.
-    (m/with [%attributes {(m/keyword !attr) !val & (m/or %attributes _)}]
+    (m/with [%content (m/cata !content)
+             %attributes {(m/keyword !attr) !val & (m/or %attributes _)}]
       [(m/keyword ?tag)
-       & (m/or [%attributes . !content ...]
-               [!content ...])])
-    (m/app str* ("<" ?tag . " " !attr "=\"" !val "\"" ... ">" . (m/app html !content) ... "</" ?tag ">"))
+       & (m/or [%attributes . %content ...]
+               [%content ...])])
+    (m/app str* ("<" ?tag . " " !attr "=\"" !val "\"" ... ">" . !content ... "</" ?tag ">"))
 
     ;; Sequences.
-    (!content ...)
-    (m/app str* ((m/app html !content) ...))
+    ((m/cata !content) ...)
+    (m/app str* (!content ...))
 
     ;; Everythign else.
     ?x
@@ -56,6 +57,7 @@
       [:a {:class  "f6 br-pill dark-green no-underline ba grow pv2 ph3 dib"
            :href "#"}
        "Learn More"]]]]])
+  
 
 (comment
   (def tachyons-banner-basic-html
