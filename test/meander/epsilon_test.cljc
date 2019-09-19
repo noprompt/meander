@@ -710,7 +710,6 @@
 ;;; cata
 
 
-
 (t/deftest cata-test
   (t/is (= [:one :two :three]
            (r/match [1 2 3]
