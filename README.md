@@ -9,7 +9,8 @@ Meander is a Clojure/ClojureScript library that empowers you to write transparen
 ```clojure
 (require '[meander.epsilon :as m])
 
-(defn favorite-food-info [user foods-by-name]
+
+(defn favorite-food-info [foods-by-name user]
   (m/match {:user user
             :foods-by-name foods-by-name}
     {:user
@@ -27,6 +28,7 @@ Meander's `match` macro allows us to pattern match on a data structure and retur
 We use logic variables (symbols that start with `?`) to extract values from our input and return them in our output.
 Logic variable also let us join across values.
 In this example, we do that using the `?food` variable to lookup our users favorite foods in the `foods-by-name` collection.
+See [file in examples folder](./examples/food-example-readme.clj) for an example of running this match.
 
 ### Finding More than One Answer
 
@@ -35,12 +37,12 @@ And suppose we wanted to return the information for all of them.
 The `search` macro performs exactly this job.
 
 ```clojure
-(defn favorite-foods-info [user foods-by-name]
+(defn favorite-foods-info [foods-by-name user]
   (m/search {:user user
              :foods-by-name foods-by-name}
     {:user
      {:name ?name
-      :favorite-foods (m/scan {:name ?food})
+      :favorite-foods (m/scan {:name ?food})}
      :foods-by-name {?food {:popularity ?popularity
                             :calories ?calories}}}
     {:name ?name
@@ -52,6 +54,7 @@ The `search` macro performs exactly this job.
 There is actually very little that is different here.
 Some names have been pluralized, line 2 changed to use `search` instead of `match`, and on line 6 added we're using the `scan` *pattern matching operator*.
 That is all we need to find all of a users favorite foods and look up the information about them.
+
 
 ### Remembering Values
 
