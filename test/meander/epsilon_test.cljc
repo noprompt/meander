@@ -706,6 +706,67 @@
              [{:foo 1, :baz 2}
               {:foo 1, :baz 2, :quux 3}]))))
 
+
+;;; cata
+
+
+
+(t/deftest cata-test
+  (t/is (= [:one :two :three]
+           (r/match [1 2 3]
+             [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
+             [?x ?y ?z]
+
+             3
+             :three
+
+             2
+             :two
+
+             1
+             :one
+             )))
+
+  (t/is (= [[:one :two] :two [:three :two]]
+           (r/match [[2 1] 2 [3 2]]
+             [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
+             [?x ?y ?z]
+
+             [3 (r/cata ?y)]
+             [:three ?y]
+
+             2
+             :two
+
+             [(r/cata ?x) 1]
+             [:one ?x])))
+
+  (t/is (= #{[:other :other :other]
+             [:other :other :three]
+             [:other :two :other]
+             [:other :two :three]
+             [:one :other :other]
+             [:one :other :three]
+             [:one :two :other]
+             [:one :two :three]
+             :other}
+           (set
+            (r/search [1 2 3]
+              [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
+              [?x ?y ?z]
+
+              ?other
+              :other
+
+              3
+              :three
+
+              2
+              :two
+
+              1
+              :one)))))
+
 ;;; gather
 
 

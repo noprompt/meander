@@ -746,3 +746,27 @@
    (if (match-syntax? &env)
      `(and (not nil) ~pattern)
      &form)))
+
+(defsyntax cata
+  "Pattern matching operator which causes pattern matching to recurse
+  on the target of pattern matching. The result is then pattern
+  matched with `pattern`.
+
+      (match [1 2 3]
+        [(cata ?x) (cata ?y) (cata ?z)]
+        [?x ?y ?z]
+
+        3
+        :three
+
+        2
+        :two
+
+        1
+        :one)
+      ;; =>
+      [:one :two :three]"
+  ([pattern]
+   (if (match-syntax? &env)
+     `(r.match.syntax/cata ~pattern)
+     &form)))

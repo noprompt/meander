@@ -50,6 +50,15 @@
   []
   (= *collection-context* :js-array))
 
+
+(def
+  ^{:doc "If a pattern match has a catamorphism this will be bound to
+  a symbol representing its function name."
+    :dynamic true}
+  *cata-symbol*
+  nil)
+
+
 (defn gensym*
   "Like gensym but adds additional meta data which can be used by the
   match compiler."
@@ -300,6 +309,53 @@
    (r.matrix/drop-column matrix)))
 
 
+(defmethod compile-specialized-matrix ::r.match.syntax/and
+  [_ [target & targets*] matrix]
+  (let [max-args (reduce
+                  (fn [n node]
+                    (case (r.syntax/tag node)
+                      :any n
+                      ::r.match.syntax/and (max n (count (:arguments node)))))
+                  0
+                  (r.matrix/first-column matrix))
+        targets* `[~@(repeat max-args target) ~@targets*]
+        matrix* (mapv
+                 (fn [node row]
+                   (case (r.syntax/tag node)
+                     :any
+                     (assoc row :cols `[~@(repeat max-args node) ~@(:cols row)])
+
+                     ::r.match.syntax/and
+                     (let [arguments (:arguments node)]
+                       (assoc row :cols `[~@arguments
+                                          ~@(repeat (- max-args (count arguments))
+                                                    {:tag :any, :symbol '_})
+                                          ~@(:cols row)]))))
+                 (r.matrix/first-column matrix)
+                 (r.matrix/drop-column matrix))]
+    [(compile targets* matrix*)]))
+
+(defmethod compile-specialized-matrix ::r.match.syntax/cata
+  [_ [target & targets*] matrix]
+  (mapv
+   (fn [node row]
+     (case (r.syntax/tag node)
+       :any
+       (compile-pass targets* [row])
+
+       ::r.match.syntax/cata
+       (let [cata-return (gensym "CATA_RETURN__")]
+         {:op :call
+          :symbol *cata-symbol*
+          :target (r.ir/op-eval target)
+          :req-syms []
+          :ret-syms [cata-return]
+          :then (compile `[~cata-return ~@targets*]
+                         (r.matrix/prepend-column [row] [(get node :argument)]))})))
+   (r.matrix/first-column matrix)
+   (r.matrix/drop-column matrix)))
+
+
 (defmethod compile-specialized-matrix :cat
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)
@@ -349,33 +405,6 @@
               (reverse (map vector (range max-size) nth-syms elements)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
-
-
-(defmethod compile-specialized-matrix ::r.match.syntax/and
-  [_ [target & targets*] matrix]
-  (let [max-args (reduce
-                  (fn [n node]
-                    (case (r.syntax/tag node)
-                      :any n
-                      ::r.match.syntax/and (max n (count (:arguments node)))))
-                  0
-                  (r.matrix/first-column matrix))
-        targets* `[~@(repeat max-args target) ~@targets*]
-        matrix* (mapv
-                 (fn [node row]
-                   (case (r.syntax/tag node)
-                     :any
-                     (assoc row :cols `[~@(repeat max-args node) ~@(:cols row)])
-
-                     ::r.match.syntax/and
-                     (let [arguments (:arguments node)]
-                       (assoc row :cols `[~@arguments
-                                          ~@(repeat (- max-args (count arguments))
-                                                    {:tag :any, :symbol '_})
-                                          ~@(:cols row)]))))
-                 (r.matrix/first-column matrix)
-                 (r.matrix/drop-column matrix))]
-    [(compile targets* matrix*)]))
 
 
 (defmethod compile-specialized-matrix :ctn
@@ -1508,8 +1537,23 @@
   ([x env]
    (r.match.syntax/expand-ast (r.match.syntax/parse x env))))
 
+(defn parse-match-args
+  [match-args env]
+  (let [data (s/conform :meander.match.epsilon.match/args match-args)]
+    (if (identical? data ::s/invalid)
+      {:errors [(ex-info "Invalid match-args" (s/explain-data :meander.match.epsilon.match/args match-args))]}
+      (let [clauses (map
+                     (fn [{:keys [pat rhs]}]
+                       (let [node (r.match.syntax/parse pat env)]
+                         {:pat node
+                          :contains-cata? (r.match.syntax/contains-cata-node? node)
+                          :rhs rhs}))
+                     (:clauses data))
+            contains-cata? (some :contains-cata? clauses)]
+        {:clauses clauses
+         :contains-cata? contains-cata?
+         :expr (get data :expr)}))))
 
-;; TODO: Include useless clause analysis.
 (defn analyze-match-args
   "Analyzes arguments as would be supplied to the match macro e.g.
 
@@ -1533,15 +1577,11 @@
   ([match-args]
    (analyze-match-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.epsilon.match/args match-args)]
-     (if (identical? data ::s/invalid)
-       (throw (ex-info "Invalid match-args"
-                       (s/explain-data :meander.match.epsilon.match/args match-args)))
-       (let [clauses (map
-                      (fn [{:keys [pat rhs]}]
-                        {:pat (r.match.syntax/parse pat env)
-                         :rhs rhs})
-                      (:clauses data))
+   (let [result (parse-match-args match-args env)]
+     (if-some [error (first (get result :errors))]
+       (throw error)
+       (let [clauses (get result :clauses)
+             contains-cata? (some :contains-cata? clauses)
              errors (into []
                           (keep
                            (fn [{pat :pat}]
@@ -1551,7 +1591,9 @@
                      (fn [clause]
                        (r.matrix/make-row
                         [(r.match.syntax/expand-ast (:pat clause))]
-                        (r.ir/op-return (:rhs clause))))
+                        (if contains-cata?
+                          (r.ir/op-return [(:rhs clause)])
+                          (r.ir/op-return (:rhs clause)))))
                      clauses)
              final-clause (some
                            (fn [row]
@@ -1566,8 +1608,10 @@
              matrix (if final-clause
                       (vec (take-while (partial not= final-clause) matrix))
                       matrix)]
-         {:errors errors
-          :expr (:expr data)
+         {:cata-symbol (gensym "CATA__FN__")
+          :contains-cata? contains-cata?
+          :errors errors
+          :expr (get result :expr)
           :exhaustive? (some? final-clause)
           :final-clause final-clause
           :matrix matrix})))))
@@ -1610,26 +1654,41 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-match-args match-args &env)
-        expr (:expr match-data)
-        matrix (:matrix match-data)
-        final-clause (:final-clause match-data)
-        errors (:errors match-data)]
-    (if-some [error (first errors)]
+  (let [match-data (analyze-match-args match-args &env)]
+    (if-some [error (first (get match-data :errors))]
       (throw error)
-      (let [target (gensym "target__")
-            fail (gensym "fail__")]
+      (let [expr (get match-data :expr)
+            matrix (get match-data :matrix)
+            final-clause (get match-data :final-clause)]
         (if (r.matrix/empty? matrix)
           (if (some? final-clause)
             (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
             `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
-          `(let [~target ~expr
-                 ~fail (fn []
-                         ~(if (some? final-clause)
-                            (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
-             ~(r.ir/compile (compile [target] matrix) `(~fail) :match &env)))))))
-
+          (let [contains-cata? (get match-data :contains-cata?)
+                target (gensym "TARGET__")
+                fail (gensym "FAIL__")
+                ir (if contains-cata?
+                     (binding [*cata-symbol* (get match-data :cata-symbol)]
+                       (let [cata-return (gensym "CATA_RETURN__")]
+                         {:op :def
+                          :symbol *cata-symbol*
+                          :target-arg target
+                          :req-syms []
+                          :ret-syms []
+                          :body (compile [target] matrix)
+                          :then {:op :call
+                                 :symbol *cata-symbol*
+                                 :target (r.ir/op-eval target)
+                                 :req-syms []
+                                 :ret-syms [cata-return]
+                                 :then (r.ir/op-return cata-return)}}))
+                     (compile [target target] matrix))]
+            `(let [~target ~expr
+                   ~fail (fn []
+                           ~(if (some? final-clause)
+                              (r.ir/compile (compile [target] [final-clause]) nil :match &env)
+                              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
+               ~(r.ir/compile ir `(~fail) :match &env))))))))
 
 (s/fdef match
   :args (s/cat :expr any?
@@ -1654,27 +1713,29 @@
   ([match-args]
    (analyze-search-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.epsilon.match/args match-args)]
-     (if (identical? data ::s/invalid)
-       (throw (ex-info "Invalid search args"
-                       (s/explain-data :meander.match.epsilon.match/args match-args)))
-       (let [clauses (mapv
-                      (fn [{:keys [pat rhs]}]
-                        {:pat (r.match.syntax/parse pat env)
-                         :rhs rhs})
-                      (:clauses data))
+   (let [result (parse-match-args match-args env)]
+     (if-some [error (first (get result :errors))]
+       (throw error)
+       (let [clauses (get result :clauses)
+             contains-cata? (some :contains-cata? clauses)
              errors (into [] (keep
                               (fn [{pat :pat}]
                                 (r.match.check/check pat true)))
                           clauses)
              matrix (mapv
                      (fn [clause]
-                       (r.matrix/make-row
-                        [(r.match.syntax/expand-ast (:pat clause))]
-                        (r.ir/op-return (:rhs clause))))
+                       (let [rhs (get clause :rhs)]
+                         (r.matrix/make-row
+                          [(r.match.syntax/expand-ast (:pat clause))]
+                          (if contains-cata?
+                            (r.ir/op-return [rhs])
+                            (r.ir/op-return rhs)))))
                      clauses)]
-         {:errors errors
-          :expr (:expr data)
+         {:cata-symbol (gensym "CATA__FN__")
+          :cata-return (gensym "CATA__RETURN__")
+          :contains-cata? contains-cata?
+          :errors errors
+          :expr (get result :expr)
           :matrix matrix})))))
 
 
@@ -1707,19 +1768,41 @@
   [& match-args]
   (let [env (merge (meta &form) &env)
         match-data (analyze-search-args match-args env)
-        expr (:expr match-data)
-        matrix (:matrix match-data)
-        errors (:errors match-data)]
+        errors (get match-data :errors)]
     (if-some [error (first errors)]
       (throw error)
-      (let [target (gensym "target__")]
+      (let [matrix (get match-data :matrix)]
         (if (r.matrix/empty? matrix)
           nil
-          (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                          (compile [target] matrix))
-                        nil
-                        :search
-                        env))))))
+          (let [expr (get match-data :expr)
+                contains-cata? (get match-data :contains-cata?)
+                target (gensym "TARGET__")]
+            (if contains-cata?
+              ;; We cannot use the `op-bind` approach as below because
+              ;; the IR compiler will use the type information of the
+              ;; expr to eliminate clauses that won't match which can
+              ;; be too aggressive when a catamorphism is present.
+              (binding [*cata-symbol* (get match-data :cata-symbol)]
+                (let [cata-return (gensym "CATA_RETURN__")
+                      ir {:op :def
+                          :symbol *cata-symbol*
+                          :target-arg target
+                          :req-syms []
+                          :ret-syms [cata-return]
+                          :body (compile [target] matrix)
+                          :then {:op :call
+                                 :symbol *cata-symbol*
+                                 :target (r.ir/op-eval target)
+                                 :req-syms []
+                                 :ret-syms [cata-return]
+                                 :then (r.ir/op-return cata-return)}}]
+                  `(let [~target ~expr]
+                     ~(r.ir/compile ir nil :search env))))
+              (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
+                              (compile [target] matrix))
+                            nil
+                            :search
+                            env))))))))
 
 
 (s/fdef search
@@ -1745,15 +1828,11 @@
   ([match-args]
    (analyze-find-args match-args {}))
   ([match-args env]
-   (let [data (s/conform :meander.match.epsilon.match/args match-args)]
-     (if (identical? data ::s/invalid)
-       (throw (ex-info "Invalid match args"
-                       (s/explain-data :meander.match.epsilon.match/args match-args)))
-       (let [clauses (mapv
-                      (fn [{:keys [pat rhs]}]
-                        {:pat (r.match.syntax/parse pat env)
-                         :rhs rhs})
-                      (:clauses data))
+   (let [result (parse-match-args match-args env)]
+     (if-some [error (first (get result :errors))]
+       (throw error)
+       (let [clauses (get result :clauses)
+             contains-cata? (some :contains-cata? clauses)
              errors (into [] (keep
                               (fn [{pat :pat}]
                                 (r.match.check/check pat true)))
@@ -1762,7 +1841,9 @@
                      (fn [clause]
                        (r.matrix/make-row
                         [(r.match.syntax/expand-ast (:pat clause))]
-                        (r.ir/op-return (:rhs clause))))
+                        (if contains-cata?
+                          (r.ir/op-return [(:rhs clause)])
+                          (r.ir/op-return (:rhs clause)))))
                      clauses)
              final-clause (some
                            (fn [row]
@@ -1774,10 +1855,12 @@
                                  nil)))
                            matrix)
              matrix (if final-clause
-                      (vec (take-while (partial not= final-clause) matrix))
+                      (into [] (take-while (partial not= final-clause)) matrix)
                       matrix)]
-         {:errors errors
-          :expr (:expr data)
+         {:cata-symbol (gensym "CATA__FN__")
+          :contains-cata? contains-cata?
+          :errors errors
+          :expr (get result :expr)
           :final-clause final-clause
           :matrix matrix})))))
 
@@ -1787,34 +1870,41 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-find-args match-args &env)
-        expr (:expr match-data)
-        matrix (:matrix match-data)
-        errors (:errors match-data)
-        final-clause (:final-clause match-data)
-        target (gensym "target__")
-        fail (gensym "fail__")]
+  (let [env (merge (meta &form) &env)
+        match-data (analyze-find-args match-args env)
+        errors (:errors match-data)]
     (if-some [error (first errors)]
       (throw error)
-      (if (r.matrix/empty? matrix)
-        (if (some? final-clause)
-          (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                          (compile [target] [final-clause]))
-                        nil
-                        :find
-                        &env)
-          nil)
-        (r.ir/compile
-         (r.ir/op-bind target (r.ir/op-eval expr)
-           (r.ir/op-eval
-             (if (some? final-clause)
-               `(let [~fail (fn []
-                              ~(r.ir/compile (compile [target] [final-clause]) nil :find &env))]
-                  ~(r.ir/compile (compile [target] matrix) `(~fail) :find &env))
-               (r.ir/compile (compile [target] matrix) nil :find &env))))
-         nil
-         :find)))))
-
+      (let [matrix (get match-data :matrix)
+            final-clause (get match-data :final-clause)
+            matrix (if (some? final-clause)
+                     (conj matrix final-clause)
+                     matrix)]
+        (if (r.matrix/empty? matrix)
+          nil
+          (let [expr (get match-data :expr)
+                contains-cata? (get match-data :contains-cata?)
+                target (gensym "TARGET__")]
+            (if contains-cata?
+              (binding [*cata-symbol* (get match-data :cata-symbol)]
+                (let [cata-return (gensym "CATA_RETURN__")
+                      ir {:op :def
+                          :symbol *cata-symbol*
+                          :target-arg target
+                          :req-syms []
+                          :ret-syms [cata-return]
+                          :body (compile [target] matrix)
+                          :then {:op :call
+                                 :symbol *cata-symbol*
+                                 :target (r.ir/op-eval target)
+                                 :req-syms []
+                                 :ret-syms [cata-return]
+                                 :then (r.ir/op-return cata-return)}}]
+                  `(let [~target ~expr]
+                     ~(r.ir/compile ir nil :find env))))
+              (let [ir (r.ir/op-bind target (r.ir/op-eval expr)
+                         (compile [target] matrix))]
+                (r.ir/compile ir nil :find env)))))))))
 
 (s/fdef find
   :args (s/cat :expr any?

@@ -469,6 +469,50 @@
 (defmethod r.syntax/walk ::apply [inner outer node]
   (outer (assoc node :argument (inner (:argument node)))))
 
+;;; cata
+
+(def cata-symbol
+  'meander.match.syntax.epsilon/cata)
+
+(defn parse-cata [form env]
+  (let [args (rest form)]
+    (if (= 1 (count args))
+      {:tag ::cata
+       :argument (parse (first args) env)}
+      (throw (ex-info "meander.match.syntax.epsilon/cata requires one argument" {})))))
+
+(r.syntax/register-parser cata-symbol #'parse-cata)
+
+(defmethod r.syntax/children ::cata [node]
+  [(:argument node)])
+
+(defmethod r.syntax/ground? ::cata [_]
+  false)
+
+(defmethod r.syntax/unparse ::cata [node]
+  `(~cata-symbol
+    ~(r.syntax/unparse (:argument node))))
+
+(defmethod r.syntax/search? ::cata
+  [_] false)
+
+(defmethod r.syntax/walk ::cata [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))
+
+(defn cata-node?
+  "true if `x` is a `:meander.match.syntax.epsilon/cata` node."
+  [x]
+  (and (map? x) (= (get x :tag) ::cata)))
+
+(defn contains-cata-node?
+  [root-node]
+  (r.syntax/fold
+   (fn [_ node]
+     (and (cata-node? node)
+          (reduced true)))
+   false
+   root-node))
+
 ;;; guard
 
 (def guard-symbol
