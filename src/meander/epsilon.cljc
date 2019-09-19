@@ -551,7 +551,7 @@
 
        (subst (symbol \"foo\" \"bar\"))
        ;; => 'foo/bar
-  
+
        ;; clojure.core/let
        (let [!namespaces [\"foo\" \"foo\"]
              !names [\"bar\" \"baz\"]]
@@ -590,7 +590,7 @@
          (keyword ?name)
          ?name)
        ;; => \"bar\"
-  
+
        (match :foo/bar
          (keyword ?namespace ?name)
          [?namespace ?name])
@@ -603,7 +603,7 @@
 
        (subst (keyword \"foo\" \"bar\"))
        ;; => :foo/bar
-  
+
        ;; clojure.core/let
        (let [!namespaces [\"foo\" \"foo\"]
              !names [\"bar\" \"baz\"]]
