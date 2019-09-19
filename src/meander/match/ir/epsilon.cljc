@@ -15,6 +15,24 @@
    #?(:cljs [goog.array])))
 
 
+(def SeqInterface
+  #?(:clj clojure.lang.ISeq
+     :cljs ISeq))
+
+(def SetInterface
+  #?(:clj clojure.lang.IPersistentSet
+     :cljs ISet))
+
+(def VectorInterface
+  #?(:clj clojure.lang.IPersistentVector
+     :cljs IVector))
+
+(def MapInterface
+  #?(:clj clojure.lang.IPersistentMap
+     :cljs IMap))
+
+
+
 (def ^{:doc "A macro &env map. Used to make platform specific
 compilation decisions."
        :dynamic true
@@ -769,13 +787,13 @@ compilation decisions."
   pred-types
   #?(:clj
      {#'clojure.core/coll? clojure.lang.IPersistentCollection
-      #'clojure.core/map? clojure.lang.IPersistentMap
+      #'clojure.core/map? MapInterface
       #'clojure.core/number? java.lang.Number
-      #'clojure.core/seq? clojure.lang.ISeq
+      #'clojure.core/seq? SeqInterface
       #'clojure.core/seqable? clojure.lang.Seqable
       #'clojure.core/set? clojure.lang.PersistentHashSet
       #'clojure.core/string? java.lang.String
-      #'clojure.core/vector? clojure.lang.IPersistentVector}
+      #'clojure.core/vector? VectorInterface}
      :cljs
      {#'cljs.core/number? js/Number
       #'cljs.core/set? cljs.core/PersistentHashSet
@@ -805,66 +823,28 @@ compilation decisions."
      :cljs
      node))
 
+
 (defn eliminate-check-op
   {:private true}
   [env node]
-  #?(:clj
-     (case (op node)
-       :check-seq
-       (eliminate-check-known-type env node clojure.lang.ISeq)
+  (case (op node)
+    :check-seq
+    (eliminate-check-known-type env node SeqInterface)
 
-       :check-set
-       (eliminate-check-known-type env node clojure.lang.IPersistentSet)
+    :check-set
+    (eliminate-check-known-type env node SetInterface)
 
-       :check-vector
-       (eliminate-check-known-type env node clojure.lang.IPersistentVector)
+    :check-vector
+    (eliminate-check-known-type env node VectorInterface)
 
-       :check-map
-       (eliminate-check-known-type env node clojure.lang.IPersistentMap)
+    :check-map
+    (eliminate-check-known-type env node MapInterface)
 
-       :check-boolean
-       (eliminate-preds env node)
+    :check-boolean
+    (eliminate-preds env node)
 
-       ;; else
-       node)
-     ;; ClojureScript requires some brute force due to its lack of
-     ;; interfaces.
-     :cljs
-     (case (op node)
-       :check-seq
-       (reduce
-        (fn [node type]
-          (let [node* (eliminate-check-known-type env node type)]
-            (if (= node* node)
-              node
-              (reduced node*))))
-        node
-        [cljs.core/List
-         cljs.core/LazySeq
-         cljs.core/Range])
-
-       :check-set
-       (eliminate-check-known-type env node cljs.core/PersistentHashSet)
-
-       :check-vector
-       (eliminate-check-known-type env node cljs.core/PersistentVector)
-
-       :check-map
-       (reduce
-        (fn [node type]
-          (let [node* (eliminate-check-known-type env node type)]
-            (if (= node* node)
-              node
-              (reduced node*))))
-        node
-        [cljs.core/PersistentArrayMap
-         cljs.core/PersistentHashMap])
-
-       :check-boolean
-       (eliminate-preds env node)
-
-       ;; else
-       node)))
+    ;; else
+    node))
 
 (defn add-type-if-coerced-bind
   {:private true}
@@ -888,8 +868,7 @@ compilation decisions."
     ;; If it is quoted then a seq can't be a function call so it is a seq
     (and (r.util/quoted? form)
          (seq? (second form)))
-    (add-type-to-env env (:symbol node) clojure.lang.ISeq)
-
+    (add-type-to-env env (:symbol node) SeqInterface)
     ;; If it is quoted (and not a seq) then infer the type from the
     ;; thing in the quote
     (r.util/quoted? form)
@@ -900,7 +879,7 @@ compilation decisions."
          (or (not (symbol? (first form)))
              (= (first form) 'list))
          (not (seq? (first form))))
-    (add-type-to-env env (:symbol node) clojure.lang.ISeq)
+    (add-type-to-env env (:symbol node) SeqInterface)
 
     ;; otherwise just check the type
     (and (not (seq? form))
@@ -915,9 +894,9 @@ compilation decisions."
   (case (op node)
     :apply
     (do
-      (add-type-if-coerced-apply env node 'clojure.core/seq clojure.lang.ISeq)
-      (add-type-if-coerced-apply env node 'clojure.core/set clojure.lang.IPersistentSet)
-      (add-type-if-coerced-apply env node 'clojure.core/vec clojure.lang.IPersistentVector)
+      (add-type-if-coerced-apply env node `seq SeqInterface)
+      (add-type-if-coerced-apply env node `set SetInterface)
+      (add-type-if-coerced-apply env node `vec VectorInterface)
       node)
     :bind
     (do
@@ -927,9 +906,9 @@ compilation decisions."
           (infer-type-seq env node form))
         node)
 
-      (add-type-if-coerced-bind env node 'clojure.core/seq clojure.lang.ISeq)
-      (add-type-if-coerced-bind env node 'clojure.core/set clojure.lang.IPersistentSet)
-      (add-type-if-coerced-bind env node 'clojure.core/vec clojure.lang.IPersistentVector)
+      (add-type-if-coerced-bind env node `seq SeqInterface)
+      (add-type-if-coerced-bind env node `set SetInterface)
+      (add-type-if-coerced-bind env node `vec VectorInterface)
       node)
 
     node))

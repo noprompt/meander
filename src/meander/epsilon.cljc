@@ -57,13 +57,14 @@
   For operators which relax this restriction, see `find` and `search`."
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] `(r.match/match ~@args))
+  [& args] `(meander.match.epsilon/match ~@args))
+
 
 (defmacro find
   "Like `search` but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] `(r.match/find ~@args))
+  [& args] `(meander.match.epsilon/find ~@args))
 
 (defmacro search
   "Like `match` but allows for patterns which may match `x` in more
@@ -91,7 +92,7 @@
       (find x ,,,)"
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] `(r.match/search ~@args))
+  [& args] `(meander.match.epsilon/search ~@args))
 
 (defmacro breadth-first-search
   "Like `search` but traverses the search space in breadth first
@@ -99,7 +100,7 @@
   {:arglists '([x & clauses])
    :style/indent :defn}
   [& args]
-  (with-meta `(r.match/search ~@args)
+  (with-meta `(meander.match.epsilon/search ~@args)
     (assoc (meta &form) :search-order :breadth-first)))
 
 ;; ---------------------------------------------------------------------
@@ -134,7 +135,7 @@
          p_n-1 (subst p_n))"
   {:style/indent :defn}
   [x & clauses]
-  (r.match/match (compile-rewrite [x clauses])
+  (meander.match.epsilon/match (compile-rewrite [x clauses])
     [:error ?error-message]
     (throw (ex-info ?error-message {}))
 
@@ -152,7 +153,7 @@
   compile-rewrites
   (r/rewrite
    [?x (!match !substitution ...)]
-   (`r.match/search ?x . !match (`r.subst/substitute !substitution) ...)
+   (`meander.match.epsilon/search ?x . !match (`r.subst/substitute !substitution) ...)
 
    _
    [:error "rewrite expects and odd number of arguments"]))
@@ -160,7 +161,7 @@
 (defmacro rewrites
   {:style/indent :defn}
   [x & clauses]
-  (r.match/match (compile-rewrites [x clauses])
+  (meander.match.epsilon/match (compile-rewrites [x clauses])
     [:error ?error-message]
     (throw (ex-info ?error-message {}))
 
@@ -240,11 +241,11 @@
   ([binding-patterns]
    (case (::r.syntax/phase &env)
      :meander/match
-     (r.match/match binding-patterns
+     (meander.match.epsilon/match binding-patterns
        [_ _ ...]
        (reduce
         (fn [?inner [?pattern ?expression]]
-          (subst (`r.match.syntax/let ?pattern ?expression ?inner)))
+          (`subst (`r.match.syntax/let ?pattern ?expression ?inner)))
         '_
         (reverse (partition 2 binding-patterns)))
 
@@ -257,11 +258,11 @@
   ([binding-patterns target-pattern]
    (case (::r.syntax/phase &env)
      :meander/match
-     (r.match/match binding-patterns
+     (meander.match.epsilon/match binding-patterns
        [_ _ ...]
        (reduce
         (fn [?inner [?pattern ?expression]]
-          (subst (`r.match.syntax/let ?pattern ?expression ?inner)))
+          (`subst (`r.match.syntax/let ?pattern ?expression ?inner)))
         target-pattern
         (reverse (partition 2 binding-patterns)))
 
