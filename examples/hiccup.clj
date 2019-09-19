@@ -107,6 +107,10 @@
     (m/and {} (m/gather [(m/cata !k) (m/cata !v)]))
     {& [[!k !v] ...]}
 
+    ;; Apply to sets.
+    (m/and #{} (m/gather (m/cata !x)))
+    #{^& [!x ...]}
+
     ;; Stop.
     ?x
     ?x))
@@ -150,6 +154,10 @@
     (m/and {} (m/gather [(m/cata !k) (m/cata !v)]))
     {& [[!k !v] ...]}
 
+    ;; Apply to sets.
+    (m/and #{} (m/gather (m/cata !k)))
+    #{^& [!k ...]}
+
     ;; Stop.
     ?x
     ?x))
@@ -159,7 +167,7 @@
   (m*/pipe #'flatten-str-form (m*/until = #'interpret-str-form*)))
 
 (defmacro html* [hiccup]
-  (interpret-str
+  (interpret-str-form
    (m/rewrite hiccup
      ;; Borrow :<> from Reagent.
      [:<> . (m/cata !content) ...]
@@ -188,6 +196,10 @@
      (`html ?x))))
 
 (comment
+  (interpret-str-form `(str (get #{(str 1 2 3) (str "a" ["b" "c"] "e")} (str "1" (str "23")))))
+  ;; =>
+  (clojure.core/str (clojure.core/get #{"123" "a[bc]e"} "123"))
+
   (macroexpand
    (html*
     [:html
