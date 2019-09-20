@@ -275,9 +275,10 @@
              (r/match l
                (_ _ . ?x ?y ?x)
                [?x ?y])))
+
     (t/is (= false
              (r/match l
-               (_ _ . ?x ?y ?x)
+               (_ _ . ?x ?y)
                [?x ?y]
                _ false)))))
 
