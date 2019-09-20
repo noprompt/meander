@@ -220,11 +220,13 @@
 ;; ---------------------------------------------------------------------
 ;; Fn specs
 
+#_
 (s/fdef meander.syntax.epsilon/children
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/coll-of :meander.syntax.epsilon/node
                   :kind sequential?))
 
+#_
 (s/fdef meander.syntax.epsilon/min-length
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/or :nat nat-int?
@@ -234,6 +236,7 @@
   :args (s/cat :x any?)
   :ret boolean?)
 
+#_
 (s/fdef meander.syntax.epsilon/max-length
   :args (s/cat :node :meander.syntax.epsilon/node)
   :ret (s/or :nat nat-int?

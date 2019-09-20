@@ -776,15 +776,15 @@
              (r/gather (r/pred even? !xs))
              !xs)))
 
-  (t/is (= [[2 4 6] 3]
-           (r/match [[1 2 3 4 5 6] 3]
-             (r/gather (r/pred even? !xs) ?n)
-             [!xs ?n])))
-
   (t/is (= [2 4 6]
-           (r/match [[1 2 3 4 5 6] 3]
+           (r/match [1 2 3 4 5 6]
              (r/gather (r/pred even? !xs) 3)
              !xs)))
+
+  (t/is (= [[2 4 6] 3]
+           (r/match [[1 2 3 4 5 6] 3]
+             [(r/gather (r/pred even? !xs) ?n) ?n]
+             [!xs ?n])))
 
   (t/is (= [[2 4 6] [3]]
            (r/match [1 2 3 4 5 6]
@@ -1705,9 +1705,11 @@
                   {:k1 ?x, :k2 {?x ?y}}
                   [?x ?y])))))
 
-
 (t/deftest search-map-2-test
-  (t/is (= #{[:k1 :k2 "v1" "v2"]
+  (t/is (= #{[:k3 :k2 {"v2" "v1"} nil]
+             [:k1 :k3 "v1" nil]
+             [:k2 :k3 {"v1" "v2"} nil]
+             [:k1 :k2 "v1" "v2"]
              [:k1 :k2 :k3 "v1" "v2"]}
            (set (r/search {:k1 "v1"
                            :k2 {"v1" "v2"}

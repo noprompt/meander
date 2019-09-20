@@ -693,25 +693,27 @@
        (or {:tag :dtl, :lvr {:symbol ?var}}
            {:tag :lvr :symbol ?var}
            {:tag :dtm, :mvr {:symbol ?var}}
-           {:tag :mvr :as ?var})
+           {:tag :mvr :symbol ?var})
        `(let [?counter# (volatile! 0)]
-          (and (seqable (or (and ~pattern
-                                 (let [_# (vswap! ?counter# inc)]))
-                            _#)
-                        ...)
-               (let [~?var (deref ?counter#)])))
-
+          (with [%gather# (or (and ~pattern
+                                    (let [_gather# (vswap! ?counter# inc)]))
+                               _gather_#)]
+            (and (seqable %gather# ...)
+                 (let [~?var (deref ?counter#)]))))
 
        ;; Natural numbers and  `..n`
        (or {:tag :lit, :value (pred nat-int? ?n)}
            {:tag :dt+, :n ?n})
        (clj/let [ellipsis (clj/symbol (str ".." ?n))]
          `(let [?counter# (volatile! 0)]
-            (and (seqable (or (and ~pattern
-                                   (let [_# (vswap! ?counter# inc)]))
-                              _#)
-                          ~ellipsis)
-                 (guard (<= ~?n (deref ?counter#))))))
+            ;; This with should not be needed but is here temporarily
+            ;; due to a compiler bug which can revealed by inlining
+            ;; the %gather# reference.
+            (with [%gather# (or (and ~pattern
+                                      (let [_gather# (vswap! ?counter# inc)]))
+                                 _gather#)]
+              (and (seqable %gather# ~ellipsis)
+                   (guard (<= ~?n (deref ?counter#)))))))
 
        ;; `_` and `...`
        (or {:tag :any}

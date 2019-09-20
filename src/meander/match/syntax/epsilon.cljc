@@ -325,11 +325,12 @@
        (let [n (:n node)]
          (if (= 0 n)
            (assoc (dissoc node :n) :tag :rp*)
-           {:tag :prt
-            :left (:cat node)
-            :right {:tag :rp+
-                    :cat (:cat node)
-                    :n (dec n)}}))
+           (reduced
+            {:tag :prt
+             :left (:cat node)
+             :right {:tag :rp+
+                     :cat (:cat node)
+                     :n (dec n)}})))
 
        ;; else
        node))
