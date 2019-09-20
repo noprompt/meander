@@ -991,7 +991,7 @@
                form (:form node)
                eval-form (if (:meander.epsilon/beta-reduce (meta form))
                            (let [[_fn [arg] & body] form]
-                             `(let [~arg ~target] ~@body))
+                             (r.ir/op-eval `(let [~arg ~target] ~@body)))
                            (r.ir/op-eval `(~form ~target)))]
            (r.ir/op-check-boolean eval-form
              (if (seq arguments)
