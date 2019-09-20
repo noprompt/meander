@@ -98,7 +98,7 @@
               (not= (r.syntax/tag node) :cat)
               (not= (r.syntax/tag node) :prt))
        {:tag :lit
-        :value (r.syntax/unparse node)}
+        :value (r.syntax/lit-form node)}
        node))
    node))
 

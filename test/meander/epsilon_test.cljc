@@ -1,4 +1,4 @@
-(ns meander.syntax.epsilon-test
+(ns meander.epsilon-test
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.test.alpha :as st :include-macros true]
             [clojure.test :as t]
@@ -1688,14 +1688,14 @@
 (t/deftest breadth-first-search-test
   (t/is (= '([:a :b] [1 2] [:a :c] [1 3])
            (r/breadth-first-search [1 2]
-             (let [?s :a]
-               (or (let [?t :b])
-                   (let [?t :c])))
+             (r/let [?s :a]
+               (r/or (r/let [?t :b])
+                     (r/let [?t :c])))
              [?s ?t]
 
-             (let [?s 1]
-               (or (let [?t 2])
-                   (let [?t 3])))
+             (r/let [?s 1]
+               (r/or (r/let [?t 2])
+                     (r/let [?t 3])))
              [?s ?t]))))
 
 (t/deftest search-map-1-test
@@ -2099,3 +2099,21 @@
   (t/testing "fib-add"
     (t/is (=  '(s (+ 0 0))
               (fib-add '(+ (s 0) 0))))))
+
+(t/deftest gh-72-test
+  (let [names ["JOHN" "PAUL" "DOE"]]
+    (t/is (= [["JOHN" "PAUL"] "DOE"]
+             (r/find names
+               [!firsts ..1 ?last]
+               [!firsts ?last]))))
+  (let [names ["MADONNA"]]
+    (t/is (= nil
+             (r/find names
+               [!firsts ..1 ?last]
+               [!firsts ?last]))))
+
+  (let [names ["JOHN" "DOE"]]
+    (t/is (= [["JOHN"]"DOE"]
+             (r/find names
+               [!firsts ..1 ?last]
+               [!firsts ?last])))))

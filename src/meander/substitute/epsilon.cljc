@@ -27,6 +27,15 @@
      (meander.syntax.epsilon/$
       {:tag :rpm
        :mvr {:tag :mvr :as ?mvr-node}})
+     ?mvr-node
+
+     ;; TODO: This definition is weak.
+     (meander.syntax.epsilon/$
+      {:tag :wth
+       :bindings [_ ...
+                  {:ref {:symbol ?symbol}
+                   :pattern (meander.syntax.epsilon/$ {:tag :mvr :as ?mvr-node})} .
+                  _ ...]})
      ?mvr-node)))
 
 (defn memory-variable-data
@@ -613,3 +622,4 @@
 (s/fdef substitute
   :args (s/cat :pattern any?)
   :ret any?)
+

@@ -221,12 +221,22 @@
                             :arguments [n1 n2]})))
                      elements)
           node* (assoc node :elements elements*)
-          node* (dissoc node* :rest)]
+          node* (dissoc node* :rest)
+          disj-args (map
+                     (fn [elem-node]
+                       (case (get elem-node :tag)
+                         ;; NOTE: `:expr` could be impure; we need to
+                         ;; do better than this.
+                         :unq
+                         (get elem-node :expr)
+                         ;; else
+                         (r.syntax/unparse elem-node)))
+                     (vals elem-map))]
       {:tag ::and
        :arguments [node* {:tag ::apply
                           :function (vary-meta
                                      `(fn [s#]
-                                        (disj s# ~@(map r.syntax/unparse (vals elem-map))))
+                                        (disj s# ~@disj-args))
                                      assoc
                                      :meander.epsilon/beta-reduce true)
                           :argument rest-set}]})
@@ -314,10 +324,7 @@
        :rp+
        (let [n (:n node)]
          (if (= 0 n)
-           {:tag :prt
-            :left (:cat node)
-            :right {:tag :rp*
-                    :cat (:cat node)}}
+           (assoc (dissoc node :n) :tag :rp*)
            {:tag :prt
             :left (:cat node)
             :right {:tag :rp+
