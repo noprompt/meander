@@ -245,7 +245,7 @@
        [_ _ ...]
        (reduce
         (fn [?inner [?pattern ?expression]]
-          (`subst (`r.match.syntax/let ?pattern ?expression ?inner)))
+          (r.subst/substitute (`r.match.syntax/let ?pattern ?expression ?inner)))
         '_
         (reverse (partition 2 binding-patterns)))
 
@@ -262,7 +262,7 @@
        [_ _ ...]
        (reduce
         (fn [?inner [?pattern ?expression]]
-          (`subst (`r.match.syntax/let ?pattern ?expression ?inner)))
+          (r.subst/substitute (`r.match.syntax/let ?pattern ?expression ?inner)))
         target-pattern
         (reverse (partition 2 binding-patterns)))
 
