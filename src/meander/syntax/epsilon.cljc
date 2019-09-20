@@ -1853,10 +1853,12 @@
          (try
            (require (:name cljs-ns))
            (catch Exception _
-             (doseq [[alias ns-name] (:requires cljs-ns)]
-               (if (= alias ns-name)
-                 (require ns-name)
-                 (require [ns-name :as alias])))))))
+             (try
+               (doseq [[alias ns-name] (:requires cljs-ns)]
+                 (if (= alias ns-name)
+                   (require ns-name)
+                   (require [ns-name :as alias])))
+               (catch Exception _))))))
     `(do ~expander-definition-body-form
          (var ~fn-name))))
 
