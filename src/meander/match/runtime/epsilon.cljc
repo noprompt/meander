@@ -8,6 +8,7 @@
 (def k-combinations r.util/k-combinations)
 (def partitions r.util/partitions)
 (def coll-zip r.util/coll-zip)
+(def coll-seq r.util/coll-seq)
 (def zip-next-seq r.util/zip-next-seq)
 (def knit r.util/knit)
 

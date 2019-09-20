@@ -312,9 +312,9 @@
      (throw (ex-info "coll must be a string? or coll?" {:type (type coll)})))))
 
 (defn coll-zip
-  "Return a zipper with a branch? fn of coll?."
   [root]
-  (zip/zipper coll? seq
+  (zip/zipper coll?
+              seq
               (fn [coll coll-new]
                 (cond
                   (seq? coll)
@@ -330,12 +330,25 @@
                   (into (empty coll) coll-new)))
               root))
 
+(defn coll-seq
+  "Return a lazy sequence of all the nodes in the tree `root`
+  excluding `map-entry?`s."
+  [root]
+  (remove map-entry? (tree-seq coll? seq root)))
+
 (defn zip-next-seq
   "Given a clojure.zip zipper location loc return a lazy sequence of
-  all clojure.zip/next locations from loc."
+  all clojure.zip/next locations from loc. Note that `map-entry?`s
+  are skipped."
   [loc]
-  (if (zip/end? loc)
+  (cond
+    (zip/end? loc)
     ()
+
+    (map-entry? (zip/node loc))
+    (recur (zip/next loc))
+
+    :else
     (lazy-seq (cons loc (zip-next-seq (zip/next loc))))))
 
 (defn rank

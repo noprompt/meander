@@ -442,7 +442,7 @@
            (r.ir/op-search loc-sym (r.ir/op-eval `(r.match.runtime/zip-next-seq (r.match.runtime/coll-zip ~target)))
              (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
                (compile targets* matrix*)))
-           (r.ir/op-search node-sym (r.ir/op-eval `(tree-seq coll? seq ~target))
+           (r.ir/op-search node-sym (r.ir/op-eval `(r.match.runtime/coll-seq ~target))
              (compile targets* matrix*))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))

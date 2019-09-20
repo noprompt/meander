@@ -2120,3 +2120,14 @@
              (r/find names
                [!firsts ..1 ?last]
                [!firsts ?last])))))
+
+(t/deftest match-$-test
+  (t/is (= ["bar"]
+           (r/match {:foo ["bar"]}
+             (r/$ [& _ :as ?x])
+             ?x)))
+
+  (t/is (= {:foo [["bar"]]}
+           (r/match {:foo ["bar"]}
+             (r/$ ?foo [& _ :as ?x])
+             (?foo [?x])))))
