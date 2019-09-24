@@ -1,0 +1,28 @@
+name: Meander CI
+
+on: [push]
+
+jobs:
+  clojure:
+
+    runs-on: ubuntu-latest
+    
+    container:
+      image:  clojure:openjdk-11-tools-deps
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run tests
+      run: clj -A:test
+
+  clojurescript:
+
+    runs-on: ubuntu-latest
+    
+    container:
+      image: theasp/clojurescript-nodejs:latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run tests
+      run: clojure -A:cljs-test
