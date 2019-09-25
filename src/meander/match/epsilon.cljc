@@ -722,7 +722,7 @@
 (defmethod compile-specialized-matrix :map
   [_ [target & targets*] matrix]
   (let [all-keys (map-matrix-all-keys matrix)
-        key-sort (sort-by (complement r.syntax/ground?) all-keys)
+        key-sort (distinct (sort-by (complement r.syntax/ground?) all-keys))
         num-keys (count key-sort)
         no-keys? (zero? num-keys)
         matrix* (mapv
@@ -750,7 +750,8 @@
                                                           '{:tag :any
                                                             :symbol _})
                                                 ~@(:cols row)]))
-                           (let [new-cols (sort-by
+                           (let [search-keys (keys (sort-by-search-keys the-map (:env row)))
+                                 new-cols (sort-by
                                            (fn [node]
                                              (if (= (r.syntax/tag node) :mkv)
                                                0
@@ -762,8 +763,11 @@
                                                  :entry entry}
                                                 {:tag :any
                                                  :symbol '_}))
-                                            (keys (sort-by-search-keys the-map (:env row)))))]
-                             (assoc row :cols `[~@new-cols ~@(:cols row)])))))))
+                                            search-keys))
+                                 any-pad (repeat (- num-keys (count search-keys))
+                                                 {:tag :any
+                                                  :symbol '_})]
+                             (assoc row :cols `[~@new-cols ~@any-pad ~@(:cols row)])))))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))]
     [(r.ir/op-check-map (r.ir/op-eval target)
@@ -1659,29 +1663,33 @@
       (throw error)
       (let [expr (get match-data :expr)
             matrix (get match-data :matrix)
-            final-clause (get match-data :final-clause)]
+            final-clause (get match-data :final-clause)
+            final-clause? (some? final-clause)]
         (if (r.matrix/empty? matrix)
-          (if (some? final-clause)
+          (if final-clause?
             (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
             `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
           (let [contains-cata? (get match-data :contains-cata?)
                 target (gensym "TARGET__")
                 fail (gensym "FAIL__")
                 ir (if contains-cata?
-                     (binding [*cata-symbol* (get match-data :cata-symbol)]
-                       (let [cata-return (gensym "CATA_RETURN__")]
-                         {:op :def
-                          :symbol *cata-symbol*
-                          :target-arg target
-                          :req-syms []
-                          :ret-syms []
-                          :body (compile [target] matrix)
-                          :then {:op :call
-                                 :symbol *cata-symbol*
-                                 :target (r.ir/op-eval target)
-                                 :req-syms []
-                                 :ret-syms [cata-return]
-                                 :then (r.ir/op-return cata-return)}}))
+                     (let [matrix (if final-clause?
+                                    (conj matrix final-clause)
+                                    matrix)]
+                       (binding [*cata-symbol* (get match-data :cata-symbol)]
+                         (let [cata-return (gensym "CATA_RETURN__")]
+                           {:op :def
+                            :symbol *cata-symbol*
+                            :target-arg target
+                            :req-syms []
+                            :ret-syms []
+                            :body (compile [target] matrix)
+                            :then {:op :call
+                                   :symbol *cata-symbol*
+                                   :target (r.ir/op-eval target)
+                                   :req-syms []
+                                   :ret-syms [cata-return]
+                                   :then (r.ir/op-return cata-return)}})))
                      (compile [target target] matrix))]
             `(let [~target ~expr
                    ~fail (fn []
