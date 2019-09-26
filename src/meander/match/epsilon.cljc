@@ -137,6 +137,7 @@
                  (r.syntax/subnodes node))))
 
 
+;; Use solved?* instead.
 (defn solved?
   "true if all logic variables occuring in node are bound in env and
   node is free of memory variables, false otherwise."
@@ -147,6 +148,35 @@
       (if (some r.syntax/mvr-node? vars)
         false
         (every? env vars)))))
+
+(defn solved?*
+  "true if all logic variables occuring in `node` are bound in `env`
+  and `node` is free of memory variables and non-literls, false
+  otherwise."
+  {:private true}
+  [node env]
+  (cond
+    (r.syntax/literal? node)
+    true
+
+    (r.syntax/lvr-node? node)
+    (contains? env node)
+
+    (or (r.syntax/map-node? node)
+        (r.syntax/mut-node? node)
+        (r.syntax/mvr-node? node)
+        (r.syntax/set-node? node))
+    false
+
+    (or (r.syntax/prt-node? node)
+        (r.syntax/seq-node? node)
+        (r.syntax/vec-node? node))
+    (every? (fn [child-node]
+              (solved?* child-node env))
+            (r.syntax/children node))
+
+    :else
+    false))
 
 
 (defn compile-ground
