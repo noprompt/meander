@@ -398,7 +398,7 @@
                   (r.matrix/first-column matrix))
         nth-syms (mapv
                   (fn [i]
-                    (gensym* (str "nth_" i "__")))
+                    (symbol (str target "_nth_" i "__")))
                   (range max-size))]
     (mapv
      (fn [node row]
@@ -449,9 +449,9 @@
        (let [context (:context node)
              pattern (:pattern node)
              ;; Bound zipper location if :context supplied.
-             loc-sym (gensym* "loc__")
+             loc-sym (symbol (str target "_loc_"))
              ;; Bound to zipper node and tested against :pattern.
-             node-sym (gensym* "node__")
+             node-sym (symbol (str target "_node__"))
              matrix* (as-> [row] %matrix
                        (if (some? context)
                          (r.matrix/prepend-column %matrix
@@ -898,17 +898,17 @@
          :prt
          (let [{:keys [left right]} node
                ;; Left tree symbol
-               lsym (gensym* "l__")
+               lsym (symbol (str target "_l__"))
                ;; Left min length
                llen (r.syntax/min-length left)
                ;; Right tree symbol
-               rsym (gensym* "r__")
+               rsym (symbol (str target "_r__"))
                ;; Right min length
                rlen (r.syntax/min-length right)
                ;; Target length symbol
                nsym (gensym "n__")
                ;; Target length symbol minus either the left or right min length
-               msym (gensym* "m__")
+               msym (gensym "m__")
                ;; The optional as node
                as-node (:as node)]
            (case [(r.syntax/variable-length? left) (r.syntax/variable-length? right)]
@@ -968,7 +968,7 @@
 
              ;; Variable length on both sides.
              [true true]
-             (let [parts-sym (gensym* "parts__")]
+             (let [parts-sym (symbol (str target "_parts__"))]
                (if-some [[cat-node right] (r.syntax/window node)]
                  (let [elements (:elements cat-node)
                        cat-length (count elements)]
@@ -982,7 +982,7 @@
                        (r.ir/op-search parts-sym `(r.match.runtime/partitions 2 ~target)
                          (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
                            (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
-                             (let [partition-sym (gensym "partition__")]
+                             (let [partition-sym (symbol (str target "_partition__"))]
                                (r.ir/op-search partition-sym (r.ir/op-eval lsym)
                                  (compile `[~partition-sym ~rsym ~@targets*]
                                           [(r.matrix/prepend-cells row [(first elements) right])]))))))
@@ -995,7 +995,7 @@
                        (r.ir/op-search parts-sym `(r.match.runtime/partitions 2 ~cat-length ~target)
                          (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
                            (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
-                             (let [partition-sym (gensym "partition__")]
+                             (let [partition-sym (symbol (str target "_partition__"))]
                                (r.ir/op-search partition-sym (r.ir/op-eval `(partition ~cat-length 1 ~lsym))
                                  (compile `[~partition-sym ~rsym ~@targets*]
                                           [(r.matrix/prepend-cells row [cat-node right])]))))))
@@ -1261,9 +1261,9 @@
          (let [mvr (:mvr node)
                sym (:symbol mvr)]
            (if (r.matrix/get-var row mvr)
-             (r.ir/op-bind sym (r.ir/op-eval `(into ~sym ~target))
+             (r.ir/op-mvr-bind sym (r.ir/op-eval `(into ~sym ~target))
                (compile targets* [(r.matrix/add-var row mvr)]))
-             (r.ir/op-bind sym (r.ir/op-eval `(vec ~target))
+             (r.ir/op-mvr-bind sym (r.ir/op-eval `(vec ~target))
                (compile targets* [(r.matrix/add-var row mvr)]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))

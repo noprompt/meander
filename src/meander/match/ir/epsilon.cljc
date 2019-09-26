@@ -31,8 +31,6 @@
   #?(:clj clojure.lang.IPersistentMap
      :cljs IMap))
 
-
-
 (def ^{:doc "A macro &env map. Used to make platform specific
 compilation decisions."
        :dynamic true
@@ -519,6 +517,14 @@ compilation decisions."
 
 (defmethod merge* [:check-vector :check-vector] [a b]
   (merge-check-coll* a b))
+
+(defmethod merge* [:search :search] [a b]
+  (if (and (= (get a :symbol)
+              (get b :symbol))
+           (= (get a :value)
+              (get b :value)))
+    (assoc a :body (op-branch [(get a :body) (get b :body)]))
+    ::merge-fail))
 
 (defmulti merge
   "Attempt to merge the nodes `a` and `b`. Returns the result of the merge
@@ -1338,6 +1344,11 @@ compilation decisions."
   (let [!symbol (:symbol ir)]
     `(let [~!symbol (conj ~!symbol ~(compile* (:target ir) fail kind))]
        ~(compile* (:then ir) fail kind))))
+
+(defmethod compile* :mvr-bind
+  [ir fail kind]
+  `(let [~(:symbol ir) ~(compile* (:target ir) fail kind)]
+     ~(compile* (:then ir) fail kind)))
 
 (defmethod compile* :mvr-init
   [ir fail kind]
