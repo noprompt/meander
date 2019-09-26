@@ -239,6 +239,7 @@
 
 (defn prepend-cells
   "Prepends `cells` to `row`."
+  {:style/indent 1}
   [row cells]
   (assoc row :cols (into (vec cells) (:cols row))))
 
