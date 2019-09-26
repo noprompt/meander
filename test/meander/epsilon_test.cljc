@@ -768,7 +768,7 @@
               :one))))
   (let [rep {:head :+
              :arg1 {:head :number
-                    :value 1} 
+                    :value 1}
              :arg2 {:head :number
                     :value 2}}]
     (t/is (= [1 2]
@@ -1773,7 +1773,7 @@
              [[1 2] [] [3]]
              [[1 2] [3] []]
              [[1 2 3] [] []]}
-           (set 
+           (set
             (r/search [1 2 3]
                       [!xs ... !ys ...]
                       [!xs !ys]
@@ -2172,4 +2172,3 @@
            (r/match {:foo ["bar"]}
              (r/$ ?foo [& _ :as ?x])
              (?foo [?x])))))
-
