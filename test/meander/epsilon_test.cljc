@@ -765,7 +765,25 @@
               :two
 
               1
-              :one)))))
+              :one))))
+  (let [rep {:head :+
+             :arg1 {:head :number
+                    :value 1} 
+             :arg2 {:head :number
+                    :value 2}}]
+    (t/is (= [1 2]
+             (r/match rep
+               {:head :+
+                :arg1 (r/cata [!xs1 ...])
+                :arg2 (r/cata [!xs2 ...])}
+               (r/subst [!xs1 ... !xs2 ...])
+
+               {:head :number
+                :value ?value}
+               [?value]
+
+               ?x
+               [?x])))))
 
 ;;; gather
 
