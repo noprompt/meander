@@ -668,7 +668,7 @@
 
 
 (defn map-matrix-all-keys
-  "Return a sequence of all :jso keys in matrix."
+  "Return a sequence of all :map keys in matrix."
   {:private true}
   [matrix]
   (mapcat
