@@ -436,7 +436,6 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
-
 (defmethod compile-specialized-matrix :ctn
   [_ [target & targets*] matrix]
   (mapv
@@ -736,72 +735,62 @@
                 (non-search-lvars node env)))))
 
 
-(defn find-search-keys-recursive [env [k v]]
+(defn find-search-keys-recursive
+  {:private true}
+  [env [k v]]
   (concat
    (find-search-keys {:tag :map :map {k v}} env)
    (if (map? k) (mapcat (partial find-search-keys-recursive env) (:map k)) '())
    (if (map? v) (mapcat (partial find-search-keys-recursive env) (:map v)) '())))
 
-
-(defn sort-by-search-keys [the-map env]
+(defn sort-by-search-keys
+  {:private true}
+  [the-map env]
   (sort-by
    (comp count (partial find-search-keys-recursive env))
    the-map))
 
-
 (defmethod compile-specialized-matrix :map
   [_ [target & targets*] matrix]
   (let [all-keys (map-matrix-all-keys matrix)
-        key-sort (distinct (sort-by (complement r.syntax/ground?) all-keys))
-        num-keys (count key-sort)
-        no-keys? (zero? num-keys)
-        matrix* (mapv
-                 (fn [node row]
-                   (case (r.syntax/tag node)
-                     :any
-                     (r.matrix/prepend-cells row (repeat (max 1 num-keys) node))
+        num-keys (count all-keys)
+        matrix* (if (zero? num-keys)
+                  (mapv (fn [node row]
+                          (r.matrix/prepend-cells row [{:tag :any :symbol '_}]))
+                        (r.matrix/first-column matrix)
+                        (r.matrix/drop-column matrix))
+                  (mapv
+                   (fn [node row]
+                     (case (r.syntax/tag node)
+                       :any
+                       (r.matrix/prepend-cells row (repeat num-keys node))
 
-                     :map
-                     (if no-keys?
-                       (r.matrix/prepend-cells row [{:tag :any, :symbol (gensym "_")}])
-                       (let [the-map (:map node)]
-                         (if (search-map? node (:env row))
-                           (let [set-node {:tag :set
-                                           :elements (map
-                                                      (fn [[k-node v-node]]
-                                                        {:tag :cat
-                                                         :elements [k-node v-node]})
-                                                      (sort-by-search-keys the-map (:env row)))}
-                                 let-node {:tag ::r.match.syntax/let
-                                           :pattern set-node
-                                           :expression `(set ~target)}]
-                             (assoc row :cols `[~let-node
-                                                ~@(repeat (dec num-keys)
-                                                          '{:tag :any
-                                                            :symbol _})
-                                                ~@(:cols row)]))
-                           (let [search-keys (keys (sort-by-search-keys the-map (:env row)))
-                                 new-cols (sort-by
-                                           (fn [node]
-                                             (if (= (r.syntax/tag node) :mkv)
-                                               0
-                                               1))
-                                           (map
-                                            (fn [key]
-                                              (if-some [entry (clojure/find the-map key)]
-                                                {:tag :mkv
-                                                 :entry entry}
-                                                {:tag :any
-                                                 :symbol '_}))
-                                            search-keys))
-                                 any-pad (repeat (- num-keys (count search-keys))
-                                                 {:tag :any
-                                                  :symbol '_})]
-                             (assoc row :cols `[~@new-cols ~@any-pad ~@(:cols row)])))))))
-                 (r.matrix/first-column matrix)
-                 (r.matrix/drop-column matrix))]
+                       :map
+                       (let [the-map (:map node)
+                             env (get row :env)
+                             the-map* (sort-by-search-keys the-map env)]
+                         (if (search-map? node env)
+                           (r.matrix/prepend-cells row
+                             (into [{:tag ::r.match.syntax/apply
+                                     :function `set
+                                     :argument {:tag :set
+                                                :elements (map (fn [[k-node v-node]]
+                                                                 {:tag :cat
+                                                                  :elements [k-node v-node]})
+                                                               the-map*)}}]
+                                   (repeat (dec num-keys) '{:tag :any, :symbol _})))
+                           (r.matrix/prepend-cells row
+                             (into (mapv (fn [key]
+                                           {:tag :mkv
+                                            :entry (clojure/find the-map key)})
+                                         (keys the-map*))
+                                   (repeat (- num-keys (count the-map*))
+                                           '{:tag :any :symbol _})))))))
+                   (r.matrix/first-column matrix)
+                   (r.matrix/drop-column matrix)))]
     [(r.ir/op-check-map (r.ir/op-eval target)
        (compile `[~@(repeat (max 1 num-keys) target) ~@targets*] matrix*))]))
+
 
 (defmethod compile-specialized-matrix :mkv
   [_ [target & targets* :as targets] matrix]
