@@ -74,8 +74,20 @@
 (defn map-node? [x]
   (and (map? x) (= (get x :tag) :map)))
 
+(defn mut-node? [x]
+   (and (map? x) (= (get x :tag) :mut)))
+
 (defn set-node? [x]
   (and (map? x) (= (get x :tag) :set)))
+
+(defn vec-node? [x]
+  (and (map? x) (= (get x :tag) :vec)))
+
+(defn prt-node? [x]
+  (and (map? x) (= (get x :tag) :prt)))
+
+(defn seq-node? [x]
+  (and (map? x) (= (get x :tag) :seq)))
 
 (defmulti children
   "Return a sequential? of all children of node."
