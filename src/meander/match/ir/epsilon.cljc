@@ -1251,18 +1251,44 @@ compilation decisions."
 
 (defmethod compile* :case
   [ir fail kind]
-  `(case ~(compile* (:target ir) fail kind)
-     ~@(mapcat
-        (fn [[value then]]
-          (if (set? value)
-            (let [compiled-values (map compile* value (repeat fail) (repeat kind))]
-              `(~(mapcat case-clause-test-form compiled-values)
-                ~(compile* then fail kind)))
-            (let [compiled-value (compile* value fail kind)]
-              `(~(case-clause-test-form compiled-value)
-                ~(compile* then fail kind)))))
-        (:clauses ir))
-     ~(compile* (:then ir) fail kind)))
+  (let [clauses (mapcat
+                 (fn [[value then]]
+                   (if (set? value)
+                     (let [compiled-values (map compile* value (repeat fail) (repeat kind))]
+                       `(~(mapcat case-clause-test-form compiled-values)
+                         ~(compile* then fail kind)))
+                     (let [compiled-value (compile* value fail kind)]
+                       `(~(case-clause-test-form compiled-value)
+                         ~(compile* then fail kind)))))
+                 (:clauses ir))
+        expression (compile* (:target ir) fail kind)]
+    (if (and (not (r.util/cljs-env? *env*))
+             (every? number? (sequence (comp (take-nth 2) cat) clauses)))
+      ;; Prevents performance warnings from Clojure when
+      ;; `*warn-on-reflection*` is on. Is this really neccessary?
+      (let [value (gensym "VALUE__")]
+        `(let [~value ~expression]
+           ;; Should we test `(number? ~value)`?
+           (cond
+             ~@(mapcat
+                (fn [[tests expr]]
+                  (case (count tests)
+                    0 nil
+                    1 `((= ~value ~(first tests))
+                        ~expr)
+                    ;; else
+                    `((or ~@(map (fn [test]
+                                   `(= ~value ~test))
+                                 tests))
+                      ~expr)))
+                (partition 2 clauses))
+
+             :else
+             ~fail)))
+      `(case ~expression
+         ~@clauses
+         ~(compile* (:then ir) fail kind)))))
+
 
 (defmethod compile* :check
   [ir fail kind]
@@ -1326,11 +1352,20 @@ compilation decisions."
 
 (defmethod compile* :check-lit
   [ir fail kind]
-  (let [compiled-value (compile* (:value ir) fail kind)]
-    `(case ~(compile* (:target ir) fail kind)
-       ~(case-clause-test-form compiled-value)
-       ~(compile* (:then ir) fail kind)
-       ~fail)))
+  (let [compiled-value (compile* (:value ir) fail kind)
+        expression (compile* (:target ir) fail kind)
+        then (compile* (:then ir) fail kind)]
+    (if (and (not (r.util/cljs-env? *env*))
+             (number? compiled-value))
+      ;; Prevents performance warnings from Clojure when
+      ;; `*warn-on-reflection*` is on.
+      `(if (= ~expression ~compiled-value)
+         ~then
+         ~fail)
+      `(case ~expression
+         ~(case-clause-test-form compiled-value)
+         ~then
+         ~fail))))
 
 (defmethod compile* :check-map
   [ir fail kind]
