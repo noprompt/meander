@@ -405,7 +405,7 @@ compilation decisions."
   "Attempts to successively merge all nodes in `nodes` from left to
   right."
   [nodes]
-  (case (bounded-count 2 nodes)
+  (case (int (bounded-count 2 nodes))
     (0 1)
     nodes
 
