@@ -543,6 +543,30 @@ compilation decisions."
   (do-merge a b identity (fn [a b] (op-branch [a b]))))
 
 
+;; :apply rewriting
+;; ----------------
+
+(defn rewrite-beta-reduce-apply
+  {:private true}
+  [apply-node]
+  (let [fn-expr (get apply-node :fn-expr)]
+    (if (get (meta fn-expr) :meander.epsilon/beta-reduce)
+      (let [[_fn [arg] & body] fn-expr
+            target (get apply-node :target)]
+        {:op :bind
+         :symbol arg
+         :value {:op :eval :form target}
+         :then {:op :bind
+                :symbol (get apply-node :symbol)
+                :value {:op :eval
+                        :form (case (int (count body))
+                                0 nil
+                                1 (first body)
+                                ;; else
+                                `(do ~@body))}
+                :then (get apply-node :then)}})
+      apply-node)))
+
 ;; :branch rewriting
 ;; -----------------
 
@@ -773,6 +797,9 @@ compilation decisions."
    (comp
     (fn f [node]
       (case (op node)
+        :apply
+        (rewrite-beta-reduce-apply node)
+
         :branch
         (rewrite-branch-one-case node)
 
@@ -962,6 +989,7 @@ compilation decisions."
       (add-type-if-coerced-apply env node `set SetInterface)
       (add-type-if-coerced-apply env node `vec VectorInterface)
       node)
+
     :bind
     (do
       (let [value (:value node)
@@ -970,6 +998,8 @@ compilation decisions."
           (infer-type-seq env node form))
         node)
 
+      (add-type-if-coerced-bind env node `disj SetInterface)
+      (add-type-if-coerced-bind env node `dissoc MapInterface)
       (add-type-if-coerced-bind env node `seq SeqInterface)
       (add-type-if-coerced-bind env node `set SetInterface)
       (add-type-if-coerced-bind env node `vec VectorInterface)
