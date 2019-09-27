@@ -170,11 +170,12 @@ compilation decisions."
     `(defn ~symbol ~params
        ~(if (seq body)
           `(assoc (do ~@body) :op ~op)
-          `(hash-map ~@(mapcat
+          `(hash-map :op ~op
+                     ~@(mapcat
                         (fn [param]
-                          [(keyword (name param)) param])
-                        params)
-                     :op ~op)))))
+                          (when (not= 'op param)
+                            [(keyword (name param)) param]))
+                        params))))))
 
 (defop op-bind :bind [symbol value then])
 
