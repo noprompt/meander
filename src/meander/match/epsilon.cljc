@@ -1196,9 +1196,14 @@
                                      :cat cat-node}
                            app-node {:tag ::r.match.syntax/apply
                                      :function `clojure.core/count
-                                     :argument {:tag ::r.match.syntax/apply
-                                                :function `(fn* [~'n] (/ ~'n ~cat-length))
-                                                :argument (:lvr node)}}]
+                                     :argument (if (= cat-length 1)
+                                                 (:lvr node)
+                                                 {:tag ::r.match.syntax/apply
+                                                  :function (vary-meta
+                                                             `(fn [n#] (/ n# ~cat-length))
+                                                             assoc
+                                                             :meander.epsilon/beta-reduce true)
+                                                  :argument (:lvr node)})}]
                        ;; If the logic variable is bound we place the
                        ;; `::apply` node ahead of the `:rp*` node to
                        ;; verify the `count` is equal before attemping
@@ -1227,9 +1232,14 @@
                                      :cat cat-node}
                            app-node {:tag ::r.match.syntax/apply
                                      :function `clojure.core/count
-                                     :argument {:tag ::r.match.syntax/apply
-                                                :function `(fn* [~'n] (/ ~'n ~cat-length))
-                                                :argument (:mvr node)}}]
+                                     :argument (if (= cat-length 1)
+                                                 (:mvr node)
+                                                 {:tag ::r.match.syntax/apply
+                                                  :function (vary-meta
+                                                             `(fn [n#] (/ n# ~cat-length))
+                                                             assoc
+                                                             :meander.epsilon/beta-reduce true)
+                                                  :argument (:mvr node)})}]
                        (r.matrix/prepend-cells row [rp*-node app-node]))))
                  (r.matrix/first-column matrix)
                  (r.matrix/drop-column matrix))
