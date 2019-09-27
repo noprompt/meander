@@ -7,6 +7,8 @@
             [clojure.test.check.properties :as tc.prop :include-macros true]
             [meander.epsilon :as r :include-macros true]))
 
+#?(:clj (set! *warn-on-reflection* true))
+
 (st/instrument)
 
 ;; ---------------------------------------------------------------------
@@ -1113,7 +1115,6 @@
           true
           _
           false))
-
 
   (t/is (r/match [1 2 3]
           (r/seqable ?x ?y ?z)

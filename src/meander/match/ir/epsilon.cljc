@@ -675,6 +675,59 @@ compilation decisions."
              ;; else
              (zip/next loc))))))))
 
+;; :lookup rewriting
+;; -----------------
+
+(defn rewrite-map-lookups-once [node]
+  {:pre [(op= node :check-map)]}
+  (let [map-target (get node :target)
+        bind-nodes (filter
+                    (fn [subnode]
+                      (and (= (get subnode :op) :bind)
+                           (let [bind-value (get subnode :value)]
+                             (and (= (get bind-value :op) :lookup)
+                                  (= map-target (get bind-value :target))))))
+                    (nodes node))
+        lookup-nodes (map
+                      (fn [bind-node]
+                        (get bind-node :value))
+                      bind-nodes)
+        lookup-count (frequencies lookup-nodes)
+        lookup-symbols (reduce
+                        (fn [index bind-node]
+                          (update index (get bind-node :value) (fnil conj #{}) (get bind-node :symbol)))
+                        {}
+                        bind-nodes)
+        symbol-smap (reduce
+                     (fn [smap [lookup-node lookup-count]]
+                       (if (< 1 lookup-count)
+                         (let [old-symbols (lookup-symbols lookup-node)
+                               new-symbol (gensym "VAL__")]
+                           (into smap (map vector old-symbols (repeat new-symbol))))
+                         smap))
+                     {}
+                     lookup-count)
+        ;; Remove old bindings
+        inner-node (prewalk
+                    (fn [subnode]
+                      (if (and (= (get subnode :op) :bind)
+                               (< 1 (get lookup-count (get subnode :value) 0)))
+                        (get subnode :then)
+                        subnode))
+                    (get node :then))
+        ;; Rename symbol
+        inner-node (walk/postwalk-replace symbol-smap inner-node)
+        ;; Create new bindings
+        inner-node (reduce
+                    (fn [inner-node [lookup-node lookup-symbols]]
+                      (if-some [new-symbol (some symbol-smap lookup-symbols)]
+                        (op-bind new-symbol lookup-node
+                          inner-node)
+                        inner-node))
+                    inner-node
+                    lookup-symbols)]
+    (assoc node :then inner-node)))
+
 ;; :mvr rewriting
 ;; --------------
 
@@ -721,6 +774,10 @@ compilation decisions."
       (case (op node)
         :branch
         (rewrite-branch-one-case node)
+
+        :check-map
+        (rewrite-map-lookups-once node)
+
         ;; else
         node))
     (fn g [node]
@@ -1314,9 +1371,12 @@ compilation decisions."
 
 (defmethod compile* :lookup
   [ir fail kind]
-  `(get ~(compile* (:target ir) fail kind)
-        ~(compile* (:key ir) fail kind)))
-
+  (if (r.util/cljs-env? *env*)
+    `(get ~(compile* (:target ir) fail kind)
+          ~(compile* (:key ir) fail kind))
+    `(.valAt ~(with-meta (compile* (:target ir) fail kind)
+                {:tag 'clojure.lang.ILookup})
+             ~(compile* (:key ir) fail kind))))
 
 (defmethod compile* :lvr-bind
   [ir fail kind]
