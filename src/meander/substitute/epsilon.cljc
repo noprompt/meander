@@ -45,7 +45,8 @@
     (_ ... {:symbol ?symbol} . _ ...)
     {:memory-variable/symbol ?symbol
      :memory-variable/state :iterating
-     :iterator/symbol (symbol (str (name ?symbol) "__counter"))}))
+     :iterator/symbol (with-meta (symbol (str (name ?symbol) "__counter"))
+                        {:tag 'java.util.Iterator})}))
 
 (defn make-env
   {:private true}
