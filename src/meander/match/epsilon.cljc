@@ -245,8 +245,8 @@
   {:private true}
   [tag]
   (let [i (.indexOf tag-ranking tag)]
-    (case i
-      -1 (count tag-ranking)
+    (if (= i -1)
+      (count tag-ranking)
       i)))
 
 (s/fdef tag-rank
