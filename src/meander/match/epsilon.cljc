@@ -1614,7 +1614,7 @@
      (if-some [error (first (get result :errors))]
        (throw error)
        (let [clauses (get result :clauses)
-             contains-cata? (some :contains-cata? clauses)
+             contains-cata? (boolean (some :contains-cata? clauses))
              errors (into []
                           (keep
                            (fn [{pat :pat}]
@@ -1683,7 +1683,7 @@
   pick, patterns which have this property are illegal in the context
   of this operator.
 
-  For operators which relax this restriction, see `find` and `search`." 
+  For operators which relax this restriction, see `find` and `search`."
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
@@ -1700,7 +1700,6 @@
             `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
           (let [contains-cata? (get match-data :contains-cata?)
                 target (gensym "TARGET__")
-                fail (gensym "FAIL__")
                 ir (if contains-cata?
                      (let [matrix (if final-clause?
                                     (conj matrix final-clause)
@@ -1720,12 +1719,36 @@
                                    :ret-syms [cata-return]
                                    :then (r.ir/op-return cata-return)}})))
                      (compile [target target] matrix))]
-            `(let [~target ~expr
-                   ~fail (fn []
-                           ~(if (some? final-clause)
-                              (r.ir/compile (compile [target] [final-clause]) nil :match &env)
-                              `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))))]
-               ~(r.ir/compile ir `(~fail) :match &env))))))))
+            (case [final-clause? contains-cata?]
+              [false false]
+              (let [ir (r.ir/op-bind target (r.ir/op-eval expr)
+                         ir)
+                    fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))]
+                (r.ir/compile ir fail :match &env))
+
+              [false true]
+              (let [fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))]
+                `(let [~target ~expr]
+                   ~(r.ir/compile ir fail :match &env)))
+
+              [true false]
+              (let [fail (gensym "FAIL__")
+                    fail-fn `(fn []
+                               ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
+                    ir (r.ir/op-bind target (r.ir/op-eval expr)
+                         (r.ir/op-bind fail (r.ir/op-eval fail-fn)
+                           ir))]
+                (r.ir/compile ir `(~fail) :match &env))
+
+              [true true]
+              (let [fail (gensym "FAIL__")
+                    fail-fn `(fn []
+                               ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
+                    ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
+                         ir)]
+                `(let [~target ~expr]
+                   ~(r.ir/compile ir `(~fail) :match &env))))))))))
+
 
 (s/fdef match
   :args (s/cat :expr any?
@@ -1754,7 +1777,7 @@
      (if-some [error (first (get result :errors))]
        (throw error)
        (let [clauses (get result :clauses)
-             contains-cata? (some :contains-cata? clauses)
+             contains-cata? (boolean (some :contains-cata? clauses))
              errors (into [] (keep
                               (fn [{pat :pat}]
                                 (r.match.check/check pat true)))
@@ -1869,7 +1892,7 @@
      (if-some [error (first (get result :errors))]
        (throw error)
        (let [clauses (get result :clauses)
-             contains-cata? (some :contains-cata? clauses)
+             contains-cata? (boolean (some :contains-cata? clauses))
              errors (into [] (keep
                               (fn [{pat :pat}]
                                 (r.match.check/check pat true)))
