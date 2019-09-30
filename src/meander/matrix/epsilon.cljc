@@ -34,7 +34,9 @@
 
 (s/def :meander.matrix.epsilon.row/ref-specs
   (s/map-of :meander.syntax.epsilon.node/ref
-            map?))
+            (s/coll-of map?
+                       :kind sequential?
+                       :into [])))
 
 (s/def :meander.matrix.epsilon/ref-map
   map?)
