@@ -30,8 +30,11 @@
              :into []))
 
 (s/def :meander.matrix.epsilon.row/refs
+  :meander.syntax.epsilon/ref-map)
+
+(s/def :meander.matrix.epsilon.row/ref-specs
   (s/map-of :meander.syntax.epsilon.node/ref
-            :meander.matrix.epsilon/ref-map))
+            map?))
 
 (s/def :meander.matrix.epsilon/ref-map
   map?)
@@ -41,6 +44,7 @@
                    :meander.matrix.epsilon.row/rhs]
           :opt-un [:meander.matrix.epsilon.row/env
                    :meander.matrix.epsilon.row/refs
+                   :meander.matrix.epsilon.row/ref-specs
                    :meander.matrix.epsilon.row/path]))
 
 
