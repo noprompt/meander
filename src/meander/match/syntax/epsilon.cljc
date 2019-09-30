@@ -347,9 +347,10 @@
   expands it in such a way that it can either reduce compiled code
   size, improve compiled code efficiency, or both."
   [node]
-  (expand-ast-bottom-up
-   (expand-ast-top-down
-    (r.syntax/rename-refs node))))
+  (r.syntax/consolidate-with
+   (expand-ast-bottom-up
+    (expand-ast-top-down
+     (r.syntax/rename-refs node)))))
 
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis
