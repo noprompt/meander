@@ -695,26 +695,15 @@
            {:tag :lvr :symbol ?var}
            {:tag :dtm, :mvr {:symbol ?var}}
            {:tag :mvr :symbol ?var})
-       `(let [?counter# (volatile! 0)]
-          (with [%gather# (or (and ~pattern
-                                    (let [_gather# (vswap! ?counter# inc)]))
-                               _gather_#)]
-            (and (seqable %gather# ...)
-                 (let [~?var (deref ?counter#)]))))
+       `(and (seqable (or (and ~pattern !gather#) _gather#) ...)
+             (let [~?var (count !gather#)]))
 
        ;; Natural numbers and  `..n`
        (or {:tag :lit, :value (pred nat-int? ?n)}
            {:tag :dt+, :n ?n})
        (clj/let [ellipsis (clj/symbol (str ".." ?n))]
-         `(let [?counter# (volatile! 0)]
-            ;; This with should not be needed but is here temporarily
-            ;; due to a compiler bug which can revealed by inlining
-            ;; the %gather# reference.
-            (with [%gather# (or (and ~pattern
-                                      (let [_gather# (vswap! ?counter# inc)]))
-                                 _gather#)]
-              (and (seqable %gather# ~ellipsis)
-                   (guard (<= ~?n (deref ?counter#)))))))
+         `(and (seqable (or (and ~pattern !gather#) _gather#) ~ellipsis)
+               (guard (<= ~?n (count !gather#)))))
 
        ;; `_` and `...`
        (or {:tag :any}
