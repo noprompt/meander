@@ -1640,8 +1640,16 @@
         node (prewalk
               (fn f [node]
                 (if (with-node? node)
-                  (do (vswap! state into (:bindings node))
-                      (:body node))
+                  (let [bindings* (run!
+                                   (fn [binding]
+                                     (let [pattern* (consolidate-with (get binding :pattern))]
+                                       (if (with-node? pattern*)
+                                         (do (vswap! state into (get pattern* :bindings))
+                                             (vswap! state conj (assoc binding :pattern (get pattern* :body))))
+                                         (vswap! state conj binding))))
+                                   (get node :bindings))]
+                    (do (vswap! state into bindings*)
+                        (:body node)))
                   node))
               node)]
     {:tag :wth
