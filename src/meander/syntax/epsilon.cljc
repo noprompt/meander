@@ -1592,6 +1592,21 @@
   {:tag :ref
    :symbol (gensym "%r__")})
 
+(defn abstract
+  {:style/indent 1}
+  ([node]
+   (let [ref (genref)]
+     {:tag :wth
+      :bindings [{:ref ref
+                  :pattern node}]
+      :body ref}))
+  ([node f]
+   (let [ref (genref)]
+     {:tag :wth
+      :bindings [{:ref ref
+                  :pattern node}]
+      :body (f ref)})))
+
 (defn ref-smap
   {:private true}
   [with-node]

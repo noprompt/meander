@@ -281,25 +281,6 @@
 (defn expand-vec [node]
   (expand-as node))
 
-(defn abstract
-  {:private true}
-  [node]
-  (let [ref (r.syntax/genref)]
-    {:tag :wth
-     :bindings [{:ref ref
-                 :pattern node}]
-     :body ref}))
-
-(defn abstract-or [node]
-  (r.syntax/postwalk
-   (fn [node]
-     (case (r.syntax/tag node)
-       ::or
-       (abstract node)
-       ;; else
-       node))
-   node))
-
 (defn expand-ast-top-down
   {:private true}
   [node]
@@ -343,16 +324,19 @@
   (r.syntax/postwalk
    (fn [node]
      (case (r.syntax/tag node)
+       ::or
+       (r.syntax/abstract node)
+
        :rp+
        (let [n (:n node)]
          (if (= 0 n)
            (assoc (dissoc node :n) :tag :rp*)
-           (reduced
-            {:tag :prt
-             :left (:cat node)
-             :right {:tag :rp+
-                     :cat (:cat node)
-                     :n (dec n)}})))
+           (let [cat-node (get node :cat)]
+             {:tag :prt
+              :left cat-node
+              :right {:tag :rp+
+                      :cat cat-node
+                      :n (dec n)}})))
 
        ;; else
        node))
