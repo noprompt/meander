@@ -281,6 +281,25 @@
 (defn expand-vec [node]
   (expand-as node))
 
+(defn abstract
+  {:private true}
+  [node]
+  (let [ref (r.syntax/genref)]
+    {:tag :wth
+     :bindings [{:ref ref
+                 :pattern node}]
+     :body ref}))
+
+(defn abstract-or [node]
+  (r.syntax/postwalk
+   (fn [node]
+     (case (r.syntax/tag node)
+       ::or
+       (abstract node)
+       ;; else
+       node))
+   node))
+
 (defn expand-ast-top-down
   {:private true}
   [node]
@@ -310,6 +329,9 @@
 
        :vec
        (expand-vec node)
+
+       :wth
+       (r.syntax/substitute-acyclic-refs node)
 
        ;; else
        node))

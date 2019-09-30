@@ -1588,7 +1588,6 @@
    (map vector (range) (subnodes node))))
 
 (defn genref
-  {:private true}
   []
   {:tag :ref
    :symbol (gensym "%r__")})
@@ -1672,6 +1671,107 @@
         :else
         node))
     node)))
+
+(defn refs-in-use*
+  "Returns the set of `:ref` nodes in use with respect to
+  `ref-map`."
+  [node ref-map]
+  (cond
+    (empty? ref-map)
+    #{}
+
+    (and (ref-node? node)
+         (contains? ref-map node))
+    (set/union #{node}
+               (refs-in-use* (get ref-map node)
+                             (dissoc ref-map node)))
+
+    (with-node? node)
+    (let [ref-map* (reduce
+                    (fn [ref-map* [other-ref _]]
+                      (dissoc ref-map* other-ref))
+                    ref-map
+                    (make-ref-map node))]
+      (refs-in-use* (get node :body) ref-map*))
+
+    :else
+    (reduce
+     (fn [in-use child-node]
+       (set/union in-use (refs-in-use* child-node ref-map)))
+     #{}
+     (children node))))
+
+(defn refs-in-use
+  "Returns the set of `:ref` nodes bound by `with-node` that are in
+  use in its body."
+  [with-node]
+  {:pre [(with-node? with-node)]}
+  (let [ref-map (make-ref-map with-node)
+        used-in-body (refs-in-use* (get with-node :body) ref-map)]
+    (reduce
+     (fn [used ref-node]
+       (set/union used (refs-in-use* (get ref-map ref-node) ref-map)))
+     used-in-body
+     used-in-body)))
+
+(defn ref-deps
+  ([ref-map]
+   (ref-deps ref-map (keys ref-map)))
+  ([ref-map refs]
+   (into {} (map
+             (fn [ref]
+               [ref (refs-in-use* (get ref-map ref) ref-map)]))
+         refs)))
+
+(defn substitute-acyclic-refs-in-ref-map
+  "Construct a new ref-map `ref-map*` for which each acyclic ref,
+  `ref`, in use in `ref-map`, and for each acyclic ref occuring in
+  `ref`s `pattern`, `other-ref`, substitute `other-ref` with its
+  pattern."
+  ([ref-map]
+   (substitute-acyclic-refs-in-ref-map ref-map (ref-deps ref-map)))
+  ([ref-map ref-deps]
+   (reduce
+    (fn [ref-map* [ref deps]]
+      (if (or (contains? deps ref)
+              (empty? deps))
+        ref-map*
+        (reduce
+         (fn [ref-map* [other-ref node]]
+           (if (and (= other-ref ref)
+                    (not (contains? ref-deps other-ref)))
+             ref-map*
+             (assoc ref-map* other-ref (substitute-refs node ref-map*))))
+         ref-map*
+         ref-map*)))
+    ref-map
+    ref-deps)))
+
+(defn bindings-from-ref-map
+  [ref-map]
+  (map
+   (fn [[ref pattern]]
+     {:ref ref
+      :pattern pattern})
+   ref-map))
+
+(defn substitute-acyclic-refs
+  [with-node]
+  (let [ref-map (make-ref-map with-node)
+        in-use (refs-in-use with-node)
+        ref-deps (ref-deps ref-map in-use)
+        ref-map* (substitute-acyclic-refs-in-ref-map ref-map ref-deps)
+        acyclic-refs (keep
+                      (fn [[ref deps]]
+                        (when (not (contains? deps ref))
+                          ref))
+                      ref-deps)
+        body* (substitute-refs (get with-node :body)
+                               (select-keys ref-map* acyclic-refs))
+        bindings* (bindings-from-ref-map ref-map*)]
+    (merge with-node
+           {:body body*
+            :bindings bindings*})))
 
 (defn literal?
   "true if node is ground and does not contain :map or :set subnodes,
