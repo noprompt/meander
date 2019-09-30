@@ -1482,20 +1482,21 @@
 
 (defn postwalk
   [f node]
-  (walk (fn [x]
-          (let [y (f x)]
-            (if (reduced? y)
-              (deref y)
-              (postwalk f y))))
-        f
+  (walk (fn [node]
+          (postwalk f node))
+        (fn [node]
+          (let [node* (f node)]
+            (if (reduced? node*)
+              (unreduced node*)
+              node*)))
         node))
 
 (defn prewalk
   [f node]
   (let [x (f node)]
     (if (reduced? x)
-      (deref x)
-      (walk (partial prewalk f) identity x))))
+      (unreduced x)
+      (walk (fn [node] (prewalk f node)) identity x))))
 
 (defn prewalk-replace
   "Same as clojure.walk/prewalk-replace but for AST nodes."
