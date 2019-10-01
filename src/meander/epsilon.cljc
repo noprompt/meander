@@ -359,6 +359,10 @@
               inner (if (= :as as)
                       `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
                       `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
+      `(seqable ~@inner)
+      ;; Using `or` like this can cause code explosions. Come back to this
+      ;; when we support `<>` fragments.
+      #_
       `(r.match.syntax/or
         [~@inner]
         ;; Prevent producing the same search results twice when
@@ -695,8 +699,9 @@
            {:tag :lvr :symbol ?var}
            {:tag :dtm, :mvr {:symbol ?var}}
            {:tag :mvr :symbol ?var})
-       `(and (seqable (or (and ~pattern !gather#) _gather#) ...)
-             (let [~?var (count !gather#)]))
+       `(with [%gather# (or (and ~pattern !gather#) _gather#)]
+          (and (seqable %gather% ...)
+               (let [~?var (count !gather#)])))
 
        ;; Natural numbers and  `..n`
        (or {:tag :lit, :value (pred nat-int? ?n)}
