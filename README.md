@@ -28,7 +28,7 @@ The latest version of the library can be found at the following link.
 
 Meander's `match` macro allows us to pattern match on a data structure and return the answer that matches our pattern.
 We use logic variables (symbols that start with `?`) to extract values from our input and return them in our output.
-Logic variable also let us join across values.
+Logic variables also let us join across values.
 In this example, we do that using the `?food` variable to lookup our users favorite foods in the `foods-by-name` collection.
 Here is an example of running this match with some test data `foods-by-name`.
 
