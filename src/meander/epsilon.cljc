@@ -699,9 +699,8 @@
            {:tag :lvr :symbol ?var}
            {:tag :dtm, :mvr {:symbol ?var}}
            {:tag :mvr :symbol ?var})
-       `(with [%gather# (or (and ~pattern !gather#) _gather#)]
-          (and (seqable %gather% ...)
-               (let [~?var (count !gather#)])))
+       `(and (seqable (or (and ~pattern !gather#) _gather#) ...)
+             (let [~?var (count !gather#)]))
 
        ;; Natural numbers and  `..n`
        (or {:tag :lit, :value (pred nat-int? ?n)}
