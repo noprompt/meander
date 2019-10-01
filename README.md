@@ -2,6 +2,8 @@
 
 Meander is a Clojure/ClojureScript library that empowers you to write transparent data transformation code that allows you to plainly see the input and output of these transformations.
 
+The latest version of the library can be found at the following link.
+
 [![Clojars Project](https://img.shields.io/clojars/v/meander/epsilon.svg)](https://clojars.org/meander/epsilon)
 
 ## What can Meander do?
@@ -28,7 +30,24 @@ Meander's `match` macro allows us to pattern match on a data structure and retur
 We use logic variables (symbols that start with `?`) to extract values from our input and return them in our output.
 Logic variable also let us join across values.
 In this example, we do that using the `?food` variable to lookup our users favorite foods in the `foods-by-name` collection.
-See [file in examples folder](./examples/food_example_readme.clj) for an example of running this match.
+Here is an example of running this match with some test data `foods-by-name`.
+
+```clojure
+(def foods-by-name
+  {:nachos {:popularity :high
+            :calories :lots}
+   :smoothie {:popularity :high
+              :calories :less}})
+
+(favorite-food-info foods-by-name
+  {:name :alice
+   :favorite-food {:name :nachos}})
+;; =>
+{:name :alice
+ :favorite {:food :nachos
+            :popularity :high
+            :calories :lots}}
+```
 
 ### Finding More than One Answer
 
@@ -54,6 +73,23 @@ The `search` macro performs exactly this job.
 There is actually very little that is different here.
 Some names have been pluralized, line 2 changed to use `search` instead of `match`, and on line 6 added we're using the `scan` *pattern matching operator*.
 That is all we need to find all of a users favorite foods and look up the information about them.
+Lets try it with our test data from the previous example.
+
+```clojure
+(favorite-foods-info foods-by-name
+ {:name :alice
+  :favorite-foods [{:name :nachos}
+                   {:name :smoothie}]})
+;; =>
+({:name :alice
+  :favorite {:food :nachos
+             :popularity :high
+             :calories :lots}}
+ {:name :alice
+  :favorite {:food :smoothie
+             :popularity :high
+             :calories :less}})
+```
 
 
 ### Remembering Values
