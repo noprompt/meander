@@ -1934,7 +1934,7 @@
                [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
    :style/indent :defn}
   [& defn-args]
-  (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
+  (let [conformed-defn-args (s/conform ::m.syntax.specs/defsyntax-args defn-args)
         defn-args (next defn-args)
         docstring (:docstring conformed-defn-args)
         defn-args (if docstring
