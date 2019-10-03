@@ -1998,11 +1998,6 @@
     `(do ~expander-definition-body-form
          (var ~fn-name))))
 
-;; ClojureScript seems to have this weird quirk where we need to ask
-;; for the spec twice. The first time blows up with an error saying it
-;; can't find it, the second time works like a charm. Needless to say,
-;; we can't have this namespace cause breakage by virtue of requiring
-;; it and getting this error. Needs investigation.
 #?(:clj
    (s/fdef defsyntax
-     :args ::core.specs/defn-args))
+     :args ::m.syntax.specs/defsyntax-args))
