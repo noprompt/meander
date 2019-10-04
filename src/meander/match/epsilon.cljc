@@ -821,7 +821,7 @@
 
          :mut
          (r.ir/op-mut-bind (:symbol node) (r.ir/op-eval target)
-           (compile targets* [row]))))
+           (compile targets* [(r.matrix/add-var row node)]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
