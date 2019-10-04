@@ -1489,27 +1489,48 @@ compilation decisions."
 
 (defmethod compile* :plus
   [ir fail kind]
-  (let [coll-sym (gensym "coll__")
-        input-sym (:input-symbol ir)
-        return-syms (:return-symbols ir)
-        n (:n ir)
-        m (:m ir)
-        body-form (compile* (:body ir) (fail-form :find) (case kind :search :find kind))
-        then-form (compile* (:then ir) fail kind)]
-    `(loop [i# 0
-            ~coll-sym ~(compile* (:input ir) fail kind)
-            ~return-syms ~(:return-symbols ir)]
-       (let [~input-sym ~(take-form n coll-sym (:kind ir))]
-         (if (= (count ~input-sym) ~n)
-           (let [result# ~body-form]
-             (if (r.match.runtime/fail? result#)
-               ~fail
-               (recur (inc i#) ~(drop-form n coll-sym (:kind ir)) result#)))
-           ;; Failed to consume
-           (if (or (seq ~coll-sym)
-                   (< i# ~m))
-             ~fail
-             ~then-form))))))
+  (let [n (:n ir)
+        m (:m ir)]
+    (case kind
+      :search
+      (let [input-sym (:input-symbol ir)
+            input-form (compile* (:input ir) fail kind)
+            rets (:return-symbols ir)
+            body-form (compile* (:body ir) (fail-form kind) kind)
+            body-f `(fn [~rets ~input-sym]
+                      ~body-form)
+            then-form (compile* (:then ir) fail kind)
+            then-f `(fn [~rets] ~then-form)]
+        (case (:kind ir)
+          :js-array
+          `(r.match.runtime/run-plus-js-array-search ~input-form ~rets ~n ~m ~body-f ~then-f)
+
+          :seq
+          `(r.match.runtime/run-plus-seq-search ~input-form ~rets ~n ~m ~body-f ~then-f)
+
+          :vector
+          `(r.match.runtime/run-plus-vec-search ~input-form ~rets ~n ~m ~body-f ~then-f)))
+
+      ;; else
+      (let [coll-sym (gensym "coll__")
+            input-sym (:input-symbol ir)
+            return-syms (:return-symbols ir)
+            body-form (compile* (:body ir) (fail-form kind) kind)
+            then-form (compile* (:then ir) fail kind)]
+        `(loop [i# 0
+                ~coll-sym ~(compile* (:input ir) fail kind)
+                ~return-syms ~(:return-symbols ir)]
+           (let [~input-sym ~(take-form n coll-sym (:kind ir))]
+             (if (= (count ~input-sym) ~n)
+               (let [result# ~body-form]
+                 (if (r.match.runtime/fail? result#)
+                   ~fail
+                   (recur (inc i#) ~(drop-form n coll-sym (:kind ir)) result#)))
+               ;; Failed to consume
+               (if (or (seq ~coll-sym)
+                       (< i# ~m))
+                 ~fail
+                 ~then-form))))))))
 
 (defmethod compile* :return
   [ir fail kind]

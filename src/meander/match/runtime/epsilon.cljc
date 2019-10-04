@@ -53,6 +53,30 @@
         nil
         (then-f rets)))))
 
+(defn run-plus-seq-search
+  {:style/indent :defn}
+  [coll rets n m body-f then-f]
+  (let [m*n (* m n)
+        xs (take m*n coll)]
+    (if (= (count xs) m*n)
+      (mapcat
+       (fn [rets]
+         (if (fail? rets)
+           nil
+           (run-star-seq-search (drop m*n coll) rets n body-f then-f)))
+       (sequence
+        (apply comp
+               (map (fn [chunk]
+                      (mapcat (fn [rets]
+                                (if (fail? rets)
+                                  nil
+                                  (body-f rets chunk)))))
+                    (partition m xs)))
+        [rets]))
+      (if (seq coll)
+        nil
+        (then-f rets)))))
+
 (defn run-star-vec
   {:style/indent :defn}
   [coll rets n body-f then-f]
@@ -77,8 +101,32 @@
        (fn [rets]
          (if (fail? rets)
            nil
-           (run-star-vec-search (subvec coll (min n (count coll))) rets n body-f then-f)))
+           (run-star-vec-search (subvec coll n) rets n body-f then-f)))
        (body-f rets xs))
+      (if (seq coll)
+        nil
+        (then-f rets)))))
+
+(defn run-plus-vec-search
+  {:style/indent :defn}
+  [coll rets n m body-f then-f]
+  (let [m*n (* m n)
+        xs (subvec coll 0 (min m*n (count coll)))]
+    (if (= (count xs) m*n)
+      (mapcat
+       (fn [rets]
+         (if (fail? rets)
+           nil
+           (run-star-vec-search (subvec coll m*n) rets n body-f then-f)))
+       (sequence
+        (apply comp
+               (map (fn [chunk]
+                      (mapcat (fn [rets]
+                                (if (fail? rets)
+                                  nil
+                                  (body-f rets chunk)))))
+                    (partition m xs)))
+        [rets]))
       (if (seq coll)
         nil
         (then-f rets)))))
@@ -107,8 +155,32 @@
        (fn [rets]
          (if (fail? rets)
            nil
-           (run-star-js-array-search (.slice coll (min n (count coll))) rets n body-f then-f)))
+           (run-star-js-array-search (.slice coll n) rets n body-f then-f)))
        (body-f rets xs))
+      (if (seq coll)
+        nil
+        (then-f rets)))))
+
+(defn run-plus-js-array-search
+  {:style/indent :defn}
+  [coll rets n m body-f then-f]
+  (let [m*n (* m n)
+        xs (.slice coll 0 (min m*n (count coll)))]
+    (if (= (count xs) m*n)
+      (mapcat
+       (fn [rets]
+         (if (fail? rets)
+           nil
+           (run-star-js-array-search (.slice coll m*n) rets n body-f then-f)))
+       (sequence
+        (apply comp
+               (map (fn [chunk]
+                      (mapcat (fn [rets]
+                                (if (fail? rets)
+                                  nil
+                                  (body-f rets chunk)))))
+                    (partition m xs)))
+        [rets]))
       (if (seq coll)
         nil
         (then-f rets)))))
