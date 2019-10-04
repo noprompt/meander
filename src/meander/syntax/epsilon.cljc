@@ -235,6 +235,12 @@
   [node]
   (get (variables* node) :ref))
 
+(defn mutable-variables
+  "Return all :mut nodes in node."
+  [node]
+  (s/assert :meander.syntax.epsilon/node node)
+  (get (variables* node) :mut))
+
 (defn top-level
   [node]
   (case (tag node)
