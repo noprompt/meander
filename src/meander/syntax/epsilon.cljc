@@ -1758,12 +1758,15 @@
    (reduce
     (fn [ref-map* [ref deps]]
       (if (or (contains? deps ref)
-              (empty? deps))
+              (empty? deps)
+              (not (contains? ref-deps ref)))
+        ;; If the ref is cyclic, has no dependencies, or is not a
+        ;; member of `ref-deps` e.g. not significant to this process,
+        ;; continue with the ref-map as is.
         ref-map*
         (reduce
          (fn [ref-map* [other-ref node]]
-           (if (and (= other-ref ref)
-                    (not (contains? ref-deps other-ref)))
+           (if (= other-ref ref)
              ref-map*
              (assoc ref-map* other-ref (substitute-refs node ref-map*))))
          ref-map*
