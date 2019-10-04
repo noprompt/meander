@@ -131,6 +131,39 @@
   (s/keys :req-un [:meander.syntax.epsilon.node.mvr/tag
                    :meander.syntax.epsilon.node.mvr/symbol]))
 
+;; Mutable variable
+;; ---------------
+
+(defn mutable-variable-symbol?
+  "true if x is in the form of a memory variable i.e. a simple symbol
+  with a name beginning with \\!."
+  [x]
+  (and (simple-symbol? x) (m.util/re-matches? #"\*.+" (name x))))
+
+(s/def :meander.syntax.epsilon/mutable-variable
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (mutable-variable-symbol? x)
+         x
+         :clojure.spec.alpha/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (symbol (str \* (name x))))
+       (s/gen simple-symbol?)))))
+
+(s/def :meander.syntax.epsilon.node.mut/tag
+  #{:mut})
+
+(s/def :meander.syntax.epsilon.node.mut/symbol
+  :meander.syntax.epsilon/mutable-variable)
+
+(s/def :meander.syntax.epsilon.node/mut
+  (s/keys :req-un [:meander.syntax.epsilon.node.mut/tag
+                   :meander.syntax.epsilon.node.mut/symbol]))
+
 ;; Reference
 ;; ---------
 
