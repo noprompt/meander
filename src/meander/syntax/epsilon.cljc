@@ -1329,7 +1329,7 @@
     (conj (vary-meta (unparse (:as node)) assoc :as true))
 
     (some? (:rest node))
-    (conj (vary-meta (unparse (:as node)) assoc :tag '&))))
+    (conj (vary-meta (unparse (:rest node)) assoc :tag '&))))
 
 (defmethod search? :set [node]
   (not (ground? node)))
