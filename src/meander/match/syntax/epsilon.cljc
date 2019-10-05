@@ -17,10 +17,12 @@
      (:require-macros [meander.syntax.epsilon])))
 
 (defn parse
-  [form env]
-  (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
-                                   ::r.syntax/phase :meander/match
-                                   ::r.syntax/parser-registry (deref r.syntax/global-parser-registry)})))
+  ([form]
+   (parse form env))
+  ([form env]
+   (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
+                                    ::r.syntax/phase :meander/match
+                                    ::r.syntax/parser-registry (deref r.syntax/global-parser-registry)}))))
 
 ;; ---------------------------------------------------------------------
 ;; AST rewriting
