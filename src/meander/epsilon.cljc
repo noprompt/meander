@@ -8,6 +8,7 @@
                [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.strategy.epsilon :as r]
                [meander.syntax.epsilon :as r.syntax]
+               [meander.syntax.specs.epsilon :as r.syntax.specs]
                [meander.substitute.epsilon :as r.subst]
                [meander.substitute.syntax.epsilon :as r.subst.syntax])
      :cljs
@@ -18,6 +19,7 @@
                [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
                [meander.strategy.epsilon :as r :include-macros true]
                [meander.syntax.epsilon :as r.syntax]
+               [meander.syntax.specs.epsilon :as r.syntax.specs]
                [meander.substitute.epsilon :as r.subst :include-macros true]
                [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]))
   #?(:clj (:import (clojure.lang ExceptionInfo)))
@@ -204,7 +206,7 @@
 
 #?(:clj
    (s/fdef defsyntax
-     :args ::core.specs/defn-args))
+     :args ::r.syntax.specs/defsyntax-args))
 
 (defsyntax and
   "Pattern matching operator which matches when `pattern` and,

@@ -131,6 +131,39 @@
   (s/keys :req-un [:meander.syntax.epsilon.node.mvr/tag
                    :meander.syntax.epsilon.node.mvr/symbol]))
 
+;; Mutable variable
+;; ---------------
+
+(defn mutable-variable-symbol?
+  "true if x is in the form of a memory variable i.e. a simple symbol
+  with a name beginning with \\!."
+  [x]
+  (and (simple-symbol? x) (m.util/re-matches? #"\*.+" (name x))))
+
+(s/def :meander.syntax.epsilon/mutable-variable
+  (s/with-gen
+    (s/conformer
+     (fn [x]
+       (if (mutable-variable-symbol? x)
+         x
+         :clojure.spec.alpha/invalid))
+     identity)
+    (fn []
+      (s.gen/fmap
+       (fn [x]
+         (symbol (str \* (name x))))
+       (s/gen simple-symbol?)))))
+
+(s/def :meander.syntax.epsilon.node.mut/tag
+  #{:mut})
+
+(s/def :meander.syntax.epsilon.node.mut/symbol
+  :meander.syntax.epsilon/mutable-variable)
+
+(s/def :meander.syntax.epsilon.node/mut
+  (s/keys :req-un [:meander.syntax.epsilon.node.mut/tag
+                   :meander.syntax.epsilon.node.mut/symbol]))
+
 ;; Reference
 ;; ---------
 
@@ -302,3 +335,66 @@
                :a2 (s/cat :node :meander.syntax.epsilon/node
                           :ref-map :meander.syntax.epsilon/ref-map))
   :ret :meander.syntax.epsilon/node)
+
+(s/def ::local-name
+  (s/and simple-symbol? (fn [x] (not (= x '&)))))
+
+(s/def ::binding-form
+  (s/or :local-symbol ::local-name
+        :seq-destructure ::seq-binding-form
+        :map-destructure ::map-binding-form))
+
+;; sequential destructuring
+
+(s/def ::seq-binding-form
+  (s/and vector?
+         (s/cat :forms (s/* ::binding-form)
+                :rest-forms (s/? (s/cat :ampersand #{'&} :form ::binding-form))
+                :as-form (s/? (s/cat :as #{:as} :as-sym ::local-name)))))
+
+;; map destructuring
+
+(s/def ::keys (s/coll-of ident? :kind vector?))
+(s/def ::syms (s/coll-of symbol? :kind vector?))
+(s/def ::strs (s/coll-of simple-symbol? :kind vector?))
+(s/def ::or (s/map-of simple-symbol? any?))
+(s/def ::as ::local-name)
+
+(s/def ::map-special-binding
+  (s/keys :opt-un [::as ::or ::keys ::syms ::strs]))
+
+(s/def ::map-binding (s/tuple ::binding-form any?))
+
+(s/def ::ns-keys
+  (s/tuple (s/and qualified-keyword?
+                  (fn [k] (contains? #{"keys" "syms"} (name k))))
+           (s/coll-of simple-symbol? :kind vector?)))
+
+(s/def ::map-bindings
+  (s/every (s/or :map-binding ::map-binding
+                 :qualified-keys-or-syms ::ns-keys
+                 :special-binding (s/tuple #{:as :or :keys :syms :strs} any?))
+           :kind map?))
+
+(s/def ::map-binding-form
+  (s/merge ::map-bindings ::map-special-binding))
+
+
+(s/def ::param-list
+  (s/and vector?
+         (s/cat :params (s/* ::binding-form)
+                :var-params (s/? (s/cat :ampersand #{'&} :var-form ::binding-form)))))
+
+(s/def ::params+body
+  (s/cat :params ::param-list
+         :body (s/alt :prepost+body (s/cat :prepost map?
+                                           :body (s/+ any?))
+                      :body (s/* any?))))
+
+(s/def ::defsyntax-args
+  (s/cat :fn-name simple-symbol?
+         :docstring (s/? string?)
+         :meta (s/? map?)
+         :fn-tail (s/alt :arity-1 ::params+body
+                         :arity-n (s/cat :bodies (s/+ (s/spec ::params+body))
+                                         :attr-map (s/? map?)))))

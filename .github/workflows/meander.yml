@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Run tests
-      run: clj -A:test
+      run: clojure -A:test
 
   clojurescript:
 

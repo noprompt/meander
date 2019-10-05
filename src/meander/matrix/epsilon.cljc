@@ -62,6 +62,7 @@
 
 (s/def :meander.matrix.epsilon.row/env
   (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
+                   :mut :meander.syntax.epsilon.node/mut
                    :mvr :meander.syntax.epsilon.node/mvr)
              :kind set?
              :into #{}))
@@ -321,7 +322,8 @@
 (s/fdef add-var
   :args (s/cat :row :meander.matrix.epsilon/row
                :var (s/or :lvr :meander.syntax.epsilon.node/lvr
-                          :mvr :meander.syntax.epsilon.node/mvr))
+                          :mvr :meander.syntax.epsilon.node/mvr
+                          :mut :meander.syntax.epsilon.node/mut))
   :ret :meander.matrix.epsilon/row)
 
 (defn add-vars
@@ -335,13 +337,15 @@
                :vars (s/or
                       :set
                       (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
+                                       :mut :meander.syntax.epsilon.node/mut
                                        :mvr :meander.syntax.epsilon.node/mvr)
                                  :kind set?
                                  :into #{})
 
                       :sequential
                       (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
-                                      :mvr :meander.syntax.epsilon.node/mvr)
+                                       :mut :meander.syntax.epsilon.node/mut
+                                       :mvr :meander.syntax.epsilon.node/mvr)
                                 :kind sequential?
                                 :into #{})))
   :ret :meander.matrix.epsilon/row)
@@ -355,9 +359,11 @@
 (s/fdef get-var
   :args (s/cat :row :meander.matrix.epsilon/row
                :var (s/or :lvr :meander.syntax.epsilon.node/lvr
+                          :mut :meander.syntax.epsilon.node/mut
                           :mvr :meander.syntax.epsilon.node/mvr))
   :ret (s/nilable
         (s/or :lvr :meander.syntax.epsilon.node/lvr
+              :mut :meander.syntax.epsilon.node/mut
               :mvr :meander.syntax.epsilon.node/mvr)))
 
 ;; TODO: Make mvrs it's own part of the map.

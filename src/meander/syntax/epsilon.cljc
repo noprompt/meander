@@ -235,6 +235,12 @@
   [node]
   (get (variables* node) :ref))
 
+(defn mutable-variables
+  "Return all :mut nodes in node."
+  [node]
+  (s/assert :meander.syntax.epsilon/node node)
+  (get (variables* node) :mut))
+
 (defn top-level
   [node]
   (case (tag node)
@@ -1329,7 +1335,7 @@
     (conj (vary-meta (unparse (:as node)) assoc :as true))
 
     (some? (:rest node))
-    (conj (vary-meta (unparse (:as node)) assoc :tag '&))))
+    (conj (vary-meta (unparse (:rest node)) assoc :tag '&))))
 
 (defmethod search? :set [node]
   (not (ground? node)))
@@ -1758,12 +1764,15 @@
    (reduce
     (fn [ref-map* [ref deps]]
       (if (or (contains? deps ref)
-              (empty? deps))
+              (empty? deps)
+              (not (contains? ref-deps ref)))
+        ;; If the ref is cyclic, has no dependencies, or is not a
+        ;; member of `ref-deps` e.g. not significant to this process,
+        ;; continue with the ref-map as is.
         ref-map*
         (reduce
          (fn [ref-map* [other-ref node]]
-           (if (and (= other-ref ref)
-                    (not (contains? ref-deps other-ref)))
+           (if (= other-ref ref)
              ref-map*
              (assoc ref-map* other-ref (substitute-refs node ref-map*))))
          ref-map*
@@ -1934,7 +1943,7 @@
                [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
    :style/indent :defn}
   [& defn-args]
-  (let [conformed-defn-args (s/conform ::core.specs/defn-args defn-args)
+  (let [conformed-defn-args (s/conform ::m.syntax.specs/defsyntax-args defn-args)
         defn-args (next defn-args)
         docstring (:docstring conformed-defn-args)
         defn-args (if docstring
@@ -1998,11 +2007,6 @@
     `(do ~expander-definition-body-form
          (var ~fn-name))))
 
-;; ClojureScript seems to have this weird quirk where we need to ask
-;; for the spec twice. The first time blows up with an error saying it
-;; can't find it, the second time works like a charm. Needless to say,
-;; we can't have this namespace cause breakage by virtue of requiring
-;; it and getting this error. Needs investigation.
 #?(:clj
    (s/fdef defsyntax
-     :args ::core.specs/defn-args))
+     :args ::m.syntax.specs/defsyntax-args))

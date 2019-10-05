@@ -525,8 +525,16 @@
   [root-node]
   (r.syntax/fold
    (fn [_ node]
-     (and (cata-node? node)
-          (reduced true)))
+     (cond
+       (cata-node? node)
+       (reduced true)
+
+       (r.syntax/with-node? node)
+       (let [ref-map (r.syntax/make-ref-map node)
+             in-use (r.syntax/refs-in-use node)]
+         (if (some contains-cata-node? (map ref-map in-use))
+           (reduced true)
+           false))))
    false
    root-node))
 
