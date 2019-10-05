@@ -18,7 +18,7 @@
 
 (defn parse
   ([form]
-   (parse form env))
+   (parse form {}))
   ([form env]
    (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
                                     ::r.syntax/phase :meander/match
