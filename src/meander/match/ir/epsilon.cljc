@@ -862,7 +862,8 @@ compilation decisions."
 (defn add-type-to-env
   {:private true}
   [env sym type]
-  (swap! env assoc-in [sym :type] type))
+  (when type
+    (swap! env assoc-in [sym :type] type)))
 
 (defn eliminate-check-known-type
   {:private true}
@@ -891,6 +892,13 @@ compilation decisions."
       #'cljs.core/string? js/String
       #'cljs.core/vector? cljs.core/PersistentVector}))
 
+
+
+(def
+  ^{:private true}
+  kind-types
+  {:vector VectorInterface
+   :seq SeqInterface})
 
 (defn eliminate-preds
   {:private true}
@@ -979,10 +987,18 @@ compilation decisions."
 
     :else nil))
 
+(defn add-type-if-star [env node]
+  (add-type-to-env env (:form (:input node)) (kind-types (:kind node)))
+  (add-type-to-env env (:input-symbol node) (kind-types (:kind node))))
+
 (defn infer-collection-type
   {:private true}
   [env node]
   (case (op node)
+    :star
+    (do (add-type-if-star env node)
+        node)
+
     :apply
     (do
       (add-type-if-coerced-apply env node `seq SeqInterface)
@@ -1007,6 +1023,21 @@ compilation decisions."
 
     node))
 
+;; If something is a vector it is much fast to call it as a
+;; function. This will directly invoke its .nth method. We could also
+;; call that ourselves with a type hint, but in the face of clj and
+;; cljs this is easier and the speed difference is negligible.
+(defn fast-vector-nth-calls
+  {:private true}
+  [env node]
+  (case (op node)
+    :nth
+    (let [target-type (lookup-type env (:form (:target node)))]
+      (if (isa? target-type VectorInterface)
+        (op-eval `(~(:form (:target node)) ~(:index node)))
+        node))
+    node))
+
 (defn rewrite-with-types
   {:private true}
   [node]
@@ -1014,8 +1045,10 @@ compilation decisions."
   ;; of something a branch after a check-op.
   (let [env (atom {})]
     (prewalk
-     (comp (partial eliminate-check-op env)
-           (partial infer-collection-type env)) node)))
+     (comp
+      (partial fast-vector-nth-calls env)
+      (partial eliminate-check-op env)
+      (partial infer-collection-type env)) node)))
 
 (defn rewrite [node]
   (loop [node node]
@@ -1596,10 +1629,14 @@ compilation decisions."
                      `(r.match.runtime/run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
 
                      :seq
-                     `(r.match.runtime/run-star-seq ~input-form ~rets ~n ~body-f ~then-f)
+                     (if (= n 1)
+                       `(r.match.runtime/run-star-1 ~input-form ~rets ~body-f ~then-f)
+                       `(r.match.runtime/run-star-seq ~input-form ~rets ~n ~body-f ~then-f))
 
                      :vector
-                     `(r.match.runtime/run-star-vec ~input-form ~rets ~n ~body-f ~then-f))]
+                     (if (= n 1)
+                       `(r.match.runtime/run-star-1 ~input-form ~rets ~body-f ~then-f)
+                       `(r.match.runtime/run-star-vec ~input-form ~rets ~n ~body-f ~then-f)))]
            (if (r.match.runtime/fail? ret#)
              ~fail
              ret#)))))
