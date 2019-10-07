@@ -919,12 +919,17 @@
                  (compile targets [(assoc row :cols `[~left ~@(:cols row)])]))
 
                :else
-               (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
-                 (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
-                   (r.ir/op-bind rsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
-                     (r.ir/op-check-bounds (r.ir/op-eval rsym) llen *collection-context*
-                       (compile `[~lsym ~rsym ~@targets*]
-                                [(assoc row :cols `[~left ~right ~@(:cols row)])]))))))
+               (let [inner-ir (compile `[~lsym ~rsym ~@targets*]
+                                [(r.matrix/prepend-cells row [left right])])]
+                 (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
+                   (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
+                     (r.ir/op-bind rsym (r.ir/op-drop (r.ir/op-eval target) llen *collection-context*)
+                       (if (r.syntax/prt-node? right)
+                         ;; `inner-ir` will do the bounds checking on
+                         ;; the right if `right` is a `:prt` node.
+                         inner-ir
+                         (r.ir/op-check-bounds (r.ir/op-eval rsym) rlen *collection-context*
+                           inner-ir)))))))
 
              ;; Variable length on the right.
              [false true]
