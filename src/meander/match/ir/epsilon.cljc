@@ -424,14 +424,23 @@ compilation decisions."
   :args (s/cat :nodes (s/coll-of ::node :kind sequential? :into []))
   :ret (s/coll-of ::node :kind sequential? :into []))
 
+(defn merge-similar
+  {:private true}
+  [a b]
+  (do-merge (:then a) (:then b)
+            (fn [then-a*]
+              (assoc a :then then-a*))
+            (fn [_ _]
+              (assoc a :then (op-branch [(:then a) (:then b)])))))
+
 (defmethod merge* [:apply :apply] [a b]
   (if (and (= (:target a) (:target b))
            (= (:fn-expr a) (:fn-expr b)))
     (let [then-b* (walk/postwalk-replace {(:symbol b) (:symbol a)} (:then b))]
       (do-merge (:then a) then-b*
-                (fn [then-a*]
-                  (assoc a :then then-a*))))
-
+                (fn [then-a*] (assoc a :then then-a*))
+                (fn [_ _]
+                  (assoc a :then (op-branch [(:then a) (:then b)])))))
     ::merge-fail))
 
 (defmethod merge* [:bind :bind] [a b]
@@ -439,7 +448,9 @@ compilation decisions."
          (:value b))
     (let [then-b* (walk/postwalk-replace {(:symbol b) (:symbol a)} (:then b))]
       (do-merge (:then a) then-b*
-                (fn [then-a*] (assoc a :then then-a*))))
+                (fn [then-a*] (assoc a :then then-a*))
+                (fn [_ _]
+                  (assoc a :then (op-branch [(:then a) (:then b)])))))
     ::merge-fail))
 
 (defmethod merge* [:branch :branch] [a b]
@@ -454,8 +465,7 @@ compilation decisions."
 (defmethod merge* [:check-lit :check-lit] [a b]
   (if (= (:target a) (:target b))
     (if (= (:value a) (:value b))
-      (do-merge (:then a) (:then b)
-                (fn [then-a*] (assoc a :then then-a*)))
+      (merge-similar a b)
       (op-case (:target a)
         [[(:value a) (:then a)]
          [(:value b) (:then b)]]
@@ -466,8 +476,7 @@ compilation decisions."
   (if (and (= (:target a) (:target b))
            (= (:kind a) (:kind b))
            (= (:length a) (:length b)))
-    (do-merge (:then a) (:then b)
-              (fn [then-a*] (assoc a :then then-a*)))
+    (merge-similar a b)
     ::merge-fail))
 
 (defmethod merge* [:case :check-lit] [a b]
@@ -487,9 +496,7 @@ compilation decisions."
 (defmethod merge* [:lvr-bind :lvr-bind] [a b]
   (if (and (= (:symbol a) (:symbol b))
            (= (:target a) (:target b)))
-    (do-merge (:then a) (:then b)
-              (fn [then-a*]
-                (assoc a :then then-a*)))
+    (merge-similar a b)
     ::merge-fail))
 
 (defn merge-check-coll*
@@ -497,11 +504,7 @@ compilation decisions."
   [a b]
   (if (= (:target a)
          (:target b))
-    (do-merge (:then a) (:then b)
-              (fn [then-a*]
-                (assoc a :then then-a*))
-              (fn [_ _]
-                (assoc a :then (op-branch [(:then a) (:then b)]))))
+    (merge-similar a b)
     ::merge-fail))
 
 (defmethod merge* [:check-array :check-array] [a b]
