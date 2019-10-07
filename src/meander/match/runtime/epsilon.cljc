@@ -23,6 +23,22 @@
   [x]
   (identical? x FAIL))
 
+(defn run-star-1
+  {:style/indent :defn}
+  [coll rets body-f then-f]
+  (let [result
+        (reduce (fn [acc xs]
+                  (let [acc (body-f acc [xs])]
+                    (if (fail? rets)
+                      (reduced FAIL)
+                      acc)))
+                rets
+                coll)]
+    (if (fail? result)
+      FAIL
+      (then-f result))))
+
+
 (defn run-star-seq
   {:style/indent :defn}
   [coll rets n body-f then-f]
