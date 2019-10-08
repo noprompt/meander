@@ -209,7 +209,21 @@
         [form env] (if-some [rest-node (:rest-map node)]
                      (let [[rest-form env] (compile* rest-node env)]
                        [`(into ~form ~rest-form) env])
-                     [form env])]
+                     [form env])
+        ;; Search for keys containing memory variables that have
+        ;; associated iterator symbols in the environment.
+        iterator-symbols (r.match/search [node env]
+                           [{:map {(r.match.syntax/apply r.syntax/variables #{{:tag :mvr :symbol ?symbol}}) _}}
+                            {:data #{{:memory-variable/symbol ?symbol
+                                      :iterator/symbol (r.match.syntax/pred symbol? ?iterator-symbol)}}}]
+                           ?iterator-symbol)
+        ;; If there are any iterator symbols we need to check to see
+        ;; if all of them have a value available at runtime.
+        form (if (seq iterator-symbols)
+               `(if (and ~@(map iterator-has-next-form iterator-symbols))
+                  ~form
+                  {})
+               form)]
     [form env]))
 
 (defmethod compile* :mvr

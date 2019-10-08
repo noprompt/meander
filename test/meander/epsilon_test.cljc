@@ -1967,18 +1967,24 @@
   (let [?rest-map {:foo "bar"}]
     (t/is (= (r/subst {:bar "baz" & ?rest-map})
              {:foo "bar", :bar "baz"}))
+
     (t/is (= (r/subst {:bar "baz" & ?rest-map :as "quux"})
              {:foo "bar", :bar "baz", :as "quux"}))
+
     (t/is (= (r/subst {& ?rest-map})
              {:foo "bar"}))
+
     (t/is (= (r/subst {:foo "bar" & [[:bar "foo"] [:quux "frob"]]})
              {:foo "bar" :bar "foo" :quux "frob"}))
+
     (t/is (= (r/subst {:foo "bar" & [[:bar "foo"] [:quux "frob"]]})
              {:foo "bar" :bar "foo" :quux "frob"}))
+
     (let [!ks [:foo :bar :baz]
           !vs [1111 2222 3333]]
       (t/is (= (r/subst {& [[!ks !vs] ...]})
                {:foo 1111, :bar 2222, :baz 3333})))
+
     (let [!ms [{:foo 1}
                {:foo 2}
                {:foo 3}]
@@ -1986,7 +1992,25 @@
       (t/is (= (r/subst [{:bar !ns & !ms} ...])
                [{:foo 1, :bar 4}
                 {:foo 2, :bar 5}
-                {:foo 3, :bar 6}])))))
+                {:foo 3, :bar 6}])))
+
+    (let [!k [1 2 3]
+          !v [4 5 6]]
+      (t/is (= {1 4, 2 5, 3 6})
+            (r/subst (r/with [%m {!k !v & %m}]
+                       %m))))
+
+    (let [!k [1 2]
+          !v [4 5 6]]
+      (t/is (= {1 4, 2 5})
+            (r/subst (r/with [%m {!k !v & %m}]
+                       %m))))
+
+    (let [!k [1 2 3]
+          !v [4]]
+      (t/is (= {1 4, 2 nil, 3 nil})
+            (r/subst (r/with [%m {!k !v & %m}]
+                       %m))))))
 
 
 (t/deftest subst-$-test
