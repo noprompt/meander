@@ -1704,7 +1704,10 @@
             (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
             `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
           (let [contains-cata? (get match-data :contains-cata?)
-                target (gensym "TARGET__")
+                symbol-target? (symbol? expr)
+                target (if symbol-target?
+                         expr
+                         (gensym "TARGET__"))
                 ir (if contains-cata?
                      (let [matrix (if final-clause?
                                     (conj matrix final-clause)
@@ -1726,22 +1729,30 @@
                      (compile [target target] matrix))]
             (case [final-clause? contains-cata?]
               [false false]
-              (let [ir (r.ir/op-bind target (r.ir/op-eval expr)
-                         ir)
+              (let [ir (if symbol-target?
+                         ir
+                         (r.ir/op-bind target (r.ir/op-eval expr)
+                           ir))
                     fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))]
                 (r.ir/compile ir fail :match &env))
 
               [false true]
-              (let [fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))]
-                `(let [~target ~expr]
-                   ~(r.ir/compile ir fail :match &env)))
+              (let [fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))
+                    code (r.ir/compile ir fail :match &env)]
+                (if symbol-target?
+                  code
+                  `(let [~target ~expr]
+                     ~code)))
 
               [true false]
               (let [fail (gensym "FAIL__")
                     fail-fn `(fn []
                                ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
-                    ir (r.ir/op-bind target (r.ir/op-eval expr)
-                         (r.ir/op-bind fail (r.ir/op-eval fail-fn)
+                    ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
+                           ir)
+                    ir (if symbol-target?
+                         ir
+                         (r.ir/op-bind target (r.ir/op-eval expr)
                            ir))]
                 (r.ir/compile ir `(~fail) :match &env))
 
@@ -1750,9 +1761,12 @@
                     fail-fn `(fn []
                                ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
                     ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
-                         ir)]
-                `(let [~target ~expr]
-                   ~(r.ir/compile ir `(~fail) :match &env))))))))))
+                         ir)
+                    code (r.ir/compile ir `(~fail) :match &env)]
+                (if symbol-target?
+                  code
+                  `(let [~target ~expr]
+                     ~code))))))))))
 
 
 (s/fdef match
@@ -1840,8 +1854,11 @@
         (if (r.matrix/empty? matrix)
           nil
           (let [expr (get match-data :expr)
+                symbol-target? (symbol? expr)
                 contains-cata? (get match-data :contains-cata?)
-                target (gensym "TARGET__")]
+                target (if symbol-target?
+                         expr
+                         (gensym "TARGET__"))]
             (if contains-cata?
               ;; We cannot use the `op-bind` approach as below because
               ;; the IR compiler will use the type information of the
@@ -1860,14 +1877,18 @@
                                  :target (r.ir/op-eval target)
                                  :req-syms []
                                  :ret-syms [cata-return]
-                                 :then (r.ir/op-return cata-return)}}]
-                  `(let [~target ~expr]
-                     ~(r.ir/compile ir nil :search env))))
-              (r.ir/compile (r.ir/op-bind target (r.ir/op-eval expr)
-                              (compile [target] matrix))
-                            nil
-                            :search
-                            env))))))))
+                                 :then (r.ir/op-return cata-return)}}
+                      code (r.ir/compile ir nil :search env)]
+                  (if symbol-target?
+                    code
+                    `(let [~target ~expr]
+                       ~code))))
+              (let [ir (compile [target] matrix)
+                    ir (if symbol-target?
+                         ir
+                         (r.ir/op-bind target (r.ir/op-eval expr)
+                           ir))]
+                (r.ir/compile ir nil :search env)))))))))
 
 
 (s/fdef search
@@ -1948,8 +1969,11 @@
         (if (r.matrix/empty? matrix)
           nil
           (let [expr (get match-data :expr)
+                symbol-target? (symbol? expr)
                 contains-cata? (get match-data :contains-cata?)
-                target (gensym "TARGET__")]
+                target (if symbol-target?
+                         expr
+                         (gensym "TARGET__"))]
             (if contains-cata?
               (binding [*cata-symbol* (get match-data :cata-symbol)]
                 (let [cata-return (gensym "CATA_RETURN__")
@@ -1964,11 +1988,17 @@
                                  :target (r.ir/op-eval target)
                                  :req-syms []
                                  :ret-syms [cata-return]
-                                 :then (r.ir/op-return cata-return)}}]
-                  `(let [~target ~expr]
-                     ~(r.ir/compile ir nil :find env))))
-              (let [ir (r.ir/op-bind target (r.ir/op-eval expr)
-                         (compile [target] matrix))]
+                                 :then (r.ir/op-return cata-return)}}
+                      code (r.ir/compile ir nil :find env)]
+                  (if symbol-target?
+                    code
+                    `(let [~target ~expr]
+                       ~code))))
+              (let [ir (compile [target] matrix)
+                    ir (if symbol-target?
+                         ir
+                         (r.ir/op-bind target (r.ir/op-eval expr)
+                           ir))]
                 (r.ir/compile ir nil :find env)))))))))
 
 (s/fdef find
