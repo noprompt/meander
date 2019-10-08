@@ -102,12 +102,28 @@
        node))
    node))
 
+(defn expand-ast-top-down
+  {:private true}
+  [node]
+  (r.syntax/prewalk
+   (fn f [node]
+     (case (r.syntax/tag node)
+       :prt
+       (rewrite-partition node)
+
+       :wth
+       (r.syntax/substitute-acyclic-refs node)
+
+       ;; else
+       node))
+   node))
+
 (defn expand-ast
   [node]
-  (-> node
-      r.syntax/rename-refs
-      rewrite-partitions
-      rewrite-coerce-literals-to-lit))
+  (expand-ast-top-down
+   (r.syntax/rename-refs
+    (rewrite-coerce-literals-to-lit
+     node))))
 
 ;; ---------------------------------------------------------------------
 ;; Special forms

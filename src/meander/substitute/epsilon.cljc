@@ -538,6 +538,14 @@
        (clojure.core/conj [!ys ...] . !xs ...)
        `[~@!ys ~@!xs]
 
+       ;; lefn rules
+       ;; -----------
+       (clojure.core/letfn [] ?body)
+       ?body
+
+       (clojure.core/letfn [] & ?body)
+       `(do ~?body)
+
        ;; list* rules
        ;; -----------
 
@@ -637,4 +645,3 @@
 (s/fdef substitute
   :args (s/cat :pattern any?)
   :ret any?)
-
