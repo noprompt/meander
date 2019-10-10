@@ -1,6 +1,6 @@
 # Pattern Matching
 
-* [Operators](#operators)
+* [Macros](#Macros)
   * [`match`](#match)
   * [`search`](#search-star)
   * [`find`](#find)
@@ -29,7 +29,7 @@
   * [Escaping](#escaping)
     * [Unquote](#unquote)
 
-## Operators
+## Macros
 
 The primary operators for pattern matching and searching are available
 in `meander.epsilon`.
