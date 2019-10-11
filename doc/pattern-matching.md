@@ -34,7 +34,7 @@
 The primary operators for pattern matching and searching are available
 in `meander.epsilon`.
 
-```
+```clj
 (require '[meander.epsilon :as m])
 ```
 
@@ -503,7 +503,7 @@ Note that unbound variables _must_ be shared by `pat-0` through `pat-n`.
 
 ### `scan`
 
-```
+```clj
 (meander.epsilon/scan pattern)
 ```
 
@@ -526,7 +526,7 @@ searches a sequence for elements that match `pattern`.
 
 ### `$`
 
-```
+```clj
 (meander.epsilon/$ pattern)
 (meander.epsilon/$ context pattern)
 ```
