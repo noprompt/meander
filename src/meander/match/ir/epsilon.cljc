@@ -479,6 +479,11 @@ compilation decisions."
     (merge-similar a b)
     ::merge-fail))
 
+(defmethod merge* [:check-boolean :check-boolean] [a b]
+  (if (= (:test a) (:test b))
+    (merge-similar a b)
+    ::merge-fail))
+
 (defmethod merge* [:case :check-lit] [a b]
   (if (= (:target a) (:target b))
     (op-case (:target a)
