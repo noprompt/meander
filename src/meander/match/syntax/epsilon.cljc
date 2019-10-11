@@ -103,14 +103,15 @@
                                             true
                                             false)))
                                      assoc
-                                     :meander.epsilon/beta-reduce true)]
+                                     :meander.epsilon/beta-reduce true)
+                pred-node {:tag ::pred
+                           :form pred-form
+                           :arguments []}]
 
-            {:tag ::pred
-             :form pred-form
-             :arguments (if (seq b)
-                          [{:tag ::or
-                            :arguments b}]
-                          [])}))))))
+            (if (seq b)
+              {:tag ::or
+               :arguments (vec (cons pred-node b))}
+              pred-node)))))))
 
 (defn expand-map-rest
   [node]
