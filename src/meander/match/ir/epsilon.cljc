@@ -180,12 +180,47 @@ compilation decisions."
 (defop op-bind :bind [symbol value then])
 
 (defop op-apply :apply [target fn-expr body-fn]
-  (let [result-symbol (gensym "result__")]
+  (let [result-symbol (gensym "X__")]
     {:op :apply
      :target target
      :fn-expr fn-expr
      :symbol result-symbol
      :then (body-fn result-symbol)}))
+
+(defn op-apply*
+  {:style/indent 1}
+  [target fn-expr then-fn]
+  (let [seq-symbol (gensym "SEQ__")]
+    (case fn-expr
+      (clojure.core/seq cljs.core/seq)
+      (let [then-ir (then-fn seq-symbol)
+            ir-target {:op :eval
+                       :form seq-symbol}
+            ;; Eliminate seq checks
+            then-ir (prewalk
+                     (fn [ir]
+                       (if (and (= (get ir :op) :check-seq)
+                                (= (get ir :target) ir-target))
+                         (get ir :then)
+                         ir))
+                     then-ir)]
+        (if (some (fn [ir]
+                    (and (= (get ir :op) :search)
+                         (= (get ir :value) ir-target)))
+                  (nodes then-ir))
+          {:op :bind
+           :symbol seq-symbol
+           :value {:op :eval
+                   :form target}
+           :then then-ir}
+          {:op :bind
+           :symbol seq-symbol
+           :value {:op :seq
+                   :target target}
+           :then then-ir}))
+
+      ;; else
+      (op-apply target fn-expr then-fn))))
 
 (defn op-branch [arms]
   {:op :branch
@@ -249,6 +284,8 @@ compilation decisions."
 (defop op-check-set :check-set [target then])
 
 (defop op-check-vector :check-vector [target then])
+
+(defop op-seq :seq [target then])
 
 ;; TODO: No need for :symbol.
 (defop op-find :find [symbol value body])
@@ -1606,6 +1643,10 @@ compilation decisions."
       (fn [~(:symbol ir)]
         ~(compile* (:body ir) fail kind))
       ~(compile* (:value ir) fail kind))))
+
+(defmethod compile* :seq
+  [ir fail kind]
+  `(seq ~(get ir :target)))
 
 (defmethod compile* :star
   [ir fail kind]

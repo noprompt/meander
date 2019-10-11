@@ -331,7 +331,7 @@
        (compile-pass targets* [row])
 
        ::r.match.syntax/apply
-       (r.ir/op-apply target (:function node)
+       (r.ir/op-apply* target (:function node)
          (fn [result-target]
            (compile `[~result-target ~@targets*]
                     (r.matrix/prepend-column [row] [(:argument node)]))))))
@@ -803,7 +803,7 @@
 
          :mkv
          (let [[key-node val-node] (:entry node)
-               val-target (gensym* "val__")]
+               val-target (gensym* "VAL__")]
            (r.ir/op-bind val-target (r.ir/op-lookup (r.ir/op-eval target) (r.ir/op-eval (compile-ground key-node)))
              (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
      (r.matrix/first-column matrix)

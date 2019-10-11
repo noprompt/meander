@@ -785,7 +785,27 @@
                [?value]
 
                ?x
-               [?x])))))
+               [?x]))))
+
+  (let [x {:source {:type "ip"
+                    :value "192.1.2.3"}
+           :related {:type "ip"
+                     :value "192.1.2.3"}}]
+    (t/is (= {:source {:type "ip", :value "192.1.2.3", :internal true},
+              :related {:type "ip", :value "192.1.2.3", :internal true}}
+             (r/match x
+               {:source (r/and {} (r/cata ?source))
+                :related (r/and {} (r/cata ?related))}
+               (assoc x
+                      :source ?source
+                      :related ?related)
+
+               {:type "ip"
+                :value (r/re #"192\..*")}
+               (assoc x :internal true)
+
+               ?x
+               ?x)))))
 
 ;;; gather
 
@@ -1962,7 +1982,6 @@
     (t/is (= [:X :O :X :O 1 2]
              (r/subst [!1s ... 1 2])))))
 
-
 (t/deftest subst-map-test
   (let [?rest-map {:foo "bar"}]
     (t/is (= (r/subst {:bar "baz" & ?rest-map})
@@ -2197,3 +2216,4 @@
            (r/match {:foo ["bar"]}
              (r/$ ?foo [& _ :as ?x])
              (?foo [?x])))))
+
