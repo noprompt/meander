@@ -1,6 +1,6 @@
 #  Understanding Meander's Pattern Matching Macros
 
-Meander has a few different macros that allow different capabilities for pattern matching. At first glance it might not be obvious with function you should use, in this article we will explore the differences between them and talk about when to use what.
+Meander has a few different macros that allow different capabilities for pattern matching. At first glance it might not be obvious which function you should use, in this article we will explore the differences between them and talk about when to use what.
 
 ## [**Match**]()
 
