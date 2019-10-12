@@ -2029,7 +2029,12 @@
           !v [4]]
       (t/is (= {1 4, 2 nil, 3 nil})
             (r/subst (r/with [%m {!k !v & %m}]
-                       %m))))))
+                       %m))))
+
+    (let [?rest {:foo "bar" :baz "quux" :quux "ducks"}
+          ?as {:foo "goo" :frob "knob"}]
+      (t/is (= {:foo "quux" :baz "bar" :quux "ducks" :frob "knob"}
+               (r/subst {:foo "quux" :baz "bar" & ?rest :as ?as}))))))
 
 
 (t/deftest subst-$-test
