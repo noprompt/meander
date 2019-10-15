@@ -1,18 +1,16 @@
 (ns ^:no-doc meander.syntax.epsilon
   #?(:clj
-     (:require [clojure.core.specs.alpha :as core.specs]
-               [clojure.set :as set]
+     (:require [clojure.set :as set]
                [clojure.spec.alpha :as s]
                [clojure.string :as string]
                [cljs.tagged-literals]
-               [meander.syntax.specs.epsilon :as m.syntax.specs]
+               [meander.syntax.specs.epsilon]
                [meander.util.epsilon :as r.util])
      :cljs
-     (:require [cljs.core.specs.alpha :as core.specs]
-               [cljs.spec.alpha :as s :include-macros true]
+     (:require [cljs.spec.alpha :as s :include-macros true]
                [clojure.set :as set]
                [clojure.string :as string]
-               [meander.syntax.specs.epsilon :as m.syntax.specs]
+               [meander.syntax.specs.epsilon]
                [meander.util.epsilon :as r.util]
                [goog.object]))
   #?(:cljs
@@ -25,40 +23,58 @@
 (defn node?
   "true if x is an AST node."
   [x]
-  (s/valid? :meander.syntax.epsilon/node x))
+  (and (map? x) (keyword? (:tag x))))
 
 (defn tag
   "Return the tag of node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
   (:tag node))
 
 (defn any-node?
   [x]
-  (s/valid? :meander.syntax.epsilon.node/any x))
+  (and (map? x) (= (:tag x) :any)))
+
+
+(defn logic-variable-symbol?
+  "true if `x` is in the form of a logic variable i.e. a simple symbol
+  with a name beginning with \\?."
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"\?.+" (name x))))
 
 (defn lvr-node?
   [x]
-  (s/valid? :meander.syntax.epsilon.node/lvr x))
+  (and (map? x) (= (:tag x) :lvr)))
+
+
+(defn memory-variable-symbol?
+  "true if x is in the form of a memory variable i.e. a simple symbol
+  with a name beginning with \\!."
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"!.+" (name x))))
 
 (defn mvr-node?
   [x]
-  (s/valid? :meander.syntax.epsilon.node/mvr x))
+  (and (map? x) (= (:tag x) :mvr)))
 
 (defn variable-node?
   [x]
   (or (mvr-node? x) (lvr-node? x)))
 
+
+(defn reference-symbol?
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"%.+" (name x))))
+
 (defn ref-node?
   "true if x is a :ref node, false otherwise."
   [x]
-  (s/valid? :meander.syntax.epsilon.node/ref x))
+  (and (map? x) (= (:tag x) :ref)))
 
 (defn with-node? [x]
-  (s/valid? :meander.syntax.epsilon.node/with x))
+  (and (map? x) (= (:tag x) :wth)))
 
 (defn partition-node? [x]
-  (s/valid? :meander.syntax.epsilon.node/partition x))
+  (and (map? x) (= (:tag x) :prt)))
 
 (defn cat-node? [x]
   (and (map? x) (= (get x :tag) :cat)))
@@ -73,6 +89,13 @@
 
 (defn map-node? [x]
   (and (map? x) (= (get x :tag) :map)))
+
+
+(defn mutable-variable-symbol?
+  "true if x is in the form of a memory variable i.e. a simple symbol
+  with a name beginning with \\!."
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"\*.+" (name x))))
 
 (defn mut-node? [x]
    (and (map? x) (= (get x :tag) :mut)))
@@ -214,20 +237,17 @@
 (defn variables
   "Return all :lvr and :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
   (let [vars (variables* node)]
     (set/union (get vars :lvr) (get vars :mvr))))
 
 (defn memory-variables
   "Return all :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
   (get (variables* node) :mvr))
 
 (defn logic-variables
   "Return all :lvr nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
   (get (variables* node) :lvr))
 
 (defn references
@@ -238,7 +258,6 @@
 (defn mutable-variables
   "Return all :mut nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
   (get (variables* node) :mut))
 
 (defn top-level
@@ -504,7 +523,6 @@
                        :meta (meta xs)})))
     (parse xs env)))
 
-(swap! global-parser-registry assoc `$ parse-contain)
 
 (defn parse-with
   {:private true}
@@ -513,7 +531,7 @@
   (let [bindings (nth xs 1)]
     (if (and (vector? bindings)
              (even? (count bindings))
-             (every? m.syntax.specs/reference-symbol? (take-nth 2 bindings)))
+             (every? reference-symbol? (take-nth 2 bindings)))
       {:tag :wth
        :bindings (map
                   (fn [[ref-sym x]]
@@ -530,8 +548,6 @@
        (ex-info "second argument to with must be vector of the form [%ref-name pattern ...]"
                 {:form xs
                  :meta (meta xs)})))))
-
-(swap! global-parser-registry assoc `with parse-with)
 
 (defn parse-as
   {:private true}
@@ -796,8 +812,8 @@
   (if (and (map? m)
            (not (record? m)))
     (let [as (if-some [[_ y] (find m :as)]
-               (if (or (m.syntax.specs/logic-variable-symbol? y)
-                       (m.syntax.specs/memory-variable-symbol? y))
+               (if (or (logic-variable-symbol? y)
+                       (memory-variable-symbol? y))
                  (parse y env)))
           m (if (some? as)
               (dissoc m :as)
@@ -843,6 +859,10 @@
        :elements (parse-all (seq s) env)})
     (parse s env)))
 
+(def default-parsers
+  {`$ parse-contain
+   `with parse-with})
+
 (defn parse
   "Parse `form` into an abstract syntax tree (AST) optionally with
   respect to the environment `env`.
@@ -860,9 +880,10 @@
                  :elements []}}}"
   ([form]
    (parse form {::expander-registry @global-expander-registry
-                ::parser-registry @global-parser-registry}))
+                ::parser-registry (merge @global-parser-registry default-parsers)}))
   ([form env]
-   (let [node (cond
+   (let [env (update env ::parser-registry merge default-parsers)
+         node (cond
                 (seq? form)
                 (parse-seq form env)
 
@@ -1835,7 +1856,6 @@
   {:arglists '([partition-node])
    :private true}
   [node]
-  (s/assert :meander.syntax.node.epsilon/partition node)
   (let [left (:left node)
         right (:right node)]
     (concat (if (partition-node? left)
@@ -1857,7 +1877,6 @@
    (reverse (butlast nodes))))
 
 (defn window [node]
-  (s/assert :meander.syntax.node.epsilon/partition node)
   (let [p-nodes (partition-nodes node)]
     (if (<= 3 (count p-nodes))
       (let [[a b c] p-nodes]
@@ -1939,11 +1958,10 @@
   *env* {})
 
 (defmacro defsyntax
-  {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
-               [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
+  {:arglists '([name doc-string? attr-map? [params*] prepost-map? body] [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
    :style/indent :defn}
   [& defn-args]
-  (let [conformed-defn-args (s/conform ::m.syntax.specs/defsyntax-args defn-args)
+  (let [conformed-defn-args (s/conform :meander.syntax.specs.epsilon/defsyntax-args defn-args)
         defn-args (next defn-args)
         docstring (:docstring conformed-defn-args)
         defn-args (if docstring
@@ -2007,6 +2025,3 @@
     `(do ~expander-definition-body-form
          (var ~fn-name))))
 
-#?(:clj
-   (s/fdef defsyntax
-     :args ::m.syntax.specs/defsyntax-args))

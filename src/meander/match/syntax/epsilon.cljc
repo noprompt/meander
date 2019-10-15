@@ -16,14 +16,6 @@
   #?(:cljs
      (:require-macros [meander.syntax.epsilon])))
 
-(defn parse
-  ([form]
-   (parse form {}))
-  ([form env]
-   (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
-                                    ::r.syntax/phase :meander/match
-                                    ::r.syntax/parser-registry (deref r.syntax/global-parser-registry)}))))
-
 ;; ---------------------------------------------------------------------
 ;; AST rewriting
 
@@ -438,8 +430,6 @@
   {:tag ::and
    :arguments (r.syntax/parse-all args env)})
 
-(r.syntax/register-parser and-symbol #'parse-and)
-
 (defmethod r.syntax/children ::and
   [node] (:arguments node))
 
@@ -468,8 +458,6 @@
        :argument (r.syntax/parse (second args) env)}
       (throw (ex-info "meander.match.syntax.epsilon/apply requires two arguments" {})))))
 
-(r.syntax/register-parser apply-symbol #'parse-apply)
-
 (defmethod r.syntax/children ::apply [node]
   [(:argument node)])
 
@@ -496,10 +484,8 @@
   (let [args (rest form)]
     (if (= 1 (count args))
       {:tag ::cata
-       :argument (parse (first args) env)}
+       :argument (r.syntax/parse (first args) env)}
       (throw (ex-info "meander.match.syntax.epsilon/cata requires one argument" {})))))
-
-(r.syntax/register-parser cata-symbol #'parse-cata)
 
 (defmethod r.syntax/children ::cata [node]
   [(:argument node)])
@@ -548,7 +534,6 @@
   {:tag ::guard
    :expr expr})
 
-(r.syntax/register-parser guard-symbol #'parse-guard)
 
 (defmethod r.syntax/ground? ::guard
   [node] false)
@@ -585,7 +570,6 @@
                     {:pattern form
                      :meta (meta form)}))))
 
-(r.syntax/register-parser let-symbol #'parse-let)
 
 (defmethod r.syntax/children ::let
   [node] [(:pattern node)])
@@ -617,7 +601,6 @@
                     {:pattern form
                      :meta (meta form)}))))
 
-(r.syntax/register-parser not-symbol #'parse-not)
 
 (defmethod r.syntax/children ::not
   [node] [(:argument node)])
@@ -662,7 +645,6 @@
   [node]
   (boolean (some r.syntax/search? (:arguments node))))
 
-(r.syntax/register-parser or-symbol #'parse-or)
 
 ;;; pred
 
@@ -674,7 +656,6 @@
    :form expr
    :arguments (r.syntax/parse-all args env)})
 
-(r.syntax/register-parser pred-symbol #'parse-pred)
 
 (defmethod r.syntax/children ::pred
   [node] (:arguments node))
@@ -708,7 +689,6 @@
                     {:pattern form
                      :meta (meta form)}))))
 
-(r.syntax/register-parser re-symbol #'parse-re)
 
 (defmethod r.syntax/children ::rxc
   [node] [(:capture node)])
@@ -735,3 +715,27 @@
 
 (defmethod r.syntax/unparse ::rxt
   [node] `(~re-symbol ~(r.syntax/unparse (:regex node))))
+
+
+(def default-parsers
+  {and-symbol #'parse-and
+   apply-symbol #'parse-apply
+   cata-symbol #'parse-cata
+   guard-symbol #'parse-guard
+   let-symbol #'parse-let
+   not-symbol #'parse-not
+   or-symbol #'parse-or
+   pred-symbol #'parse-pred
+   re-symbol #'parse-re})
+
+(defn parse
+  ([form]
+   (parse form {}))
+  ([form env]
+   (let [parser-registry (merge (deref r.syntax/global-parser-registry)
+                                default-parsers)
+         expander-registry (deref r.syntax/global-expander-registry)
+         env (merge env {::r.syntax/expander-registry expander-registry
+                         ::r.syntax/phase :meander/match
+                         ::r.syntax/parser-registry parser-registry})]
+     (r.syntax/parse form env))))

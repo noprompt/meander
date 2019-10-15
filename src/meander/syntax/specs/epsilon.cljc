@@ -336,6 +336,27 @@
                           :ref-map :meander.syntax.epsilon/ref-map))
   :ret :meander.syntax.epsilon/node)
 
+(s/fdef meander.syntax.epsilon/partition-nodes
+  :args (s/cat :node :meander.syntax.epsilon.node/partition))
+
+(s/fdef meander.syntax.epsilon/window
+  :args (s/cat :node :meander.syntax.epsilon.node/partition))
+
+(s/fdef meander.syntax.epsilon/tag
+  :args (s/cat :node :meander.syntax.epsilon/node))
+
+(s/fdef meander.syntax.epsilon/variables
+  :args (s/cat :node :meander.syntax.epsilon/node))
+
+(s/fdef meander.syntax.epsilon/memory-variables
+  :args (s/cat :node :meander.syntax.epsilon/node))
+
+(s/fdef meander.syntax.epsilon/logic-variables
+  :args (s/cat :node :meander.syntax.epsilon/node))
+
+(s/fdef meander.syntax.epsilon/mutable-variables
+  :args (s/cat :node :meander.syntax.epsilon/node))
+
 (s/def ::local-name
   (s/and simple-symbol? (fn [x] (not (= x '&)))))
 
@@ -398,3 +419,6 @@
          :fn-tail (s/alt :arity-1 ::params+body
                          :arity-n (s/cat :bodies (s/+ (s/spec ::params+body))
                                          :attr-map (s/? map?)))))
+
+(s/fdef meander.syntax.epsilon/defsyntax
+  :args ::defsyntax-args)
