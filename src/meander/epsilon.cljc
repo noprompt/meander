@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [and find keyword let not or some symbol])
   #?(:clj
      (:require [clojure.core :as clj]
-               [clojure.core.specs.alpha :as core.specs]
                [clojure.spec.alpha :as s]
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
@@ -14,7 +13,6 @@
                [meander.util.epsilon :as r.util])
      :cljs
      (:require [cljs.core :as clj]
-               [cljs.core.specs.alpha :as core.specs]
                [cljs.spec.alpha :as s :include-macros true]
                [meander.match.epsilon :as r.match :include-macros true]
                [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
