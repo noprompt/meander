@@ -496,7 +496,7 @@ Note that unbound variables _must_ be shared by `pat-0` through `pat-n`.
   [?x ?y])
 ;; Every pattern of an or pattern must have references to the same
 ;; unbound variables.
-;; {:pat (or [?x ?y] [?x ?y ?z]),
+;; {:pat (m/or [?x ?y] [?x ?y ?z]),
 ;;  :env #{},
 ;;  :problems [{:pat [?x ?y], :absent #{?z}}]}
 ```
@@ -585,7 +585,7 @@ construction and matching of recursive grammars.
     (m/with [%h1 [!tags {:as !attrs} . %hiccup ...]
              %h2 [!tags . %hiccup ...]
              %h3 !xs
-             %hiccup (or %h1 %h2 %h3)]
+             %hiccup (m/or %h1 %h2 %h3)]
       %hiccup)
     [!tags !attrs !xs]))
 ;; =>
