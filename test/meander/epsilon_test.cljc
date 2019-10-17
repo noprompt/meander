@@ -469,7 +469,8 @@
 
 
 (tc.t/defspec map-unq-succeeds
-  (tc.prop/for-all [x gen-scalar]
+  ;; such-that is to ensure we don't get a duplicate key
+  (tc.prop/for-all [x (tc.gen/such-that (complement #{:x}) gen-scalar)]
     (r/match {:x x, x :x}
       {:x ~x, ~x :x}
       true
