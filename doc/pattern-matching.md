@@ -524,24 +524,26 @@ References may be specified in any order and may also be recursive.
 In essence, the `with` operator allows for novel and powerful feature: the ad-hoc construction and matching of recursive grammars.
 
 ```clj
-(let [hiccup [:div
-              [:p {"foo" "bar"}
-               [:strong "Foo"]
-               [:em {"baz" "quux"} "Bar"
-                [:u "Baz"]]]
-              [:ul
-               [:li "Beef"]
-               [:li "Lamb"]
-               [:li "Pork"]
-               [:li "Chicken"]]]]
-  ;; meander.match.delta/find
-  (m/find hiccup
-    (m/with [%h1 [!tags {:as !attrs} . %hiccup ...]
-             %h2 [!tags . %hiccup ...]
-             %h3 !xs
-             %hiccup (m/or %h1 %h2 %h3)]
-      %hiccup)
-    [!tags !attrs !xs]))
+(def hiccup
+  [:div
+   [:p {"foo" "bar"}
+    [:strong "Foo"]
+    [:em {"baz" "quux"} "Bar"
+     [:u "Baz"]]]
+   [:ul
+    [:li "Beef"]
+    [:li "Lamb"]
+    [:li "Pork"]
+    [:li "Chicken"]]])
+
+;; meander.epsilon/find
+(m/find hiccup
+  (m/with [%h1 [!tags {:as !attrs} . %hiccup ...]
+           %h2 [!tags . %hiccup ...]
+           %h3 !xs
+           %hiccup (m/or %h1 %h2 %h3)]
+    %hiccup)
+  [!tags !attrs !xs])
 ;; =>
 [[:div :p :strong :em :u :ul :li :li :li :li]
  [{"foo" "bar"} {"baz" "quux"}]
