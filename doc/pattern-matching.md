@@ -2,7 +2,7 @@
 
 * [Operators](#operators)
   * [`match`](#match)
-  * [`search`](#search-star)
+  * [`search`](#search)
   * [`find`](#find)
 * [Pattern Syntax](#pattern-syntax)
   * [Literals](#literals)
