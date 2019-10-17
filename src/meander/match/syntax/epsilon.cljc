@@ -12,9 +12,7 @@
                [cljs.spec.alpha :as s :include-macros true]
                [cljs.core.specs.alpha :as core.specs]
                [meander.syntax.epsilon :as r.syntax]
-               [meander.util.epsilon :as r.util]))
-  #?(:cljs
-     (:require-macros [meander.syntax.epsilon])))
+               [meander.util.epsilon :as r.util])))
 
 ;; ---------------------------------------------------------------------
 ;; AST rewriting

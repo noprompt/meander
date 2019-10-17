@@ -16,9 +16,7 @@
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.syntax.epsilon :as r.syntax]
-               [meander.util.epsilon :as r.util]))
-  #?(:cljs
-     (:require-macros [meander.substitute.syntax.epsilon])))
+               [meander.util.epsilon :as r.util])))
 
 ;; ---------------------------------------------------------------------
 ;; Rewriting
