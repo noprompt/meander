@@ -1,20 +1,23 @@
 (ns ^:no-doc meander.match.epsilon
   (:refer-clojure :exclude [compile find])
-  (:require [clojure.core :as clojure]
-            [clojure.pprint :as pprint]
+  #?(:cljs (:require-macros [meander.match.epsilon]))
+  (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]
+            [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
+            [clojure.walk :as walk]
             [clojure.zip :as zip]
             [clojure.set :as set]
             [meander.match.check.epsilon :as r.match.check]
             [meander.match.ir.epsilon :as r.ir]
-            [meander.match.runtime.epsilon :as r.match.runtime]
-            [meander.match.specs.epsilon]
-            [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.matrix.epsilon :as r.matrix]
             [meander.syntax.epsilon :as r.syntax]
-            [meander.util.epsilon :as r.util])
-  (:import (cljs.tagged_literals JSValue)))
+            [meander.match.syntax.epsilon :as r.match.syntax]
+            [meander.match.runtime.epsilon :as r.match.runtime]
+            [meander.util.epsilon :as r.util]
+            #?(:cljs [goog.object :as gobj]))
+  #?(:clj
+     (:import (cljs.tagged_literals JSValue))))
 
 (def
   ^{:dynamic true
@@ -29,10 +32,12 @@
   []
   (true? *negating*))
 
+
 (def
   ^{:dynamic true
     :doc "The current collection context e.g. :vector, :seq, etc."}
   *collection-context*)
+
 
 (defn vector-context?
   "true if the current value of *collect-context* is :vector."
@@ -44,6 +49,7 @@
   "true if the current value of *collect-context* is :js-array."
   []
   (= *collection-context* :js-array))
+
 
 (def
   ^{:doc "If a pattern match has a catamorphism this will be bound to
@@ -62,11 +68,13 @@
   ([prefix-string]
    (with-meta (gensym prefix-string) {:meander/gensym? true})))
 
+
 (defn gensym?
   "true if x is an internally generate gensym, false otherwise."
   {:private true}
   ([x]
    (and (symbol? x) (::gensym? (meta x)))))
+
 
 (defn get-spec-map
   {:private true}
@@ -113,7 +121,6 @@
 
 (declare compile)
 
-
 (defn literal?
   "true if node is ground and does not contain :map or :set subnodes,
   false otherwise.
@@ -128,6 +135,7 @@
   (and (r.syntax/ground? node)
        (not-any? (comp #{:map :unq :set} r.syntax/tag)
                  (r.syntax/subnodes node))))
+
 
 ;; Use solved?* instead.
 (defn solved?
@@ -170,6 +178,7 @@
     :else
     false))
 
+
 (defn compile-ground
   "Compile node as a literal if possible."
   [node]
@@ -178,7 +187,10 @@
     (map compile-ground (:elements node))
 
     :jsa
-    (JSValue. (vec (compile-ground (:prt node))))
+    #?(:clj
+       (JSValue. (vec (compile-ground (:prt node))))
+       :cljs
+       (into-array (compile-ground (:prt node))))
 
     :lit
     (r.syntax/unparse node)
@@ -254,8 +266,9 @@
    column))
 
 (s/fdef score-column
-  :args (s/cat :column (s/coll-of :meander.syntax.epsilon/node :kind sequential?))
+  :args (s/cat :column (s/coll-of ::r.syntax/node :kind sequential?))
   :ret nat-int?)
+
 
 (defn prioritize-matrix
   "Reorganizes a the pattern targets and matrix columns according to
@@ -272,6 +285,7 @@
                  (apply map vector columns*))]
     [(vec targets*) (vec matrix*)]))
 
+
 (defn specialize-matrix
   "Retains rows of the matrix whose tag is tag or `:any`."
   [tag matrix]
@@ -284,6 +298,7 @@
                (nth matrix i)))))
         (r.matrix/first-column matrix)))
 
+
 (defmulti compile-specialized-matrix
   "Compile the matrix specialized for tag with respect to targets to a
   sequence of decision trees."
@@ -291,11 +306,13 @@
   (fn [tag targets matrix]
     tag))
 
+
 (s/fdef compile-specialized-matrix
   :args (s/cat :tag keyword?
                :targets (s/coll-of simple-symbol? :kind vector? :into [])
                :matrix :meander.matrix.epsilon/matrix)
   :ret (s/coll-of :meander.match.epsilon/tree))
+
 
 (defmethod compile-specialized-matrix :any
   [_ targets matrix]
@@ -303,6 +320,7 @@
           (compile-pass targets [row]))
         (r.matrix/first-column matrix)
         (r.matrix/drop-column matrix)))
+
 
 (defmethod compile-specialized-matrix ::r.match.syntax/apply
   [_ [target & targets*] matrix]
@@ -314,11 +332,12 @@
 
        ::r.match.syntax/apply
        (r.ir/op-apply* target (:function node)
-                       (fn [result-target]
-                         (compile `[~result-target ~@targets*]
-                                  (r.matrix/prepend-column [row] [(:argument node)]))))))
+         (fn [result-target]
+           (compile `[~result-target ~@targets*]
+                    (r.matrix/prepend-column [row] [(:argument node)]))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
+
 
 (defmethod compile-specialized-matrix ::r.match.syntax/and
   [_ [target & targets*] matrix]
@@ -366,6 +385,7 @@
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
+
 (defmethod compile-specialized-matrix :cat
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)
@@ -390,18 +410,18 @@
          (if (literal? node)
            (if (js-array-context?)
              (r.ir/op-check-array-equals
-              (r.ir/op-eval target)
-              (r.ir/op-eval (compile-ground
-                             {:tag :jsa
-                              :prt {:tag :prt
-                                    :left node
-                                    :right {:tag :cat
-                                            :elements []}}}))
-              (compile targets* [row]))
+               (r.ir/op-eval target)
+               (r.ir/op-eval (compile-ground
+                              {:tag :jsa
+                               :prt {:tag :prt
+                                     :left node
+                                     :right {:tag :cat
+                                             :elements []}}}))
+               (compile targets* [row]))
              (r.ir/op-check-equal
-              (r.ir/op-eval target)
-              (r.ir/op-eval (vec (compile-ground node)))
-              (compile targets* [row])))
+               (r.ir/op-eval target)
+               (r.ir/op-eval (vec (compile-ground node)))
+               (compile targets* [row])))
            (let [elements (:elements node)
                  nth-syms (take (count elements) nth-syms)
                  targets* `[~@nth-syms ~@targets*]]
@@ -410,7 +430,7 @@
                 (case (r.syntax/tag elem)
                   :any tree
                   (r.ir/op-bind nth-sym (r.ir/op-nth (r.ir/op-eval target) i)
-                                tree)))
+                    tree)))
               (compile targets* [(assoc row :cols `[~@elements ~@(:cols row)])])
               (reverse (map vector (range max-size) nth-syms elements)))))))
      (r.matrix/first-column matrix)
@@ -449,18 +469,18 @@
                         (into %targets targets*))]
          (if (some? context)
            (r.ir/op-search loc-sym (r.ir/op-eval `(r.match.runtime/zip-next-seq (r.match.runtime/coll-zip ~target)))
-                           (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
-                                         (compile targets* matrix*)))
+             (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
+               (compile targets* matrix*)))
            (r.ir/op-search node-sym (r.ir/op-eval `(r.match.runtime/coll-seq ~target))
-                           (compile targets* matrix*))))))
+             (compile targets* matrix*))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
-
 
 
 (defmethod compile-specialized-matrix :drp
   [_ [target & targets*] matrix]
   [(compile (vec targets*) (r.matrix/drop-column matrix))])
+
 
 (defmethod compile-specialized-matrix ::r.match.syntax/or
   [_ targets matrix]
@@ -477,7 +497,7 @@
            (reduce
             (fn [dt mvr]
               (r.ir/op-mvr-init (:symbol mvr)
-                                dt))
+                dt))
             (compile targets (mapv
                               (fn [node]
                                 (first (r.matrix/prepend-column [row*] [node])))
@@ -485,6 +505,7 @@
             unbound-mvrs))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix ::r.match.syntax/guard
   [_ [target & targets*] matrix]
@@ -497,9 +518,10 @@
 
          ::r.match.syntax/guard
          (r.ir/op-check (r.ir/op-eval (:expr node))
-                        (compile targets* [row]))))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :jsa
   [_ [target & targets* :as targets] matrix]
@@ -512,24 +534,25 @@
        :jsa
        (if (literal? node)
          (r.ir/op-check-array-equals
-          (r.ir/op-eval target)
-          (r.ir/op-eval (compile-ground node))
-          (compile targets* [row]))
+           (r.ir/op-eval target)
+           (r.ir/op-eval (compile-ground node))
+           (compile targets* [row]))
          (r.ir/op-check-array (r.ir/op-eval target)
-                              (let [;; prt needs to be compiled within a :js-array
-                                    ;; collection-context separately from the targets*
-                                    ;; to the right. The targets* on the right need to
-                                    ;; be compiled in an environment including variables
-                                    ;; bound by compiling prt.
-                                    prt (:prt node)
-                                    rhs*-env (into (get row :env) (r.syntax/variables prt))
-                                    rhs*-row (assoc row :env rhs*-env)
-                                    rhs* (compile targets* [rhs*-row])
-                                    row* (assoc row :cols [prt] :rhs rhs*)]
-                                (binding [*collection-context* :js-array]
-                                  (compile [target] [row*])))))))
+           (let [;; prt needs to be compiled within a :js-array
+                 ;; collection-context separately from the targets*
+                 ;; to the right. The targets* on the right need to
+                 ;; be compiled in an environment including variables
+                 ;; bound by compiling prt.
+                 prt (:prt node)
+                 rhs*-env (into (get row :env) (r.syntax/variables prt))
+                 rhs*-row (assoc row :env rhs*-env)
+                 rhs* (compile targets* [rhs*-row])
+                 row* (assoc row :cols [prt] :rhs rhs*)]
+             (binding [*collection-context* :js-array]
+               (compile [target] [row*])))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
+
 
 (defn jso-matrix-all-keys
   "Return a sequence of all :jso keys in matrix."
@@ -542,6 +565,7 @@
        (keys (:object node))
        ()))
    (r.matrix/first-column matrix)))
+
 
 (defmethod compile-specialized-matrix :jso
   [_ [target & targets*] matrix]
@@ -559,26 +583,27 @@
     ;;   [:x ?1] [:z __] [:y __] [:w __]
     ;;   [:x __] [:z ?3] [:y __] [:w ?2]
     [(r.ir/op-check-boolean
-      (r.ir/op-eval `(some? ~target)) ;; This may be a bit liberal.
-      (compile `[~@(repeat (count ranked-keys) target) ~@targets*]
-               (mapv
-                (fn [row]
-                  (let [[node & rest-nodes] (get row :cols)]
-                    (case (r.syntax/tag node)
-                      :jso
-                      (let [object (:object node)
-                            prefix (mapv
-                                    (fn [key-node]
-                                      (if-some [entry (clojure/find object key-node)]
-                                        {:tag :okv
-                                         :entry entry}
-                                        {:tag :okv
-                                         :entry [key-node {:tag :any
-                                                           :symbol '_}]}))
-                                    ranked-keys)]
-                        (assoc row :cols `[~@prefix ~@rest-nodes]))
-                      row)))
-                matrix)))]))
+       (r.ir/op-eval `(some? ~target)) ;; This may be a bit liberal.
+       (compile `[~@(repeat (count ranked-keys) target) ~@targets*]
+                (mapv
+                 (fn [row]
+                   (let [[node & rest-nodes] (get row :cols)]
+                     (case (r.syntax/tag node)
+                       :jso
+                       (let [object (:object node)
+                             prefix (mapv
+                                     (fn [key-node]
+                                       (if-some [entry (clojure/find object key-node)]
+                                         {:tag :okv
+                                          :entry entry}
+                                         {:tag :okv
+                                          :entry [key-node {:tag :any
+                                                            :symbol '_}]}))
+                                     ranked-keys)]
+                         (assoc row :cols `[~@prefix ~@rest-nodes]))
+                       row)))
+                 matrix)))]))
+
 
 (defmethod compile-specialized-matrix :okv
   [_ [target & targets* :as targets] matrix]
@@ -606,12 +631,13 @@
                    matrix* (r.matrix/prepend-column [row] [node*])
                    search-target (gensym* "okv__")]
                (r.ir/op-search search-target (r.ir/op-eval
-                                              `(map (fn [k#]
-                                                      [k# (gobj/get ~target k#)])
-                                                    (gobj/getKeys ~target)))
-                               (compile `[~search-target ~@targets*] matrix*)))))))
+                                               `(map (fn [k#]
+                                                       [k# (gobj/get ~target k#)])
+                                                     (gobj/getKeys ~target)))
+                 (compile `[~search-target ~@targets*] matrix*)))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix ::r.match.syntax/let
   [_ [target & targets* :as targets] matrix]
@@ -627,7 +653,7 @@
                targets* `[~xsym ~@targets*]
                matrix* (r.matrix/prepend-column [row] [(:pattern node)])]
            (r.ir/op-bind xsym (r.ir/op-eval (:expression node))
-                         (compile targets* matrix*)))))
+             (compile targets* matrix*)))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -644,11 +670,12 @@
          :lit
          (let [then (compile targets* [row])]
            (r.ir/op-check-lit
-            (r.ir/op-eval target)
-            (r.ir/op-eval (r.syntax/unparse node))
-            then))))
+             (r.ir/op-eval target)
+             (r.ir/op-eval (r.syntax/unparse node))
+             then))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :lvr
   [_ [target & targets*] matrix]
@@ -662,11 +689,12 @@
          :lvr
          (if (r.matrix/get-var row node)
            (r.ir/op-lvr-check (:symbol node) (r.ir/op-eval target)
-                              (compile targets* [(r.matrix/add-var row node)]))
+             (compile targets* [(r.matrix/add-var row node)]))
            (r.ir/op-lvr-bind (:symbol node) (r.ir/op-eval target)
-                             (compile targets* [(r.matrix/add-var row node)])))))
+             (compile targets* [(r.matrix/add-var row node)])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defn map-matrix-all-keys
   "Return a sequence of all :map keys in matrix."
@@ -677,7 +705,6 @@
      (when (= (r.syntax/tag node) :map)
        (keys (:map node))))
    (r.matrix/first-column matrix)))
-
 
 (defn non-search-lvars
   {:private true}
@@ -706,6 +733,7 @@
   (not (empty? (set/difference
                 (find-search-keys node env)
                 (non-search-lvars node env)))))
+
 
 (defn find-search-keys-recursive
   {:private true}
@@ -743,25 +771,26 @@
                              the-map* (sort-by-search-keys the-map env)]
                          (if (search-map? node env)
                            (r.matrix/prepend-cells row
-                                                   (into [{:tag ::r.match.syntax/apply
-                                                           :function `set
-                                                           :argument {:tag :set
-                                                                      :elements (map (fn [[k-node v-node]]
-                                                                                       {:tag :cat
-                                                                                        :elements [k-node v-node]})
-                                                                                     the-map*)}}]
-                                                         (repeat (dec num-keys) '{:tag :any, :symbol _})))
+                             (into [{:tag ::r.match.syntax/apply
+                                     :function `set
+                                     :argument {:tag :set
+                                                :elements (map (fn [[k-node v-node]]
+                                                                 {:tag :cat
+                                                                  :elements [k-node v-node]})
+                                                               the-map*)}}]
+                                   (repeat (dec num-keys) '{:tag :any, :symbol _})))
                            (r.matrix/prepend-cells row
-                                                   (into (mapv (fn [key]
-                                                                 {:tag :mkv
-                                                                  :entry (clojure/find the-map key)})
-                                                               (keys the-map*))
-                                                         (repeat (- num-keys (count the-map*))
-                                                                 '{:tag :any :symbol _})))))))
+                             (into (mapv (fn [key]
+                                           {:tag :mkv
+                                            :entry (clojure/find the-map key)})
+                                         (keys the-map*))
+                                   (repeat (- num-keys (count the-map*))
+                                           '{:tag :any :symbol _})))))))
                    (r.matrix/first-column matrix)
                    (r.matrix/drop-column matrix)))]
     [(r.ir/op-check-map (r.ir/op-eval target)
-                        (compile `[~@(repeat (max 1 num-keys) target) ~@targets*] matrix*))]))
+       (compile `[~@(repeat (max 1 num-keys) target) ~@targets*] matrix*))]))
+
 
 (defmethod compile-specialized-matrix :mkv
   [_ [target & targets* :as targets] matrix]
@@ -776,9 +805,10 @@
          (let [[key-node val-node] (:entry node)
                val-target (gensym* "VAL__")]
            (r.ir/op-bind val-target (r.ir/op-lookup (r.ir/op-eval target) (r.ir/op-eval (compile-ground key-node)))
-                         (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
+             (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :mut
   [_ [target & targets*] matrix]
@@ -791,9 +821,10 @@
 
          :mut
          (r.ir/op-mut-bind (:symbol node) (r.ir/op-eval target)
-                           (compile targets* [(r.matrix/add-var row node)]))))
+           (compile targets* [(r.matrix/add-var row node)]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :mvr
   [_ [target & targets*] matrix]
@@ -812,12 +843,12 @@
                ;; for the state of a memory variable to persist
                ;; even after a match failure.
                (r.ir/op-save save-id
-                             (r.ir/op-mvr-append sym (r.ir/op-eval target)
-                                                 (compile targets* [row]))
-                             (r.ir/op-load save-id)))
+                 (r.ir/op-mvr-append sym (r.ir/op-eval target)
+                   (compile targets* [row]))
+                 (r.ir/op-load save-id)))
              (r.ir/op-mvr-init sym
-                               (r.ir/op-mvr-append sym (r.ir/op-eval target)
-                                                   (compile targets* [(r.matrix/add-var row node)])))))))
+               (r.ir/op-mvr-append sym (r.ir/op-eval target)
+                 (compile targets* [(r.matrix/add-var row node)])))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -837,11 +868,12 @@
                                   :cols [(:argument node)]
                                   :rhs (r.ir/op-load save-id))]]
            (r.ir/op-save save-id
-                         (binding [*negating* true]
-                           (compile [target] not-matrix))
-                         (compile targets* [row])))))
+             (binding [*negating* true]
+               (compile [target] not-matrix))
+             (compile targets* [row])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :prt
   [_ [target & targets* :as targets] matrix]
@@ -875,41 +907,41 @@
                (and (zero? llen)
                     (zero? rlen))
                (r.ir/op-check-empty
-                (r.ir/op-eval target)
-                (compile targets [row]))
+                 (r.ir/op-eval target)
+                 (compile targets [row]))
 
                (zero? llen)
                (r.ir/op-check-bounds (r.ir/op-eval target) rlen *collection-context*
-                                     (compile targets [(assoc row :cols `[~right ~@(:cols row)])]))
+                 (compile targets [(assoc row :cols `[~right ~@(:cols row)])]))
 
                (zero? rlen)
                (r.ir/op-check-bounds (r.ir/op-eval target) llen *collection-context*
-                                     (compile targets [(assoc row :cols `[~left ~@(:cols row)])]))
+                 (compile targets [(assoc row :cols `[~left ~@(:cols row)])]))
 
                :else
                (let [inner-ir (compile `[~lsym ~rsym ~@targets*]
-                                       [(r.matrix/prepend-cells row [left right])])]
+                                [(r.matrix/prepend-cells row [left right])])]
                  (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
-                               (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
-                                                     (r.ir/op-bind rsym (r.ir/op-drop (r.ir/op-eval target) llen *collection-context*)
-                                                                   (if (r.syntax/prt-node? right)
-                                                                     ;; `inner-ir` will do the bounds checking on
-                                                                     ;; the right if `right` is a `:prt` node.
-                                                                     inner-ir
-                                                                     (r.ir/op-check-bounds (r.ir/op-eval rsym) rlen *collection-context*
-                                                                                           inner-ir)))))))
+                   (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
+                     (r.ir/op-bind rsym (r.ir/op-drop (r.ir/op-eval target) llen *collection-context*)
+                       (if (r.syntax/prt-node? right)
+                         ;; `inner-ir` will do the bounds checking on
+                         ;; the right if `right` is a `:prt` node.
+                         inner-ir
+                         (r.ir/op-check-bounds (r.ir/op-eval rsym) rlen *collection-context*
+                           inner-ir)))))))
 
              ;; Variable length on the right.
              [false true]
              (let [op-body (r.ir/op-bind rsym (r.ir/op-drop (r.ir/op-eval target) llen *collection-context*)
-                                         (compile `[~lsym ~rsym ~@targets*]
-                                                  [(assoc row :cols `[~left ~right ~@(:cols row)])]))]
+                             (compile `[~lsym ~rsym ~@targets*]
+                                      [(assoc row :cols `[~left ~right ~@(:cols row)])]))]
                (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
-                             (if (zero? llen)
-                               (r.ir/op-check-empty (r.ir/op-eval lsym)
-                                                    op-body)
-                               (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
-                                                     op-body))))
+                 (if (zero? llen)
+                   (r.ir/op-check-empty (r.ir/op-eval lsym)
+                     op-body)
+                   (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
+                     op-body))))
 
              ;; Variable length on the left.
              [true false]
@@ -919,14 +951,14 @@
                      op-body (compile `[~lsym ~rsym ~@targets*]
                                       [(assoc row :cols `[~left ~right ~@(:cols row)])])]
                  (r.ir/op-bind nsym (r.ir/op-eval `(count ~target))
-                               (r.ir/op-bind msym (r.ir/op-eval `(max 0 (- ~nsym ~rlen)))
-                                             (r.ir/op-bind lsym (r.ir/op-take op-target msym *collection-context*)
-                                                           (r.ir/op-bind rsym (r.ir/op-drop op-target msym *collection-context*)
-                                                                         (if (zero? rlen)
-                                                                           (r.ir/op-check-empty (r.ir/op-eval rsym)
-                                                                                                op-body)
-                                                                           (r.ir/op-check-bounds (r.ir/op-eval rsym) rlen *collection-context*
-                                                                                                 op-body))))))))
+                   (r.ir/op-bind msym (r.ir/op-eval `(max 0 (- ~nsym ~rlen)))
+                     (r.ir/op-bind lsym (r.ir/op-take op-target msym *collection-context*)
+                       (r.ir/op-bind rsym (r.ir/op-drop op-target msym *collection-context*)
+                         (if (zero? rlen)
+                           (r.ir/op-check-empty (r.ir/op-eval rsym)
+                             op-body)
+                           (r.ir/op-check-bounds (r.ir/op-eval rsym) rlen *collection-context*
+                             op-body))))))))
 
              ;; Variable length on both sides.
              [true true]
@@ -942,33 +974,33 @@
                      1
                      (if right
                        (r.ir/op-search parts-sym `(r.match.runtime/partitions 2 ~target)
-                                       (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
-                                                     (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
-                                                                   (let [partition-sym (symbol (str target "_partition__"))]
-                                                                     (r.ir/op-search partition-sym (r.ir/op-eval lsym)
-                                                                                     (compile `[~partition-sym ~rsym ~@targets*]
-                                                                                              [(r.matrix/prepend-cells row [(first elements) right])]))))))
+                         (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
+                             (let [partition-sym (symbol (str target "_partition__"))]
+                               (r.ir/op-search partition-sym (r.ir/op-eval lsym)
+                                 (compile `[~partition-sym ~rsym ~@targets*]
+                                          [(r.matrix/prepend-cells row [(first elements) right])]))))))
                        (r.ir/op-search parts-sym (r.ir/op-eval target)
-                                       (compile `[~parts-sym ~@targets*]
-                                                [(r.matrix/prepend-cells row [(first elements)])])))
+                         (compile `[~parts-sym ~@targets*]
+                                  [(r.matrix/prepend-cells row [(first elements)])])))
 
                      ;; else
                      (if right
                        (r.ir/op-search parts-sym `(r.match.runtime/partitions 2 ~cat-length ~target)
-                                       (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
-                                                     (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
-                                                                   (let [partition-sym (symbol (str target "_partition__"))]
-                                                                     (r.ir/op-search partition-sym (r.ir/op-eval `(partition ~cat-length 1 ~lsym))
-                                                                                     (compile `[~partition-sym ~rsym ~@targets*]
-                                                                                              [(r.matrix/prepend-cells row [cat-node right])]))))))
+                         (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                           (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
+                             (let [partition-sym (symbol (str target "_partition__"))]
+                               (r.ir/op-search partition-sym (r.ir/op-eval `(partition ~cat-length 1 ~lsym))
+                                 (compile `[~partition-sym ~rsym ~@targets*]
+                                          [(r.matrix/prepend-cells row [cat-node right])]))))))
                        (r.ir/op-search parts-sym (r.ir/op-eval `(partition ~cat-length 1 ~target))
-                                       (compile `[~parts-sym ~@targets*]
-                                                [(r.matrix/prepend-cells row [cat-node])])))))
+                         (compile `[~parts-sym ~@targets*]
+                                  [(r.matrix/prepend-cells row [cat-node])])))))
                  (r.ir/op-search parts-sym (r.ir/op-eval `(r.match.runtime/partitions 2 ~target))
-                                 (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
-                                               (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
-                                                             (compile `[~lsym ~rsym ~@targets*]
-                                                                      [(assoc row :cols `[~left ~right ~@(:cols row)])]))))))))))
+                   (r.ir/op-bind lsym (r.ir/op-nth (r.ir/op-eval parts-sym) 0)
+                     (r.ir/op-bind rsym (r.ir/op-nth (r.ir/op-eval parts-sym) 1)
+                       (compile `[~lsym ~rsym ~@targets*]
+                                [(assoc row :cols `[~left ~right ~@(:cols row)])]))))))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -990,12 +1022,12 @@
                              (r.ir/op-eval `(let [~arg ~target] ~@body)))
                            (r.ir/op-eval `(~form ~target)))]
            (r.ir/op-check-boolean eval-form
-                                  (if (seq arguments)
-                                    (compile targets
-                                             [(assoc row :cols `[~{:tag ::r.match.syntax/and
-                                                                   :arguments arguments}
-                                                                 ~@(:cols row)])])
-                                    (compile targets* [row]))))))
+             (if (seq arguments)
+               (compile targets
+                        [(assoc row :cols `[~{:tag ::r.match.syntax/and
+                                              :arguments arguments}
+                                            ~@(:cols row)])])
+               (compile targets* [row]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1011,9 +1043,9 @@
 
          :quo
          (r.ir/op-check-equal
-          (r.ir/op-eval target)
-          (r.ir/op-eval (r.syntax/unparse node))
-          (compile targets* [row]))))
+           (r.ir/op-eval target)
+           (r.ir/op-eval (r.syntax/unparse node))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
@@ -1029,10 +1061,11 @@
 
          ::r.match.syntax/rxt
          (r.ir/op-check-boolean (r.ir/op-eval `(string? ~target))
-                                (r.ir/op-check-boolean (r.ir/op-eval `(re-matches ~(:regex node) ~target))
-                                                       (compile targets* [row])))))
+           (r.ir/op-check-boolean (r.ir/op-eval `(re-matches ~(:regex node) ~target))
+             (compile targets* [row])))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix ::r.match.syntax/rxc
   [_ [target & targets*] matrix]
@@ -1048,12 +1081,11 @@
                cols* `[~(:capture node) ~@(:cols row)]
                row* (assoc row :cols cols*)]
            (r.ir/op-check-boolean (r.ir/op-eval `(string? ~target))
-                                  (r.ir/op-bind ret-sym (r.ir/op-eval `(re-matches ~(:regex node) ~target))
-                                                (r.ir/op-check-boolean (r.ir/op-eval `(some? ~ret-sym))
-                                                                       (compile `[~ret-sym ~@targets*] [row*])))))))
+             (r.ir/op-bind ret-sym (r.ir/op-eval `(re-matches ~(:regex node) ~target))
+               (r.ir/op-check-boolean (r.ir/op-eval `(some? ~ret-sym))
+                 (compile `[~ret-sym ~@targets*] [row*])))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
-
 
 
 (defmethod compile-specialized-matrix :ref
@@ -1103,15 +1135,15 @@
            (reduce
             (fn [op-tree mvr-node]
               (r.ir/op-mvr-init (:symbol mvr-node)
-                                op-tree))
+                op-tree))
             (r.ir/op-star (r.ir/op-eval target) n *collection-context*
-                          ;; Symbols to bind
-                          mvr-syms
-                          ;; Result of this is accumulated.
-                          (fn [input-symbol dt-return]
-                            (compile [input-symbol]
-                                     [(assoc row* :cols [cat-node] :rhs dt-return)]))
-                          (compile targets* [row*]))
+              ;; Symbols to bind
+              mvr-syms
+              ;; Result of this is accumulated.
+              (fn [input-symbol dt-return]
+                (compile [input-symbol]
+                         [(assoc row* :cols [cat-node] :rhs dt-return)]))
+              (compile targets* [row*]))
             unbound-mvrs))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
@@ -1140,18 +1172,19 @@
            (reduce
             (fn [op-tree mvr-node]
               (r.ir/op-mvr-init (:symbol mvr-node)
-                                op-tree))
+                op-tree))
             (r.ir/op-plus (r.ir/op-eval target) n m *collection-context*
-                          ;; Symbols to bind
-                          mvr-syms
-                          ;; Result of this is accumulated.
-                          (fn [input-symbol dt-return]
-                            (compile [input-symbol]
-                                     [(assoc row* :cols [cat-node] :rhs dt-return)]))
-                          (compile targets* [row*]))
+              ;; Symbols to bind
+              mvr-syms
+              ;; Result of this is accumulated.
+              (fn [input-symbol dt-return]
+                (compile [input-symbol]
+                         [(assoc row* :cols [cat-node] :rhs dt-return)]))
+              (compile targets* [row*]))
             unbound-mvrs))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :rpl
   [_ [target :as targets] matrix]
@@ -1188,6 +1221,7 @@
         targets*  `[~target ~@targets]]
     [(compile targets* matrix*)]))
 
+
 (defmethod compile-specialized-matrix :rpm
   [_ [target :as targets] matrix]
   (let [matrix* (mapv
@@ -1217,6 +1251,7 @@
         targets* `[~target ~@targets]]
     [(compile targets* matrix*)]))
 
+
 (defmethod compile-specialized-matrix :rst
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
@@ -1231,11 +1266,12 @@
                sym (:symbol mvr)]
            (if (r.matrix/get-var row mvr)
              (r.ir/op-mvr-bind sym (r.ir/op-eval `(into ~sym ~target))
-                               (compile targets* [(r.matrix/add-var row mvr)]))
+               (compile targets* [(r.matrix/add-var row mvr)]))
              (r.ir/op-mvr-bind sym (r.ir/op-eval `(vec ~target))
-                               (compile targets* [(r.matrix/add-var row mvr)]))))))
+               (compile targets* [(r.matrix/add-var row mvr)]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :set
   [_ [target & targets*] matrix]
@@ -1263,12 +1299,12 @@
                                 `(seq ~target)
                                 `(r.match.runtime/k-combinations ~target ~n))]
              (r.ir/op-check-set (r.ir/op-eval target)
-                                (r.ir/op-check-bounds (r.ir/op-eval target) n :set
-                                                      (if (negating?)
-                                                        (r.ir/op-find perm-sym (r.ir/op-eval search-space)
-                                                                      (compile targets** matrix*))
-                                                        (r.ir/op-search perm-sym (r.ir/op-eval search-space)
-                                                                        (compile targets** matrix*))))))
+               (r.ir/op-check-bounds (r.ir/op-eval target) n :set
+                 (if (negating?)
+                   (r.ir/op-find perm-sym (r.ir/op-eval search-space)
+                     (compile targets** matrix*))
+                   (r.ir/op-search perm-sym (r.ir/op-eval search-space)
+                     (compile targets** matrix*))))))
 
            (some (comp #{:map :set} r.syntax/tag)
                  (r.syntax/proper-subnodes node))
@@ -1286,16 +1322,17 @@
                                 `(seq ~target)
                                 `(r.match.runtime/k-combinations ~target ~n))]
              (r.ir/op-check-set (r.ir/op-eval target)
-                                (r.ir/op-check-bounds (r.ir/op-eval target) n :set
-                                                      (r.ir/op-find perm-sym (r.ir/op-eval search-space)
-                                                                    (compile targets** matrix*)))))
+               (r.ir/op-check-bounds (r.ir/op-eval target) n :set
+                 (r.ir/op-find perm-sym (r.ir/op-eval search-space)
+                   (compile targets** matrix*)))))
 
            :else
            (r.ir/op-check-set (r.ir/op-eval target)
-                              (r.ir/op-check-boolean (r.ir/op-eval `(set/subset? ~(compile-ground node) ~target))
-                                                     (compile targets* [row]))))))
+             (r.ir/op-check-boolean (r.ir/op-eval `(set/subset? ~(compile-ground node) ~target))
+               (compile targets* [row]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :seq
   [_ [target & targets* :as targets] matrix]
@@ -1308,13 +1345,14 @@
 
          :seq
          (r.ir/op-check-seq (r.ir/op-eval target)
-                            (if (literal? node)
-                              (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
-                                                 (compile targets* [row]))
-                              (binding [*collection-context* :seq]
-                                (compile targets [(assoc row :cols `[~(:prt node) ~@(:cols row)])]))))))
+           (if (literal? node)
+             (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
+               (compile targets* [row]))
+             (binding [*collection-context* :seq]
+               (compile targets [(assoc row :cols `[~(:prt node) ~@(:cols row)])]))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :tail
   [_ targets matrix]
@@ -1330,6 +1368,7 @@
              (r.matrix/first-column matrix)
              (r.matrix/drop-column matrix)))])
 
+
 (defmethod compile-specialized-matrix :unq
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]
@@ -1341,9 +1380,10 @@
 
          :unq
          (r.ir/op-check-equal (r.ir/op-eval target) (r.ir/op-eval (:expr node))
-                              (compile targets* [row]))))
+           (compile targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
+
 
 (defmethod compile-specialized-matrix :vec
   [_ [target & targets* :as targets] matrix]
@@ -1356,21 +1396,21 @@
        :vec
        (if (literal? node)
          (r.ir/op-check-vector (r.ir/op-eval target)
-                               (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
-                                                  (compile targets* [row])))
+           (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
+             (compile targets* [row])))
          (r.ir/op-check-vector (r.ir/op-eval target)
-                               (let [;; prt needs to be compiled within a :vector
-                                     ;; collection-context separately from the targets*
-                                     ;; to the right. The targets* on the right need to
-                                     ;; be compiled in an environment including variables
-                                     ;; bound by compiling prt.
-                                     prt (:prt node)
-                                     rhs*-env (into (get row :env) (r.syntax/variables prt))
-                                     rhs*-row (assoc row :env rhs*-env)
-                                     rhs* (compile targets* [rhs*-row])
-                                     row* (assoc row :cols [prt] :rhs rhs*)]
-                                 (binding [*collection-context* :vector]
-                                   (compile [target] [row*])))))))
+           (let [;; prt needs to be compiled within a :vector
+                 ;; collection-context separately from the targets*
+                 ;; to the right. The targets* on the right need to
+                 ;; be compiled in an environment including variables
+                 ;; bound by compiling prt.
+                 prt (:prt node)
+                 rhs*-env (into (get row :env) (r.syntax/variables prt))
+                 rhs*-row (assoc row :env rhs*-env)
+                 rhs* (compile targets* [rhs*-row])
+                 row* (assoc row :cols [prt] :rhs rhs*)]
+             (binding [*collection-context* :vector]
+               (compile [target] [row*])))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
@@ -1408,7 +1448,7 @@
              (reduce
               (fn [dt node]
                 (r.ir/op-mvr-init (:symbol node)
-                                  dt))
+                  dt))
               ;; Compile nodes for all possible defs.
               (reduce
                (fn [dt spec-map]
@@ -1432,6 +1472,7 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
+
 (defmethod compile-specialized-matrix :wth
   [_ targets matrix]
   (compile-wth-matrix targets matrix))
@@ -1451,6 +1492,7 @@
        targets
        (:cols row)))
     matrix)))
+
 
 (defn compile
   "Compile the pattern matrix with respect to targets to a decision
@@ -1491,6 +1533,40 @@
 
 ;; ---------------------------------------------------------------------
 ;; match macro
+
+
+(s/def :meander.match.epsilon/expr
+  any?)
+
+
+(s/def :meander.match.epsilon/pattern
+  any?)
+
+
+(s/def :meander.match.epsilon/clause
+  (s/cat :pat :meander.match.epsilon/pattern
+         :rhs :meander.match.epsilon/expr))
+
+
+(s/def :meander.match.epsilon.match/clauses
+  (s/* (s/cat :pat :meander.match.epsilon/pattern
+              :rhs :meander.match.epsilon/expr)))
+
+
+(s/def :meander.match.epsilon.match/args
+  (s/cat :expr :meander.match.epsilon/expr
+         :clauses (s/* :meander.match.epsilon/clause)))
+
+
+(s/def :meander.match.epsilon.match/data
+  (s/keys :req-un [:meander.match.epsilon/expr
+                   :meander.matrix.epsilon/matrix
+                   :meander.matrix.epsilon.data/final-clause]))
+
+
+(s/def :meander.match.epsilon.match.data/final-clause
+  (s/nilable :meander.matrix.alpha/row))
+
 
 (defn parse-expand
   {:private true}
@@ -1584,7 +1660,6 @@
                           :env any?))
   :ret :meander.match.epsilon.match/data)
 
-
 (defmacro match
   "Traditional pattern matching operator.
 
@@ -1617,7 +1692,6 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-
   (let [match-data (analyze-match-args match-args &env)]
     (if-some [error (first (get match-data :errors))]
       (throw error)
@@ -1658,7 +1732,7 @@
               (let [ir (if symbol-target?
                          ir
                          (r.ir/op-bind target (r.ir/op-eval expr)
-                                       ir))
+                           ir))
                     fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))]
                 (r.ir/compile ir fail :match &env))
 
@@ -1675,11 +1749,11 @@
                     fail-fn `(fn []
                                ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
                     ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
-                                     ir)
+                           ir)
                     ir (if symbol-target?
                          ir
                          (r.ir/op-bind target (r.ir/op-eval expr)
-                                       ir))]
+                           ir))]
                 (r.ir/compile ir `(~fail) :match &env))
 
               [true true]
@@ -1687,7 +1761,7 @@
                     fail-fn `(fn []
                                ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
                     ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
-                                     ir)
+                         ir)
                     code (r.ir/compile ir `(~fail) :match &env)]
                 (if symbol-target?
                   code
@@ -1699,6 +1773,7 @@
   :args (s/cat :expr any?
                :clauses :meander.match.epsilon.match/clauses)
   :ret any?)
+
 
 (defn analyze-search-args
   "Analyzes arguments as would be supplied to the search macro e.g.
@@ -1741,6 +1816,7 @@
           :errors errors
           :expr (get result :expr)
           :matrix matrix})))))
+
 
 (defmacro search
   "Like `match` but allows for patterns which may match `x` in more
@@ -1811,7 +1887,7 @@
                     ir (if symbol-target?
                          ir
                          (r.ir/op-bind target (r.ir/op-eval expr)
-                                       ir))]
+                           ir))]
                 (r.ir/compile ir nil :search env)))))))))
 
 
@@ -1922,7 +1998,7 @@
                     ir (if symbol-target?
                          ir
                          (r.ir/op-bind target (r.ir/op-eval expr)
-                                       ir))]
+                           ir))]
                 (r.ir/compile ir nil :find env)))))))))
 
 (s/fdef find
