@@ -1,29 +1,15 @@
 (ns meander.epsilon
   (:refer-clojure :exclude [and find keyword let not or some symbol])
-  #?(:clj
-     (:require [clojure.core :as clj]
-               [clojure.spec.alpha :as s]
-               [meander.match.epsilon :as r.match]
-               [meander.match.syntax.epsilon :as r.match.syntax]
-               [meander.strategy.epsilon :as r]
-               [meander.syntax.epsilon :as r.syntax]
-               [meander.syntax.specs.epsilon :as r.syntax.specs]
-               [meander.substitute.epsilon :as r.subst]
-               [meander.substitute.syntax.epsilon :as r.subst.syntax]
-               [meander.util.epsilon :as r.util])
-     :cljs
-     (:require [cljs.core :as clj]
-               [cljs.spec.alpha :as s :include-macros true]
-               [meander.match.epsilon :as r.match :include-macros true]
-               [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
-               [meander.strategy.epsilon :as r :include-macros true]
-               [meander.syntax.epsilon :as r.syntax]
-               [meander.syntax.specs.epsilon :as r.syntax.specs]
-               [meander.substitute.epsilon :as r.subst :include-macros true]
-               [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]
-               [meander.util.epsilon :as r.util]))
-  #?(:clj (:import (clojure.lang ExceptionInfo)))
-  #?(:cljs (:require-macros [meander.epsilon :refer [defsyntax find match search]])))
+  (:require [clojure.core :as clj]
+            [clojure.spec.alpha :as s]
+            [meander.match.epsilon :as r.match]
+            [meander.match.syntax.epsilon :as r.match.syntax]
+            [meander.strategy.epsilon :as r]
+            [meander.syntax.epsilon :as r.syntax]
+            [meander.syntax.specs.epsilon :as r.syntax.specs]
+            [meander.substitute.epsilon :as r.subst]
+            [meander.substitute.syntax.epsilon :as r.subst.syntax]
+            [meander.util.epsilon :as r.util]))
 
 ;; ---------------------------------------------------------------------
 ;; Match, Find, Search
@@ -204,9 +190,8 @@
   [& args]
   `(r.syntax/defsyntax ~@args))
 
-#?(:clj
-   (s/fdef defsyntax
-     :args ::r.syntax.specs/defsyntax-args))
+(s/fdef defsyntax
+  :args ::r.syntax.specs/defsyntax-args)
 
 (defsyntax and
   "Pattern matching operator which matches when `pattern` and,

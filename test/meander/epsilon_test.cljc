@@ -10,7 +10,7 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(st/instrument)
+#?(:clj (st/instrument))
 
 ;; ---------------------------------------------------------------------
 ;; Helpers
