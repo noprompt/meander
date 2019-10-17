@@ -122,6 +122,10 @@
     (`str (m/pred stringifiable? ?string))
     (m/app str ?string)
 
+    ;; (clojure.core/str "foo" "bar") == "foo bar"
+    (`str . !init ... (m/pred stringifiable? ?string-1) (m/pred stringifiable? ?string-2) & ?rest)
+    (`str . !init ... (m/app str ?string-1 ?string-2) & ?rest)
+
     ;; (clojure.core/str x [,,,] ,,,) == (clojure.core/str x "[" ,,, "]" ,,,)
     (`str . (m/and (m/not [& _]) (m/cata !ys)) ... [(m/cata !xs) ...] & ?tail)
     (`str . !ys ... "[" . !xs ... "]" & ?tail)
@@ -171,7 +175,7 @@
    (m/rewrite hiccup
      ;; Borrow :<> from Reagent.
      [:<> . (m/cata !content) ...]
-     (`html [:<> !content ...])
+     (`list !content ...)
 
      ;; Void tags.
      (m/with [%attributes {(m/keyword !attr) !val & (m/or %attributes _)}]
