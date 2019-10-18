@@ -224,8 +224,7 @@ Note that a logic variable in place of a map's value might have a surprising res
 nil
 ```
 
-One might expect this pattern to fail. 
-This behavior is useful in other situations though since in Clojure it is idiomatic to leave a key out completely when there's no reasonable value for it:
+One might expect this pattern to fail, however, because it is common for map keys to be optional, Meander takes the position that map patterns should accommodate these situations.
 
 ```clj
 (doseq [person [{:name "John Doe" :title "MD"}
@@ -239,7 +238,7 @@ Mike Foe
 nil
 ```
 
-If you wish to match a key's value to a non-nil value you can use:
+If you wish to match a key's value to a non-`nil` value you can use the [`some`](#some) pattern operator.
 
 ```clj
 (m/match {:name "Mike Foe"}
@@ -251,17 +250,7 @@ Execution error (ExceptionInfo) at user/eval4134$fail (REPL:1).
 non exhaustive pattern match
 ```
 
-Or if you just need to ensure a key is present without binding it:
-
-```clj
-(m/match {:name "John Doe" :title "MD"}
-  (m/pred #(contains? % :title))
-  :has-a-title)
-;; =>
-:has-a-title
-```
-
-[`pred`](#pred) will be discussed shortly.
+Pattern operators are discussed [below](#operators).
 
 ### Memory Variables
 
@@ -309,6 +298,7 @@ against
 ```
 
 would first bind `*m` to `1`, and then ultimately to `2`.
+
 
 ## Operators
 
