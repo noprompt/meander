@@ -310,8 +310,7 @@
 (s/fdef compile-specialized-matrix
   :args (s/cat :tag keyword?
                :targets (s/coll-of simple-symbol? :kind vector? :into [])
-               :matrix :meander.matrix.epsilon/matrix)
-  :ret (s/coll-of :meander.match.epsilon/tree))
+               :matrix :meander.matrix.epsilon/matrix))
 
 
 (defmethod compile-specialized-matrix :any
