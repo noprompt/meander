@@ -5,8 +5,6 @@
   #?(:cljs (:require-macros [meander.match.ir.epsilon :refer [defop]]))
   (:require
    [clojure.core :as clj]
-   [clojure.spec.alpha :as s]
-   [clojure.spec.gen.alpha :as s.gen]
    [clojure.walk :as walk]
    [clojure.zip :as zip]
    [meander.util.epsilon :as r.util]
@@ -47,29 +45,16 @@ compilation decisions."
 ;; AST API
 
 ;; A node is only required to have and :op key.
-(s/def ::node
-  (s/keys :req-un [::op]))
-
-(s/def ::op
-  keyword?)
 
 (defn node?
   "true if x is a ::node, false otherwise."
   [x]
   (and (map? x) (contains? x :op)))
 
-(s/fdef node?
-  :args (s/cat :x any?)
-  :ret boolean?)
-
 (def
   ^{:arglists '([node])
     :doc "Return the ::op of node."}
   op :op)
-
-(s/fdef op
-  :args (s/cat :node ::node)
-  :ret ::op)
 
 (defn child-keys
   "Return the keys of node which have a value that is a ::node."
@@ -80,10 +65,6 @@ compilation decisions."
      (when (some? (:op v))
        k))
    node))
-
-(s/fdef child-keys
-  :args (s/cat :node ::node)
-  :ret (s/coll-of any? :kind sequential? :into []))
 
 (defn children
   "Return the child nodes of node, a sequence of ::node."
@@ -234,26 +215,9 @@ compilation decisions."
    :clauses clauses
    :then else})
 
-(s/def ::op-case-clause
-  (s/tuple (s/or :node ::node
-                 :node-set (s/coll-of ::node :kind set?))
-           ::node))
-
-(s/fdef op-case
-  :args (s/cat :target ::node
-               :clauses (s/coll-of ::op-case-clause :kind sequential?)
-               :then ::node)
-  :ret ::node)
-
 (defop op-drop :drop [target n kind])
 
 (defop op-eval :eval [form])
-
-(s/def :meander.match.ir.epsilon.op-eval/form
-  any?)
-
-(s/def :meander.match.ir.epsilon/op-eval
-  (s/keys :req-un [:meander.match.ir.epsilon.op-eval/form]))
 
 (defop op-check :check [test then])
 
@@ -270,12 +234,6 @@ compilation decisions."
 (defop op-check-equal :check-equal [target-1 target-2 then])
 
 (defop op-check-lit :check-lit [target value then])
-
-(s/fdef op-check-lit
-  :args (s/cat :target ::node
-               :value ::node
-               :then ::node)
-  :ret ::node)
 
 (defop op-check-map :check-map [target then])
 
@@ -311,12 +269,6 @@ compilation decisions."
 (defop op-pass :pass [then])
 
 (defop op-return :return [value])
-
-(s/def :meander.match.ir.epsilon.op-return/value
-  any?)
-
-(s/def :meander.match.ir.epsilon/op-return
-  (s/keys :req-un [:meander.match.ir.epsilon.op-return/value]))
 
 (defop op-save :save [id body-1 body-2])
 
@@ -397,12 +349,6 @@ compilation decisions."
       [(op a) (op b)]))
   :default ::merge-fail)
 
-(s/fdef merge*
-  :args (s/cat :node-a ::node
-               :node-b ::node)
-  :ret (s/or :node ::node
-             :fail #{::merge-fail}))
-
 (defmethod merge* ::merge-equal [a _]
   a)
 
@@ -427,17 +373,6 @@ compilation decisions."
        (else a b)
        (then x)))))
 
-(s/fdef do-merge
-  :args (s/alt :a1 (s/cat :a ::node
-                          :b ::node
-                          :then fn?)
-               :a2 (s/cat :a ::node
-                          :b ::node
-                          :then fn?
-                          :else fn?))
-  :ret (s/or :node ::node
-             :fail #{::merge-fail}))
-
 (defn merge-all
   "Attempts to successively merge all nodes in `nodes` from left to
   right."
@@ -456,10 +391,6 @@ compilation decisions."
                    (conj nodes* node))))
      [(first nodes)]
      (rest nodes))))
-
-(s/fdef merge-all
-  :args (s/cat :nodes (s/coll-of ::node :kind sequential? :into []))
-  :ret (s/coll-of ::node :kind sequential? :into []))
 
 (defn merge-similar
   {:private true}
@@ -814,27 +745,6 @@ compilation decisions."
          node)))
    node
    (r.match.runtime/zip-next-seq (zipper node))))
-
-#_
-(defn rewrite-save
-  "Remove useless save nodes from ir."
-  [ir]
-  (let [ir* (loop [loc (ir-zip ir)]
-              (if (zip/end? loc)
-                (zip/root loc)
-                (let [node (zip/node loc)]
-                  (case (:op node)
-                    :save
-                    (let [body-1 (:body-1 node)]
-                      (if (some check? (nodes body-1))
-                        (recur (zip/next loc))
-                        (recur (zip/replace loc body-1))))
-
-                    ;; else
-                    (recur (zip/next loc))))))]
-    (if (= ir ir*)
-      ir
-      (recur ir*))))
 
 (defn rewrite*
   [node]
