@@ -1766,6 +1766,14 @@
                   [?k1 ?k2 ?k3 ?x ?y])))))
 
 
+(t/deftest search-map-3-unq-test
+  (t/is (= #{["v1" "v2"]}
+           (let [k1 :k1]
+             (set (r/search {:k1 :k2, :k2 {"v1" "v2"}}
+                            {~k1 ?k2, ?k2 {?x ?y}}
+                            [?x ?y]))))))
+
+
 (t/deftest search-or-1-test
   (t/is (= #{[1 2] [2 1]}
            (set (r/search [1 2]

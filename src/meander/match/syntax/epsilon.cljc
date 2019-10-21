@@ -122,13 +122,23 @@
                                     v-node]))))
                      (:map node))
           node* (assoc node :rest-map nil)
-          node* (assoc node* :map map*)]
+          node* (assoc node* :map map*)
+          disj-args (map
+                     (fn [elem-node]
+                       (case (get elem-node :tag)
+                         ;; NOTE: `:expr` could be impure; we need to
+                         ;; do better than this.
+                         :unq
+                         (get elem-node :expr)
+                         ;; else
+                         (r.syntax/unparse elem-node)))
+                     (vals key-map))]
       {:tag ::and
        :arguments [node*
                    {:tag ::apply
                     :function (vary-meta
                                `(fn [m#]
-                                  (dissoc m# ~@(map r.syntax/unparse (vals key-map))))
+                                  (dissoc m# ~@disj-args))
                                assoc
                                :meander.epsilon/beta-reduce true)
                     :argument rest-map}]})
