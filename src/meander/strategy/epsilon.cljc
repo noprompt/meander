@@ -299,6 +299,31 @@
   [n s]
   (apply pipe (clojure.core/repeat n s)))
 
+
+(defn fix
+  "Return a strategy which applies the strategy `s` to a term `t`
+  repeatedly until it the result of applying `s` its argument returns
+  its argument.
+
+      (def to-pair
+        (fix (rewrite
+               [?x ?y]
+               [?x ?y]
+
+               ?x
+               [?x ?x])))
+
+      (to-pair [1 2])
+      ;; => [1 2]
+      (to-pair 1)
+      ;; => [1 1]"
+  [s]
+  (fn [t]
+    (let [t* (s t)]
+      (if (= t* t)
+        t
+        (recur t*)))))
+
 ;; ---------------------------------------------------------------------
 ;; IAll implementation
 
