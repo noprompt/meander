@@ -724,10 +724,10 @@
        (cond
          (record? t)
          (irecord-some-body t s)
-         
+
          (isome? t)
          (r.protocols/-some t s)
-         
+
          :else t))
 
      :cljs
@@ -756,16 +756,43 @@
 
 
 (defn some-td
+  "Return a strategy which attempts to apply the strategy `s` to all
+  subterms of a term `t` from the top-down (pre-order). Succeeds if at
+  least one subterm of `t` passed to `s` succeeds, fails otherwise.
+
+      (def inc-numbers
+        (some-td (pipe (pred number?) inc)))
+
+      (inc-numbers [1 [\"2\" 3] \"4\"])
+      ;;=> [2 [\"2\" 4] \"4\"]
+
+      (inc-numbers [\"1\" \"2\"])
+      ;; => #meander.epsilon/fail[]"
   [s]
   (fn rec [t]
-    ((choice s (some rec)) t)))
+    (if (isome? t)
+      ((choice s (some rec)) t)
+      (s t))))
 
 
 (defn some-bu
+  "Return a strategy which attempts to apply the strategy `s` to all
+  subterms of a term `t` from the bottom-up (post-order). Succeeds if
+  at least one subterm of `t` passed to `s` succeeds, fails otherwise.
+
+      (def inc-numbers
+        (some-td (pipe (pred number?) inc)))
+
+      (inc-numbers [1 [\"2\" 3] \"4\"])
+      ;;=> [2 [\"2\" 4] \"4\"]
+
+      (inc-numbers [\"1\" \"2\"])
+      ;; => #meander.epsilon/fail[]"
   [s]
   (fn rec [t]
-    ((choice (some rec) s) t)))
-
+    (if (isome? t)
+      ((choice (some rec) s) t)
+      (s t))))
 
 ;; ---------------------------------------------------------------------
 ;; IRetain implementation
