@@ -64,7 +64,7 @@
 
 (t/deftest one-seq-test
   (t/testing "one with seq? like objects"
-    (t/is (r*/fail? (inc-number-one '())))  
+    (t/is (r*/fail? (inc-number-one '())))
     (t/is (r*/fail? (inc-number-one '(a))))
     (t/is (= '(2)
              (inc-number-one '(1))))
@@ -79,7 +79,7 @@
 
 (t/deftest one-vector-test
   (t/testing "one with vector? like objects"
-    (t/is (r*/fail? (inc-number-one [])))  
+    (t/is (r*/fail? (inc-number-one [])))
     (t/is (r*/fail? (inc-number-one '[a])))
     (t/is (= '[2]
              (inc-number-one '[1])))
@@ -94,7 +94,7 @@
 
 (t/deftest one-set-test
   (t/testing "one with set? like objects"
-    (t/is (r*/fail? (inc-number-one #{})))  
+    (t/is (r*/fail? (inc-number-one #{})))
     (t/is (r*/fail? (inc-number-one '#{a})))
     (t/is (= '#{2}
              (inc-number-one '#{1})))
@@ -123,7 +123,7 @@
 
 (t/deftest some-seq-test
   (t/testing "some with seq? like objects"
-    (t/is (r*/fail? (inc-number-some '())))  
+    (t/is (r*/fail? (inc-number-some '())))
     (t/is (r*/fail? (inc-number-some '(a))))
     (t/is (= '(2)
              (inc-number-some '(1))))
@@ -140,7 +140,7 @@
 
 (t/deftest some-vector-test
   (t/testing "some with vector? like objects"
-    (t/is (r*/fail? (inc-number-some [])))  
+    (t/is (r*/fail? (inc-number-some [])))
     (t/is (r*/fail? (inc-number-some '[a])))
     (t/is (= '[2]
              (inc-number-some '[1])))
@@ -157,7 +157,7 @@
 
 (t/deftest some-set-test
   (t/testing "some with set? like objects"
-    (t/is (r*/fail? (inc-number-some #{})))  
+    (t/is (r*/fail? (inc-number-some #{})))
     (t/is (r*/fail? (inc-number-some '#{a})))
     (t/is (= '#{2}
              (inc-number-some '#{1})))
@@ -197,7 +197,7 @@
 (t/deftest all-seq-test
   (t/testing "all with seq? like objects"
     (t/is (= '()
-             (inc-number-all '())))  
+             (inc-number-all '())))
     (t/is (r*/fail? (inc-number-all '(a))))
     (t/is (r*/fail? (inc-number-all '(1 a))))
     (t/is (r*/fail? (inc-number-all '(a b 1))))
@@ -209,7 +209,7 @@
 (t/deftest all-vector-test
   (t/testing "all with vector? like objects"
     (t/is (= []
-             (inc-number-all [])))  
+             (inc-number-all [])))
     (t/is (r*/fail? (inc-number-all '[a])))
     (t/is (r*/fail? (inc-number-all '[1 a])))
     (t/is (r*/fail? (inc-number-all '[a b 1])))
@@ -221,7 +221,7 @@
 (t/deftest all-set-test
   (t/testing "all with set? like objects"
     (t/is (= #{}
-             (inc-number-all #{})))  
+             (inc-number-all #{})))
     (t/is (r*/fail? (inc-number-all '#{a})))
     (t/is (r*/fail? (inc-number-all '#{1 a})))
     (t/is (r*/fail? (inc-number-all '#{a b 1})))
