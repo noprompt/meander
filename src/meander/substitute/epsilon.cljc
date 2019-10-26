@@ -208,7 +208,8 @@
         form `(merge ~form ~(into {} (map vec (partition 2 forms))))
         [form env] (if-some [rest-node (:rest-map node)]
                      (let [[rest-form env] (compile* rest-node env)]
-                       [`(into ~form ~rest-form) env])
+                       [`(let [form# ~form]
+                           (merge (into {} ~rest-form) form#)) env])
                      [form env])
         ;; Search for keys containing memory variables that have
         ;; associated iterator symbols in the environment.

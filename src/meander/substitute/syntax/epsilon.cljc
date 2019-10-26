@@ -16,15 +16,7 @@
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.syntax.epsilon :as r.syntax]
-               [meander.util.epsilon :as r.util]))
-  #?(:cljs
-     (:require-macros [meander.substitute.syntax.epsilon])))
-
-(defn parse
-  [form env]
-  (r.syntax/parse form (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
-                                   ::r.syntax/phase :meander/substitute
-                                   ::r.syntax/parser-registry (deref r.syntax/global-parser-registry)})))
+               [meander.util.epsilon :as r.util])))
 
 ;; ---------------------------------------------------------------------
 ;; Rewriting
@@ -142,8 +134,6 @@
        :argument (r.syntax/parse (second args) env)}
       (throw (ex-info "meander.substitute.syntax.epsilon/apply requires two arguments" {})))))
 
-(r.syntax/register-parser apply-symbol #'parse-apply)
-
 (defmethod r.syntax/children ::apply
   [node]
   [(:argument node)])
@@ -163,3 +153,15 @@
 (defmethod r.syntax/walk ::apply
   [inner outer node]
   (outer (assoc node :argument (inner (:argument node)))))
+
+(def default-parsers
+  {apply-symbol #'parse-apply})
+
+(defn parse
+  [form env]
+  (let [parser-registry (merge (deref r.syntax/global-parser-registry)
+                               default-parsers)
+        env (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
+                        ::r.syntax/phase :meander/substitute
+                        ::r.syntax/parser-registry parser-registry})]
+    (r.syntax/parse form env)))

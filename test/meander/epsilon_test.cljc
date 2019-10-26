@@ -5,11 +5,14 @@
             [clojure.test.check.clojure-test :as tc.t :include-macros true]
             [clojure.test.check.generators :as tc.gen :include-macros true]
             [clojure.test.check.properties :as tc.prop :include-macros true]
-            [meander.epsilon :as r :include-macros true]))
+            [meander.epsilon :as r :include-macros true]
+            [meander.syntax.specs.epsilon :as m.syntax.specs]))
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(st/instrument)
+#?(:clj (st/instrument))
+
+#?(:clj (s/check-asserts true))
 
 ;; ---------------------------------------------------------------------
 ;; Helpers
@@ -468,7 +471,8 @@
 
 
 (tc.t/defspec map-unq-succeeds
-  (tc.prop/for-all [x gen-scalar]
+  ;; such-that is to ensure we don't get a duplicate key
+  (tc.prop/for-all [x (tc.gen/such-that (complement #{:x}) gen-scalar)]
     (r/match {:x x, x :x}
       {:x ~x, ~x :x}
       true
@@ -785,7 +789,27 @@
                [?value]
 
                ?x
-               [?x])))))
+               [?x]))))
+
+  (let [x {:source {:type "ip"
+                    :value "192.1.2.3"}
+           :related {:type "ip"
+                     :value "192.1.2.3"}}]
+    (t/is (= {:source {:type "ip", :value "192.1.2.3", :internal true},
+              :related {:type "ip", :value "192.1.2.3", :internal true}}
+             (r/match x
+               {:source (r/and {} (r/cata ?source))
+                :related (r/and {} (r/cata ?related))}
+               (assoc x
+                      :source ?source
+                      :related ?related)
+
+               {:type "ip"
+                :value (r/re #"192\..*")}
+               (assoc x :internal true)
+
+               ?x
+               ?x)))))
 
 ;;; gather
 
@@ -1744,6 +1768,14 @@
                   [?k1 ?k2 ?k3 ?x ?y])))))
 
 
+(t/deftest search-map-3-unq-test
+  (t/is (= #{["v1" "v2"]}
+           (let [k1 :k1]
+             (set (r/search {:k1 :k2, :k2 {"v1" "v2"}}
+                            {~k1 ?k2, ?k2 {?x ?y}}
+                            [?x ?y]))))))
+
+
 (t/deftest search-or-1-test
   (t/is (= #{[1 2] [2 1]}
            (set (r/search [1 2]
@@ -1962,7 +1994,6 @@
     (t/is (= [:X :O :X :O 1 2]
              (r/subst [!1s ... 1 2])))))
 
-
 (t/deftest subst-map-test
   (let [?rest-map {:foo "bar"}]
     (t/is (= (r/subst {:bar "baz" & ?rest-map})
@@ -2010,7 +2041,12 @@
           !v [4]]
       (t/is (= {1 4, 2 nil, 3 nil})
             (r/subst (r/with [%m {!k !v & %m}]
-                       %m))))))
+                       %m))))
+
+    (let [?rest {:foo "bar" :baz "quux" :quux "ducks"}
+          ?as {:foo "goo" :frob "knob"}]
+      (t/is (= {:foo "quux" :baz "bar" :quux "ducks" :frob "knob"}
+               (r/subst {:foo "quux" :baz "bar" & ?rest :as ?as}))))))
 
 
 (t/deftest subst-$-test
@@ -2197,3 +2233,4 @@
            (r/match {:foo ["bar"]}
              (r/$ ?foo [& _ :as ?x])
              (?foo [?x])))))
+

@@ -1835,7 +1835,7 @@
   {:arglists '([partition-node])
    :private true}
   [node]
-  (s/assert :meander.syntax.node.epsilon/partition node)
+  (s/assert :meander.syntax.epsilon.node/partition node)
   (let [left (:left node)
         right (:right node)]
     (concat (if (partition-node? left)
@@ -1857,7 +1857,7 @@
    (reverse (butlast nodes))))
 
 (defn window [node]
-  (s/assert :meander.syntax.node.epsilon/partition node)
+  (s/assert :meander.syntax.epsilon.node/partition node)
   (let [p-nodes (partition-nodes node)]
     (if (<= 3 (count p-nodes))
       (let [[a b c] p-nodes]

@@ -1,29 +1,15 @@
 (ns meander.epsilon
   (:refer-clojure :exclude [and find keyword let not or some symbol])
-  #?(:clj
-     (:require [clojure.core :as clj]
-               [clojure.core.specs.alpha :as core.specs]
-               [clojure.spec.alpha :as s]
-               [meander.match.epsilon :as r.match]
-               [meander.match.syntax.epsilon :as r.match.syntax]
-               [meander.strategy.epsilon :as r]
-               [meander.syntax.epsilon :as r.syntax]
-               [meander.syntax.specs.epsilon :as r.syntax.specs]
-               [meander.substitute.epsilon :as r.subst]
-               [meander.substitute.syntax.epsilon :as r.subst.syntax])
-     :cljs
-     (:require [cljs.core :as clj]
-               [cljs.core.specs.alpha :as core.specs]
-               [cljs.spec.alpha :as s :include-macros true]
-               [meander.match.epsilon :as r.match :include-macros true]
-               [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
-               [meander.strategy.epsilon :as r :include-macros true]
-               [meander.syntax.epsilon :as r.syntax]
-               [meander.syntax.specs.epsilon :as r.syntax.specs]
-               [meander.substitute.epsilon :as r.subst :include-macros true]
-               [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]))
-  #?(:clj (:import (clojure.lang ExceptionInfo)))
-  #?(:cljs (:require-macros [meander.epsilon :refer [defsyntax find match search]])))
+  (:require [clojure.core :as clj]
+            [clojure.spec.alpha :as s]
+            [meander.match.epsilon :as r.match]
+            [meander.match.syntax.epsilon :as r.match.syntax]
+            [meander.strategy.epsilon :as r]
+            [meander.syntax.epsilon :as r.syntax]
+            [meander.syntax.specs.epsilon :as r.syntax.specs]
+            [meander.substitute.epsilon :as r.subst]
+            [meander.substitute.syntax.epsilon :as r.subst.syntax]
+            [meander.util.epsilon :as r.util]))
 
 ;; ---------------------------------------------------------------------
 ;; Match, Find, Search
@@ -204,9 +190,8 @@
   [& args]
   `(r.syntax/defsyntax ~@args))
 
-#?(:clj
-   (s/fdef defsyntax
-     :args ::r.syntax.specs/defsyntax-args))
+(s/fdef defsyntax
+  :args ::r.syntax.specs/defsyntax-args)
 
 (defsyntax and
   "Pattern matching operator which matches when `pattern` and,
@@ -695,29 +680,35 @@
   ([pattern count-pattern]
    (case (::r.syntax/phase &env)
      :meander/match
-     (match (r.syntax/parse count-pattern)
-       ;; Logic variables, memory variables, `..?v`, and `..!v`.
-       (or {:tag :dtl, :lvr {:symbol ?var}}
-           {:tag :lvr :symbol ?var}
-           {:tag :dtm, :mvr {:symbol ?var}}
-           {:tag :mvr :symbol ?var})
-       `(and (seqable (or (and ~pattern !gather#) _gather#) ...)
-             (let [~?var (count !gather#)]))
-
-       ;; Natural numbers and  `..n`
-       (or {:tag :lit, :value (pred nat-int? ?n)}
-           {:tag :dt+, :n ?n})
-       (clj/let [ellipsis (clj/symbol (str ".." ?n))]
+     (cond
+       ;; 3
+       (nat-int? count-pattern)
+       (clj/let [?n count-pattern
+                 ellipsis (clj/symbol (str ".." ?n))]
          `(and (seqable (or (and ~pattern !gather#) _gather#) ~ellipsis)
                (guard (<= ~?n (count !gather#)))))
 
-       ;; `_` and `...`
-       (or {:tag :any}
-           {:tag :dt*})
-       `(seqable (or ~pattern _#) ...)
+       (symbol? count-pattern)
+       (clj/let [symbol-name (name count-pattern)]
+         (if-some [[_ n] (re-matches #"..(\d+)" symbol-name)]
+           ;; ..n
+           (clj/let [?n (r.util/parse-int n)
+                     ellipsis (clj/symbol (str ".." ?n))]
+             `(and (seqable (or (and ~pattern !gather#) _gather#) ~ellipsis)
+                   (guard (<= ~?n (count !gather#)))))
+           (if-some [[_ var-name] (re-matches #"(?:\.\.)?((?:\?|!).+)" symbol-name)]
+             ;; ..?x and ..!x
+             (clj/let [?var (clj/symbol var-name)]
+               `(and (seqable (or (and ~pattern !gather#) _gather#) ...)
+                     (let [~?var (count !gather#)])))
+             (if (re-matches #"_.*|\.\.\." symbol-name)
+               ;; _ and ...
+               `(seqable (or ~pattern _#) ...)
+               (throw (ex-info "second argument to gather must be logic variable, memory variable, _ pattern, number, or an ellipsis"
+                               {:form &form}))))))
 
-       _
-       (throw (ex-info "second argument to gather must be logic variable, memory variable, _ pattern, or an ellipsis"
+       :else
+       (throw (ex-info "second argument to gather must be logic variable, memory variable, _ pattern, number, or an ellipsis"
                        {:form &form})))
 
      ;; else

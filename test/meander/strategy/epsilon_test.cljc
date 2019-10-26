@@ -64,7 +64,7 @@
 
 (t/deftest one-seq-test
   (t/testing "one with seq? like objects"
-    (t/is (r*/fail? (inc-number-one '())))  
+    (t/is (r*/fail? (inc-number-one '())))
     (t/is (r*/fail? (inc-number-one '(a))))
     (t/is (= '(2)
              (inc-number-one '(1))))
@@ -79,7 +79,7 @@
 
 (t/deftest one-vector-test
   (t/testing "one with vector? like objects"
-    (t/is (r*/fail? (inc-number-one [])))  
+    (t/is (r*/fail? (inc-number-one [])))
     (t/is (r*/fail? (inc-number-one '[a])))
     (t/is (= '[2]
              (inc-number-one '[1])))
@@ -94,7 +94,7 @@
 
 (t/deftest one-set-test
   (t/testing "one with set? like objects"
-    (t/is (r*/fail? (inc-number-one #{})))  
+    (t/is (r*/fail? (inc-number-one #{})))
     (t/is (r*/fail? (inc-number-one '#{a})))
     (t/is (= '#{2}
              (inc-number-one '#{1})))
@@ -123,7 +123,7 @@
 
 (t/deftest some-seq-test
   (t/testing "some with seq? like objects"
-    (t/is (r*/fail? (inc-number-some '())))  
+    (t/is (r*/fail? (inc-number-some '())))
     (t/is (r*/fail? (inc-number-some '(a))))
     (t/is (= '(2)
              (inc-number-some '(1))))
@@ -140,7 +140,7 @@
 
 (t/deftest some-vector-test
   (t/testing "some with vector? like objects"
-    (t/is (r*/fail? (inc-number-some [])))  
+    (t/is (r*/fail? (inc-number-some [])))
     (t/is (r*/fail? (inc-number-some '[a])))
     (t/is (= '[2]
              (inc-number-some '[1])))
@@ -157,7 +157,7 @@
 
 (t/deftest some-set-test
   (t/testing "some with set? like objects"
-    (t/is (r*/fail? (inc-number-some #{})))  
+    (t/is (r*/fail? (inc-number-some #{})))
     (t/is (r*/fail? (inc-number-some '#{a})))
     (t/is (= '#{2}
              (inc-number-some '#{1})))
@@ -197,7 +197,7 @@
 (t/deftest all-seq-test
   (t/testing "all with seq? like objects"
     (t/is (= '()
-             (inc-number-all '())))  
+             (inc-number-all '())))
     (t/is (r*/fail? (inc-number-all '(a))))
     (t/is (r*/fail? (inc-number-all '(1 a))))
     (t/is (r*/fail? (inc-number-all '(a b 1))))
@@ -209,7 +209,7 @@
 (t/deftest all-vector-test
   (t/testing "all with vector? like objects"
     (t/is (= []
-             (inc-number-all [])))  
+             (inc-number-all [])))
     (t/is (r*/fail? (inc-number-all '[a])))
     (t/is (r*/fail? (inc-number-all '[1 a])))
     (t/is (r*/fail? (inc-number-all '[a b 1])))
@@ -221,7 +221,7 @@
 (t/deftest all-set-test
   (t/testing "all with set? like objects"
     (t/is (= #{}
-             (inc-number-all #{})))  
+             (inc-number-all #{})))
     (t/is (r*/fail? (inc-number-all '#{a})))
     (t/is (r*/fail? (inc-number-all '#{1 a})))
     (t/is (r*/fail? (inc-number-all '#{a b 1})))
@@ -397,3 +397,45 @@
     (t/is (= '(:x :x) ((replicate-self 1) :x)))
     (t/is (= '((:x :x) (:x :x)) ((replicate-self 2) :x)))
     (t/is (= '(((:x :x) (:x :x)) ((:x :x) (:x :x))) ((replicate-self 3) :x)))))
+
+
+(t/deftest fix-test
+  (let [to-pair (r*/fix (r*/rewrite
+                         [?x ?y]
+                         [?x ?y]
+
+                         ?x
+                         [?x ?x]))]
+    (t/is (= [1 2]
+             (to-pair [1 2])))
+
+    (t/is (= [1 1]
+             (to-pair 1)))
+
+    (t/is (= [[1 2 3] [1 2 3]]
+             (to-pair [1 2 3]))))
+
+  (let [to-100 (r*/fix (fn [x]
+                         (cond
+                           (= x 100) 100
+                           (< x 100) (inc x)
+                           (> x 100) (dec x))))]
+    (t/is (= 100 (to-100 1000)))
+    (t/is (= 100 (to-100 -1000)))
+    (t/is (= 100 (to-100 100)))))
+
+(t/deftest some-bu-test
+  (let [inc-numbers (r*/some-bu (r*/pipe (r*/pred number?) inc))]
+    (t/is (= [2 ["2" 4] "4"]
+             (inc-numbers [1 ["2" 3] "4"])))
+    (t/is (= 2
+             (inc-numbers 1)))
+    (t/is (r*/fail? (inc-numbers ["1" ["2" "3"] "4"])))))
+
+(t/deftest some-td-test
+  (let [inc-numbers (r*/some-td (r*/pipe (r*/pred number?) inc))]
+    (t/is (= [2 ["2" 4] "4"]
+             (inc-numbers [1 ["2" 3] "4"])))
+    (t/is (= 2
+             (inc-numbers 1)))
+    (t/is (r*/fail? (inc-numbers ["1" ["2" "3"] "4"])))))

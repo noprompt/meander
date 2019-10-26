@@ -2,7 +2,7 @@
 
 * [Macros](#Macros)
   * [`match`](#match)
-  * [`search`](#search-star)
+  * [`search`](#search)
   * [`find`](#find)
 * [Pattern Syntax](#pattern-syntax)
   * [Literals](#literals)
@@ -31,18 +31,16 @@
 
 ## Macros
 
-The primary operators for pattern matching and searching are available
-in `meander.epsilon`.
+The primary operators for pattern matching and searching are available in `meander.epsilon`.
 
-```
+```clj
 (require '[meander.epsilon :as m])
 ```
 
 ### `match`
 
-The `match` operator provides traditional pattern matching. It takes
-an expression to "match" followed by a series of pattern/action
-clauses.
+The `match` operator provides traditional pattern matching.
+It takes an expression to "match" followed by a series of pattern/action clauses.
 
 ```clj
 (m/match x  ;; 1
@@ -52,13 +50,9 @@ clauses.
 ```
 
 1. `x` is the expression.
-2. `pattern` is the pattern to match against the expression. Patterns
-    have special [syntax](#pattern-syntax) that is important to
-    understand.
-3. `action` is the action expression to be evaluated if `pattern`
-    matches successfully. Certain patterns can bind variables and, if
-    a match is successful, will be available to the `action`
-    expression.
+2. `pattern` is the pattern to match against the expression.
+    Patterns have special [syntax](#pattern-syntax) that is important to understand.
+3. `action` is the action expression to be evaluated if `pattern` matches successfully. Certain patterns can bind variables and, if a match is successful, will be available to the `action` expression.
 
 A pair of `pattern` and `action` is called a `clause`.
 
@@ -81,19 +75,13 @@ A pair of `pattern` and `action` is called a `clause`.
 ;; #error {:cause "non exhaustive pattern match" }
 ```
 
-Like `clojure.core/case`, if no patterns match an exception will be
-thrown.
+Like `clojure.core/case`, if no patterns match an exception will be thrown.
 
 ### `search`
 
-The `search` operator is an extended version `match` which returns a
-sequence of all action values which satisfy their pattern
-counterparts. Map patterns with variable keys, set patterns with
-variable subpatterns, or two side-by-side zero or more subsequence
-patterns, are all examples of patterns which may have multiple matches
-for a given value. `search` will find all such matches and, unlike
-`match`, will not throw when a pattern match could not be made. In
-essence, `search` allows you to _query_ arbitrary data.
+The `search` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts.
+Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `search` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made.
+In essence, `search` allows you to _query_ arbitrary data.
 
 ```clj
 ;; Find all pairs of an odd number followed by an even number in the
@@ -107,8 +95,8 @@ essence, `search` allows you to _query_ arbitrary data.
 
 ### `find`
 
-The `find` operator is similar to `search`, however, returns only the
-first search result. If it cannot be found, `find` returns `nil`.
+The `find` operator is similar to `search`, however, returns only the first search result.
+If it cannot be found, `find` returns `nil`.
 
 ```clj
 ;; Find the first pair of an odd number followed by an even number in
@@ -124,29 +112,24 @@ first search result. If it cannot be found, `find` returns `nil`.
 
 ### Literals
 
-The simplest patterns to express are literal patterns. Literal
-patterns are
+The simplest patterns to express are literal patterns.
+Literal patterns are
 
 1. scalar data types such as numbers, strings, booleans, keywords;
 2. symbols that are not considered special by Meander such as variables;
-3. and lists and vectors composed of literals and do not contain maps,
-   sets, or subsequence operators.
+3. and lists and vectors composed of literals and do not contain maps, sets, or subsequence operators.
 
-Notice that maps and sets are not included in the above list, we'll
-come back to that in a moment.
+Notice that maps and sets are not included in the above list, we'll come back to that in a moment.
 
-Literal patterns match _exactly_ themselves. For example, the literal
-pattern
+Literal patterns match _exactly_ themselves. For example, the literal pattern
 
 ```clj
 (fn [] "foo")
 ```
 
-matches a list where the first element is the symbol `fn`, the second
-is the empty vector, and the third is the string `"foo"`.
+matches a list where the first element is the symbol `fn`, the second is the empty vector, and the third is the string `"foo"`.
 
-List and vector patterns may also qualify as literal patterns if they
-contain no map or set patterns.
+List and vector patterns may also qualify as literal patterns if they contain no map or set patterns.
 
 
 ```clj
@@ -159,16 +142,16 @@ is a literal pattern, however,
 [{:foo 1} #{:bar :baz} {:quux 3}]
 ```
 
-is not. This is because map and set patterns express submap and subset
-patterns respectively. The pattern
+is not.
+This is because map and set patterns express _submap_ and _subset_ patterns respectively.
+The pattern
 
 ```clj
 {:foo 1}
 ```
 
-expresses the value being matched is a map containing the key `:foo`
-with value `1`. That means that there may be more keys. For example
-the above pattern would match the following list: `{:foo 1 :bar 2}`.
+expresses the value being matched is a map containing the key `:foo` with value `1`. 
+That means that there may be more keys. For example the above pattern would match the following list: `{:foo 1 :bar 2}`.
 
 The pattern
 
@@ -176,15 +159,12 @@ The pattern
 #{:foo :bar}
 ```
 
-expresses the value being matched is a set containing the values
-`:foo` and `:bar`. Again, this does not mean that these are the only
-elements in the set.
+expresses the value being matched is a set containing the values `:foo` and `:bar`.
+Again, this does not mean that these are the only elements in the set.
 
 ### ClojureScript Literals
 
-In ClojureScript it is possible to pattern match on JavaScript
-`Array`s and `Object` using the `#js []` and `#js {}` literal syntaxes
-respectively.
+In ClojureScript it is possible to pattern match on JavaScript `Array`s and `Object` using the `#js []` and `#js {}` literal syntaxes respectively.
 
 ```clj
 (m/match #js [1 2 1]
@@ -201,27 +181,20 @@ respectively.
 ["v11.4.0" "darwin"]
 ```
 
-`#js {}` pattern matching is _very_ liberal and matches against _any_
-non `nil` equivalent JavaScript object.
+`#js {}` pattern matching is _very_ liberal and matches against _any_ non `nil` equivalent JavaScript object.
 
 ## Variables
 
-Pattern variables are variables which may or may not bind symbols to
-the values they match. In the case of variables which bind, the
-bindings are made available for use in pattern actions, substitutions,
-and even within patterns. There are two types of pattern variables
-which bind, _logic variables_ and _memory variables_, and one type of
-variable which does not, the so-called _any variable_ also known as a
-wild card.
+Pattern variables are variables which may or may not bind symbols to the values they match.
+In the case of variables which bind, the bindings are made available for use in pattern actions, substitutions, and even within patterns.
+There are two types of pattern variables which bind, _logic variables_ and _memory variables_, and one type of variable which does not, the so-called _any variable_ also known as a wild card.
 
 ### Logic Variables
 
-_Logic variables_ are variables which express an equivalent, but not
-necessarily identical, value everywhere within a pattern. They are
-represented by a simple symbol prefixed with the `?` character.
+_Logic variables_ are variables which express an equivalent, but not necessarily identical, value everywhere within a pattern.
+They are represented by a simple symbol prefixed with the `?` character.
 
-To express any 2-tuple composed of equivalent elements we would write
-the following.
+To express any 2-tuple composed of equivalent elements we would write the following.
 
 ```clj
 [?x ?x]
@@ -241,8 +214,7 @@ and bind `?x` to `1` but will not match a value like
 
 since the second occurrence of `?x` is not equal to `1`.
 
-Note that a logic variable in place of a map's value might have a
-surprising result:
+Note that a logic variable in place of a map's value might have a surprising result:
 
 ```clj
 (m/match {:a 1}
@@ -252,9 +224,7 @@ surprising result:
 nil
 ```
 
-One might expect this pattern to fail. This behavior is useful in
-other situations though since in Clojure it is idiomatic to leave a
-key out completely when there's no reasonable value for it:
+One might expect this pattern to fail, however, because it is common for map keys to be optional, Meander takes the position that map patterns should accommodate these situations.
 
 ```clj
 (doseq [person [{:name "John Doe" :title "MD"}
@@ -268,41 +238,27 @@ Mike Foe
 nil
 ```
 
-If you wish to match a key's value to a non-nil value you can use:
+If you wish to match a key's value to a non-`nil` value you can use the [`some`](#some) pattern operator.
 
 ```clj
 (m/match {:name "Mike Foe"}
-  {:name (m/pred some? ?name)
-   :title (m/pred some? ?title)}
+  {:name (m/some ?name)
+   :title (m/some ?title)}
   [?name ?title])
 ;; =>
 Execution error (ExceptionInfo) at user/eval4134$fail (REPL:1).
 non exhaustive pattern match
 ```
 
-Or if you just need to ensure a key is present without binding it:
-
-```clj
-(m/match {:name "John Doe" :title "MD"}
-  (m/pred #(contains? % :title) ?p)
-  :has-a-title)
-;; =>
-:has-a-title
-```
-
-[`pred`](#pred) will be discussed shortly.
+Pattern operators are discussed [below](#operators).
 
 ### Memory Variables
 
-_Memory variables_ are variables which "remember" or collect values
-during pattern matching. They are represented by a simple symbol
-prefixed with the `!` character. Because they collect multiple values
-it is idiomatic to employ a plural naming convention e.g. `!xs` or
-`!people`.
+_Memory variables_ are variables which "remember" or collect values during pattern matching.
+They are represented by a simple symbol prefixed with the `!` character.
+Because they collect multiple values it is idiomatic to employ a plural naming convention e.g. `!xs` or `!people`.
 
-To collect values from a 4-tuple such that we collect the first and
-last elements in one container and the middle elements in another we
-would write the following.
+To collect values from a 4-tuple such that we collect the first and last elements in one container and the middle elements in another we would write the following.
 
 ```clj
 [!xs !ys !ys !xs]
@@ -319,19 +275,15 @@ and bind `!xs` to `[:red :blue]` and `!ys` to `[:green :yellow]`.
 
 ### Any Variables
 
-_Any variables_ are variables which match anything but do not bind the
-values they match. They are represented as simple symbols prefixed
-with the `_` character e.g. `_`, `_first-name`, and so on. Any
-variables commonly appear in the last clause of a `match` expression
-as a catch-all when all other patterns fail to match.
+_Any variables_ are variables which match anything but do not bind the values they match.
+They are represented as simple symbols prefixed with the `_` character e.g. `_`, `_first-name`, and so on.
+Any variables commonly appear in the last clause of a `match` expression as a catch-all when all other patterns fail to match.
 
 ### Mutable Variables
 
-_Mutable variables_ are variables which, like _any variables_, will
-match anything but, unlike _any variables_ will bind the values they
-match. They are represented as simple symbols prefixed with the `*`
-character e.g. `*scratch`. Mutable variables were introduced as a
-primitive in order to derive specific features cleanly.
+_Mutable variables_ are variables which, like _any variables_, will match anything but, unlike _any variables_ will bind the values they match.
+They are represented as simple symbols prefixed with the `*` character e.g. `*scratch`.
+Mutable variables were introduced as a primitive in order to derive specific features cleanly.
 
 Matching the pattern
 
@@ -346,6 +298,7 @@ against
 ```
 
 would first bind `*m` to `1`, and then ultimately to `2`.
+
 
 ## Operators
 
@@ -366,9 +319,7 @@ matches whenever `expr` is truthy.
 
 ### `pred`
 
-`(m/pred pred-fn pat-0 ,,, pat-n)` matches whenever `pred-fn` applied
-to the current value being matched returns a truthy value and all of
-`pat-0` through `pat-n` match.
+`(m/pred pred-fn pat-0 ,,, pat-n)` matches whenever `pred-fn` applied to the current value being matched returns a truthy value and all of `pat-0` through `pat-n` match.
 
 ```clj
 (m/match 42
@@ -390,8 +341,7 @@ to the current value being matched returns a truthy value and all of
 (m/app fn-expr pat-0 ,,, pat-n)
 ```
 
-matches whenever `fn-expr` applied to the current value being matched
-matches `pat-0` through `pat-n`.
+matches whenever `fn-expr` applied to the current value being matched matches `pat-0` through `pat-n`.
 
 ```clj
 (m/match 42
@@ -419,10 +369,9 @@ matches `pat-0` through `pat-n`.
   target-pattern)
 ```
 
-matches when all of the `pattern`s matches the result of evaluating
-their corresponding `clojure-expr`. This allows pattern matching on an
-arbitrary expression. Optionally, `target-pattern` may be provided to
-pattern match on the current pattern matching target.
+matches when all of the `pattern`s matches the result of evaluating their corresponding `clojure-expr`.
+This allows pattern matching on an arbitrary expression. 
+Optionally, `target-pattern` may be provided to pattern match on the current pattern matching target.
 
 ```clj
 (m/match :not-a-pair
@@ -438,8 +387,8 @@ pattern match on the current pattern matching target.
 (meander.epsilon/not pattern)
 ```
 
-is the negation of a pattern. It will match anything that does not
-match `pattern`.
+is the negation of a pattern.
+It will match anything that does not match `pattern`.
 
 ```clj
 (m/match 12
@@ -496,14 +445,14 @@ Note that unbound variables _must_ be shared by `pat-0` through `pat-n`.
   [?x ?y])
 ;; Every pattern of an or pattern must have references to the same
 ;; unbound variables.
-;; {:pat (or [?x ?y] [?x ?y ?z]),
+;; {:pat (m/or [?x ?y] [?x ?y ?z]),
 ;;  :env #{},
 ;;  :problems [{:pat [?x ?y], :absent #{?z}}]}
 ```
 
 ### `scan`
 
-```
+```clj
 (meander.epsilon/scan pattern)
 ```
 
@@ -526,7 +475,7 @@ searches a sequence for elements that match `pattern`.
 
 ### `$`
 
-```
+```clj
 (meander.epsilon/$ pattern)
 (meander.epsilon/$ context pattern)
 ```
@@ -540,9 +489,7 @@ recursively searches for any subtree that matches `pattern`.
 ;; => ([[3 4] 5] [3 4])
 ```
 
-Additionally, you can optionally specify a `context` variable that,
-when called with an argument, returns the toplevel collection with all
-matched variables replaced with the argument.
+Additionally, you can optionally specify a `context` variable that, when called with an argument, returns the toplevel collection with all matched variables replaced with the argument.
 
 ```clj
 (m/search [[1] 2 [[3 4] 5]]
@@ -553,8 +500,7 @@ matched variables replaced with the argument.
 
 ### `with`
 
-The `with` pattern operator enables patterns to be bound much like
-`clojure.core/let`.
+The `with` pattern operator enables patterns to be bound much like `clojure.core/let`.
 
 ```clj
 (m/with [%ref1 pat1 
@@ -563,56 +509,49 @@ The `with` pattern operator enables patterns to be bound much like
   pat)
 ```
 
-These pattern bindings are called "references" and are named with
-simple symbols prefixed by the `%` character. References may be
-specified in any order and may also be recursive. In essence, the
-`with` operator allows for novel and powerful feature: the ad-hoc
-construction and matching of recursive grammars.
+These pattern bindings are called "references" and are named with simple symbols prefixed by the `%` character.
+References may be specified in any order and may also be recursive.
+In essence, the `with` operator allows for novel and powerful feature: the ad-hoc construction and matching of recursive grammars.
 
 ```clj
-(let [hiccup [:div
-              [:p {"foo" "bar"}
-               [:strong "Foo"]
-               [:em {"baz" "quux"} "Bar"
-                [:u "Baz"]]]
-              [:ul
-               [:li "Beef"]
-               [:li "Lamb"]
-               [:li "Pork"]
-               [:li "Chicken"]]]]
-  ;; meander.match.delta/find
-  (m/find hiccup
-    (m/with [%h1 [!tags {:as !attrs} . %hiccup ...]
-             %h2 [!tags . %hiccup ...]
-             %h3 !xs
-             %hiccup (or %h1 %h2 %h3)]
-      %hiccup)
-    [!tags !attrs !xs]))
+(def hiccup
+  [:div
+   [:p {"foo" "bar"}
+    [:strong "Foo"]
+    [:em {"baz" "quux"} "Bar"
+     [:u "Baz"]]]
+   [:ul
+    [:li "Beef"]
+    [:li "Lamb"]
+    [:li "Pork"]
+    [:li "Chicken"]]])
+
+;; meander.epsilon/find
+(m/find hiccup
+  (m/with [%h1 [!tags {:as !attrs} . %hiccup ...]
+           %h2 [!tags . %hiccup ...]
+           %h3 !xs
+           %hiccup (m/or %h1 %h2 %h3)]
+    %hiccup)
+  [!tags !attrs !xs])
 ;; =>
 [[:div :p :strong :em :u :ul :li :li :li :li]
  [{"foo" "bar"} {"baz" "quux"}]
  ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]]
 ```
 
-In the example above, `with` is used to (naively) describe and match
-[hiccup](https://github.com/weavejester/hiccup). Notice that
-references `%h1`, `%h2`, and `%hiccup` refer to each other in their
-definitions. The "body" of the `with` form says we wish to match
-`%hiccup` against the current value being matched, in this case
-`hiccup`. When the match executes it does so recursively and, as we
-can see, correctly.
+In the example above, `with` is used to (naively) describe and match [hiccup](https://github.com/weavejester/hiccup).
+Notice that references `%h1`, `%h2`, and `%hiccup` refer to each other in their definitions.
+The "body" of the `with` form says we wish to match `%hiccup` against the current value being matched, in this case `hiccup`.
+When the match executes it does so recursively and, as we can see, binds and collects all the values specified.
 
 ## Subsequences
 
-When matching subsequences it is often useful to express the notions
-of _zero or more_ and _n or more_ things. The postfix operators `...`
-or `..n` respectively provide this utility.
+When matching subsequences it is often useful to express the notions of _zero or more_ and _n or more_ things. The postfix operators `...` or `..n` respectively provide this utility.
 
 ### Zero or more
 
-The `...` postfix operator matches the _subsequence_ of patterns to
-its left (up to the first `.` or start of the collection) zero or more
-times.
+The `...` postfix operator matches the _subsequence_ of patterns to its left (up to the first `.` or start of the collection) zero or more times.
 
 ```clj
 (m/match [1 2 1 2 2 3]
@@ -630,9 +569,7 @@ times.
 [:A :B :C :D]
 ```
 
-Note that multiple unbounded sequences are allowed in a pattern only
-for `search` and `find`, `match` will throw an exception since the
-result is non-determinitic.
+Note that multiple unbounded sequences are allowed in a pattern only for `search` and `find`, `match` will throw an exception since the result is non-determinitic.
 
 ```clj
 (m/search [1 1 2 3]
@@ -651,9 +588,7 @@ A variable length subsequence pattern may not be followed by another variable le
 
 ### N or more
 
-The `..n` postfix operator matches the _subsequence_ of patterns to
-its left (up to the first `.` or start of the collection) _n_ or more
-times where _n_ is a positive natural number.
+The `..n` postfix operator matches the _subsequence_ of patterns to its left (up to the first `.` or start of the collection) _n_ or more times where _n_ is a positive natural number.
 
 ```clj
 (m/match [1 1 1 2 3]
@@ -683,10 +618,8 @@ times where _n_ is a positive natural number.
 
 ### Partition
 
-The `.` operator, read as "partition", partitions the collection into
-two parts: left and right. This operator is used primarily to delimit
-the start of a variable length subsequence. It is important to note
-that both `...` and `..n` act as partition operators as well.
+The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is used primarily to delimit the start of a variable length subsequence.
+It is important to note that both `...` and `..n` act as partition operators as well.
 
 ```clj
 (m/match [3 4 5 6 7 8]
@@ -696,10 +629,8 @@ that both `...` and `..n` act as partition operators as well.
 [[5 7] [6 8]]
 ```
 
-Had the pattern `[3 4 . !xs !ys ...]` in this example been written as
-`[3 4 !xs !ys ...]` the match would have failed. This is because the
-latter pattern represents a subsequence of 4 elements beginning with
-the sequence `3 4`.
+Had the pattern `[3 4 . !xs !ys ...]` in this example been written as `[3 4 !xs !ys ...]` the match would have failed.
+This is because the latter pattern represents a subsequence of 4 elements beginning with the sequence `3 4`.
 
 ```clj
 (m/search [3 0 0 3 1 1 3 2 2]
@@ -711,19 +642,21 @@ the sequence `3 4`.
  {:!ys [2 2]})
 ```
 
-This example demonstrates how `search` finds solutions for patterns
-which have sequential patterns which contain variable length
-subsequences on both sides of a partition. The pattern `[_ ... 3 . !ys
-...]` says find every subsequence in the vector being matched after
-_any_ occurrence of a `3`.
+This example demonstrates how `search` finds solutions for patterns which have sequential patterns which contain variable length subsequences on both sides of a partition.
+The pattern 
+
+```clj
+[_ ... 3 . !ys ...]
+```
+
+says find every subsequence in the vector being matched after _any_ occurrence of a `3`.
 
 ## Escaping
 
 ### `unquote`
 
-In some cases you may want to "parameterize" a pattern by referencing
-an external value. This can be done using Clojure's `unquote` operator
-(`unquote-splicing` is currently not implemented).
+In some cases you may want to "parameterize" a pattern by referencing an external value.
+This can be done using Clojure's `unquote` operator (`unquote-splicing` is currently not implemented).
 
 ```clj
 (def x 2)

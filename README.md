@@ -195,7 +195,7 @@ To learn more checkout how to apply meander [strategies](doc/strategies.md)
 
 ## Going Further
 
-To explore Meander further checkout all of our [documentation](/doc), or visit the [#meander room](https://app.slack.com/client/T03RZGPFR/CFFTD7R6Z) on Slack.
+To explore Meander further checkout all of our [documentation](https://cljdoc.org/d/meander/epsilon/), or visit the [#meander room](https://app.slack.com/client/T03RZGPFR/CFFTD7R6Z) on Slack.
 You can also checkout things made by the community.
 Below we have a list of blogs posts and talks about Meander as well as libraries that are using or build on to Meander.
 If you have any questions don't hesitate to ask them in slack or file an issue.
