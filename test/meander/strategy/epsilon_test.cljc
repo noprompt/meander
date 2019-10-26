@@ -397,3 +397,29 @@
     (t/is (= '(:x :x) ((replicate-self 1) :x)))
     (t/is (= '((:x :x) (:x :x)) ((replicate-self 2) :x)))
     (t/is (= '(((:x :x) (:x :x)) ((:x :x) (:x :x))) ((replicate-self 3) :x)))))
+
+
+(t/deftest fix-test
+  (let [to-pair (r*/fix (r*/rewrite
+                         [?x ?y]
+                         [?x ?y]
+
+                         ?x
+                         [?x ?x]))]
+    (t/is (= [1 2]
+             (to-pair [1 2])))
+
+    (t/is (= [1 1]
+             (to-pair 1)))
+
+    (t/is (= [[1 2 3] [1 2 3]]
+             (to-pair [1 2 3]))))
+
+  (let [to-100 (r*/fix (fn [x]
+                         (cond
+                           (= x 100) 100
+                           (< x 100) (inc x)
+                           (> x 100) (dec x))))]
+    (t/is (= 100 (to-100 1000)))
+    (t/is (= 100 (to-100 -1000)))
+    (t/is (= 100 (to-100 100)))))
