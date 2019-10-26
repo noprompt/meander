@@ -1,5 +1,6 @@
 {:cljdoc.doc/tree
  [["Readme" {:file "README.md"}]
-  ["Pattern Matching" {:file "doc/pattern-matching.md"}]
+  ["Understand Meander's Pattern Matching Macros" {:file "doc/understanding.md"}]
+  ["Operator Overview" {:file "doc/operator-overview.md"}]
   ["Substitution" {:file "doc/substitution.md"}]
   ["Strategies" {:file "doc/strategies.md"}]]}
