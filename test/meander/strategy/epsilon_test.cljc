@@ -425,9 +425,17 @@
     (t/is (= 100 (to-100 100)))))
 
 (t/deftest some-bu-test
+  (let [inc-numbers (r*/some-bu (r*/pipe (r*/pred number?) inc))]
+    (t/is (= [2 ["2" 4] "4"]
+             (inc-numbers [1 ["2" 3] "4"])))
+    (t/is (= 2
+             (inc-numbers 1)))
+    (t/is (r*/fail? (inc-numbers ["1" ["2" "3"] "4"])))))
+
+(t/deftest some-td-test
   (let [inc-numbers (r*/some-td (r*/pipe (r*/pred number?) inc))]
     (t/is (= [2 ["2" 4] "4"]
              (inc-numbers [1 ["2" 3] "4"])))
-    (t/is (= 2 
+    (t/is (= 2
              (inc-numbers 1)))
     (t/is (r*/fail? (inc-numbers ["1" ["2" "3"] "4"])))))
