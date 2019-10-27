@@ -809,7 +809,20 @@
                (assoc x :internal true)
 
                ?x
-               ?x)))))
+               ?x))))
+
+  (t/is (= [{:name "a", :arg-list [[1 2 3] [5 6 7]]}
+            {:name "b", :arg-list [[1]]}]
+         (m/rewrite (group-by :name [{:name "a" :args [1 2 3]}
+                                     {:name "a" :args [5 6 7]}
+                                     {:name "b" :args [1]}])
+                    {?name [{:args !args} ...]
+                     & (m/cata ?rest)}
+                    [{:name ?name :arg-list [!args ...]}
+                     & ?rest]
+
+                    ?x
+                    ?x))))
 
 ;;; gather
 
