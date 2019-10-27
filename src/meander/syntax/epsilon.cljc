@@ -1076,15 +1076,9 @@
 (defmethod children :map [node]
   (concat (mapcat identity (:map node))
           (if-some [rest-map (:rest-map node)]
-            (let [xs (children rest-map)]
-              (if (seq xs)
-                xs
-                [rest-map])))
+            [rest-map])
           (if-some [as (:as node)]
-            (let [xs (children as)]
-              (if (seq xs)
-                xs
-                [as])))))
+            [as])))
 
 (defmethod ground? :map [node]
   (every?
