@@ -158,10 +158,12 @@
   {apply-symbol #'parse-apply})
 
 (defn parse
-  [form env]
-  (let [parser-registry (merge (deref r.syntax/global-parser-registry)
-                               default-parsers)
-        env (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
-                        ::r.syntax/phase :meander/substitute
-                        ::r.syntax/parser-registry parser-registry})]
-    (r.syntax/parse form env)))
+  ([form]
+   (parse form {}))
+  ([form env]
+   (let [parser-registry (merge (deref r.syntax/global-parser-registry)
+                                default-parsers)
+         env (merge env {::r.syntax/expander-registry (deref r.syntax/global-expander-registry)
+                         ::r.syntax/phase :meander/substitute
+                         ::r.syntax/parser-registry parser-registry})]
+     (r.syntax/parse form env))))
