@@ -45,14 +45,18 @@
   For operators which relax this restriction, see `find` and `search`."
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] `(meander.match.epsilon/match ~@args))
+  [& args]
+  (with-meta `(meander.match.epsilon/match ~@args)
+    (meta &form)))
 
 
 (defmacro find
   "Like `search` but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent :defn}
-  [& args] `(meander.match.epsilon/find ~@args))
+  [& args]
+  (with-meta `(meander.match.epsilon/find ~@args)
+    (meta &form)))
 
 (defmacro search
   "Like `match` but allows for patterns which may match `x` in more
@@ -99,7 +103,9 @@
   "Substitution operator, the inverse of pattern matching. Evaluates
   `pattern` in the Clojure environment."
   {:style/indent :defn}
-  [pattern] `(r.subst/substitute ~pattern))
+  [pattern]
+  (with-meta `(r.subst/substitute ~pattern)
+    (meta &form)))
 
 ;; ---------------------------------------------------------------------
 ;; Rewrite
