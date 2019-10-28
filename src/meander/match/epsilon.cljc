@@ -729,9 +729,12 @@
 (defn search-map?
   {:private true}
   [node env]
-  (not (empty? (set/difference
-                (find-search-keys node env)
-                (non-search-lvars node env)))))
+  (or (some (fn [[k v]]
+              (r.syntax/mvr-node? k))
+            (get node :map))
+      (not (empty? (set/difference
+                    (find-search-keys node env)
+                    (non-search-lvars node env))))))
 
 
 (defn find-search-keys-recursive

@@ -2247,3 +2247,8 @@
              (r/$ ?foo [& _ :as ?x])
              (?foo [?x])))))
 
+(t/deftest memory-variable-key-test
+  (t/is (= [1 2]
+           (r/find [1 {2 3}]
+             [!xs {!xs _}]
+             !xs))))
