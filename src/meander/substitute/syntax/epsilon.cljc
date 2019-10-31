@@ -117,6 +117,16 @@
     (rewrite-coerce-literals-to-lit
      node))))
 
+(defn cata-index [node]
+  (r.match/search (r.syntax/subnodes node)
+    (_ ... {:tag ::cata :as ?node} . _ ...)
+    [?node (gensym "X__")]))
+
+(defn cata-nodes [node]
+  (r.match/search (r.syntax/subnodes node)
+    (_ ... {:tag ::cata :as ?node} . _ ...)
+    ?node))
+
 ;; ---------------------------------------------------------------------
 ;; Special forms
 
@@ -154,8 +164,59 @@
   [inner outer node]
   (outer (assoc node :argument (inner (:argument node)))))
 
+;;; cata
+
+(def cata-symbol
+  'meander.substitute.syntax.epsilon/cata)
+
+(defn parse-cata [form env]
+  (let [args (rest form)]
+    (if (= 1 (count args))
+      {:tag ::cata
+       :argument (r.syntax/parse (first args) env)}
+      (throw (ex-info "meander.substitute.syntax.epsilon/cata requires one argument" {})))))
+
+(defmethod r.syntax/children ::cata [node]
+  [(:argument node)])
+
+(defmethod r.syntax/ground? ::cata [_]
+  false)
+
+(defmethod r.syntax/unparse ::cata [node]
+  `(~cata-symbol
+    ~(r.syntax/unparse (:argument node))))
+
+(defmethod r.syntax/search? ::cata
+  [_] false)
+
+(defmethod r.syntax/walk ::cata [inner outer node]
+  (outer (assoc node :argument (inner (:argument node)))))
+
+(defn cata-node?
+  "true if `x` is a `:meander.substitute.syntax.epsilon/cata` node."
+  [x]
+  (and (map? x) (= (get x :tag) ::cata)))
+
+(defn contains-cata-node?
+  [root-node]
+  (r.syntax/fold
+   (fn [_ node]
+     (cond
+       (cata-node? node)
+       (reduced true)
+
+       (r.syntax/with-node? node)
+       (let [ref-map (r.syntax/make-ref-map node)
+             in-use (r.syntax/refs-in-use node)]
+         (if (some contains-cata-node? (map ref-map in-use))
+           (reduced true)
+           false))))
+   false
+   root-node))
+
 (def default-parsers
-  {apply-symbol #'parse-apply})
+  {apply-symbol #'parse-apply
+   cata-symbol #'parse-cata})
 
 (defn parse
   ([form]

@@ -5,6 +5,7 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
+            [meander.match.runtime.epsilon :as r.match.runtime]
             [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.syntax.epsilon :as r.syntax]
             [meander.substitute.runtime.epsilon :as r.subst.runtime]
@@ -49,7 +50,6 @@
                         {:tag 'java.util.Iterator})}))
 
 (defn make-env
-  {:private true}
   [node]
   {:wth-refs {}
    :data (into #{} (memory-variable-data node))})
@@ -139,6 +139,14 @@
      :argument ?argument}
     (let [[form env] (compile* ?argument env)]
       [`(~?function ~form) env])))
+
+(defmethod compile* ::r.subst.syntax/cata
+  [node env]
+  (r.match/match node
+    {:argument ?argument :as ?node}
+    (let [cata-symbol (get env :cata-symbol)
+          [argument env] (compile* ?argument env)]
+      [`(~cata-symbol ~argument) env])))
 
 (defmethod compile* :ctn
   [node env]
@@ -579,7 +587,10 @@
        (clojure.core/into [!xs ...] (clojure.core/list . !ys ...))
        `[~@!xs ~@!ys]
 
-       (clojure.core/into [:as ?vector] nil)
+       (clojure.core/into [& _ :as ?vector] nil)
+       ?vector
+
+       (clojure.core/into [& _ :as ?vector] ())
        ?vector
 
        (clojure.core/into [] (clojure.core/subvec & _ :as ?subvec-form))
@@ -625,23 +636,29 @@
       form
       (recur form*))))
 
+(defn iter-bindings
+  {:private true}
+  [env]
+  (into [] cat
+        (r.match/search env
+          {:data #{{:memory-variable/symbol ?memory-variable-symbol
+                    :iterator/symbol (r.match.syntax/pred some? ?iterator-symbol)}}}
+          [?iterator-symbol `(r.subst.runtime/iterator ~?memory-variable-symbol)])))
+
 (defn compile [node env]
-  (let [[form _env] (compile* node env)
+  (let [node (r.subst.syntax/expand-ast node)
+        env (merge env (make-env node))
+        [form _env] (compile* node env)
         form* (rewrite-clojure form)
-        iter-bindings (into [] cat (r.match/search env
-                                     {:data #{{:memory-variable/symbol ?memory-variable-symbol
-                                               :iterator/symbol ?iterator-symbol}}}
-                                     [?iterator-symbol `(r.subst.runtime/iterator ~?memory-variable-symbol)]))]
+        iter-bindings (iter-bindings env)]
     (if (seq iter-bindings)
       `(let ~iter-bindings ~form*)
       form*)))
 
 (defmacro substitute
   [pattern]
-  (let [node (r.subst.syntax/parse pattern &env)
-        node (r.subst.syntax/expand-ast node)
-        env (make-env node)]
-    (compile node env)))
+  (let [node (r.subst.syntax/parse pattern &env)]
+    (compile node &env)))
 
 (s/fdef substitute
   :args (s/cat :pattern any?)

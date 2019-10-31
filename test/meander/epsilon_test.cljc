@@ -813,16 +813,54 @@
 
   (t/is (= [{:name "a", :arg-list [[1 2 3] [5 6 7]]}
             {:name "b", :arg-list [[1]]}]
-         (r/rewrite (group-by :name [{:name "a" :args [1 2 3]}
-                                     {:name "a" :args [5 6 7]}
-                                     {:name "b" :args [1]}])
-                    {?name [{:args !args} ...]
-                     & (r/cata ?rest)}
-                    [{:name ?name :arg-list [!args ...]}
-                     & ?rest]
+           (r/rewrite (group-by :name [{:name "a" :args [1 2 3]}
+                                       {:name "a" :args [5 6 7]}
+                                       {:name "b" :args [1]}])
+             {?name [{:args !args} ...]
+              & (r/cata ?rest)}
+             [{:name ?name :arg-list [!args ...]}
+              & ?rest]
 
-                    ?x
-                    ?x))))
+             ?x
+             ?x)))
+
+
+  (let [tree '(branch (leaf (s 0))
+                      (branch (leaf (s (s 0)))
+                              (leaf (s 0))))
+        expected '(branch (branch (leaf 0)
+                                  (leaf 0))
+                          (branch (branch (leaf 0)
+                                          (branch (leaf 0)
+                                                  (leaf 0)))
+                                  (branch (leaf 0)
+                                          (leaf 0))))]
+    (t/is (= expected
+             (r/rewrite tree
+               (leaf 0)
+               (leaf 0)
+
+               (leaf (s ?n))
+               (branch (leaf 0)
+                       (r/cata (leaf ?n)))
+
+               (branch ?a ?b)
+               (branch (r/cata ?a)
+                       (r/cata ?b)))))
+
+    (t/is (= expected
+             (r/rewrite tree
+               (leaf 0)
+               (leaf 0)
+
+               (leaf (s ?n))
+               (branch (leaf 0)
+                       (r/cata (leaf ?n)))
+
+               (branch (r/cata ?a)
+                       (r/cata ?b))
+               (branch ?a ?b))))))
+
 
 ;;; gather
 

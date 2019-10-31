@@ -4,6 +4,7 @@
             [clojure.spec.alpha :as s]
             [meander.match.epsilon :as r.match]
             [meander.match.syntax.epsilon :as r.match.syntax]
+            [meander.rewrite.epsilon :as r.rewrite]
             [meander.strategy.epsilon :as r]
             [meander.syntax.epsilon :as r.syntax]
             [meander.syntax.specs.epsilon :as r.syntax.specs]
@@ -110,16 +111,6 @@
 ;; ---------------------------------------------------------------------
 ;; Rewrite
 
-(def ^{:arglists '([x])
-       :private true}
-  compile-rewrite
-  (r/rewrite
-   [?x (!match !substitution ...)]
-   (`find ?x . !match (`subst !substitution) ...)
-
-   _
-   [:error "rewrite expects and odd number of arguments"]))
-
 (defmacro rewrite
   "Syntactic sugar for
 
@@ -129,12 +120,10 @@
          p_n-1 (subst p_n))"
   {:style/indent :defn}
   [x & clauses]
-  (meander.match.epsilon/match (compile-rewrite [x clauses])
-    [:error ?error-message]
-    (throw (ex-info ?error-message {}))
-
-    ?form
-    ?form))
+  (clj/let [y (r.rewrite/compile-rewrite-args (list* x clauses) &env)]
+    (if (instance? Exception y)
+      (throw y)
+      y)))
 
 (s/fdef rewrite
   :args (s/cat :x any?
@@ -142,25 +131,13 @@
                                     :substitution any?)))
   :ret any?)
 
-(def ^{:arglists '([x])
-       :private true}
-  compile-rewrites
-  (r/rewrite
-   [?x (!match !substitution ...)]
-   (`meander.match.epsilon/search ?x . !match (`r.subst/substitute !substitution) ...)
-
-   _
-   [:error "rewrite expects and odd number of arguments"]))
-
 (defmacro rewrites
   {:style/indent :defn}
   [x & clauses]
-  (meander.match.epsilon/match (compile-rewrites [x clauses])
-    [:error ?error-message]
-    (throw (ex-info ?error-message {}))
-
-    ?form
-    ?form))
+  (clj/let [y (r.rewrite/compile-rewrites-args (list* x clauses) &env)]
+    (if (instance? Exception y)
+      (throw y)
+      y)))
 
 (s/fdef rewrites
   :args (s/cat :x any?
@@ -762,6 +739,12 @@
       ;; =>
       [:one :two :three]"
   ([pattern]
-   (if (match-syntax? &env)
+   (cond
+     (match-syntax? &env)
      `(r.match.syntax/cata ~pattern)
+
+     (subst-syntax? &env)
+     `(r.subst.syntax/cata ~pattern)
+
+     :else
      &form)))

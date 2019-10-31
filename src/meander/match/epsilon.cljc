@@ -1820,6 +1820,48 @@
           :matrix matrix})))))
 
 
+(defn compile-search-analysis
+  [search-analysis env]
+  (let [matrix (get search-analysis :matrix)]
+    (if (r.matrix/empty? matrix)
+      nil
+      (let [expr (get search-analysis :expr)
+            symbol-target? (symbol? expr)
+            contains-cata? (get search-analysis :contains-cata?)
+            target (if symbol-target?
+                     expr
+                     (gensym "TARGET__"))]
+        (if contains-cata?
+          ;; We cannot use the `op-bind` approach as below because
+          ;; the IR compiler will use the type information of the
+          ;; expr to eliminate clauses that won't match which can
+          ;; be too aggressive when a catamorphism is present.
+          (binding [*cata-symbol* (get search-analysis :cata-symbol)]
+            (let [cata-return (gensym "CATA_RETURN__")
+                  ir {:op :def
+                      :symbol *cata-symbol*
+                      :target-arg target
+                      :req-syms []
+                      :ret-syms [cata-return]
+                      :body (compile [target] matrix)
+                      :then {:op :call
+                             :symbol *cata-symbol*
+                             :target (r.ir/op-eval target)
+                             :req-syms []
+                             :ret-syms [cata-return]
+                             :then (r.ir/op-return cata-return)}}
+                  code (r.ir/compile ir nil :search env)]
+              (if symbol-target?
+                code
+                `(let [~target ~expr]
+                   ~code))))
+          (let [ir (compile [target] matrix)
+                ir (if symbol-target?
+                     ir
+                     (r.ir/op-bind target (r.ir/op-eval expr)
+                       ir))]
+            (r.ir/compile ir nil :search env)))))))
+
 (defmacro search
   "Like `match` but allows for patterns which may match `x` in more
   than one way. Returns a lazy sequence of expression values in
@@ -1848,49 +1890,10 @@
    :style/indent [1]}
   [& match-args]
   (let [env (merge (meta &form) &env)
-        match-data (analyze-search-args match-args env)
-        errors (get match-data :errors)]
-    (if-some [error (first errors)]
+        search-analysis (analyze-search-args match-args env)]
+    (if-some [error (first (get search-analysis :errors))]
       (throw error)
-      (let [matrix (get match-data :matrix)]
-        (if (r.matrix/empty? matrix)
-          nil
-          (let [expr (get match-data :expr)
-                symbol-target? (symbol? expr)
-                contains-cata? (get match-data :contains-cata?)
-                target (if symbol-target?
-                         expr
-                         (gensym "TARGET__"))]
-            (if contains-cata?
-              ;; We cannot use the `op-bind` approach as below because
-              ;; the IR compiler will use the type information of the
-              ;; expr to eliminate clauses that won't match which can
-              ;; be too aggressive when a catamorphism is present.
-              (binding [*cata-symbol* (get match-data :cata-symbol)]
-                (let [cata-return (gensym "CATA_RETURN__")
-                      ir {:op :def
-                          :symbol *cata-symbol*
-                          :target-arg target
-                          :req-syms []
-                          :ret-syms [cata-return]
-                          :body (compile [target] matrix)
-                          :then {:op :call
-                                 :symbol *cata-symbol*
-                                 :target (r.ir/op-eval target)
-                                 :req-syms []
-                                 :ret-syms [cata-return]
-                                 :then (r.ir/op-return cata-return)}}
-                      code (r.ir/compile ir nil :search env)]
-                  (if symbol-target?
-                    code
-                    `(let [~target ~expr]
-                       ~code))))
-              (let [ir (compile [target] matrix)
-                    ir (if symbol-target?
-                         ir
-                         (r.ir/op-bind target (r.ir/op-eval expr)
-                           ir))]
-                (r.ir/compile ir nil :search env)))))))))
+      (compile-search-analysis search-analysis env))))
 
 
 (s/fdef search
@@ -1918,7 +1921,7 @@
   ([match-args env]
    (let [result (parse-match-args match-args env)]
      (if-some [error (first (get result :errors))]
-       (throw error)
+       result
        (let [clauses (get result :clauses)
              contains-cata? (boolean (some :contains-cata? clauses))
              errors (into [] (keep
@@ -1953,55 +1956,59 @@
           :matrix matrix})))))
 
 
+(defn compile-find-analysis
+  [find-analysis env]
+  (let [matrix (get find-analysis :matrix)
+        final-clause (get find-analysis :final-clause)
+        matrix (if (some? final-clause)
+                 (conj matrix final-clause)
+                 matrix)]
+    (if (r.matrix/empty? matrix)
+      nil
+      (let [expr (get find-analysis :expr)
+            symbol-target? (symbol? expr)
+            contains-cata? (get find-analysis :contains-cata?)
+            target (if symbol-target?
+                     expr
+                     (gensym "TARGET__"))]
+        (if contains-cata?
+          (binding [*cata-symbol* (get find-analysis :cata-symbol)]
+            (let [cata-return (gensym "CATA_RETURN__")
+                  ir {:op :def
+                      :symbol *cata-symbol*
+                      :target-arg target
+                      :req-syms []
+                      :ret-syms [cata-return]
+                      :body (compile [target] matrix)
+                      :then {:op :call
+                             :symbol *cata-symbol*
+                             :target (r.ir/op-eval target)
+                             :req-syms []
+                             :ret-syms [cata-return]
+                             :then (r.ir/op-return cata-return)}}
+                  code (r.ir/compile ir nil :find env)]
+              (if symbol-target?
+                code
+                `(let [~target ~expr]
+                   ~code))))
+          (let [ir (compile [target] matrix)
+                ir (if symbol-target?
+                     ir
+                     (r.ir/op-bind target (r.ir/op-eval expr)
+                       ir))]
+            (r.ir/compile ir nil :find env)))))))
+
+
 (defmacro find
   "Like `search` but returns only the first successful match."
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
   (let [env (merge (meta &form) &env)
-        match-data (analyze-find-args match-args env)
-        errors (:errors match-data)]
-    (if-some [error (first errors)]
+        find-analysis (analyze-find-args match-args env)]
+    (if-some [error (first (get find-analysis :errors))]
       (throw error)
-      (let [matrix (get match-data :matrix)
-            final-clause (get match-data :final-clause)
-            matrix (if (some? final-clause)
-                     (conj matrix final-clause)
-                     matrix)]
-        (if (r.matrix/empty? matrix)
-          nil
-          (let [expr (get match-data :expr)
-                symbol-target? (symbol? expr)
-                contains-cata? (get match-data :contains-cata?)
-                target (if symbol-target?
-                         expr
-                         (gensym "TARGET__"))]
-            (if contains-cata?
-              (binding [*cata-symbol* (get match-data :cata-symbol)]
-                (let [cata-return (gensym "CATA_RETURN__")
-                      ir {:op :def
-                          :symbol *cata-symbol*
-                          :target-arg target
-                          :req-syms []
-                          :ret-syms [cata-return]
-                          :body (compile [target] matrix)
-                          :then {:op :call
-                                 :symbol *cata-symbol*
-                                 :target (r.ir/op-eval target)
-                                 :req-syms []
-                                 :ret-syms [cata-return]
-                                 :then (r.ir/op-return cata-return)}}
-                      code (r.ir/compile ir nil :find env)]
-                  (if symbol-target?
-                    code
-                    `(let [~target ~expr]
-                       ~code))))
-              (let [ir (compile [target] matrix)
-                    ir (if symbol-target?
-                         ir
-                         (r.ir/op-bind target (r.ir/op-eval expr)
-                           ir))]
-                (r.ir/compile ir nil :find env)))))))))
+      (compile-find-analysis find-analysis env))))
 
 (s/fdef find
   :args (s/cat :expr any?
