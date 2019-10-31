@@ -2252,3 +2252,9 @@
            (r/find [1 {2 3}]
              [!xs {!xs _}]
              !xs))))
+
+(t/deftest some-test-1
+  (t/is (= '(:ok)
+           (r/search nil
+             (r/not (r/some _))
+             :ok))))

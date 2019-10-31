@@ -1534,8 +1534,8 @@ compilation decisions."
   (let [id (:id ir)
         body-1 (:body-1 ir)
         body-2 (:body-2 ir)]
-    (if (and (= (:op body-2) :load)
-             (= (:id body-2 id)))
+    (if (and (= (get body-2 :op) :load)
+             (= (get body-2 :id) id))
       (compile* body-1 fail kind)
       (let [f-sym (gensym "f__")]
         `(letfn [(~id [] ~fail)
