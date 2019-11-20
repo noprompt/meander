@@ -144,9 +144,11 @@
   [node env]
   (r.match/match node
     {:argument ?argument :as ?node}
-    (let [cata-symbol (get env :cata-symbol)
-          [argument env] (compile* ?argument env)]
-      [`(~cata-symbol ~argument) env])))
+    (if-some [cata-symbol (get env :cata-symbol)]
+      (let [[argument env] (compile* ?argument env)]
+        [`(~cata-symbol ~argument) env])
+      (let [env (update env :data conj {:error :cata-not-bound})]
+        [`(throw (ex-info "cata not bound" {})) env]))))
 
 (defmethod compile* :ctn
   [node env]
@@ -645,20 +647,33 @@
                     :iterator/symbol (r.match.syntax/pred some? ?iterator-symbol)}}}
           [?iterator-symbol `(r.subst.runtime/iterator ~?memory-variable-symbol)])))
 
+(def CATA_NOT_BOUND
+  "Special value returned by `compile` indicating that the cata
+  operator was used illegally."
+  (reify))
+
 (defn compile [node env]
   (let [node (r.subst.syntax/expand-ast node)
         env (merge env (make-env node))
-        [form _env] (compile* node env)
-        form* (rewrite-clojure form)
-        iter-bindings (iter-bindings env)]
-    (if (seq iter-bindings)
-      `(let ~iter-bindings ~form*)
-      form*)))
+        [form env] (compile* node env)]
+    (r.match/find env
+      {:data #{{:error :cata-not-bound}}}
+      CATA_NOT_BOUND
+
+      _
+      (let [form* (rewrite-clojure form)
+            iter-bindings (iter-bindings env)]
+        (if (seq iter-bindings)
+          `(let ~iter-bindings ~form*)
+          form*)))))
 
 (defmacro substitute
   [pattern]
-  (let [node (r.subst.syntax/parse pattern &env)]
-    (compile node &env)))
+  (let [node (r.subst.syntax/parse pattern &env)
+        x (compile node &env)]
+    (if (identical? CATA_NOT_BOUND node)
+      (throw (ex-info "cata not allowed here" {:pattern pattern}))
+      x)))
 
 (s/fdef substitute
   :args (s/cat :pattern any?)

@@ -105,8 +105,12 @@
   `pattern` in the Clojure environment."
   {:style/indent :defn}
   [pattern]
-  (with-meta `(r.subst/substitute ~pattern)
-    (meta &form)))
+  (clj/let [node (r.subst.syntax/parse pattern &env)
+            x (r.subst/compile node &env)]
+    (if (identical? r.subst/CATA_NOT_BOUND x)
+      (throw (ex-info "cata is not allowed in subst; use `rewrite` or `rewrites`"
+                      {:pattern pattern}))
+      x)))
 
 ;; ---------------------------------------------------------------------
 ;; Rewrite
