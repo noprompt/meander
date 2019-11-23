@@ -572,17 +572,15 @@
                 :as
                 {:tag :as
                  :pattern (get next-ast :pattern)
-                 :next {:tag :cat
-                        :pattern {:tag :memory-plus
-                                  :operator operator-ast
-                                  :pattern (expand-cats prev-asts {:tag :empty})}
+                 :next {:tag :memory-plus
+                        :operator operator-ast
+                        :pattern (expand-cats prev-asts {:tag :empty})
                         :next (get next-ast :next)}}
 
                 ;; else
-                {:tag :cat
-                 :pattern {:tag :memory-plus
-                           :operator operator-ast
-                           :pattern (expand-cats prev-asts {:tag :empty})}
+                {:tag :memory-plus
+                 :operator operator-ast
+                 :pattern (expand-cats prev-asts {:tag :empty})
                  :next next-ast})))
 
           (expand-dot-dot-dot [operator-ast prev-asts next-asts]
@@ -608,17 +606,15 @@
                 :as
                 {:tag :as
                  :pattern (get next-ast :pattern)
-                 :next {:tag :cat
-                        :pattern {:tag :plus
-                                  :operator operator-ast
-                                  :pattern (expand-cats prev-asts {:tag :empty})}
+                 :next {:tag :plus
+                        :operator operator-ast
+                        :pattern (expand-cats prev-asts {:tag :empty})
                         :next (get next-ast :next)}}
 
                 ;; else
-                {:tag :cat
-                 :pattern {:tag :plus
-                           :operator operator-ast
-                           :pattern (expand-cats prev-asts {:tag :empty})}
+                {:tag :plus
+                 :operator operator-ast
+                 :pattern (expand-cats prev-asts {:tag :empty})
                  :next next-ast})))
 
           (expand-dot-dot-?n [operator-ast prev-asts next-asts]
@@ -628,17 +624,15 @@
                 :as
                 {:tag :as
                  :pattern (get next-ast :pattern)
-                 :next {:tag :cat
-                        :pattern {:tag :logical-plus
-                                  :operator operator-ast
-                                  :pattern pattern-ast}
+                 :next {:tag :logical-plus
+                        :operator operator-ast
+                        :pattern pattern-ast
                         :next (get next-ast :next)}}
 
                 ;; else
-                {:tag :cat
-                 :pattern {:tag :logical-plus
-                           :operator operator-ast
-                           :pattern pattern-ast}
+                {:tag :logical-plus
+                 :operator operator-ast
+                 :pattern pattern-ast
                  :next next-ast})))]
     (let [[prev-asts [operator-ast & next-asts]] (split-with subsequence-splitter? asts)]
       (case (subsequence-operator-type operator-ast)
