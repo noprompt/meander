@@ -105,9 +105,9 @@
 ;; :as
 ;; ---
 
-(defn make-as [variable-ast next-ast]
+(defn make-as [pattern-ast next-ast]
   {:tag :as
-   :pattern variable-ast
+   :pattern pattern-ast
    :next next-ast})
 
 (defmethod min-length :as
