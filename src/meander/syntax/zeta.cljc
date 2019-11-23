@@ -697,15 +697,17 @@
              (disj xs &-form)
              xs)
         as-form (some
-                (fn [x]
-                  (if (true? (get (meta x) :meander.zeta/as))
-                    x))
-                xs)
+                 (fn [x]
+                   (if (true? (get (meta x) :meander.zeta/as))
+                     x))
+                 xs)
         xs (if as-form
              (disj xs as-form)
              xs)
-        &-node (parse* &-form env)
-        as-node (parse* as-form env)
+        &-node (if &-form
+                 (parse* &-form env))
+        as-node (if as-form
+                  (parse* as-form env))
         x-nodes (parse-all* xs env)
         set-node {:tag :set
                   :form xs
