@@ -684,6 +684,39 @@
                :form xs})]
     ast))
 
+(defn parse-set
+  "Parses a `set?` into a `:meander.syntax.zeta/ast`. "
+  {:private true}
+  [xs env]
+  (let [&-form (some
+                (fn [x]
+                  (if (= (get (meta x) :tag) '&)
+                    x))
+                xs)
+        xs (if &-form
+             (disj xs &-form)
+             xs)
+        as-form (some
+                (fn [x]
+                  (if (true? (get (meta x) :meander.zeta/as))
+                    x))
+                xs)
+        xs (if as-form
+             (disj xs as-form)
+             xs)
+        &-node (parse* &-form env)
+        as-node (parse* as-form env)
+        x-nodes (parse-all* xs env)
+        set-node {:tag :set
+                  :form xs
+                  :elements x-nodes
+                  :rest &-node}]
+    (if as-node
+      {:tag :as
+       :pattern as-node
+       :next set-node}
+      set-node)))
+
 (defn parse-seq
   "Parses a `seq?` into a `:meander.syntax.zeta/ast`.
 
@@ -796,6 +829,9 @@
     {:tag :literal
      :type :number
      :form form}
+
+    (set? form)
+    (parse-set form env)
 
     (seq? form)
     (parse-seq form env)
