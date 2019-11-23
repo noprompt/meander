@@ -180,7 +180,8 @@
   ([symbol]
    {:pre [(logic-variable-symbol? symbol)]}
    {:tag :logic-variable
-    :symbol symbol}))
+    :symbol symbol
+    :form symbol}))
 
 ;; :memory-variable
 ;; ----------------
@@ -201,7 +202,8 @@
   ([symbol]
    {:pre [(memory-variable-symbol? symbol)]}
    {:tag :memory-variable
-    :symbol symbol}))
+    :symbol symbol
+    :form symbol}))
 
 ;; :mutable-variable
 ;; -----------------
@@ -220,7 +222,8 @@
   [symbol]
   {:pre [(mutable-variable-symbol? symbol)]}
   {:tag :mutable-variable
-   :symbol symbol})
+   :symbol symbol
+   :form symbol})
 
 ;; :partition
 ;; ----------
