@@ -173,7 +173,7 @@ Sometimes we have a multistep process where we want to transform nested data in 
 This is an area that Meander continues to explore, but one powerful way of solving this problem is using Meander's strategies.
 
 ```clojure
-(require '[meander.strategies.epsilon :as m*])
+(require '[meander.strategy.epsilon :as m*])
 
 (def eliminate-zeros
   (m*/rewrite
