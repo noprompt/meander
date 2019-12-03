@@ -184,7 +184,7 @@ This is an area that Meander continues to explore, but one powerful way of solvi
   (m*/bottom-up
    (m*/attempt eliminate-zeros)))
 
-(eliminate-all-zeros '(+ (+ 0 (+ 0 (+ 3 (+ 2 0)))) 0)))
+(eliminate-all-zeros '(+ (+ 0 (+ 0 (+ 3 (+ 2 0)))) 0))
 ;; => (+ 3 2)
 ```
 
