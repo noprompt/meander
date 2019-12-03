@@ -541,7 +541,8 @@
                                           :next next-ast})))
               {:tag :error
                :message "The & operator must be followed by another pattern"
-               :data (meta (get operator-ast :form))}))
+               :data (meta (get operator-ast :form))
+               :form (get operator-ast :form)}))
 
           (expand-as [operator-ast prev-asts next-asts]
             (let [pattern-ast (first next-asts)]
@@ -587,21 +588,26 @@
                  :next next-ast})))
 
           (expand-dot-dot-dot [operator-ast prev-asts next-asts]
-            (let [next-ast (expand-subsequence next-asts)]
-              (case (get next-ast :tag)
-                :as
-                {:tag :as
-                 :pattern (get next-ast :pattern)
-                 :next {:tag :star
-                        :operator operator-ast
-                        :pattern (expand-cats prev-asts {:tag :empty})
-                        :next (get next-ast :next)}}
+            (if (seq prev-asts)
+              (let [next-ast (expand-subsequence next-asts)]
+                (case (get next-ast :tag)
+                  :as
+                  {:tag :as
+                   :pattern (get next-ast :pattern)
+                   :next {:tag :star
+                          :operator operator-ast
+                          :pattern (expand-cats prev-asts {:tag :empty})
+                          :next (get next-ast :next)}}
 
-                ;; else
-                {:tag :star
-                 :operator operator-ast
-                 :pattern (expand-cats prev-asts {:tag :empty})
-                 :next next-ast})))
+                  ;; else
+                  {:tag :star
+                   :operator operator-ast
+                   :pattern (expand-cats prev-asts {:tag :empty})
+                   :next next-ast}))
+              {:tag :error
+               :message "The ... operator must be preceded by at least one pattern"
+               :data (meta (get operator-ast :form))
+               :form (get operator-ast :form)}))
 
           (expand-dot-dot-n [operator-ast prev-asts next-asts]
             (let [next-ast (expand-subsequence next-asts)]
