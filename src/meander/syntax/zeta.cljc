@@ -422,7 +422,7 @@
 
 (defn parse-symbol
   {:private true}
-  [sym]
+  [sym env]
   (if (namespace sym)
     {:tag :literal
      :type :symbol
@@ -882,7 +882,7 @@
      :form form}
 
     (symbol? form)
-    (parse-symbol form)
+    (parse-symbol form env)
 
     (vector? form)
     (parse-vector form env)
