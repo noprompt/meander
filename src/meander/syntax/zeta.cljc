@@ -78,6 +78,25 @@
          (max-length? ast)]}
   (not (= (min-length ast) (max-length ast))))
 
+(defn stable-length?
+  "true if `ast` has a stable length."
+  [ast]
+  {:pre [(min-length? ast)
+         (max-length? ast)]}
+  (not (variable-length? ast)))
+
+(defn finite-stable-length
+  "If `ast` has finite stable length, return it, otherwise return
+  `nil`. `ast` must implement both `min-length` and `max-length`."
+  [ast]
+  {:pre [(min-length? ast)
+         (max-length? ast)]}
+  (let [min (min-length ast)
+        max (max-length ast)]
+    (if (and (< max ##Inf)
+             (= min max))
+      min)))
+
 ;; Traversal
 ;; ---------
 
