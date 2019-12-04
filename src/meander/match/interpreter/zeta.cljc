@@ -174,6 +174,29 @@
         (interpret pattern-ast left-part smap)))
      (m.util/partitions 2 form))))
 
+(defmethod interpret :tail
+  [ast form smap]
+  (let [pattern-ast (get ast :pattern)
+        next-ast (get ast :next)]
+    (if-some [next-length (m.syntax/finite-stable-length next-ast)]
+      (case next-length
+        0
+        (interpret pattern-ast form smap)
+
+        ;; else
+        (let [next-form (take-last next-length form)]
+          (mapcat
+           (fn [smap]
+             (interpret next-ast next-form smap))
+           (interpret pattern-ast (drop-last next-length form) smap))))
+      (mapcat
+       (fn [[left-part right-part]]
+         (mapcat
+          (fn [smap]
+            (interpret next-ast right-part smap))
+          (interpret pattern-ast left-part smap)))
+       (m.util/partitions 2 form)))))
+
 (defmethod interpret :vector
   [ast form smap]
   (if (vector? form)
