@@ -15,8 +15,7 @@
   (and (map? x) (contains? x :tag)))
 
 (defn tag [ast]
-  {;;:pre [(ast? ast)]
-   :post (keyword? %)}
+  {:post (keyword? %)}
   (get ast :tag))
 
 ;; AST interfaces
