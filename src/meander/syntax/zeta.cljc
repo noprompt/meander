@@ -1,6 +1,5 @@
 (ns meander.syntax.zeta
-  (:require [meander.util.zeta :as m.util]
-            [meander.db.zeta :as db])
+  (:require [meander.util.zeta :as m.util])
   #?(:cljs (:require-macros [meander.syntax.zeta])))
 
 #?(:clj
