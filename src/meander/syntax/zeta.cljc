@@ -289,6 +289,24 @@
 (defmethod children :star [ast]
   [(get ast :pattern)])
 
+
+;; :tail
+;; -----
+
+(defmethod min-length :tail
+  [ast]
+  (min-length (get ast :next)))
+
+(defmethod max-length :tail
+  [ast] ##Inf)
+
+(defmethod branch? :tail
+  [ast] true)
+
+(defmethod children :tail [ast]
+  [(get ast :pattern)
+   (get ast :next)])
+
 ;; :vector
 ;; -------
 
