@@ -165,7 +165,7 @@ But just to see how Meander allows us to build our own extensions let's look at 
 
 Here we use `defsyntax` to essentially build our own macros for Meander.
 
-To learn more check out the [Extending Meander]() article.
+To learn more check out the [Syntax Extensions](doc/defsyntax.md) article.
 
 ### Gaining Control
 
