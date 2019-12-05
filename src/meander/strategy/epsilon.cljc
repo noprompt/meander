@@ -335,14 +335,17 @@
 
 (defmacro iseq-all-body
   [t s]
-  `(reduce
-    (fn [t*# x#]
-      (let [x*# (~s x#)]
-        (if (fail? x*#)
-          (reduced *fail*)
-          (concat t*# (list x*#)))))
-    ()
-    ~t))
+  `(let [res# (reduce
+                (fn [t*# x#]
+                  (let [x*# (~s x#)]
+                    (if (fail? x*#)
+                      (reduced *fail*)
+                      (concat t*# (list x*#)))))
+                ()
+                ~t)]
+     (if (fail? res#)
+       res#
+       (vary-meta res# (fn [new-meta#] (merge (meta ~t) new-meta#))))))
 
 
 (defmacro ivector-all-body
@@ -354,7 +357,7 @@
         (if (fail? x*#)
           (reduced *fail*)
           (conj t*# x*#))))
-    []
+    (empty ~t)
     ~t))
 
 
@@ -370,7 +373,7 @@
             (if (fail? v*#)
               *fail*
               (assoc t*# k*# v*#))))))
-    {}
+    (empty ~t)
     ~t))
 
 
@@ -398,7 +401,7 @@
         (if (fail? x*#)
           (reduced *fail*)
           (conj t*# x*#))))
-    #{}
+    (empty ~t)
     ~t))
 
 

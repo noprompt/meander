@@ -194,10 +194,18 @@
   "inc-number strategy utilizing the all combinator."
   (r*/all inc-number))
 
+(comment (inc-number-all [1 2 3]))
+
+(defn- all-metadata-preserved?
+  [x]
+  (= (meta x) (meta (inc-number-all x))))
+
 (t/deftest all-seq-test
   (t/testing "all with seq? like objects"
     (t/is (= '()
              (inc-number-all '())))
+    (t/is (all-metadata-preserved? ^:a ()))
+    (t/is (all-metadata-preserved? (with-meta '(1) {:a true})))
     (t/is (r*/fail? (inc-number-all '(a))))
     (t/is (r*/fail? (inc-number-all '(1 a))))
     (t/is (r*/fail? (inc-number-all '(a b 1))))
@@ -210,6 +218,8 @@
   (t/testing "all with vector? like objects"
     (t/is (= []
              (inc-number-all [])))
+    (t/is (all-metadata-preserved? ^:a []))
+    (t/is (all-metadata-preserved? ^:a [1]))
     (t/is (r*/fail? (inc-number-all '[a])))
     (t/is (r*/fail? (inc-number-all '[1 a])))
     (t/is (r*/fail? (inc-number-all '[a b 1])))
@@ -222,6 +232,8 @@
   (t/testing "all with set? like objects"
     (t/is (= #{}
              (inc-number-all #{})))
+    (t/is (all-metadata-preserved? ^:a #{}))
+    (t/is (all-metadata-preserved? ^:a #{1}))
     (t/is (r*/fail? (inc-number-all '#{a})))
     (t/is (r*/fail? (inc-number-all '#{1 a})))
     (t/is (r*/fail? (inc-number-all '#{a b 1})))
@@ -234,6 +246,8 @@
   (t/testing "all with map? like objects"
     (t/is (= {}
              (inc-number-all {})))
+    (t/is (all-metadata-preserved? ^:a {}))
+    (t/is (all-metadata-preserved? (doto ^:a {1 2} ((comp prn meta)))))
     (t/is (r*/fail? (inc-number-all {:a :a})))
     (t/is (r*/fail? (inc-number-all {:a 1 :b 2})))
     (t/is (= {1 2 11 12}
@@ -241,6 +255,8 @@
 
 (t/deftest all-record-test
   (t/testing "all with record? like objects"
+    (t/is (= (meta (with-meta (MyRecord. 1) {:a true}))
+             (meta ((r*/all identity) (with-meta (MyRecord. 1) {:a true})))))
     (t/is (= MyRecord (type ((r*/all identity) (MyRecord. 1)))))))
 
 (t/deftest retain-test
