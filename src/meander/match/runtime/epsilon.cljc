@@ -29,7 +29,7 @@
   (let [result
         (reduce (fn [acc xs]
                   (let [acc (body-f acc [xs])]
-                    (if (fail? rets)
+                    (if (fail? acc)
                       (reduced FAIL)
                       acc)))
                 rets
