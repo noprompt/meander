@@ -7,7 +7,6 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
-            [clojure.set :as set]
             [meander.match.check.epsilon :as r.match.check]
             [meander.match.ir.epsilon :as r.ir]
             [meander.matrix.epsilon :as r.matrix]
