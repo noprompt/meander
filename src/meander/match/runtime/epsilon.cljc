@@ -2,6 +2,7 @@
   "Functions used by the pattern matcher at runtime."
   (:require [meander.util.epsilon :as r.util]
             [clojure.walk :as walk]
+            [clojure.set :as set]
             [clojure.zip :as zip]))
 
 (def permutations r.util/permutations)
