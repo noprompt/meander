@@ -107,8 +107,8 @@
   [pattern]
   (clj/let [node (r.subst.syntax/parse pattern &env)
             x (r.subst/compile node &env)]
-    (if (identical? r.subst/CATA_NOT_BOUND x)
-      (throw (ex-info "cata is not allowed in subst; use `rewrite` or `rewrites`"
+    (if (= ::CATA_NOT_BOUND x)
+      (throw (ex-info "cata is not allowed in subst; use `rewrite`"
                       {:pattern pattern}))
       x)))
 
@@ -139,8 +139,14 @@
   {:style/indent :defn}
   [x & clauses]
   (clj/let [y (r.rewrite/compile-rewrites-args (list* x clauses) &env)]
-    (if (instance? Exception y)
+    (cond
+      (instance? Exception y)
       (throw y)
+
+      (= ::r.rewrite/CATA_NOT_IMPLEMENTED y)
+      (throw (ex-info "cata is not implemented for rewrites" {}))
+
+      :else
       y)))
 
 (s/fdef rewrites

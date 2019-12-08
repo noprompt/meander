@@ -1,6 +1,12 @@
 (ns ^:no-doc meander.substitute.runtime.epsilon
   (:refer-clojure :exclude [iterator-seq]))
 
+(def FAIL
+  (ex-info "" {}))
+
+(defmacro fail? [x]
+  `(identical? ~x FAIL))
+
 (defn iterator [coll]
   #?(:clj (clojure.lang.RT/iter coll)
      :cljs (iter coll)))

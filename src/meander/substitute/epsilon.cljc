@@ -21,6 +21,11 @@
   (distinct
    (r.match/search node
      (meander.syntax.epsilon/$
+      {:tag ::r.subst.syntax/cata
+       :argument (meander.syntax.epsilon/$ {:tag :mvr :as ?mvr-node})})
+     ?mvr-node
+
+     (meander.syntax.epsilon/$
       {:tag (r.match.syntax/or :rp* :rp+ :rpl :rpm)
        :cat (meander.syntax.epsilon/$ {:tag :mvr :as ?mvr-node})})
      ?mvr-node
@@ -145,8 +150,12 @@
   (r.match/match node
     {:argument ?argument :as ?node}
     (if-some [cata-symbol (get env :cata-symbol)]
-      (let [[argument env] (compile* ?argument env)]
-        [`(~cata-symbol ~argument) env])
+      (let [[argument env] (compile* ?argument env)
+            form `(let [CATA_RESULT# (~cata-symbol ~argument)]
+                    (if (r.match.runtime/fail? CATA_RESULT#)
+                      (throw r.subst.runtime/FAIL)
+                      (nth CATA_RESULT# 0)))]
+        [form env])
       (let [env (update env :data conj {:error :cata-not-bound})]
         [`(throw (ex-info "cata not bound" {})) env]))))
 
@@ -647,31 +656,36 @@
                     :iterator/symbol (r.match.syntax/pred some? ?iterator-symbol)}}}
           [?iterator-symbol `(r.subst.runtime/iterator ~?memory-variable-symbol)])))
 
-(def CATA_NOT_BOUND
-  "Special value returned by `compile` indicating that the cata
-  operator was used illegally."
-  (reify))
-
 (defn compile [node env]
   (let [node (r.subst.syntax/expand-ast node)
         env (merge env (make-env node))
         [form env] (compile* node env)]
     (r.match/find env
       {:data #{{:error :cata-not-bound}}}
-      CATA_NOT_BOUND
+      ::CATA_NOT_BOUND
 
       _
       (let [form* (rewrite-clojure form)
-            iter-bindings (iter-bindings env)]
-        (if (seq iter-bindings)
-          `(let ~iter-bindings ~form*)
-          form*)))))
+            iter-bindings (iter-bindings env)
+            form* (if (seq iter-bindings)
+                    `(let ~iter-bindings ~form*)
+                    form*)
+            form* (if (and (not (get env :match-cata?))
+                           (get env :subst-cata?))
+                    `(try
+                       [~form*]
+                       (catch Exception e#
+                         (if (r.subst.runtime/fail? e#)
+                           r.match.runtime/FAIL
+                           (throw e#))))
+                    form*)]
+        form*))))
 
 (defmacro substitute
   [pattern]
   (let [node (r.subst.syntax/parse pattern &env)
         x (compile node &env)]
-    (if (identical? CATA_NOT_BOUND node)
+    (if (= ::CATA_NOT_BOUND x)
       (throw (ex-info "cata not allowed here" {:pattern pattern}))
       x)))
 
