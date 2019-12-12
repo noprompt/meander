@@ -664,6 +664,37 @@
      &form)))
 
 (defsyntax gather
+  "Pattern matching operator that works in a similar manner to
+   clojure.core/filter.
+
+  `gather` allows you to match a pattern over a seqable, ignoring any
+  values that don't match.
+
+
+      (match [1 2 3 4]
+        (gather (m/pred even? !xs))
+        !xs)
+        ;; =>
+        [2 4]
+
+  `gather` also offers a two arity version that can be supplied a
+  logic variable, memory variable, _ pattern, number, or an ellipsis
+  that allows control over the repeat behavior of gather.
+
+      (match [:a :b :a :a :c]
+        (gather :a ?count)
+        ?count)
+        ;; =>
+        3
+
+      (match [:a :b :a :a :c]
+        (gather :a ..4)
+         true
+
+         _
+         false)
+         ;; =>
+         false"
   ([pattern]
    (case (::r.syntax/phase &env)
      :meander/match
