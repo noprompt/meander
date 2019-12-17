@@ -1274,6 +1274,24 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
+(defn solved-set?
+  {:private true}
+  [set-node env]
+  (every? (fn [element] (solved?* element env))
+          (get set-node :elements)))
+
+(defn set-compilation-strategy
+  {:private true}
+  [set-node env]
+  (cond
+    (solved-set? set-node env)
+    :solved
+
+    (r.syntax/search? set-node)
+    :search
+
+    :else
+    :find))
 
 (defmethod compile-specialized-matrix :set
   [_ [target & targets*] matrix]
@@ -1285,53 +1303,37 @@
          (compile-pass targets* [row])
 
          :set
-         (cond
-           (r.syntax/search? node)
-           (let [elements (:elements node)
-                 n (count elements)
-                 ;; Symbol for each permutation of target.
-                 perm-sym (gensym* "perm__")
-                 targets** `[~perm-sym ~@targets*]
-                 matrix* (if (= n 1)
-                           [(assoc row :cols `[~(first elements) ~@(:cols row)])]
-                           [(assoc row :cols `[~{:tag :cat
-                                                 :elements (vec elements)}
-                                               ~@(:cols row)])])
-                 search-space (if (= n 1)
-                                `(seq ~target)
-                                `(r.match.runtime/k-combinations ~target ~n))]
-             (r.ir/op-check-set (r.ir/op-eval target)
-               (r.ir/op-check-bounds (r.ir/op-eval target) n :set
-                 (if (negating?)
-                   (r.ir/op-find perm-sym (r.ir/op-eval search-space)
-                     (compile targets** matrix*))
-                   (r.ir/op-search perm-sym (r.ir/op-eval search-space)
-                     (compile targets** matrix*))))))
+         (let [strategy (set-compilation-strategy node (get row :env))]
+           (case strategy
+             :solved
+             (let [check `(set/subset? ~(compile-ground node) ~target)]
+               (r.ir/op-check-set (r.ir/op-eval target)
+                 (r.ir/op-check-boolean (r.ir/op-eval check)
+                   (compile targets* [row]))))
 
-           (some (comp #{:map :set} r.syntax/tag)
-                 (r.syntax/proper-subnodes node))
-           (let [elements (:elements node)
-                 n (count elements)
-                 ;; Symbol for each permutation of target.
-                 perm-sym (gensym* "perm__")
-                 targets** `[~perm-sym ~@targets*]
-                 matrix* (if (= n 1)
-                           [(assoc row :cols `[~(first elements) ~@(:cols row)])]
-                           [(assoc row :cols `[~{:tag :cat
-                                                 :elements (vec elements)}
-                                               ~@(:cols row)])])
-                 search-space (if (= n 1)
-                                `(seq ~target)
-                                `(r.match.runtime/k-combinations ~target ~n))]
-             (r.ir/op-check-set (r.ir/op-eval target)
-               (r.ir/op-check-bounds (r.ir/op-eval target) n :set
-                 (r.ir/op-find perm-sym (r.ir/op-eval search-space)
-                   (compile targets** matrix*)))))
-
-           :else
-           (r.ir/op-check-set (r.ir/op-eval target)
-             (r.ir/op-check-boolean (r.ir/op-eval `(set/subset? ~(compile-ground node) ~target))
-               (compile targets* [row]))))))
+             (:find :search)
+             (let [elements (:elements node)
+                   n (count elements)
+                   ;; Symbol for each element of the search-space
+                   ;; (defined below).
+                   elem-sym (gensym* "elem__")
+                   targets** `[~elem-sym ~@targets*]
+                   matrix* (if (= n 1)
+                             [(assoc row :cols `[~(first elements) ~@(:cols row)])]
+                             [(assoc row :cols `[~{:tag :cat
+                                                   :elements (vec elements)}
+                                                 ~@(:cols row)])])
+                   search-space (if (= n 1)
+                                  `(seq ~target)
+                                  `(r.match.runtime/k-combinations ~target ~n))]
+               (r.ir/op-check-set (r.ir/op-eval target)
+                 (r.ir/op-check-bounds (r.ir/op-eval target) n :set
+                   (if (or (negating?)
+                           (= strategy :find))
+                     (r.ir/op-find elem-sym (r.ir/op-eval search-space)
+                       (compile targets** matrix*))
+                     (r.ir/op-search elem-sym (r.ir/op-eval search-space)
+                       (compile targets** matrix*))))))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
