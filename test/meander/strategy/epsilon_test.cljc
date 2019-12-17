@@ -247,7 +247,7 @@
     (t/is (= {}
              (inc-number-all {})))
     (t/is (all-metadata-preserved? ^:a {}))
-    (t/is (all-metadata-preserved? (doto ^:a {1 2} ((comp prn meta)))))
+    (t/is (all-metadata-preserved? (doto ^:a {1 2} ((comp (constantly nil) meta)))))
     (t/is (r*/fail? (inc-number-all {:a :a})))
     (t/is (r*/fail? (inc-number-all {:a 1 :b 2})))
     (t/is (= {1 2 11 12}
