@@ -7,13 +7,7 @@
             [clojure.test.check.properties :as tc.prop :include-macros true]
             [meander.match.ir.epsilon :as r.ir]))
 
-(t/deftest op-return-test
-  (t/is (= 1
-           (r.ir/compile (r.ir/op-return 1) false :match)))
-  (t/is (= 1
-           (r.ir/compile (r.ir/op-return 1) false :find)))
-  (t/is (= `(list 1)
-           (r.ir/compile (r.ir/op-return 1) false :search))))
+
 
 (t/deftest op-bind-merge-test
   (let [a (r.ir/op-bind 'a 1 (r.ir/op-return 1))

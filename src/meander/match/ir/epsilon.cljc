@@ -1612,7 +1612,11 @@ compilation decisions."
 
 (defn compile
   ([ir fail kind]
-   (compile* (rewrite ir) fail kind))
+   (let [form (compile* (rewrite ir) `r.match.runtime/FAIL kind)]
+     `(let [ret# ~form]
+        (if (r.match.runtime/fail? ret#)
+          ~fail
+          ret#))))
   ([ir fail kind env]
    (binding [*env* env]
-     (compile* (rewrite ir) fail kind))))
+     (compile ir fail kind))))

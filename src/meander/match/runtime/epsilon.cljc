@@ -16,7 +16,15 @@
 (def FAIL
   "Special value signaling a match failure. Generated code will often
   utilize this value for control flow purposes."
-  (reify))
+  #?(:clj
+     (reify
+       clojure.lang.Seqable
+       (seq [_] nil))
+
+     :cljs
+     (reify
+       ISeqable
+       (-seq [_] nil))))
 
 (defn fail?
   "true if the `x` is the special runtime value `FAIL`, false
