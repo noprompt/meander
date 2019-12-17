@@ -167,7 +167,8 @@
         (r.syntax/set-node? node))
     false
 
-    (or (r.syntax/prt-node? node)
+    (or (r.syntax/cat-node? node)
+        (r.syntax/prt-node? node)
         (r.syntax/seq-node? node)
         (r.syntax/vec-node? node))
     (every? (fn [child-node]
