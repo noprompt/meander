@@ -1114,15 +1114,19 @@
 (t/deftest set-negation
   (t/is (= '(1 3)
            (r/search [#{1 2 3} #{[2 2]}]
+             [#{?x} #{(r/not [?x ?x])}]
+             ?x)))
+
+  (t/is (= '(1 3)
+           (r/search [#{1 2 3} #{[2 2]}]
              [#{?x} (r/not #{[?x ?x]})]
              ?x)))
 
   (let [x (r/find [#{1 2 3} #{[2 2]}]
-            [#{?x} (r/not #{[?x ?x]})]
+            [#{?x}  #{(r/not [?x ?x])}]
             ?x)]
     (t/is (or (= x 1)
               (= x 3)))))
-
 
 ;;; pred
 
@@ -1248,7 +1252,7 @@
 
 (defn make-array-list [& args]
   #?(:clj
-     (java.util.ArrayList. args)
+     (java.util.ArrayList. ^java.util.Collection args)
 
      :cljs
      (into-array args)))
@@ -1776,7 +1780,6 @@
                   ([_ ... & [?x & ?rest]] [_ ... & [?x & ?rest]])
                   [?x ?rest])))))
 
-
 ;; ---------------------------------------------------------------------
 ;; search
 
@@ -2078,21 +2081,21 @@
 
     (let [!k [1 2 3]
           !v [4 5 6]]
-      (t/is (= {1 4, 2 5, 3 6})
-            (r/subst (r/with [%m {!k !v & %m}]
-                       %m))))
+      (t/is (= {1 4, 2 5, 3 6}
+               (r/subst (r/with [%m {!k !v & %m}]
+                          %m)))))
 
     (let [!k [1 2]
           !v [4 5 6]]
-      (t/is (= {1 4, 2 5})
-            (r/subst (r/with [%m {!k !v & %m}]
-                       %m))))
+      (t/is (= {1 4, 2 5}
+               (r/subst (r/with [%m {!k !v & %m}]
+                          %m)))))
 
     (let [!k [1 2 3]
           !v [4]]
-      (t/is (= {1 4, 2 nil, 3 nil})
-            (r/subst (r/with [%m {!k !v & %m}]
-                       %m))))
+      (t/is (= {1 4, 2 nil, 3 nil}
+               (r/subst (r/with [%m {!k !v & %m}]
+                          %m)))))
 
     (let [?rest {:foo "bar" :baz "quux" :quux "ducks"}
           ?as {:foo "goo" :frob "knob"}]
