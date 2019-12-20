@@ -1446,13 +1446,12 @@
   (ground? (:body node)))
 
 (defmethod unparse :wth [node]
-  `(~'with [~@(mapcat
-               (juxt
-                (comp unparse :ref)
-                (comp unparse :pattern))
-               (:bindings node))]
-    ~@(when-some [body (:body node)]
-        [(unparse body)])))
+  `(with [~@(mapcat (juxt
+                     (comp unparse :ref)
+                     (comp unparse :pattern))
+                    (:bindings node))]
+     ~@(when-some [body (:body node)]
+         [(unparse body)])))
 
 (defmethod search? :wth [node]
   ;; Come back to to this.
