@@ -1873,6 +1873,20 @@
 
 
 (t/deftest scan-test
+  (t/testing "Given a match anything pattern"
+    (t/is (= '(1 2 3)
+             (r/search [1 2 3]
+                       (r/scan ?x)
+                       ?x))
+          "every element should be found by the scan"))
+
+  (t/testing "Given an :as clause in a match anything scan"
+    (t/is (= '(1 2 3)
+             (r/search [1 2 3]
+                       (r/scan ?x :as ?v)
+                       ?x))
+          "every element should be found by the scan"))
+
   (t/is (= '([:_1 "_1"] [:_2 "_2"] [:_3 "_3"] [:_4 "_4"])
            (r/search [{:_1 "_1"} {:_2 "_2", :_3 "_3"} {:_4 "_4"}]
              (r/scan {?k ?v})
