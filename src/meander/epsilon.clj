@@ -334,10 +334,9 @@
   [& patterns]
   (case (::r.syntax/phase &env)
     :meander/match
-    (clj/let [patternc (count patterns)
-              [as as-pattern] (drop (- patternc 2) patterns)
+    (clj/let [[as-pattern as & not-as] (reverse patterns)
               inner (if (= :as as)
-                      `(~@'(_ ...) ~@patterns ~@'(. _ ...) :as ~as-pattern)
+                      `(~@'(_ ...) ~@(reverse not-as) ~@'(. _ ...) :as ~as-pattern)
                       `(~@'(_ ...) ~@patterns ~@'(. _ ...)))]
       `(seqable ~@inner)
       ;; Using `or` like this can cause code explosions. Come back to this
