@@ -620,7 +620,8 @@ The `..n` postfix operator matches the _subsequence_ of patterns to its left (up
 
 ### Repeating With Variables
 
-In addition to repeating n or more times you can control or capture repeating using logic or memory variables. First let's look at logic variables.
+In addition to repeating n or more times you can control or capture repeating using logic or memory variables. 
+First let's look at logic variables.
 
 ```clj
 (m/match [1 2 3]
@@ -644,7 +645,8 @@ In addition to repeating n or more times you can control or capture repeating us
 ;; non exhaustive pattern match
 ```
 
-Instead of logic variables, we can capture multiple repeats with logic variables. For example:
+Instead of logic variables, we can capture multiple repeats with logic variables. 
+For example:
 
 
 ```clj
@@ -664,7 +666,7 @@ Instead of logic variables, we can capture multiple repeats with logic variables
   
 ;; => [:a [1 2 3 4 5]]
 
-;; We can fix this my capturing the number of times to repeat things.
+;; We can fix this by capturing the number of times to repeat things.
 
 (m/rewrite [:a [1 2 3] :b [4 5]]
   [!k [!x ..!n] ..!m]
@@ -677,7 +679,8 @@ Instead of logic variables, we can capture multiple repeats with logic variables
 
 ### Partition
 
-The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is used primarily to delimit the start of a variable length subsequence.
+The `.` operator, read as "partition", partitions the collection into two parts: left and right.
+This operator is used primarily to delimit the start of a variable length subsequence.
 It is important to note that both `...` and `..n` act as partition operators as well.
 
 ```clj
