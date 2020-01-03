@@ -6,7 +6,7 @@ object, substitution uses existing bindings to _construct_ an object.
 When used in conjunction with pattern matching it is an incredibly
 powerful tool for data transformation.  
 
-Since Meander's rewriting operators involve substitution it is
+Since Meander's rewriting macros involve substitution it is
 important to understand how substitution works.
 
 To get started with subsitution, require the `meander.epsilon`
@@ -16,8 +16,8 @@ namespace.
 (require '[meander.epsilon :as m])
 ```
 
-`meander.epsilon/subst` is the substitution operator. The `subst`
-operator has a simple signature taking one argument: a pattern. With a
+`meander.epsilon/subst` is the substitution macro. The `subst`
+macro has a simple signature taking one argument: a pattern. With a
 few exceptions, the syntax for `subst` patterns is the same as
 `match`, `find`, and `search` patterns.
 

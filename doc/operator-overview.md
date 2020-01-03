@@ -33,7 +33,7 @@
 
 ## Macros
 
-The primary operators for pattern matching and searching are available in `meander.epsilon`.
+The primary macros for pattern matching and searching are available in `meander.epsilon`.
 
 ```clj
 (require '[meander.epsilon :as m])
@@ -41,7 +41,7 @@ The primary operators for pattern matching and searching are available in `meand
 
 ### `match`
 
-The `match` operator provides traditional pattern matching.
+The `match` macro provides traditional pattern matching.
 It takes an expression to "match" followed by a series of pattern/action clauses.
 
 ```clj
@@ -81,7 +81,7 @@ Like `clojure.core/case`, if no patterns match an exception will be thrown.
 
 ### `search`
 
-The `search` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts.
+The `search` macro is an extended version of `match` which returns a sequence of all action values which satisfy their pattern counterparts.
 Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `search` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made.
 In essence, `search` allows you to _query_ arbitrary data.
 
@@ -97,7 +97,7 @@ In essence, `search` allows you to _query_ arbitrary data.
 
 ### `find`
 
-The `find` operator is similar to `search`, however, returns only the first search result.
+The `find` macro is similar to `search`, however, returns only the first search result.
 If it cannot be found, `find` returns `nil`.
 
 ```clj
