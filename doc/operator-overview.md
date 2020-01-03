@@ -118,7 +118,7 @@ The simplest patterns to express are literal patterns.
 Literal patterns are
 
 1. scalar data types such as numbers, strings, booleans, keywords;
-2. symbols that are not considered special by Meander such as variables;
+2. quoted or unquoted symbols that are not considered special by Meander, such as variables and operators;
 3. and lists and vectors composed of literals and do not contain maps, sets, or subsequence operators.
 
 Notice that maps and sets are not included in the above list, we'll come back to that in a moment.
