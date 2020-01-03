@@ -634,7 +634,7 @@ First let's look at logic variables.
   [?x . !xs ..?x]
   [?x !xs])
 ;; =>
-[:a [1] :b [2]]
+[2 [:one :two]]
 
 (m/match [2 :one :two :three]
   [?x . !xs ..?x]
