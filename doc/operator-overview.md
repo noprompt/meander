@@ -25,7 +25,9 @@
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
     * [N or More](#n-or-more)
+    * [Repeating with Variables](#repeating-with-variables)
     * [Partition](#partition)
+    * [Rest](#rest)
   * [Escaping](#escaping)
     * [Unquote](#unquote)
 
@@ -616,6 +618,63 @@ The `..n` postfix operator matches the _subsequence_ of patterns to its left (up
 [:okay [2 3]]
 ```
 
+### Repeating With Variables
+
+In addition to repeating n or more times you can control or capture repeating using logic or memory variables. First let's look at logic variables.
+
+```clj
+(m/match [1 2 3]
+  [!xs ..?x]
+  [!xs ?x])
+;; =>
+[[1 2 3] 3]
+
+(m/match [2 :one :two]
+  [?x . !xs ..?x]
+  [?x !xs])
+;; =>
+[:a [1] :b [2]]
+
+(m/match [2 :one :two :three]
+  [?x . !xs ..?x]
+  [?x !xs])
+  
+;; Doesn't match because there are 3 elements, not two.
+;; =>
+;; non exhaustive pattern match
+```
+
+Instead of logic variables, we can capture multiple repeats with logic variables. For example:
+
+
+```clj
+(m/match [[1 2 3] [4 5]]
+  [[!xs ..!n] [!ys ..!n]]
+  [!xs !ys !n])
+;; =>
+[[1 2 3] [4 5] [3 2]]
+
+;; We can use this to help us with nested groups.
+;; By default meander might have some unexpected behavior when capturing
+;; nested things in memory variables.
+
+(m/rewrite [:a [1 2 3] :b [4 5]]
+  [!k [!x ...] ...]
+  [!k [!x ...] ...])
+  
+;; => [:a [1 2 3 4 5]]
+
+;; We can fix this my capturing the number of times to repeat things.
+
+(m/rewrite [:a [1 2 3] :b [4 5]]
+  [!k [!x ..!n] ..!m]
+  [!k [!x ..!n] ..!m])
+
+;; => 
+
+[:a [1 2 3] :b [4 5]]
+```
+
 ### Partition
 
 The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is used primarily to delimit the start of a variable length subsequence.
@@ -650,6 +709,39 @@ The pattern
 ```
 
 says find every subsequence in the vector being matched after _any_ occurrence of a `3`.
+
+### Rest
+
+We can use the `&` operator on the lhs side of a match to match of the rest of some sequence.
+
+```clj
+(m/match [1 2 3]
+  [1 & ?xs]
+  ?xs)
+
+;; =>
+
+[2 3]
+
+(m/match {:a 1 :b 2}
+  {:a 1 & ?rest}
+  ?rest)
+
+;; =>
+{:b 2}
+```
+
+We can also use `&` with substitution to help us build up maps.
+
+```clj
+(m/rewrite [:a 1 :b 2]
+  [!xs ...]
+  {& [[!xs ..2] ...]})
+  
+;; =>
+
+{:a 1 :b 2}
+```
 
 ## Escaping
 
