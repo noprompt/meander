@@ -624,21 +624,21 @@ In addition to repeating n or more times you can control or capture repeating us
 First let's look at logic variables.
 
 ```clj
-(m/match [1 2 3]
-  [!xs ..?x]
-  [!xs ?x])
+(m/match [:a :b :c]
+  [!xs ..?n]
+  [!xs ?n])
 ;; =>
-[[1 2 3] 3]
+[[:a :b :c] 3]
 
 (m/match [2 :one :two]
-  [?x . !xs ..?x]
-  [?x !xs])
+  [?n . !xs ..?n]
+  [?n !xs])
 ;; =>
 [2 [:one :two]]
 
 (m/match [2 :one :two :three]
-  [?x . !xs ..?x]
-  [?x !xs])
+  [?n . !xs ..?n]
+  [?n !xs])
   
 ;; Doesn't match because there are 3 elements, not two.
 ;; =>
