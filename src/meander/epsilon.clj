@@ -230,7 +230,7 @@
         (reverse (partition 2 binding-patterns)))
 
        _
-       (throw (ex-info "The second argument to let must be a vector with an number or elements"
+       (throw (ex-info "The second argument to let must be a vector with an even number of elements"
                        {:form &form
                         :meta (meta &form)})))
      ;; else
@@ -247,7 +247,7 @@
         (reverse (partition 2 binding-patterns)))
 
        _
-       (throw (ex-info "The second argument to let must be a vector with an number or elements"
+       (throw (ex-info "The second argument to let must be a vector with an even number of elements"
                        {:form &form
                         :meta (meta &form)})))
 

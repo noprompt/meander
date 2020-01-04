@@ -25,13 +25,15 @@
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
     * [N or More](#n-or-more)
+    * [Repeating with Variables](#repeating-with-variables)
     * [Partition](#partition)
+    * [Rest](#rest)
   * [Escaping](#escaping)
     * [Unquote](#unquote)
 
 ## Macros
 
-The primary operators for pattern matching and searching are available in `meander.epsilon`.
+The primary macros for pattern matching and searching are available in `meander.epsilon`.
 
 ```clj
 (require '[meander.epsilon :as m])
@@ -39,7 +41,7 @@ The primary operators for pattern matching and searching are available in `meand
 
 ### `match`
 
-The `match` operator provides traditional pattern matching.
+The `match` macro provides traditional pattern matching.
 It takes an expression to "match" followed by a series of pattern/action clauses.
 
 ```clj
@@ -79,7 +81,7 @@ Like `clojure.core/case`, if no patterns match an exception will be thrown.
 
 ### `search`
 
-The `search` operator is an extended version `match` which returns a sequence of all action values which satisfy their pattern counterparts.
+The `search` macro is an extended version of `match` which returns a sequence of all action values which satisfy their pattern counterparts.
 Map patterns with variable keys, set patterns with variable subpatterns, or two side-by-side zero or more subsequence patterns, are all examples of patterns which may have multiple matches for a given value. `search` will find all such matches and, unlike `match`, will not throw when a pattern match could not be made.
 In essence, `search` allows you to _query_ arbitrary data.
 
@@ -95,7 +97,7 @@ In essence, `search` allows you to _query_ arbitrary data.
 
 ### `find`
 
-The `find` operator is similar to `search`, however, returns only the first search result.
+The `find` macro is similar to `search`, however, returns only the first search result.
 If it cannot be found, `find` returns `nil`.
 
 ```clj
@@ -116,7 +118,7 @@ The simplest patterns to express are literal patterns.
 Literal patterns are
 
 1. scalar data types such as numbers, strings, booleans, keywords;
-2. symbols that are not considered special by Meander such as variables;
+2. quoted or unquoted symbols that are not considered special by Meander, such as variables and operators;
 3. and lists and vectors composed of literals and do not contain maps, sets, or subsequence operators.
 
 Notice that maps and sets are not included in the above list, we'll come back to that in a moment.
@@ -616,9 +618,69 @@ The `..n` postfix operator matches the _subsequence_ of patterns to its left (up
 [:okay [2 3]]
 ```
 
+### Repeating With Variables
+
+In addition to repeating n or more times you can control or capture repeating using logic or memory variables. 
+First let's look at logic variables.
+
+```clj
+(m/match [:a :b :c]
+  [!xs ..?n]
+  [!xs ?n])
+;; =>
+[[:a :b :c] 3]
+
+(m/match [2 :one :two]
+  [?n . !xs ..?n]
+  [?n !xs])
+;; =>
+[2 [:one :two]]
+
+(m/match [2 :one :two :three]
+  [?n . !xs ..?n]
+  [?n !xs])
+  
+;; Doesn't match because there are 3 elements, not two.
+;; =>
+;; non exhaustive pattern match
+```
+
+Instead of logic variables, we can capture multiple repeats with logic variables. 
+For example:
+
+
+```clj
+(m/match [[1 2 3] [4 5]]
+  [[!xs ..!n] [!ys ..!n]]
+  [!xs !ys !n])
+;; =>
+[[1 2 3] [4 5] [3 2]]
+
+;; We can use this to help us with nested groups.
+;; By default meander might have some unexpected behavior when capturing
+;; nested things in memory variables.
+
+(m/rewrite [:a [1 2 3] :b [4 5]]
+  [!k [!x ...] ...]
+  [!k [!x ...] ...])
+  
+;; => [:a [1 2 3 4 5]]
+
+;; We can fix this by capturing the number of times to repeat things.
+
+(m/rewrite [:a [1 2 3] :b [4 5]]
+  [!k [!x ..!n] ..!m]
+  [!k [!x ..!n] ..!m])
+
+;; => 
+
+[:a [1 2 3] :b [4 5]]
+```
+
 ### Partition
 
-The `.` operator, read as "partition", partitions the collection into two parts: left and right. This operator is used primarily to delimit the start of a variable length subsequence.
+The `.` operator, read as "partition", partitions the collection into two parts: left and right.
+This operator is used primarily to delimit the start of a variable length subsequence.
 It is important to note that both `...` and `..n` act as partition operators as well.
 
 ```clj
@@ -650,6 +712,39 @@ The pattern
 ```
 
 says find every subsequence in the vector being matched after _any_ occurrence of a `3`.
+
+### Rest
+
+We can use the `&` operator on the lhs side of a match to match of the rest of some sequence.
+
+```clj
+(m/match [1 2 3]
+  [1 & ?xs]
+  ?xs)
+
+;; =>
+
+[2 3]
+
+(m/match {:a 1 :b 2}
+  {:a 1 & ?rest}
+  ?rest)
+
+;; =>
+{:b 2}
+```
+
+We can also use `&` with substitution to help us build up maps.
+
+```clj
+(m/rewrite [:a 1 :b 2]
+  [!xs ...]
+  {& [[!xs ..2] ...]})
+  
+;; =>
+
+{:a 1 :b 2}
+```
 
 ## Escaping
 
