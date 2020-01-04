@@ -528,6 +528,15 @@
          [?namespace ?name])
        ;; => [\"foo\" \"bar\"]
 
+
+   Additionally, the symbol itself can be pattern matched against
+   the `:as` keyword argument.
+
+       (match 'foo/bar
+         (symbol _ _ :as ?symbol)
+         ?symbol)
+       ;; => 'foo/bar
+
    When used as a substutition operator it will create a symbol with
    `name` and, optionally, `namespace` e.g. it behaves the same as
    `clojure.core/symbol` in the context of normal substitution
@@ -540,7 +549,12 @@
        (let [!namespaces [\"foo\" \"foo\"]
              !names [\"bar\" \"baz\"]]
          (subst [(symbol !namespaces !names) ...]))
-       ;; => ['foo/bar 'foo/baz]"
+       ;; => ['foo/bar 'foo/baz]
+
+   For substitution the `:as` keyword argument is ignored."
+  {:arglists '([name]
+               [namespaces name]
+               [namespace name & {:keys [as]}])}
   ([name]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -562,6 +576,18 @@
      `(app clj/symbol ~namespace ~name)
 
      ;; else
+     &form))
+  ([namespace name & rest]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     (clj/let [keyword-args (into {} (map vec) (partition-all 2 rest))
+               as (get keyword-args :as)]
+       `(and (meander.epsilon/symbol ~namespace ~name) ~as))
+
+     :meander/substitute
+     (symbol namespace name)
+
+     ;; else
      &form)))
 
 (defsyntax keyword
@@ -580,6 +606,14 @@
          [?namespace ?name])
        ;; => [\"foo\" \"bar\"]
 
+   Additionally, the keyword itself can be pattern matched against
+   the `:as` keyword argument.
+
+       (match :foo/bar
+         (keyword _ _ :as ?keyword)
+         ?keyword)
+       ;; => :foo/bar
+
    When used as a substutition operator it will create a keyword with
    `name` and, optionally, `namespace` e.g. it behaves the same as
    `clojure.core/keyword` in the context of normal substitution
@@ -592,7 +626,12 @@
        (let [!namespaces [\"foo\" \"foo\"]
              !names [\"bar\" \"baz\"]]
          (subst [(keyword !namespaces !names) ...]))
-       ;; => [:foo/bar :foo/baz]"
+       ;; => [:foo/bar :foo/baz]
+
+   For substitution the `:as` keyword argument is ignored."
+  {:arglists '([name]
+               [namespaces name]
+               [namespace name & {:keys [as]}])}
   ([name]
    (case (::r.syntax/phase &env)
      :meander/match
@@ -612,6 +651,18 @@
 
      :meander/substitute
      `(app clj/keyword ~namespace ~name)
+
+     ;; else
+     &form))
+  ([namespace name & rest]
+   (case (::r.syntax/phase &env)
+     :meander/match
+     (clj/let [keyword-args (into {} (map vec) (partition-all 2 rest))
+               as (get keyword-args :as)]
+       `(and (keyword ~namespace ~name) ~as))
+
+     :meander/substitute
+     (keyword namespace name)
 
      ;; else
      &form)))

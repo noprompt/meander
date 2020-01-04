@@ -2300,3 +2300,80 @@
            (r/search nil
              (r/not (r/some _))
              :ok))))
+
+(t/deftest keyword-test
+  (t/is (r/match :foo
+          (r/keyword "foo")
+          true
+          _
+          false))
+
+  (t/is (r/match :foo/bar
+          (r/keyword "foo" _)
+          true
+          _
+          false))
+
+  (t/is (r/match :foo/bar
+          (r/keyword _ "bar")
+          true
+          _
+          false))
+
+  (t/is (r/match :foo/bar
+          (r/keyword "foo" "bar")
+          true
+          _
+          false))
+
+  (t/is (= :foo/bar
+           (r/match :foo/bar
+             (r/keyword _ _ :as ?keyword)
+             ?keyword
+
+             _
+             false)))
+
+  (t/is (= :foo (r/subst (r/keyword "foo"))))
+  (t/is (= :foo (r/subst (r/keyword nil "foo"))))
+  (t/is (= :foo/bar (r/subst (r/keyword "foo" "bar"))))
+  (t/is (= :foo/bar (r/subst (r/keyword "foo" "bar" :as :ignored)))))
+
+(t/deftest symbol-test
+  (t/is (r/match 'foo
+          (r/symbol "foo")
+          true
+
+          _
+          false))
+
+  (t/is (r/match 'foo/bar
+          (r/symbol "foo" _)
+          true
+          _
+          false))
+
+  (t/is (r/match 'foo/bar
+          (r/symbol _ "bar")
+          true
+          _
+          false))
+
+  (t/is (r/match 'foo/bar
+          (r/symbol "foo" "bar")
+          true
+          _
+          false))
+
+  (t/is (= 'foo/bar
+           (r/match 'foo/bar
+             (r/symbol _ _ :as ?symbol)
+             ?symbol
+
+             _
+             false)))
+
+  (t/is (= 'foo (r/subst (r/symbol "foo"))))
+  (t/is (= 'foo (r/subst (r/symbol nil "foo"))))
+  (t/is (= 'foo/bar (r/subst (r/symbol "foo" "bar"))))
+  (t/is (= 'foo/bar (r/subst (r/symbol "foo" "bar" :as 'ignored)))))
