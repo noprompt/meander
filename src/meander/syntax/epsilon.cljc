@@ -1843,21 +1843,6 @@
    (last nodes)
    (reverse (butlast nodes))))
 
-(defn window [node]
-  (s/assert :meander.syntax.epsilon.node/partition node)
-  (let [p-nodes (partition-nodes node)]
-    (if (<= 3 (count p-nodes))
-      (let [[a b c] p-nodes]
-        (if (and (= (:tag a) :drp)
-                 (= (:tag b) :cat)
-                 (= (:tag c) :drp))
-          (let [rest-p-nodes (drop 2 p-nodes)]
-            (if (and (= (count rest-p-nodes) 2)
-                     (= (:tag (nth rest-p-nodes 0)) :drp)
-                     (and (= (:tag (nth rest-p-nodes 1)) :cat)
-                          (= (max-length (nth rest-p-nodes 1)) 0)))
-              [b nil]
-              [b (partition-from-nodes rest-p-nodes)])))))))
 
 (defn lit-form
   [node]

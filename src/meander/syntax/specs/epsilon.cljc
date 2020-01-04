@@ -339,9 +339,6 @@
 (s/fdef meander.syntax.epsilon/partition-nodes
   :args (s/cat :node :meander.syntax.epsilon.node/partition))
 
-(s/fdef meander.syntax.epsilon/window
-  :args (s/cat :node :meander.syntax.epsilon.node/partition))
-
 (s/fdef meander.syntax.epsilon/tag
   :args (s/cat :node :meander.syntax.epsilon/node))
 
