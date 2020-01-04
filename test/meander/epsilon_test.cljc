@@ -1908,26 +1908,13 @@
 
 
 (t/deftest separated-test
-  ;; Note [1 2 4 5] appears twice in the result set, this is not a
-  ;; bug but a product of how the search space is computed and
-  ;; searched.
-  ;;
-  ;;    [[ 1  2] [ 3  4  5]]  ;; 1
-  ;;      ?a ?b   ?c ?d
-  ;;                 ?c ?d    ;; 2
-  ;;    [[ 1  2  3] [ 4  5]]
-  ;;      ?a ?b      ?c ?d    ;; 3
-  ;;         ?a ?b   ?c ?d    ;; 4
-  ;;    [[1 2 3 4] [5]]       ;; Nothing for ?c ?d
-  ;;    [[ 1 2 3 4 5] []]     ;; Nothing for ?c ?d
-  (t/is (= '([1 2 3 4] [1 2 4 5] [1 2 4 5] [2 3 4 5])
+  (t/is (= '([1 2 3 4] [1 2 4 5] [2 3 4 5])
            (r/search (list 1 2 3 4 5)
              (_ ... ?a ?b . _ ... ?c ?d . _ ...)
              [?a ?b ?c ?d])
            (r/search [1 2 3 4 5]
              [_ ... ?a ?b . _ ... ?c ?d . _ ...]
              [?a ?b ?c ?d]))))
-
 
 ;; ---------------------------------------------------------------------
 ;; find
