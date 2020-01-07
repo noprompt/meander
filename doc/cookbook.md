@@ -1,4 +1,4 @@
-Please add your own tips and tricks! You can suggest edits directly through the Github UI.
+Please add your own tips and tricks! You can edit this file from Github by clicking then pencil icon in the top right of the file view.
 
 ## Reuse subpatterns in other patterns
 
@@ -54,3 +54,20 @@ Use a library like `hickory` to parse the HTML into data structures, then you ca
   ?department)
 ```
 
+## Recursion, reduction, and aggregation
+
+Patterns can call themselves with the `m/cata` operator.
+This is like recursion.
+You can leverage self recursion to accumulate a result.
+
+```clojure
+(m/rewrite [() '(1 2 3)] ;; Initial state
+  ;; Intermediate step with recursion
+  [?current (?head & ?tail)]
+  (m/cata [(?head & ?current) ?tail])
+
+  ;; Done
+  [?current ()]
+  ?current)
+;; => (3 2 1)
+```
