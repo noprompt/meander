@@ -193,13 +193,12 @@ Here we use the attempt strategy, which just says if the match fails, then retur
 And the bottom up strategies which applies our match to the most deep value, and replaces values that match all the way up the tree.
 To learn more checkout how to apply meander [strategies](doc/strategies.md)
 
-## Going Further
+## Documentation
 
-To explore Meander further checkout all of our [documentation](https://cljdoc.org/d/meander/epsilon/), or visit the [#meander room](https://app.slack.com/client/T03RZGPFR/CFFTD7R6Z) on Slack.
-You can also checkout things made by the community.
-Below we have a list of blogs posts and talks about Meander as well as libraries that are using or build on to Meander.
-If you have any questions don't hesitate to ask them in slack or file an issue.
-We are happy to help.
+* [Concepts and API documentation](https://cljdoc.org/d/meander/epsilon/) covers the concepts, operators and primitives of Meander.
+* [Cookbook](doc/cookbook.md) has commonly encountered situations and solution snippets. Contributions welcome.
+* [Examples](examples/) contains larger examples.
+* [Tests](test/meander) are a good way to see the detailed behaviors of primitives.
 
 ### Blog Posts
 
@@ -210,6 +209,11 @@ We are happy to help.
 ### Talks
 
 * [Strangeloop 2019](https://www.youtube.com/watch?v=9fhnJpCgtUw)
+
+## Community
+
+If you have any questions don't hesitate to ask them in [Clojurians Slack #meander](https://app.slack.com/client/T03RZGPFR/CFFTD7R6Z) or file an issue for this project in Github.
+We are happy to help.
 
 ## Project Status
 
