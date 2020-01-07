@@ -1,4 +1,4 @@
-(ns meander.rewrite.epsilon
+(ns ^:no-doc meander.rewrite.epsilon
   (:require
    [meander.match.epsilon :as m.match]
    [meander.match.syntax.epsilon :as m.match.syntax]
