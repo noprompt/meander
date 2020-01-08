@@ -295,6 +295,9 @@
      (string? coll)
      (str-partitions n coll)
 
+     (nil? coll)
+     ()
+
      :else
      (throw (ex-info "coll must be a string? or coll?" {:type (type coll)}))))
   ([n m coll]
@@ -307,6 +310,9 @@
 
      (string? coll)
      (str-partitions n coll)
+
+     (nil? coll)
+     ()
 
      :else
      (throw (ex-info "coll must be a string? or coll?" {:type (type coll)})))))

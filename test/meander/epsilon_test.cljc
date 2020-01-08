@@ -1901,8 +1901,12 @@
              [?x ?y ?z])
            (r/search '([1 2] 3 [4 5] 6)
              (r/scan [?x ?y] ?z)
-             [?x ?y ?z]))))
+             [?x ?y ?z])))
 
+  (t/is (= ()
+           (r/search []
+             (r/scan ?x)
+             ?x))))
 
 ;;; separated
 
