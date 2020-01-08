@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {}
+ :deps {org.clojure/clojurescript {:mvn/version "1.10.439"}}
  :aliases {:dev {:extra-deps {fipp/fipp {:mvn/version "0.6.21"}
                               org.clojure/clojure {:mvn/version "1.10.0"}
                               org.clojure/clojurescript {:mvn/version "1.10.439"}
@@ -19,4 +19,7 @@
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
                        :main-opts ["-m" "cljs-test-runner.main"]}
            :make-defproject {:extra-paths ["bin"]
+                             :extra-deps {org.clojure/clojure {:mvn/version "1.10.0"}
+                                          org.clojure/clojurescript {:mvn/version "1.10.439"}
+                                          org.clojure/test.check {:mvn/version "0.10.0-alpha3"}}
                              :main-opts ["-m" "make-defproject"]}}}

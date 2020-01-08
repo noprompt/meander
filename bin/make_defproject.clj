@@ -46,19 +46,25 @@
           ?project-version (format "0.0.%s" ?branch-commit-count)
           deps-edn (read-string (slurp "deps.edn"))]
       ((m*/pipe
+        (m*/tuple (m*/match
+                    {:paths ?paths}
+                    ?paths)
+                  (m*/search
+                    {:deps {?dep {:mvn/version ?version}}}
+                    [?dep ?version]))
         (m*/rewrite
-         {:paths ?paths}
+         [?paths ?deps]
          (defproject ?project-name ?project-version
            :description "A library that enables transparent data manipulation through pattern matching, substitution, and rewriting."
            :url "https://github.com/noprompt/meander"
            :license {:name "MIT"
                      :url "https://opensource.org/licenses/MIT"}
-           :paths ?paths))
+           :paths ?paths
+           :dependencies ?deps))
         (fn [project-file]
           (spit "project.clj" project-file)))
        deps-edn)
       (System/exit 0))))
-
 
 (comment
   (-main)
