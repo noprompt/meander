@@ -71,3 +71,13 @@ You can leverage self recursion to accumulate a result.
   ?current)
 ;; => (3 2 1)
 ```
+
+## Use the same value from a memory variable twice
+
+When you have a match pattern that contains a memory varible `!n` and a substitution pattern where you want to make use of the variable in multiple ways, you can't do that directly because `[!n !n]` would take 2 different values out of `!n` instead of the same value twice. However, you can easily create two names for the same value in the search pattern with `(m/and !n !n2)` which will match a single value, but create 2 memory variables.
+
+```clojure
+(m/rewrite [[:a 1] [:b 2] [:c 3]]
+           [[!k (m/and !n !n2)] ...]
+           [[!k !n (m/app str !n2)] ...])
+```
