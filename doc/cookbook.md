@@ -19,6 +19,17 @@ Please add your own tips and tricks! You can edit this file from Github by click
 ;;=> 3
 ```
 
+## Self referential patterns
+
+```clojure
+(m/match
+ {:pair [2 [3 [4 5]]]}
+ (m/with [%pair [!as (m/or %pair !bs)]]
+   {:pair %pair})
+ [!as !bs])
+=> [[2 3 4] [5]]
+```
+
 ## Tokenize a sequence
 
 You can use `..!n` as a subsequence grouping facility, and `with` to define a recursive pattern.
