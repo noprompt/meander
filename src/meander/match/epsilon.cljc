@@ -1396,49 +1396,55 @@
          (compile-pass targets* [row])
 
          :wth
-         (if-some [body (:body node)]
-           (let [ref-map (r.syntax/make-ref-map node)
-                 refs* (merge (:refs row) ref-map)
-                 ref-spec-map (make-ref-spec-map refs*)
-                 ref-spec-map* (merge (:ref-specs row) ref-spec-map)
-                 bound-mvrs (r.matrix/bound-mvrs row)
-                 unbound-mvrs (into #{}
-                                    (mapcat
-                                     (fn [[_ node]]
-                                       (set/difference
-                                        (r.syntax/memory-variables
-                                         (r.syntax/substitute-refs node refs*))
-                                        bound-mvrs)))
-                                    ref-map)
-                 row* (assoc row :refs refs* :ref-specs ref-spec-map*)
-                 row* (r.matrix/add-vars row* unbound-mvrs)
-                 matrix* (r.matrix/prepend-column [row*] [body])]
-             ;; Initialize memory variables to prevent an explosion of
-             ;; data brought on by potentially differing memory
-             ;; variable sets in each pattern.
-             (reduce
-              (fn [dt node]
-                (r.ir/op-mvr-init (:symbol node)
-                  dt))
-              ;; Compile nodes for all possible defs.
-              (reduce
-               (fn [dt spec-map]
-                 (let [target-arg (gensym* "arg__")
-                       ret-syms (mapv :symbol (:rets spec-map))]
-                   {:op :def
-                    :symbol (:symbol spec-map)
-                    :target-arg target-arg
-                    :req-syms (mapv :symbol (:reqs spec-map))
-                    :ret-syms ret-syms
-                    :body (binding [*negating* false]
-                            (compile [target-arg]
-                                     [(assoc (r.matrix/add-vars row* (:reqs spec-map))
-                                             :cols [(:node spec-map)]
-                                             :rhs (r.ir/op-return ret-syms))]))
-                    :then dt}))
-               (compile targets matrix*)
-               (mapcat identity (vals ref-spec-map)))
-              unbound-mvrs))
+         (if-some [body (get node :body)]
+           (let [refs-in-use (r.syntax/refs-in-use node)]
+             (if (seq refs-in-use)
+               (let [ref-map (select-keys (r.syntax/make-ref-map node) refs-in-use)
+                     refs* (merge (:refs row) ref-map)
+                     ref-spec-map (make-ref-spec-map refs*)
+                     ref-spec-map* (merge (:ref-specs row) ref-spec-map)
+                     bound-mvrs (r.matrix/bound-mvrs row)
+                     unbound-mvrs (into #{}
+                                        (mapcat
+                                         (fn [[_ node]]
+                                           (set/difference
+                                            (r.syntax/memory-variables
+                                             (r.syntax/substitute-refs node refs*))
+                                            bound-mvrs)))
+                                        ref-map)
+                     row* (assoc row :refs refs* :ref-specs ref-spec-map*)
+                     row* (r.matrix/add-vars row* unbound-mvrs)
+                     matrix* (r.matrix/prepend-column [row*] [body])]
+                 ;; Initialize memory variables to prevent an explosion of
+                 ;; data brought on by potentially differing memory
+                 ;; variable sets in each pattern.
+                 (reduce
+                  (fn [dt node]
+                    (r.ir/op-mvr-init (:symbol node)
+                      dt))
+                  ;; Compile nodes for all possible defs.
+                  (reduce
+                   (fn [dt spec-map]
+                     (let [target-arg (gensym* "arg__")
+                           ret-syms (mapv :symbol (:rets spec-map))]
+                       {:op :def
+                        :symbol (:symbol spec-map)
+                        :target-arg target-arg
+                        :req-syms (mapv :symbol (:reqs spec-map))
+                        :ret-syms ret-syms
+                        :body (binding [*negating* false]
+                                (compile [target-arg]
+                                         [(assoc (r.matrix/add-vars row* (:reqs spec-map))
+                                                 :cols [(:node spec-map)]
+                                                 :rhs (r.ir/op-return ret-syms))]))
+                        :then dt}))
+                   (compile targets matrix*)
+                   (mapcat identity (vals ref-spec-map)))
+                  unbound-mvrs))
+               ;; There are no refs defined by the with that in use in
+               ;; the body; compile the body.
+               (compile targets [(r.matrix/prepend-cells row [body])])))
+           ;; There is no :body node, pass.
            (compile-pass targets* [row]))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
