@@ -404,3 +404,29 @@
                      (map first))
                colls)
      (lazy-seq (knit (keep next colls))))))
+
+(defn expand-symbol
+  [sym env]
+  #?(:clj (if-some [cljs-ns (:ns env)]
+            ;; ClojureScript compile-time
+            (if (qualified-symbol? sym)
+              (let [ns-sym (symbol (namespace sym))]
+                (if-some [ns (get (:requires cljs-ns) ns-sym)]
+                  (symbol (name ns) (name sym))
+                  sym))
+              (symbol (name (:name cljs-ns)) (name sym)))
+            ;; Clojure
+            (if (qualified-symbol? sym)
+              (let [ns-sym (symbol (namespace sym))]
+                (if-some [ns (get (ns-aliases *ns*) ns-sym)]
+                  (symbol (name (ns-name ns)) (name sym))
+                  sym))
+              (symbol (name (ns-name *ns*)) (name sym))))
+     :cljs (if-some [cljs-ns (:ns env)]
+             (if (qualified-symbol? sym)
+               (let [ns-sym (symbol (namespace sym))]
+                 (if-some [ns (get (:requires cljs-ns) ns-sym)]
+                   (symbol (name ns) (name sym))
+                   sym))
+               (symbol (name (:name cljs-ns)) (name sym)))
+             sym)))

@@ -915,9 +915,11 @@ compilation decisions."
   (when (= (:fn-expr node) coercing-function)
         (add-type-to-env env (:symbol node) resulting-type)))
 
+
 (defn infer-type-seq
   {:private true}
   [env node form]
+
   (cond
     ;; If it is quoted then a seq can't be a function call so it is a seq
     (and (r.util/quoted? form)
@@ -930,9 +932,7 @@ compilation decisions."
 
     ;; if it is a list, it is a seq
     (and (seq? form)
-         (or (not (symbol? (first form)))
-             (= (first form) 'list))
-         (not (seq? (first form))))
+         (= (r.util/expand-symbol (first form) *env*) 'clojure.core/list))
     (add-type-to-env env (:symbol node) SeqInterface)
 
     ;; otherwise just check the type

@@ -2381,3 +2381,14 @@
   (t/is (= 'foo (r/subst (r/symbol nil "foo"))))
   (t/is (= 'foo/bar (r/subst (r/symbol "foo" "bar"))))
   (t/is (= 'foo/bar (r/subst (r/symbol "foo" "bar" :as 'ignored)))))
+
+
+(t/deftest keyword-seq-correct
+  (t/is
+   (let [x {:foo {:test 2}}]
+     (r/match (:foo x)
+       {:as _}
+       true
+
+       _
+       false))))

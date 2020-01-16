@@ -282,33 +282,6 @@
 
 ;;; Syntax expansion
 
-(defn expand-symbol
-  {:private true}
-  [sym env]
-  #?(:clj (if-some [cljs-ns (:ns env)]
-            ;; ClojureScript compile-time
-            (if (qualified-symbol? sym)
-              (let [ns-sym (symbol (namespace sym))]
-                (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                  (symbol (name ns) (name sym))
-                  sym))
-              (symbol (name (:name cljs-ns)) (name sym)))
-            ;; Clojure
-            (if (qualified-symbol? sym)
-              (let [ns-sym (symbol (namespace sym))]
-                (if-some [ns (get (ns-aliases *ns*) ns-sym)]
-                  (symbol (name (ns-name ns)) (name sym))
-                  sym))
-              (symbol (name (ns-name *ns*)) (name sym))))
-     :cljs (if-some [cljs-ns (:ns env)]
-             (if (qualified-symbol? sym)
-               (let [ns-sym (symbol (namespace sym))]
-                 (if-some [ns (get (:requires cljs-ns) ns-sym)]
-                   (symbol (name ns) (name sym))
-                   sym))
-               (symbol (name (:name cljs-ns)) (name sym)))
-             sym)))
-
 (defn expander-registry
   "Return the `::expander-registry` of the environment `env` or `nil`
   if it cannot be found."
@@ -321,7 +294,7 @@
   "Return the `::expander` associated with `sym` with respect to the
   environment `env`."
   [sym env]
-  (let [x (get (expander-registry env) (expand-symbol sym env))]
+  (let [x (get (expander-registry env) (r.util/expand-symbol sym env))]
     (if (fn? x)
       x)))
 
@@ -353,7 +326,7 @@
   "Return the `::parser` associated with `sym` with respect to the
   environment `env`."
   [sym env]
-  (let [x (get (parser-registry env) (expand-symbol sym env))
+  (let [x (get (parser-registry env) (r.util/expand-symbol sym env))
         x (if (var? x)
             (deref x)
             x)]
@@ -474,7 +447,7 @@
     (if (seq? xs)
       (let [x (first xs)]
         (if (symbol? x)
-          (expand-symbol x env)
+          (r.util/expand-symbol x env)
           ::default))
       ::default)))
 
