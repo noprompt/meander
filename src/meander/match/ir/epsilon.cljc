@@ -942,17 +942,11 @@ compilation decisions."
 
     :else nil))
 
-(defn add-type-if-star [env node]
-  (add-type-to-env env (:form (:input node)) (kind-types (:kind node)))
-  (add-type-to-env env (:input-symbol node) (kind-types (:kind node))))
 
 (defn infer-collection-type
   {:private true}
   [env node]
   (case (op node)
-    :star
-    (do (add-type-if-star env node)
-        node)
 
     :apply
     (do
