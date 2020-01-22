@@ -74,8 +74,6 @@
                                   (distinct)
                                   (map r.util/case-test-form))
                             a)
-
-
                 ;; If we have other arguments, then we should try the
                 ;; rest of our disjuncts if the case-tests fail. If
                 ;; there are no arguments, we should continue matching
