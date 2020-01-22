@@ -349,9 +349,9 @@
   size, improve compiled code efficiency, or both."
   [node]
   (r.syntax/consolidate-with
-   (expand-ast-bottom-up
-    (expand-ast-top-down
-     (r.syntax/rename-refs node)))))
+   (r.syntax/rename-refs
+    (expand-ast-bottom-up
+     (expand-ast-top-down node)))))
 
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis
