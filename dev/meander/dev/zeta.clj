@@ -285,10 +285,6 @@
   {:tag :literal
    :form ?x})
 
-(let [root {:tag :root :next (parse '[1 2 3])}]
-  (match-compile
-   [(list [root 'target]) {}]))
-
 (me/defsyntax $inc [x]
   `(me/app inc ~x))
 
@@ -590,3 +586,5 @@
 
 ;; (report (into [] (repeat 10 1)) [!xs ...] {'!xs !xs})
 ;; (report (into [] (repeat 10 1)) [?x . ?x ...] {'?x ?x})
+;; (let [root {:tag :root :next (parse '[1 2 3])}]
+;;   (match-compile [(list [root 'target]) {}]))
