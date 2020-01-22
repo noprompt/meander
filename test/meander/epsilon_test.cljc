@@ -2392,3 +2392,15 @@
 
        _
        false))))
+
+(t/deftest ir-def-test
+  ;; No test here. Just verifying this compiles.
+  (fn [x]
+    (r/match x
+      (r/or {:type "save-snapshot"
+             :arg {:description (r/or (r/pred string?) nil)}}
+            {:type "suggest-snapshot"})
+      true
+
+      _
+      false)))
