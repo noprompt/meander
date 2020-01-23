@@ -22,12 +22,11 @@ Please add your own tips and tricks! You can edit this file from Github by click
 ## Self referential patterns
 
 ```clojure
-(m/match
- {:pair [2 [3 [4 5]]]}
+(m/match {:pair [2 [3 [4 5]]]}
  (m/with [%pair [!as (m/or %pair !bs)]]
    {:pair %pair})
  [!as !bs])
-=> [[2 3 4] [5]]
+;; => [[2 3 4] [5]]
 ```
 
 ## Tokenize a sequence
@@ -35,21 +34,21 @@ Please add your own tips and tricks! You can edit this file from Github by click
 You can use `..!n` as a subsequence grouping facility, and `with` to define a recursive pattern.
 
 ```clojure
-(m/rewrite
-  [1 2 3 0 4 5 6 0 7 8 0 9]
+(m/rewrite [1 2 3 0 4 5 6 0 7 8 0 9]
   (m/with [%split (m/or [!xs ..!n 0 & %split]
                         [!xs ..!n])]
     %split)
   [[!xs ..!n] ...])
+;; => [[1 2 3] [4 5 6] [7 8] [9]]
 ```
 
 ## Get all keys and values from a map
 
 ```clojure
-(m/match
-  {1 2 3 4 5 6}
+(m/match {1 2 3 4 5 6}
   {& (m/seqable [!ks !vs] ...)}
   [!ks !vs])
+;; => [[1 3 5] [2 4 6]]
 ```
 
 ## Webscrape HTML
@@ -88,8 +87,8 @@ You can leverage self recursion to accumulate a result.
 When you have a match pattern that contains a memory varible `!n` and a substitution pattern where you want to make use of the variable in multiple ways, you can't do that directly because `[!n !n]` would take 2 different values out of `!n` instead of the same value twice. However, you can easily create two names for the same value in the search pattern with `(m/and !n !n2)` which will match a single value, but create 2 memory variables.
 
 ```clojure
-(m/rewrite
-  [[:a 1] [:b 2] [:c 3]]
-  [[!k (m/and !n !n2)] ...]
-  [[!k !n (m/app str !n2)] ...])
+(me/rewrite [[:a 1] [:b 2] [:c 3]]
+  [[!k (me/and !n !n2)] ...]
+  [[!k !n (me/app str !n2)] ...])
+;; => [[:a 1 "1"] [:b 2 "2"] [:c 3 "3"]]
 ```
