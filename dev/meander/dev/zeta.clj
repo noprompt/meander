@@ -90,10 +90,9 @@
   (me/cata [`parse-seq ?rest])
 
   [`parse-seq [!xs ... '. & ?rest]]
-  (me/cata
-   [`flatten-join {:tag :join
-                   :left (me/cata [`parse-seq [!xs ...]])
-                   :right (me/cata [`parse-seq ?rest])}])
+  (me/cata [`join-args {:tag :join
+                        :left (me/cata [`parse-seq [!xs ...]])
+                        :right (me/cata [`parse-seq ?rest])}])
 
   ;; [,,, ... ?pattern]
   ;; ----------------
@@ -102,21 +101,20 @@
   (me/cata [`parse-seq ?rest])
 
   [`parse-seq [!xs ... '... & ?rest]]
-  (me/cata
-   [`star-args
-    (me/cata [`parse-seq [!xs ...]])
-    (me/cata [`parse-seq ?rest])])
+  (me/cata [`star-args
+            (me/cata [`parse-seq [!xs ...]])
+            (me/cata [`parse-seq ?rest])])
 
   [`star-args
    {:tag :cat
     :sequence [{:tag :memory-variable :as ?memory-variable}]
     :next {:tag :empty}}
    ?next]
-  (me/cata
-   [`flatten-join {:tag :join
-                   :left {:tag :into
-                          :memory-variable ?memory-variable}
-                   :right ?next}])
+  (me/cata [`join-args {:tag :join
+                        :left {:tag :into
+                               :memory-variable ?memory-variable}
+                        :right ?next}])
+
 
   [`star-args ?pattern ?next]
   {:tag :star
@@ -131,28 +129,23 @@
    :sequence [(me/cata !xs) ...]
    :next {:tag :empty}}
 
-  ;; [`parse-seq [?x & ?rest]]
-  ;; {:tag :cons
-  ;;  :head (me/cata ?x)
-  ;;  :tail (me/cata [`parse-seq ?rest])}
-
-  [`flatten-join {:tag :join
-                  :left {:tag :cat
-                         :sequence ?sequence
-                         :next {:tag :empty}}
-                  :right ?right
-                  :form ?form}]
+  [`join-args {:tag :join
+               :left {:tag :cat
+                      :sequence ?sequence
+                      :next {:tag :empty}}
+               :right ?right
+               :form ?form}]
   {:tag :cat
    :sequence ?sequence
    :next ?right}
 
-  [`flatten-join {:tag :join
-                  :left ?left
-                  :right {:tag :empty}
-                  :form ?form}]
+  [`join-args {:tag :join
+               :left ?left
+               :right {:tag :empty}
+               :form ?form}]
   ?left
 
-  [`flatten-join ?ast]
+  [`join-args ?ast]
   ?ast
 
   ;; {meander.zeta/:as ?pattern ,,,}
@@ -290,7 +283,6 @@
 
 (me/defsyntax $dec [x]
   `(me/app dec ~x))
-
 
 (defmodule match-compile
   [([{:tag :as, :pattern ?pattern, :next ?next} ?target] & ?rest) ?env]
@@ -459,6 +451,16 @@
   (let* [$state {}]
     (me/cata [([?next ?target] & ?rest) ?env]))
 
+  ;; :seq
+  ;; ----
+
+  [([{:tag :seq :next ?next} (& _ :as ?target) & ?rest]) ?env]
+  (me/cata [([?next ?target] & ?rest) ?env])
+
+  [([{:tag :seq, :next ?next} ?target] & ?rest) ?env]
+  (if (clojure.core/seq? ?target)
+    (me/cata [([?next ?target] & ?rest) ?env]))
+
   ;; :some-map
   ;; ---------
 
@@ -586,5 +588,6 @@
 
 ;; (report (into [] (repeat 10 1)) [!xs ...] {'!xs !xs})
 ;; (report (into [] (repeat 10 1)) [?x . ?x ...] {'?x ?x})
-;; (let [root {:tag :root :next (parse '[1 2 3])}]
+;; (let [root {:tag :root :next (parse '(1 2 3))}]
 ;;   (match-compile [(list [root 'target]) {}]))
+;; (solve '(1 2 3) (?x ?y ?z))
