@@ -645,7 +645,7 @@ First let's look at logic variables.
 ;; non exhaustive pattern match
 ```
 
-Instead of logic variables, we can capture multiple repeats with logic variables. 
+Instead of logic variables, we can capture multiple repeats with memory variables. 
 For example:
 
 
