@@ -15,3 +15,4 @@ pom.xml.asc
 .cpcache/
 cljs-test-runner-out/
 nashorn_code_cache/
+src/meander/compiled/

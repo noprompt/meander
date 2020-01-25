@@ -31,7 +31,7 @@
     (walk/postwalk
      (fn [x]
        (me/match x
-         (me/symbol nil (me/re :#"\$.+" ?name))
+         (me/symbol nil (me/re #"\$.+" ?name))
          (replace ?name)
 
          ?x ?x))
