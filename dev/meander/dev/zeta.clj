@@ -220,6 +220,15 @@
    :body (me/cata ?body)
    :form ?form}
 
+  ;; (meander.zeta/and _ _)
+  ;; ----------------------
+
+  (meander.zeta/and ?left ?right :as ?form)
+  {:tag :and
+   :left (me/cata ?left)
+   :right (me/cata ?right)
+   :form ?form}
+
   ;; Seq pattern
   ;; -----------
 
@@ -402,6 +411,12 @@
     (me/cata [?rest ?env])
     (`m.runtime/fail))
 
+  ;; :and
+  ;; ----
+
+  [([{:tag :and :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
+  (me/cata [([?left ?target] [?right ?target] & ?rest) ?env])
+
   ;; :logic-variable
   ;; ---------------
 
@@ -573,10 +588,20 @@
     `(let [~target ~expression]
        ~match-form)))
 
+(defn rewrite-operators [expr]
+  (walk/prewalk
+   (fn [x]
+     (me/rewrite x
+       (meander.zeta/and ?x ?y)
+       (meander.epsilon/and ?x ?y)
+       ?x ?x))
+   expr))
+
+
 (defmacro report [expr pattern action]
   (let [x (gensym)
         solve-form `(solve ~x ~pattern)
-        search-form `(me/search ~expr ~pattern ~action)]
+        search-form `(me/search ~(rewrite-operators expr) ~pattern ~action)]
     `(let [~x ~expr]
        {:pattern '~pattern
         :solve (with-out-str (time (dotimes [_# 1000] (doall ~solve-form))))
@@ -591,3 +616,8 @@
 ;; (let [root {:tag :root :next (parse '(1 2 3))}]
 ;;   (match-compile [(list [root 'target]) {}]))
 ;; (solve '(1 2 3) (?x ?y ?z))
+
+
+;; Bugs found:
+;; (solve [1 2] [!xs !xs])
+;; => ({:!xs [2 1]})
