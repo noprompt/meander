@@ -229,6 +229,16 @@
    :right (me/cata ?right)
    :form ?form}
 
+  ;; (meander.zeta/or _ _)
+  ;; ----------------------
+
+  (meander.zeta/or ?left ?right :as ?form)
+  {:tag :or
+   :left (me/cata ?left)
+   :right (me/cata ?right)
+   :form ?form}
+
+
   ;; Seq pattern
   ;; -----------
 
@@ -416,6 +426,14 @@
 
   [([{:tag :and :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
   (me/cata [([?left ?target] [?right ?target] & ?rest) ?env])
+
+  ;; :or
+  ;; ----
+
+  [([{:tag :or :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
+  (concat
+   (me/cata [([?right ?target] & ?rest) ?env])
+   (me/cata [([?left ?target] & ?rest) ?env]))
 
   ;; :logic-variable
   ;; ---------------
