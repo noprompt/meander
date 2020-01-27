@@ -199,3 +199,125 @@
   ITail
   (-tail [this]
     nil))
+
+;; ---------------------------------------------------------------------
+;; Generate
+
+(defprotocol IGenerate
+  (-generate [this env]))
+
+(deftype ConstantGenerator [value]
+  java.util.Iterator
+  (hasNext [this]
+    true)
+
+  (next [this]
+    value)
+
+  IGenerate
+  (-generate [this env]
+    [value env]))
+
+(deftype LogicVariableGenerator [symbol]
+  java.util.Iterator
+  (hasNext [this]
+    true)
+
+  (next [this]
+    this)
+
+  IGenerate
+  (-generate [this env]
+    (if-some [entry (find env symbol)]
+      [(val entry) env]
+      [this (assoc env symbol this)])))
+
+(defmethod print-method LogicVariableGenerator [g writer]
+  (print-method (.-symbol g) writer))
+
+(deftype MemoryVariableGenerator [symbol]
+  java.util.Iterator
+  (hasNext [this]
+    true)
+
+  (next [this]
+    this)
+
+  IGenerate
+  (-generate [this env]
+    (if-some [xs-entry (find env symbol)]
+      (let [xs (val xs-entry)
+            index (if-some [index-entry (find env [symbol :index])]
+                    (val index-entry)
+                    0)
+            x (nth xs index nil)
+            index* (inc index)
+            env* (assoc env [symbol :index] index*)]
+        [x env*])
+      [this (assoc env symbol this)])))
+
+(defmethod print-method MemoryVariableGenerator [g writer]
+  (print-method (.-symbol g) writer))
+
+(deftype VectorGenerator [generators]
+  java.util.Iterator
+  (hasNext [this]
+    true)
+
+  (next [this]
+    (reduce
+     (fn [xs generator]
+       ;; TODO Handle failure
+       (conj xs (.next generator)))
+     []
+     generators))
+
+  IGenerate
+  (-generate [this env]
+    (reduce
+     (fn [[xs env] generator]
+       ;; TODO Handle failure
+       (let [[x env*] (-generate generator env)]
+         [(conj xs x) env*]))
+     [[] env]
+     generators)))
+
+(deftype SeqGenerator [generators]
+  java.util.Iterator
+  (hasNext [this]
+    true)
+
+  (next [this]
+    (map
+     (fn [generator]
+       ;; TODO Handle failure
+       (.next generator))
+     generators))
+
+  IGenerate
+  (-generate [this env]
+    ;; TODO Handle failure
+    ((fn f [gens env]
+       (if (seq gens)
+         (lazy-seq
+          (let [gen (nth gens 0)
+                [x env*] (-generate gen env)
+                [xs env**] (f (next gens) env*)]
+            [(cons x xs) env**]))
+         [() env]))
+     generators env)))
+
+(defn logic-variable-generator [symbol]
+  (LogicVariableGenerator. symbol))
+
+(defn memory-variable-generator [symbol]
+  (MemoryVariableGenerator. symbol))
+
+(defn constant-generator [value]
+  (ConstantGenerator. value))
+
+(defn seq-generator [generators]
+  (SeqGenerator. generators))
+
+(defn vector-generator [generators]
+  (VectorGenerator. generators))
