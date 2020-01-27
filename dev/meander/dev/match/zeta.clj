@@ -1,5 +1,5 @@
 (ns meander.dev.match.zeta
-  (:require [meander.dev.kernel.zeta :as kernel]
+  (:require [meander.dev.kernel.zeta :as dev.kernel]
             [meander.epsilon :as me]
             [meander.runtime.zeta :as m.runtime]))
 
@@ -9,7 +9,7 @@
 (me/defsyntax $dec [x]
   `(me/app dec ~x))
 
-(kernel/defmodule match-compile
+(dev.kernel/defmodule match-compile
   [([{:tag :as, :pattern ?pattern, :next ?next} ?target] & ?rest) ?env]
   (me/cata [([?pattern ?target] [?next ?target] & ?rest) ?env])
 
