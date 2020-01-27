@@ -309,19 +309,15 @@
    (let* [?take-symbol (clojure.core/nth ?split-symbol 0)
           ?drop-symbol (clojure.core/nth ?split-symbol 1)]
      ;; Use `nths form (see below).
-     (me/cata [`nths [!asts ...] ?take-symbol ($dec ?n) [([?next ?drop-symbol] & ?rest) ?env]])))
+     (me/cata [`nths [!asts ...] ?take-symbol 0 ?n [([?next ?drop-symbol] & ?rest) ?env]])))
 
-  [`nths _ _ -1 ?state]
+  [`nths _ _ ?n ?n ?state]
   (me/cata ?state)
 
-  [`nths [!rest-asts ... ?ast] ?target ?n [?queue ?env]]
-  (me/cata [`nths [!rest-asts ...] ?target ($dec ?n) [([{:tag :nth, :index ?n, :pattern ?ast} ?target] & ?queue) ?env]])
-
-  (me/and [([{:tag :nth, :index ?index, :pattern ?pattern} ?target] . (me/or [{:tag :nth} ?target :as !nths] !not-nths) ...) ?env]
+  (me/and [`nths [?ast . !rest-asts ...] ?target ?m ?n [(!queue ...) ?env]]
           (me/let [?nth-symbol (gensym)]))
-  (let* [?nth-symbol (clojure.core/nth ?target ?index)]
-    (me/cata [(!nths ... [?pattern ?nth-symbol] . !not-nths ...) ?env]))
-
+  (let* [?nth-symbol (clojure.core/nth ?target ?m)]
+    (me/cata [`nths [!rest-asts ...] ?target ($inc ?m) ?n [(!queue ... [?ast ?nth-symbol]) ?env]]))
 
   ;; :cons
   ;; -----
