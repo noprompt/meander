@@ -52,7 +52,7 @@
      (if entry#
        (let* [y# (val entry#)]
          (if (= ~x y#)
-           ~smap
+           (succeed ~smap)
            (fail)))   
        (let* [~smap (assoc ~smap ~v ~x)]
          ~body-expression))))
