@@ -266,12 +266,8 @@
     true)
 
   (next [this]
-    (reduce
-     (fn [xs generator]
-       ;; TODO Handle failure
-       (conj xs (.next generator)))
-     []
-     generators))
+    (let [result (-generate this {})]
+      (nth result 0)))
 
   IGenerate
   (-generate [this env]
@@ -289,11 +285,8 @@
     true)
 
   (next [this]
-    (map
-     (fn [generator]
-       ;; TODO Handle failure
-       (.next generator))
-     generators))
+    (let [result (-generate this {})]
+      (nth result 0)))
 
   IGenerate
   (-generate [this env]
@@ -322,3 +315,122 @@
 
 (defn vector-generator [generators]
   (VectorGenerator. generators))
+
+(deftype CycleGenerator [generators ^:unsynchronized-mutable current-index]
+  java.util.Iterator
+  (hasNext [this]
+    true)
+
+  (next [this]
+    (if (< current-index (count generators))
+      (let [current (nth generators current-index)]
+        (set! current-index (inc current-index))
+        (.next current))
+      (let [current (nth generators 0)]
+        (set! current-index 1)
+        (.next current))))
+
+  IGenerate
+  (-generate [this env]
+    (if (< current-index (count generators))
+      (let [current (nth generators current-index)]
+        (set! current-index (inc current-index))
+        (-generate current env))
+      (let [current (nth generators 0)]
+        (set! current-index 1)
+        (-generate current env)))))
+
+(deftype MapGenerator [f generator]
+  java.util.Iterator
+  (hasNext [this]
+    (.hasNext generator))
+
+  (next [this]
+    (f (.next generator)))
+
+  IGenerate
+  (-generate [this env]
+    (let [result (-generate generator env)
+          x (nth result 0)]
+      (if (fail? x)
+        result
+        (let [env* (nth result 1)]
+          [(f x) env*])))))
+
+(defn cycle-generator [generators]
+  (if (seq generators)
+    (CycleGenerator. (vec generators) 0)
+    (reify
+      IGenerate
+      (-generate [this env]
+        [(fail) env]))))
+
+;; (let [step-size 2
+;;       step (double (/ 1 step-size))
+;;       g (cycle-generator (map constant-generator (range 0 2 step)))
+;;       f (MapGenerator. (fn [n]
+;;                          (Math/sin (* n Math/PI)))
+;;                        g)]
+;;   [(.next f)
+;;    (.next g)
+;;    (.next f)]
+;;   #_
+;;   [(.next g) (.next f) (.next g) ])
+
+;; (let [?x (logic-variable-generator '?x)
+;;       ?y (logic-variable-generator '?y)]
+;;   (-generate
+;;    (vector-generator [(<-generator ?x ?y) ?x ?y])
+;;    {}))
+
+;; [[false 577500676 262064960] {?x 577500676, ?y 262064960}]
+
+;; [(< !xs 1) !xs]
+
+;; (defn <-generator [a b]
+;;   (reify
+;;     IGenerate
+;;     (-generate [this env]
+;;       (let [a-result (-generate a env)
+;;             a (nth a-result 0)]
+;;         (if (fail? a)
+;;           a-result
+;;           (let [a-env (nth a-result 1)
+;;                 b-result (-generate b a-env)
+;;                 b (nth b-result 0)]
+;;             (if (fail? b-result)
+;;               b-result
+;;               (let [b-env (nth b-result 1)]
+;;                 (cond
+;;                   (and (number? a) (number? b))
+;;                   [(< a b) b-env]
+
+;;                   (and (instance? LogicVariableGenerator a)
+;;                        (number? b))
+;;                   (let [n (rand-int Integer/MAX_VALUE)]
+;;                     [(< n b) (assoc b-env (.-symbol a) n)])
+
+;;                   (and (instance? MemoryVariableGenerator a)
+;;                        (number? b))
+;;                   (let [n (rand-int Integer/MAX_VALUE)]
+;;                     [(< n b) (assoc b-env (.-symbol a) [n])])
+
+;;                   (and (instance? LogicVariableGenerator a)
+;;                        (instance? MemoryVariableGenerator b))
+;;                   (let [m (rand-int Integer/MAX_VALUE)
+;;                         n (rand-int Integer/MAX_VALUE)]
+;;                     [(< n b) (merge b-env {(.-symbol a) m, (.-symbol b) [n]})])
+
+;;                   (and (number? a)
+;;                        (instance? LogicVariableGenerator b))
+;;                   (let [n (rand-int Integer/MAX_VALUE)]
+;;                     [(< a n) (assoc b-env (.-symbol b) n)])
+
+;;                   (and (instance? LogicVariableGenerator a)
+;;                        (instance? LogicVariableGenerator b))
+;;                   (let [m (rand-int Integer/MAX_VALUE)
+;;                         n (rand-int Integer/MAX_VALUE)]
+;;                     [(< m n) (merge b-env {(.-symbol a) m, (.-symbol b) n})])
+
+;;                   :else
+;;                   [(fail) a-env])))))))))
