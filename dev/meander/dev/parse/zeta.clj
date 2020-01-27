@@ -1,8 +1,8 @@
 (ns meander.dev.parse.zeta
-  (:require [meander.dev.kernel.zeta :as kernel]
+  (:require [meander.dev.kernel.zeta :as dev.kernel]
             [meander.epsilon :as me]))
 
-(kernel/defmodule parse
+(dev.kernel/defmodule parse
   ;; Meta Rules
   ;; ----------
 
