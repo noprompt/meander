@@ -327,7 +327,7 @@
   [`nths [!rest-asts ... ?ast] ?target ?n [?queue ?env]]
   (me/cata [`nths [!rest-asts ...] ?target ($dec ?n) [([{:tag :nth, :index ?n, :pattern ?ast} ?target] & ?queue) ?env]])
 
-  (me/and [([{:tag :nth, :index ?index, :pattern ?pattern} ?target] . (me/or [{:tag :nth} ?target :as !nths] !not-nths) ...) ?env]
+  (me/and [([{:tag :nth, :index ?index, :pattern ?pattern} ?target] . [{:tag :nth} ?target :as !nths] ... .  !not-nths ...) ?env]
           (me/let [?nth-symbol (gensym)]))
   (let* [?nth-symbol (clojure.core/nth ?target ?index)]
     (me/cata [(!nths ... [?pattern ?nth-symbol] . !not-nths ...) ?env]))
@@ -635,7 +635,3 @@
 ;;   (match-compile [(list [root 'target]) {}]))
 ;; (solve '(1 2 3) (?x ?y ?z))
 
-
-;; Bugs found:
-;; (solve [1 2] [!xs !xs])
-;; => ({:!xs [2 1]})

@@ -69,7 +69,8 @@
      (if entry#
        (let* [value# (val entry#)
               value# (into value# ~x)
-              ~smap (assoc ~smap ~v value#)])  
+              ~smap (assoc ~smap ~v value#)]
+         ~smap)
        (let* [value# (vec ~x)
               ~smap (assoc ~smap ~v value#)]
          ~body-expression))))
