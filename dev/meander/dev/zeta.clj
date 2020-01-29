@@ -1,5 +1,6 @@
 (ns meander.dev.zeta
-  (:require [meander.epsilon :as me]
+  (:require [clojure.walk :as walk]
+            [meander.epsilon :as me]
             [meander.runtime.zeta :as m.runtime]
             [meander.dev.parse.zeta :as dev.parse]
             [meander.dev.match.zeta :as dev.match]))
