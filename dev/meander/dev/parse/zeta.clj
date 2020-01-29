@@ -20,6 +20,21 @@
   ;; [,,, meander.zeta/& ?pattern]
   ;; -----------------------------
 
+  [`parse-seq [(me/symbol "meander.zeta" (me/re #"&(\d+)" [_ ?n])) ?pattern]]
+  {:tag :slice
+   :size ~(Integer. ?n)
+   :pattern (me/cata ?pattern)}
+
+  [`parse-seq [!xs ... (me/symbol "meander.zeta" (me/re #"&(\d+)" [_ ?n])) ?pattern]]
+  {:tag :join
+   :left (me/cata [`parse-seq [!xs ...]])
+   :right {:tag :slice
+           :size ~(Integer. ?n)
+           :pattern (me/cata ?pattern)}}
+
+  ;; [,,, meander.zeta/& ?pattern]
+  ;; -----------------------------
+
   [`parse-seq [(me/symbol "meander.zeta" (me/re #"&.*")) ?pattern]]
   (me/cata ?pattern)
 

@@ -1,5 +1,6 @@
 (ns meander.dev.match.zeta
   (:require [meander.dev.kernel.zeta :as dev.kernel]
+            [meander.dev.parse.zeta :as dev.parse]
             [meander.epsilon :as me]
             [meander.runtime.zeta :as m.runtime]))
 
@@ -195,6 +196,14 @@
   [([{:tag :seq, :next ?next} ?target] & ?rest) ?env]
   (if (clojure.core/seq? ?target)
     (me/cata [([?next ?target] & ?rest) ?env]))
+
+  ;; :slice
+  ;; ------
+
+  (me/and [([{:tag :slice, :size ?size, :pattern ?pattern} ?target] & ?rest) ?env]
+          (me/let [?take-symbol (gensym)]))
+  (`m.runtime/bind [?take-symbol (`m.runtime/-take ?target ?size)]
+   (me/cata [([?pattern ?take-symbol] & ?rest) ?env]))
 
   ;; :some-map
   ;; ---------
