@@ -51,7 +51,7 @@
 
   [`parse-seq [(me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
-  (me/cata [`parse-seq [(me/symbol "meander.zeta" ?name) ?pattern] ?env])
+  (me/cata [?pattern ?env])
 
   [`parse-seq [!xs ... (me/symbol "meander.zeta" (me/re #"&.*")) ?pattern] ?env]
   {:tag :join
@@ -82,7 +82,8 @@
   [`parse-seq [!xs ... '... & ?rest] ?env]
   (me/cata [`star-args
             (me/cata [`parse-seq [!xs ...] ?env])
-            (me/cata [`parse-seq ?rest ?env])])
+            (me/cata [`parse-seq ?rest ?env])
+            ?env])
 
   [`star-args
    {:tag :cat
@@ -96,11 +97,27 @@
                         :right ?next}
             ?env])
 
-
   [`star-args ?pattern ?next ?env]
   {:tag :star
    :pattern ?pattern
    :next ?next}
+
+  ;; [,,, ..N ?pattern]
+  ;; -----------------
+
+  [`parse-seq
+   [(me/symbol nil (me/re #"\.\.(\d+)" [_ ?n]) :as ?operator) & ?rest]
+   ?env]
+  {:tag :syntax-error
+   :message "The n or more operator ..N must be preceeded by at least one pattern"}
+
+  [`parse-seq
+   [!xs ... (me/symbol nil (me/re #"\.\.(\d+)" [_ ?n]) :as ?operator) & ?rest]
+   ?env]
+  {:tag :plus
+   :n ~(Integer. ?n)
+   :pattern (me/cata [`parse-seq [!xs ...] ?env])
+   :next (me/cata [`parse-seq ?rest ?env])}
 
   ;; [,,,]
   ;; -----
@@ -279,4 +296,8 @@
 
   [?x _]
   {:tag :literal
-   :form ?x})
+   :form ?x}
+
+  ;; Probably not
+
+  ?x ?x)

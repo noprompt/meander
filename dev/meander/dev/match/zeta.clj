@@ -188,6 +188,39 @@
    (me/cata [([?right ?target] & ?rest) ?env])
    (me/cata [([?left ?target] & ?rest) ?env]))
 
+  ;; :plus
+  ;; -----
+
+  (me/and [([{:tag :plus, :n ?n, :pattern ?pattern, :next ?next} ?target]
+            & ?rest)
+           {:state-symbol ?state :as ?env}]
+          (me/let [?goal-symbol (gensym)
+                   ?partitions-symbol (gensym)
+                   ?partition-symbol (gensym)
+                   ?left-symbol (gensym)
+                   ?right-symbol (gensym)
+                   ?n-symbol (gensym)]))
+  (let* [?goal-symbol
+         (fn* ?goal-symbol
+              ([$input ?n-symbol ?state]
+               (let* [?partitions-symbol (`m.runtime/partitions $input)]
+                 (clojure.core/concat
+                  (clojure.core/mapcat
+                   (fn*
+                    ([?partition-symbol]
+                     (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
+                            ?right-symbol (clojure.core/nth ?partition-symbol 1)]
+                       (clojure.core/mapcat
+                        (fn*
+                         ([?state]
+                          (?goal-symbol ?right-symbol (clojure.core/dec ?n-symbol) ?state)))
+                        (me/cata [([?pattern ?left-symbol]) ?env])))))
+                   ?partitions-symbol)
+                  (if (<= ?n-symbol 0)
+                    (me/cata [([?next $input] & ?rest) ?env])
+                    (`m.runtime/fail))))))]
+    (?goal-symbol ?target ?n ?state))
+
 
   ;; :reference
   ;; ----------
@@ -196,7 +229,7 @@
    {:state-symbol ?state
     :as ?env}]
   (clojure.core/mapcat
-   (fn [?state] (me/cata [?rest ?env]))
+   (fn* ([?state] (me/cata [?rest ?env])))
    (?symbol ?target ?state))
 
   ;; :root
@@ -238,7 +271,8 @@
   (me/and [([{:tag :star
               :pattern {:tag :cat, :sequence [!xs ..?n]
                         :next {:tag :empty}}
-              :next {:tag :empty}} ?target] & ?rest) ?env]
+              :next {:tag :empty}} ?target] & ?rest)
+           {:state-symbol ?state :as ?env}]
           (me/let [(!nth-symbol ... :as ?nth-symbols) (repeatedly ?n gensym)
                    (!nth-symbol ...) ?nth-symbols
                    (!index ...) (range ?n)
@@ -247,23 +281,24 @@
                    ?goal-symbol (gensym)]))
   (let* [?goal-symbol
          (fn* ?goal-symbol
-              ([$input $state]
+              ([$input ?state]
                (if (clojure.core/seq $input)
                  (`m.runtime/bind [?take-symbol (`m.runtime/-take $input ?n)]
                   (let* [!nth-symbol (clojure.core/nth ?take-symbol !index) ..?n]
                     (`m.runtime/bind [?drop-symbol (`m.runtime/-drop $input ?n)]
                      (clojure.core/mapcat
-                      (fn [$state]
-                        (?goal-symbol ?drop-symbol $state))
+                      (fn [?state]
+                        (?goal-symbol ?drop-symbol ?state))
                       (me/cata [([!xs !nth-symbol] ..?n) ?env])))))
-                 (`m.runtime/succeed $state))))]
+                 (`m.runtime/succeed ?state))))]
     (clojure.core/mapcat
-     (fn [$state]
+     (fn [?state]
        (me/cata [?rest ?env]))
-     (?goal-symbol ?target $state)))
+     (?goal-symbol ?target ?state)))
 
 
-  (me/and [([{:tag :star :pattern ?pattern :next ?next} ?target] & ?rest) ?env]
+  (me/and [([{:tag :star :pattern ?pattern :next ?next} ?target] & ?rest)
+           {:state-symbol ?state :as ?env}]
           (me/let [?partitions-symbol (gensym "partitions__")
                    ?partition-symbol (gensym "partition__")
                    ?left-symbol (gensym "left__")
@@ -271,7 +306,7 @@
                    ?goal-symbol (gensym "goal__")]))
   (let* [?goal-symbol
          (fn* ?goal-symbol
-              ([$input $state]
+              ([$input ?state]
                (let* [?partitions-symbol (`m.runtime/partitions $input)]
                  (clojure.core/mapcat
                   (fn*
@@ -280,13 +315,13 @@
                            ?right-symbol (clojure.core/nth ?partition-symbol 1)]
                       (clojure.core/mapcat
                        (fn*
-                        ([$state]
+                        ([?state]
                          (`m.runtime/knit
-                          [(?goal-symbol ?right-symbol $state)
+                          [(?goal-symbol ?right-symbol ?state)
                            (me/cata [([?next ?right-symbol] & ?rest) ?env])])))
                        (me/cata [([?pattern ?left-symbol]) ?env])))))
                   ?partitions-symbol))))]
-    (?goal-symbol ?target $state))
+    (?goal-symbol ?target ?state))
 
   ;; :vector
   ;; -------
