@@ -11,6 +11,15 @@
   `(me/app dec ~x))
 
 (dev.kernel/defmodule match-compile
+  ;; :and
+  ;; ----
+
+  [([{:tag :and :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
+  (me/cata [([?left ?target] [?right ?target] & ?rest) ?env])
+
+  ;; :as
+  ;; ---
+
   [([{:tag :as, :pattern ?pattern, :next ?next} ?target] & ?rest) ?env]
   (me/cata [([?pattern ?target] [?next ?target] & ?rest) ?env])
 
@@ -127,20 +136,6 @@
     (me/cata [?rest ?env])
     (`m.runtime/fail))
 
-  ;; :and
-  ;; ----
-
-  [([{:tag :and :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
-  (me/cata [([?left ?target] [?right ?target] & ?rest) ?env])
-
-  ;; :or
-  ;; ----
-
-  [([{:tag :or :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
-  (`clojure.core/concat
-   (me/cata [([?right ?target] & ?rest) ?env])
-   (me/cata [([?left ?target] & ?rest) ?env]))
-
   ;; :logic-variable
   ;; ---------------
 
@@ -184,6 +179,15 @@
     :as ?env}]
   (let* [?state (`m.runtime/bind-memory-variable ?state ('quote ?symbol) ?target)]
     (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
+
+  ;; :or
+  ;; ----
+
+  [([{:tag :or :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
+  (`clojure.core/concat
+   (me/cata [([?right ?target] & ?rest) ?env])
+   (me/cata [([?left ?target] & ?rest) ?env]))
+
 
   ;; :reference
   ;; ----------
