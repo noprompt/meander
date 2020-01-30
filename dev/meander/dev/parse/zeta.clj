@@ -26,7 +26,8 @@
   [`parse-seq [(me/symbol "meander.zeta" (&digit _ ?n)) ?pattern] ?env]
   {:tag :slice
    :size ~(Integer. ?n)
-   :pattern (me/cata [?pattern ?env])}
+   :pattern (me/cata [?pattern ?env])
+   :next {:tag :empty}}
 
   [`parse-seq [(me/symbol ?ns (&digit ?& _)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
@@ -37,7 +38,8 @@
    :left (me/cata [`parse-seq [!xs ...] ?env])
    :right {:tag :slice
            :size ~(Integer. ?size)
-           :pattern (me/cata [?pattern ?env])}}
+           :pattern (me/cata [?pattern ?env])
+           :next {:tag :empty}}}
 
   [`parse-seq [!xs ... (me/symbol ?ns (&digit ?& _)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]

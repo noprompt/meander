@@ -254,10 +254,14 @@
   ;; :slice
   ;; ------
 
-  (me/and [([{:tag :slice, :size ?size, :pattern ?pattern} ?target] & ?rest) ?env]
-          (me/let [?take-symbol (gensym)]))
-  (`m.runtime/bind [?take-symbol (`m.runtime/-take ?target ?size)]
-   (me/cata [([?pattern ?take-symbol] & ?rest) ?env]))
+  (me/and [([{:tag :slice, :size ?size, :pattern ?pattern, :next ?next} ?target] & ?rest) ?env]
+          (me/let [?split-symbol (gensym)
+                   ?take-symbol (gensym)
+                   ?drop-symbol (gensym)]))
+  (`m.runtime/bind [?split-symbol (`m.runtime/-split-at ?target ?size)]
+   (let* [?take-symbol (clojure.core/nth ?split-symbol 0)
+          ?drop-symbol (clojure.core/nth ?split-symbol 1)]
+     (me/cata [([?pattern ?take-symbol] [?next ?drop-symbol] & ?rest) ?env])))
 
   ;; :some-map
   ;; ---------
