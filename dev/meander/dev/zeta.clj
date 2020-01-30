@@ -11,15 +11,54 @@
                   [alias (ns-name ns)]))
         (ns-aliases ns)))
 
+(defn parse-pattern [pattern env]
+  (let [ast (dev.parse/parse [pattern env])
+        ast {:tag :root :next ast}]
+    ast))
+
+(defn variables [ast]
+  (me/search ast
+    (me/$ {:tag (me/or :logic-variable :memory-variable :mutable-variable)
+           :as ?ast})
+    ?ast))
+
+(defn make-env []
+  {:aliases (ns-symbolic-alias-map *ns*)
+   :state-symbol (gensym "S__")})
+
 (defmacro solve [expression pattern]
   (let [;; Evolve this structure.
-        env {:aliases (ns-symbolic-alias-map *ns*)}
-        ast (dev.parse/parse [pattern env])
-        ast {:tag :root :next ast}
+        env (make-env)
+        ast (parse-pattern pattern env)
         target (gensym "target__")
         match-form (dev.match/match-compile [(list [ast target]) env])]
     `(let [~target ~expression]
        ~match-form)))
+
+(defmacro search
+  {:style/indent 1}
+  [expression & clauses]
+  (let [env (make-env)
+        target (gensym "target___")]
+    `(let [~target ~expression]
+       ~@(map
+          (fn [[left right]]
+            (let [left-ast (parse-pattern left env)
+                  match-form (dev.match/match-compile [(list [left-ast target]) env])
+                  syms (into [] (comp (map :symbol) (distinct)) (variables left-ast))
+                  state (gensym "S__")]
+              `(map
+                (fn [~state]
+                  ;; Clojure {:syms [,,,]} destructuring adds extra
+                  ;; useless overhead so we do the map look up
+                  ;; ourselves.
+                  (let [~@(mapcat
+                           (fn [sym]
+                             [sym `(get ~state '~sym)])
+                           syms)]
+                      ~right))
+                ~match-form)))
+          (me/rewrite clauses (!left !right ...) ([!left !right] ...))))))
 
 (defn rewrite-operators [expr]
   (walk/prewalk
@@ -49,5 +88,3 @@
 ;; (let [root {:tag :root :next (dev.parse/parse '(1 2 3))}]
 ;;   (dev.match/match-compile [(list [root 'target]) {}]))
 ;; (solve '(1 2 3) (?x ?y ?z))
-;; (solve '(1 2 3 4 5) (?v ?w mz/&3 ?x))
-

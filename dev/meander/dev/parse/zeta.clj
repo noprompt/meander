@@ -28,7 +28,6 @@
    :size ~(Integer. ?n)
    :pattern (me/cata [?pattern ?env])}
 
-  
   [`parse-seq [(me/symbol ?ns (&digit ?& _)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
   (me/cata [`parse-seq [(me/symbol "meander.zeta" ?&) ?pattern] ?env])
@@ -48,12 +47,20 @@
   ;; -----------------------------
 
   [`parse-seq [(me/symbol "meander.zeta" (me/re #"&.*")) ?pattern] ?env]
-  (me/cata ?pattern)
+  (me/cata [?pattern ?env])
+
+  [`parse-seq [(me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
+   {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
+  (me/cata [`parse-seq [(me/symbol "meander.zeta" ?name) ?pattern] ?env])
 
   [`parse-seq [!xs ... (me/symbol "meander.zeta" (me/re #"&.*")) ?pattern] ?env]
   {:tag :join
    :left (me/cata [`parse-seq [!xs ...] ?env])
    :right (me/cata [?pattern ?env])}
+
+  [`parse-seq [!xs ... (me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
+   {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
+  (me/cata [`parse-seq [!xs ... (me/symbol "meander.zeta" ?name) ?pattern] ?env])
 
   ;; [,,, . ?pattern]
   ;; ----------------

@@ -78,7 +78,8 @@
          ?next-target (clojure.core/dissoc ?target ('quote ?form))]
     (me/cata [([?val ?val-target] [?next ?next-target] & ?rest) ?env]))
 
-  (me/and [([{:tag :entry, :key-pattern ?key, :val-pattern ?val, :next ?next} ?target] & ?rest) ?env]
+  (me/and [([{:tag :entry, :key-pattern ?key, :val-pattern ?val, :next ?next} ?target] & ?rest)
+           {:state-symbol ?state :as ?env}]
           (me/let [?key-target (gensym)
                    ?val-target (gensym)
                    ?next-target (gensym)]))
@@ -89,7 +90,7 @@
            ?val-target (clojure.core/val $entry)
            ?next-target (clojure.core/dissoc ?target ?key-target)]
        (clojure.core/mapcat
-        (fn [$state]
+        (fn [?state]
           (me/cata [([?val ?val-target] [?next ?next-target] & ?rest) ?env]))
         (me/cata [([?key ?key-target]) ?env])))))
    ?target)
@@ -98,8 +99,10 @@
   ;; -----
 
   [([{:tag :into
-      :memory-variable {:symbol ?symbol}} ?target] & ?rest) ?env]
-  (`m.runtime/into-memory-variable [$state ('quote ?symbol) ?target]
+      :memory-variable {:symbol ?symbol}} ?target] & ?rest)
+   {:state-symbol ?state
+    :as ?env}]
+  (`m.runtime/into-memory-variable [?state ('quote ?symbol) ?target]
     (me/cata [?rest ?env]))
 
   (me/and [([{:tag :join, :left ?left, :right ?right} ?target] & ?rest) ?env]
@@ -141,14 +144,19 @@
   ;; :logic-variable
   ;; ---------------
 
-  [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest) {?key ?symbol :as ?env}]
-  (let* [$value (clojure.core/get $state ?key)]
+  [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
+   {?key ?symbol
+    :state-symbol ?state
+    :as ?env}]
+  (let* [$value (clojure.core/get ?state ?key)]
     (if (= $value ?target)
       (me/cata [?rest ?env])
       (`m.runtime/fail)))
 
-  [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest) ?env]
-  (`m.runtime/bind-logic-variable [$state ('quote ?symbol) ?target]
+  [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
+   {:state-symbol ?state
+    :as ?env}]
+  (`m.runtime/bind-logic-variable [?state ('quote ?symbol) ?target]
    (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
 
   ;; :map
@@ -162,29 +170,38 @@
   ;; :memory-variable
   ;; ----------------
 
-  [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest) {?key ?symbol :as ?env}]
-  (let* [$value (clojure.core/get $state ?key)
+  [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
+   {?key ?symbol
+    :state-symbol ?state
+    :as ?env}]
+  (let* [$value (clojure.core/get ?state ?key)
          $value (clojure.core/conj $value ?target)
-         $state (clojure.core/assoc $state ?key $value)]
+         ?state (clojure.core/assoc ?state ?key $value)]
     (me/cata [?rest ?env]))
 
-  [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest) ?env]
-  (let* [$state (`m.runtime/bind-memory-variable $state ('quote ?symbol) ?target)]
+  [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
+   {:state-symbol ?state
+    :as ?env}]
+  (let* [?state (`m.runtime/bind-memory-variable ?state ('quote ?symbol) ?target)]
     (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
 
   ;; :reference
   ;; ----------
 
-  [([{:tag :reference, :symbol ?symbol} ?target] & ?rest) ?env]
+  [([{:tag :reference, :symbol ?symbol} ?target] & ?rest)
+   {:state-symbol ?state
+    :as ?env}]
   (clojure.core/mapcat
-   (fn [$state] (me/cata [?rest ?env]))
-   (?symbol ?target $state))
+   (fn [?state] (me/cata [?rest ?env]))
+   (?symbol ?target ?state))
 
   ;; :root
   ;; -----
 
-  [([{:tag :root, :next ?next} ?target] & ?rest) ?env]
-  (let* [$state {}]
+  [([{:tag :root, :next ?next} ?target] & ?rest)
+   {:state-symbol ?state
+    :as ?env}]
+  (let* [?state {}]
     (me/cata [([?next ?target] & ?rest) ?env]))
 
   ;; :seq
@@ -294,16 +311,17 @@
 
   [([{:tag :with-bindings,
       :bindings [{:reference {:symbol !symbol} :pattern !pattern}]} ?target] & ?rest)
-   ?env]
-  (letfn [(!symbol [$input $state]
+   {:state-symbol ?state
+    :as ?env}]
+  (letfn [(!symbol [$input ?state]
             (me/cata [([!pattern $input]) ?env]))
           ...]
     (me/cata [?rest ?env]))
 
   ;; Success!
 
-  [() ?env]
-  (`m.runtime/succeed $state)
+  [() {:state-symbol ?state :as ?env}]
+  (`m.runtime/succeed ?state)
 
   ;; Probably not.
 
