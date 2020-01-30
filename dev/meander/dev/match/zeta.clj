@@ -137,7 +137,7 @@
   ;; ----
 
   [([{:tag :or :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
-  (concat
+  (`clojure.core/concat
    (me/cata [([?right ?target] & ?rest) ?env])
    (me/cata [([?left ?target] & ?rest) ?env]))
 
