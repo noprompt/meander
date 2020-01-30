@@ -32,11 +32,11 @@
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
   (me/cata [`parse-seq [(me/symbol "meander.zeta" ?&) ?pattern] ?env])
 
-  [`parse-seq [!xs ... (me/symbol "meander.zeta" (&digit _ ?n)) ?pattern] ?env]
+  [`parse-seq [!xs ... (me/symbol "meander.zeta" (&digit _ ?size)) ?pattern] ?env]
   {:tag :join
    :left (me/cata [`parse-seq [!xs ...] ?env])
    :right {:tag :slice
-           :size ~(Integer. ?n)
+           :size ~(Integer. ?size)
            :pattern (me/cata [?pattern ?env])}}
 
   [`parse-seq [!xs ... (me/symbol ?ns (&digit ?& _)) ?pattern]
