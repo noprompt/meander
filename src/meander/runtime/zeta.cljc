@@ -99,6 +99,23 @@
        (fail)
        ~body-expression)))
 
+(defn run-plus [state n input f g]
+  (let [partitions (partitions input)]
+    (concat
+     (mapcat
+      (fn [partition]
+        (let [left (nth partition 0)
+              right (nth partition 1)
+              n* (dec n)]
+          (mapcat
+           (fn [state]
+             (run-plus state n* right f g))
+           (f state left))))
+      partitions)
+     (if (<= n 0)
+       (g state input)
+       (fail)))))
+
 (extend-type clojure.lang.IPersistentVector
   ITake
   (-take [this n]

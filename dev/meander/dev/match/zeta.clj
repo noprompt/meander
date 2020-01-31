@@ -194,33 +194,12 @@
   (me/and [([{:tag :plus, :n ?n, :pattern ?pattern, :next ?next} ?target]
             & ?rest)
            {:state-symbol ?state :as ?env}]
-          (me/let [?goal-symbol (gensym)
-                   ?partitions-symbol (gensym)
-                   ?partition-symbol (gensym)
-                   ?left-symbol (gensym)
-                   ?right-symbol (gensym)
-                   ?n-symbol (gensym)]))
-  (let* [?goal-symbol
-         (fn* ?goal-symbol
-              ([$input ?n-symbol ?state]
-               (let* [?partitions-symbol (`m.runtime/partitions $input)]
-                 (clojure.core/concat
-                  (clojure.core/mapcat
-                   (fn*
-                    ([?partition-symbol]
-                     (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
-                            ?right-symbol (clojure.core/nth ?partition-symbol 1)]
-                       (clojure.core/mapcat
-                        (fn*
-                         ([?state]
-                          (?goal-symbol ?right-symbol (clojure.core/dec ?n-symbol) ?state)))
-                        (me/cata [([?pattern ?left-symbol]) ?env])))))
-                   ?partitions-symbol)
-                  (if (<= ?n-symbol 0)
-                    (me/cata [([?next $input] & ?rest) ?env])
-                    (`m.runtime/fail))))))]
-    (?goal-symbol ?target ?n ?state))
-
+          (me/let [?input (gensym)]))
+  (`m.runtime/run-plus ?state ?n ?target
+   (fn [?state ?input]
+     (me/cata [([?pattern ?input]) ?env]))
+   (fn [?state ?input]
+     (me/cata [([?next ?input] & ?rest) ?env])))
 
   ;; :reference
   ;; ----------
