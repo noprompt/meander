@@ -100,13 +100,13 @@
        ~body-expression)))
 
 (defn run-plus [state n input f g]
-  (let [partitions (partitions input)]
+  (let [partitions (partitions input)
+        n* (dec n)]
     (concat
      (mapcat
       (fn [partition]
         (let [left (nth partition 0)
-              right (nth partition 1)
-              n* (dec n)]
+              right (nth partition 1)]
           (mapcat
            (fn [state]
              (run-plus state n* right f g))
