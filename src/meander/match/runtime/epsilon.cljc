@@ -141,20 +141,21 @@
   (let [m*n (* m n)
         xs (subvec coll 0 (min m*n (count coll)))]
     (if (= (count xs) m*n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
-           nil
-           (run-star-vec-search (subvec coll m*n) rets n body-f then-f)))
-       (sequence
-        (apply comp
-               (map (fn [chunk]
-                      (mapcat (fn [rets]
-                                (if (fail? rets)
-                                  nil
-                                  (body-f rets chunk)))))
-                    (partition n xs)))
-        [rets]))
+      (let [ys (subvec coll m*n)]
+        (mapcat
+         (fn [rets]
+           (if (fail? rets)
+             nil
+             (run-star-vec-search ys rets n body-f then-f)))
+         (sequence
+          (apply comp
+                 (map (fn [chunk]
+                        (mapcat (fn [rets]
+                                  (if (fail? rets)
+                                    nil
+                                    (body-f rets chunk)))))
+                      (partition n xs)))
+          [rets])))
       (if (seq coll)
         nil
         (then-f rets)))))
@@ -195,20 +196,21 @@
   (let [m*n (* m n)
         xs (.slice coll 0 (min m*n (count coll)))]
     (if (= (count xs) m*n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
-           nil
-           (run-star-js-array-search (.slice coll m*n) rets n body-f then-f)))
-       (sequence
-        (apply comp
-               (map (fn [chunk]
-                      (mapcat (fn [rets]
-                                (if (fail? rets)
-                                  nil
-                                  (body-f rets chunk)))))
-                    (partition m xs)))
-        [rets]))
+      (let [ys (.slice coll m*n)]
+        (mapcat
+         (fn [rets]
+           (if (fail? rets)
+             nil
+             (run-star-js-array-search ys rets n body-f then-f)))
+         (sequence
+          (apply comp
+                 (map (fn [chunk]
+                        (mapcat (fn [rets]
+                                  (if (fail? rets)
+                                    nil
+                                    (body-f rets chunk)))))
+                      (partition n xs)))
+          [rets])))
       (if (seq coll)
         nil
         (then-f rets)))))
