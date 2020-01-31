@@ -79,25 +79,27 @@
         (then-f rets)))))
 
 (defn run-plus-seq-search
-  {:style/indent :defn}
+  {:style/indent :defn
+   :arglists '([coll rets cat-length min-reps body-f then-f])}
   [coll rets n m body-f then-f]
   (let [m*n (* m n)
         xs (take m*n coll)]
     (if (= (count xs) m*n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
-           nil
-           (run-star-seq-search (drop m*n coll) rets n body-f then-f)))
-       (sequence
-        (apply comp
-               (map (fn [chunk]
-                      (mapcat (fn [rets]
-                                (if (fail? rets)
-                                  nil
-                                  (body-f rets chunk)))))
-                    (partition m xs)))
-        [rets]))
+      (let [ys (drop m*n coll)]
+        (mapcat
+         (fn [rets]
+           (if (fail? rets)
+             nil
+             (run-star-seq-search ys rets n body-f then-f)))
+         (sequence
+          (apply comp
+                 (map (fn [chunk]
+                        (mapcat (fn [rets]
+                                  (if (fail? rets)
+                                    nil
+                                    (body-f rets chunk)))))
+                      (partition n xs)))
+          [rets])))
       (if (seq coll)
         nil
         (then-f rets)))))
@@ -133,7 +135,8 @@
         (then-f rets)))))
 
 (defn run-plus-vec-search
-  {:style/indent :defn}
+  {:style/indent :defn
+   :arglists '([coll rets cat-length min-reps body-f then-f])}
   [coll rets n m body-f then-f]
   (let [m*n (* m n)
         xs (subvec coll 0 (min m*n (count coll)))]
@@ -150,7 +153,7 @@
                                 (if (fail? rets)
                                   nil
                                   (body-f rets chunk)))))
-                    (partition m xs)))
+                    (partition n xs)))
         [rets]))
       (if (seq coll)
         nil
