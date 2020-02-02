@@ -1015,12 +1015,7 @@ compilation decisions."
   used when compiling :def nodes to ensure the correct type of data is
   returned to code compiled for :call nodes."
   [kind]
-  (case kind
-    (:match :find)
-    `r.match.runtime/FAIL
-
-    :search
-    `(list r.match.runtime/FAIL)))
+  `r.match.runtime/FAIL)
 
 (defn js-array-equals-form
   "Form used to test if two arrays a and b are equal in
