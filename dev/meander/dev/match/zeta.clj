@@ -282,7 +282,7 @@
   ;;    (?goal-symbol ?target ?state)))
 
 
-  (me/and [([{:tag :star,  :pattern ?pattern, :next ?next} ?target]
+  (me/and [([{:tag :star, :pattern ?pattern, :next ?next} ?target]
             & ?rest)
            {:state-symbol ?state :as ?env}]
           (me/let [?input (gensym)]))
