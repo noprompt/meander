@@ -82,10 +82,6 @@
   (me/cata [`parse-seq ?rest ?env])
 
   [`parse-seq [(not-dot-symbol !xs) ... '... & ?rest] ?env]
-  {:tag :star
-   :pattern (me/cata [`parse-seq [!xs ...] ?env])
-   :next (me/cata [`parse-seq ?rest ?env])}
-  #_
   (me/cata [`star-args
             (me/cata [`parse-seq [!xs ...] ?env])
             (me/cata [`parse-seq ?rest ?env])
@@ -129,9 +125,16 @@
   ;; -----
 
   [`parse-seq [!xs ...] ?env]
+  (me/cata [`cat-args [(me/cata [!xs ?env]) ...] {:tag :empty}])
+
+  [`cat-args [{:tag :literal, :form !forms} ...] {:tag :empty}]
+  {:tag :literal
+   :form [!forms ...]}
+
+  [`cat-args ?sequence ?next]
   {:tag :cat
-   :sequence [(me/cata [!xs ?env]) ...]
-   :next {:tag :empty}}
+   :sequence ?sequence
+   :next ?next}
 
   [`join-args {:tag :join
                :left {:tag :cat
@@ -140,9 +143,7 @@
                :right ?right
                :form ?form}
    ?env]
-  {:tag :cat
-   :sequence ?sequence
-   :next ?right}
+  (me/cata [`cat-args ?sequence ?right])
 
   [`join-args {:tag :join
                :left ?left
