@@ -34,16 +34,12 @@
           {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   (me/cata
    [`join-args
-    {:tag :join
-     :left (me/cata [`parse-seq [!init ...] ?env])
-     :right (me/cata [`join-args
-                      {:tag :join
-                       :left {:tag :slice
-                              :size ~(Integer. ?n)
-                              :pattern (me/cata [?pattern ?env])}
-                       :right (me/cata [`parse-seq [& ?rest] ?env])}
-                      ?env])}
-    ?env])
+    (me/cata [`parse-seq [!init ...] ?env])
+    (me/cata [`join-args
+              {:tag :slice
+               :size ~(Integer. ?n)
+               :pattern (me/cata [?pattern ?env])}
+              (me/cata [`parse-seq [& ?rest] ?env])])])
 
   ;; [,,, meander.zeta/& ?pattern]
   ;; -----------------------------
@@ -51,16 +47,11 @@
   [`parse-seq [!init ... (me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest]
    (me/or (me/let [?ns "meander.zeta"] ?env)
           {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
-  (me/cata
-   [`join-args
-    {:tag :join
-     :left (me/cata [`parse-seq [!init ...] ?env])
-     :right (me/cata [`join-args
-                      {:tag :join
-                       :left (me/cata [?pattern ?env])
-                       :right (me/cata [`parse-seq [& ?rest] ?env])}
-                      ?env])}
-    ?env])
+  (me/cata [`join-args
+            (me/cata [`parse-seq [!init ...] ?env])
+            (me/cata [`join-args
+                      (me/cata [?pattern ?env])
+                      (me/cata [`parse-seq [& ?rest] ?env])])])
 
   [`parse-seq [!xs ... (me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
@@ -70,10 +61,9 @@
   ;; ----------------
 
   [`parse-seq [!xs ... '. & ?rest] ?env]
-  (me/cata [`join-args {:tag :join
-                        :left (me/cata [`parse-seq [!xs ...] ?env])
-                        :right (me/cata [`parse-seq ?rest ?env])}
-            ?env])
+  (me/cata [`join-args
+            (me/cata [`parse-seq [!xs ...] ?env])
+            (me/cata [`parse-seq ?rest ?env])])
 
   ;; [,,, ... ?pattern]
   ;; ----------------
@@ -84,22 +74,19 @@
   [`parse-seq [(not-dot-symbol !xs) ... '... & ?rest] ?env]
   (me/cata [`star-args
             (me/cata [`parse-seq [!xs ...] ?env])
-            (me/cata [`parse-seq ?rest ?env])
-            ?env])
+            (me/cata [`parse-seq ?rest ?env])])
 
   [`star-args
    {:tag :cat
     :sequence [{:tag :memory-variable :as ?memory-variable}]
     :next {:tag :empty}}
-   ?next
-   ?env]
-  (me/cata [`join-args {:tag :join
-                        :left {:tag :into
-                               :memory-variable ?memory-variable}
-                        :right ?next}
-            ?env])
+   ?next]
+  (me/cata [`join-args
+            {:tag :into
+             :memory-variable ?memory-variable}
+            ?next])
 
-  [`star-args ?pattern ?next ?env]
+  [`star-args ?pattern ?next]
   {:tag :star
    :pattern ?pattern
    :next ?next}
@@ -136,30 +123,23 @@
    :sequence ?sequence
    :next ?next}
 
-  [`join-args {:tag :join
-               :left {:tag :cat
-                      :sequence ?sequence
-                      :next {:tag :empty}}
-               :right ?right
-               :form ?form}
-   ?env]
+  [`join-args
+   {:tag :cat
+    :sequence ?sequence
+    :next {:tag :empty}}
+   ?right]
   (me/cata [`cat-args ?sequence ?right])
 
-  [`join-args {:tag :join
-               :left ?left
-               :right {:tag :empty}}
-   ?env]
+  [`join-args ?left {:tag :empty}]
   ?left
 
-  [`join-args
-   {:tag :join,
-    :left {:tag :empty}
-    :right ?right}
-   ?env]
+  [`join-args {:tag :empty} ?right]
   ?right
 
-  [`join-args ?ast ?env]
-  ?ast
+  [`join-args ?left ?right]
+  {:tag :join
+   :left ?left
+   :right ?right}
 
   ;; {meander.zeta/:as ?pattern ,,,}
   ;; -------------------------------
