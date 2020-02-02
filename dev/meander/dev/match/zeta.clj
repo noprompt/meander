@@ -253,60 +253,44 @@
   ;; :star
   ;; -----
 
-  (me/and [([{:tag :star
-              :pattern {:tag :cat, :sequence [!xs ..?n]
-                        :next {:tag :empty}}
-              :next {:tag :empty}} ?target] & ?rest)
-           {:state-symbol ?state :as ?env}]
-          (me/let [(!nth-symbol ... :as ?nth-symbols) (repeatedly ?n gensym)
-                   (!nth-symbol ...) ?nth-symbols
-                   (!index ...) (range ?n)
-                   ?take-symbol (gensym)
-                   ?drop-symbol (gensym)
-                   ?goal-symbol (gensym)]))
-  (let* [?goal-symbol
-         (fn* ?goal-symbol
-              ([$input ?state]
-               (if (clojure.core/seq $input)
-                 (`m.runtime/bind [?take-symbol (`m.runtime/-take $input ?n)]
-                  (let* [!nth-symbol (clojure.core/nth ?take-symbol !index) ..?n]
-                    (`m.runtime/bind [?drop-symbol (`m.runtime/-drop $input ?n)]
-                     (clojure.core/mapcat
-                      (fn [?state]
-                        (?goal-symbol ?drop-symbol ?state))
-                      (me/cata [([!xs !nth-symbol] ..?n) ?env])))))
-                 (`m.runtime/succeed ?state))))]
-    (clojure.core/mapcat
-     (fn [?state]
-       (me/cata [?rest ?env]))
-     (?goal-symbol ?target ?state)))
+  ;; (me/and [([{:tag :star
+  ;;             :pattern {:tag :cat, :sequence [!xs ..?n]
+  ;;                       :next {:tag :empty}}
+  ;;             :next {:tag :empty}} ?target] & ?rest)
+  ;;          {:state-symbol ?state :as ?env}]
+  ;;         (me/let [(!nth-symbol ... :as ?nth-symbols) (repeatedly ?n gensym)
+  ;;                  (!nth-symbol ...) ?nth-symbols
+  ;;                  (!index ...) (range ?n)
+  ;;                  ?take-symbol (gensym)
+  ;;                  ?drop-symbol (gensym)
+  ;;                  ?goal-symbol (gensym)]))
+  ;; (let* [?goal-symbol
+  ;;        (fn* ?goal-symbol
+  ;;             ([$input ?state]
+  ;;              (if (clojure.core/seq $input)
+  ;;                (`m.runtime/bind [?take-symbol (`m.runtime/-take $input ?n)]
+  ;;                 (let* [!nth-symbol (clojure.core/nth ?take-symbol !index) ..?n]
+  ;;                   (`m.runtime/bind [?drop-symbol (`m.runtime/-drop $input ?n)]
+  ;;                    (clojure.core/mapcat
+  ;;                     (fn [?state]
+  ;;                       (?goal-symbol ?drop-symbol ?state))
+  ;;                     (me/cata [([!xs !nth-symbol] ..?n) ?env])))))
+  ;;                (`m.runtime/succeed ?state))))]
+  ;;   (clojure.core/mapcat
+  ;;    (fn [?state]
+  ;;      (me/cata [?rest ?env]))
+  ;;    (?goal-symbol ?target ?state)))
 
 
-  (me/and [([{:tag :star :pattern ?pattern :next ?next} ?target] & ?rest)
+  (me/and [([{:tag :star,  :pattern ?pattern, :next ?next} ?target]
+            & ?rest)
            {:state-symbol ?state :as ?env}]
-          (me/let [?partitions-symbol (gensym "partitions__")
-                   ?partition-symbol (gensym "partition__")
-                   ?left-symbol (gensym "left__")
-                   ?right-symbol (gensym "right__")
-                   ?goal-symbol (gensym "goal__")]))
-  (let* [?goal-symbol
-         (fn* ?goal-symbol
-              ([$input ?state]
-               (let* [?partitions-symbol (`m.runtime/partitions $input)]
-                 (clojure.core/mapcat
-                  (fn*
-                   ([?partition-symbol]
-                    (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
-                           ?right-symbol (clojure.core/nth ?partition-symbol 1)]
-                      (clojure.core/mapcat
-                       (fn*
-                        ([?state]
-                         (`m.runtime/knit
-                          [(?goal-symbol ?right-symbol ?state)
-                           (me/cata [([?next ?right-symbol] & ?rest) ?env])])))
-                       (me/cata [([?pattern ?left-symbol]) ?env])))))
-                  ?partitions-symbol))))]
-    (?goal-symbol ?target ?state))
+          (me/let [?input (gensym)]))
+  (`m.runtime/run-star ?state ?target
+   (fn [?state ?input]
+     (me/cata [([?pattern ?input]) ?env]))
+   (fn [?state ?input]
+     (me/cata [([?next ?input] & ?rest) ?env])))
 
   ;; :vector
   ;; -------

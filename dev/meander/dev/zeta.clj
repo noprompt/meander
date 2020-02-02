@@ -11,10 +11,13 @@
                   [alias (ns-name ns)]))
         (ns-aliases ns)))
 
-(defn parse-pattern [pattern env]
-  (let [ast (dev.parse/parse [pattern env])
-        ast {:tag :root :next ast}]
-    ast))
+(defn parse-pattern
+  ([pattern]
+   (parse-pattern pattern {}))
+  ([pattern env]
+   (let [ast (dev.parse/parse [pattern env])
+         ast {:tag :root :next ast}]
+     ast)))
 
 (defn variables [ast]
   (me/search ast
@@ -69,7 +72,6 @@
        ?x ?x))
    expr))
 
-
 (defmacro report [expr pattern action]
   (let [x (gensym)
         solve-form `(solve ~x ~pattern)
@@ -87,4 +89,4 @@
 ;; (report (into [] (repeat 10 1)) [?x . ?x ...] {'?x ?x})
 ;; (let [root {:tag :root :next (dev.parse/parse '(1 2 3))}]
 ;;   (dev.match/match-compile [(list [root 'target]) {}]))
-;; (solve '(1 2 3) (?x ?y ?z))
+;; (parse-pattern '(1 ..4 1 ... ?x) {})

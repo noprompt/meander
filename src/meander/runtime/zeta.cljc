@@ -19,9 +19,13 @@
   (-split-at [this n]))
 
 (def FAIL
-  (reify
-    clojure.lang.Seqable
-    (seq [this] nil)))
+  #?(:clj
+     (proxy [java.lang.Throwable clojure.lang.Seqable] []
+       (seq [] nil))
+     :cljs
+     (reify
+       ISeqable
+       (-seq [_] nil))))
 
 (defmacro head [x]
   `(-head ~x))
@@ -99,9 +103,24 @@
        (fail)
        ~body-expression)))
 
-(defn run-plus [state n input f g]
-  (let [partitions (partitions input)
-        n* (dec n)]
+;; Temporary. Remove this when zeta can bootstrap without epsilon.
+(defn epsilon-run-star-1
+  {:style/indent :defn}
+  [coll rets body-f then-f]
+  (let [rets* (reduce
+               (fn [acc xs]
+                 (let [acc (body-f acc [xs])]
+                   (if (fail? acc)
+                     (reduced FAIL)
+                     acc)))
+               rets
+               coll)]
+    (if (fail? rets*)
+      FAIL
+      (then-f rets*))))
+
+(defn run-star [state input f g]
+  (let [partitions (partitions input)]
     (concat
      (mapcat
       (fn [partition]
@@ -109,12 +128,25 @@
               right (nth partition 1)]
           (mapcat
            (fn [state]
-             (run-plus state n* right f g))
+             (run-star state right f g))
            (f state left))))
       partitions)
-     (if (<= n 0)
-       (g state input)
-       (fail)))))
+     (g state input))))
+
+(defn run-plus [state n input f g]
+  (if (<= n 0)
+    (run-star state input f g)
+    (let [partitions (partitions input)
+          n* (dec n)]
+      (mapcat
+       (fn [partition]
+         (let [left (nth partition 0)
+               right (nth partition 1)]
+           (mapcat
+            (fn [state]
+              (run-plus state n* right f g))
+            (f state left))))
+       partitions))))
 
 (extend-type clojure.lang.IPersistentVector
   ITake

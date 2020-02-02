@@ -1,5 +1,6 @@
 (ns meander.dev.kernel.zeta
   (:require [clojure.walk :as walk]
+            [clojure.pprint :as pprint]
             [clojure.java.io :as io]
             [meander.epsilon :as me]
             [meander.runtime.zeta :as m.runtime]))
@@ -17,11 +18,17 @@
        meander.match.runtime.epsilon/FAIL
        (meander.runtime.zeta/fail)
 
+       meander.match.runtime.epsilon/run-star-1
+       meander.runtime.zeta/epsilon-run-star-1
+
        meander.substitute.runtime.epsilon/FAIL
        (meander.runtime.zeta/fail)
 
        meander.substitute.runtime.epsilon/iterator
        meander.runtime.zeta/iterator
+
+       meander.substitute.runtime.epsilon/iterator-seq
+       clojure.core/iterator-seq
 
        ?x ?x))
    form))
@@ -51,8 +58,9 @@
     (.createNewFile file)
     (with-open [file (io/writer file)]
       (binding [*out* file]
-        (prn ns-form)
-        (prn defn-form)))
+        (pprint/pprint ns-form)
+        (pprint/pprint defn-form)))
     (require ns :reload)
     `(def ~(with-meta module-name '{:arglists '([input])})
-       ~(symbol (str ns) (str module-name)))))
+       (var ~(symbol (str ns) (str module-name))))))
+

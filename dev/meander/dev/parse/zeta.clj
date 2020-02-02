@@ -5,6 +5,12 @@
 (me/defsyntax &digit [match size]
   (me/re #"&(\d+)" [match size]))
 
+(me/defsyntax dot-symbol []
+  (me/symbol nil (me/re #"\.\.(?:\.|\d+)")))
+
+(me/defsyntax not-dot-symbol [pattern]
+  (me/and (me/not (dot-symbol)) pattern))
+
 (dev.kernel/defmodule parse
   ;; Meta Rules
   ;; ----------
@@ -20,43 +26,41 @@
    :pattern (me/cata ?pattern)
    :next (me/cata [`parse-seq [!xs ...] ?env])}
 
-  ;; [,,, meander.zeta/& ?pattern]
+  ;; [,,, meander.zeta/&N ?pattern]
   ;; -----------------------------
 
-  [`parse-seq [(me/symbol "meander.zeta" (&digit _ ?n)) ?pattern] ?env]
-  {:tag :slice
-   :size ~(Integer. ?n)
-   :pattern (me/cata [?pattern ?env])}
-
-  [`parse-seq [(me/symbol ?ns (&digit ?& _)) ?pattern]
-   {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
-  (me/cata [`parse-seq [(me/symbol "meander.zeta" ?&) ?pattern] ?env])
-
-  [`parse-seq [!xs ... (me/symbol "meander.zeta" (&digit _ ?size)) ?pattern] ?env]
-  {:tag :join
-   :left (me/cata [`parse-seq [!xs ...] ?env])
-   :right {:tag :slice
-           :size ~(Integer. ?size)
-           :pattern (me/cata [?pattern ?env])}}
-
-  [`parse-seq [!xs ... (me/symbol ?ns (&digit ?& _)) ?pattern]
-   {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
-  (me/cata [`parse-seq [!xs ... (me/symbol "meander.zeta" ?&) ?pattern] ?env])
+  [`parse-seq [!init ... (me/symbol ?ns (me/re #"&(\d+)" [_ ?n])) ?pattern & ?rest]
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (me/cata
+   [`join-args
+    {:tag :join
+     :left (me/cata [`parse-seq [!init ...] ?env])
+     :right (me/cata [`join-args
+                      {:tag :join
+                       :left {:tag :slice
+                              :size ~(Integer. ?n)
+                              :pattern (me/cata [?pattern ?env])}
+                       :right (me/cata [`parse-seq [& ?rest] ?env])}
+                      ?env])}
+    ?env])
 
   ;; [,,, meander.zeta/& ?pattern]
   ;; -----------------------------
 
-  [`parse-seq [(me/symbol "meander.zeta" (me/re #"&.*")) ?pattern] ?env]
-  (me/cata [?pattern ?env])
-
-  [`parse-seq [(me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
-   {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
-  (me/cata [?pattern ?env])
-
-  [`parse-seq [!xs ... (me/symbol "meander.zeta" (me/re #"&.*")) ?pattern] ?env]
-  {:tag :join
-   :left (me/cata [`parse-seq [!xs ...] ?env])
-   :right (me/cata [?pattern ?env])}
+  [`parse-seq [!init ... (me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest]
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (me/cata
+   [`join-args
+    {:tag :join
+     :left (me/cata [`parse-seq [!init ...] ?env])
+     :right (me/cata [`join-args
+                      {:tag :join
+                       :left (me/cata [?pattern ?env])
+                       :right (me/cata [`parse-seq [& ?rest] ?env])}
+                      ?env])}
+    ?env])
 
   [`parse-seq [!xs ... (me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
@@ -65,13 +69,11 @@
   ;; [,,, . ?pattern]
   ;; ----------------
 
-  [`parse-seq ['. & ?rest] ?env]
-  (me/cata [`parse-seq ?rest ?env])
-
   [`parse-seq [!xs ... '. & ?rest] ?env]
   (me/cata [`join-args {:tag :join
                         :left (me/cata [`parse-seq [!xs ...] ?env])
-                        :right (me/cata [`parse-seq ?rest])} ?env])
+                        :right (me/cata [`parse-seq ?rest ?env])}
+            ?env])
 
   ;; [,,, ... ?pattern]
   ;; ----------------
@@ -79,7 +81,11 @@
   [`parse-seq ['... & ?rest] ?env]
   (me/cata [`parse-seq ?rest ?env])
 
-  [`parse-seq [!xs ... '... & ?rest] ?env]
+  [`parse-seq [(not-dot-symbol !xs) ... '... & ?rest] ?env]
+  {:tag :star
+   :pattern (me/cata [`parse-seq [!xs ...] ?env])
+   :next (me/cata [`parse-seq ?rest ?env])}
+  #_
   (me/cata [`star-args
             (me/cata [`parse-seq [!xs ...] ?env])
             (me/cata [`parse-seq ?rest ?env])
@@ -112,7 +118,7 @@
    :message "The n or more operator ..N must be preceeded by at least one pattern"}
 
   [`parse-seq
-   [!xs ... (me/symbol nil (me/re #"\.\.(\d+)" [_ ?n]) :as ?operator) & ?rest]
+   [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\d+)" [_ ?n])) & ?rest]
    ?env]
   {:tag :plus
    :n ~(Integer. ?n)
@@ -140,10 +146,16 @@
 
   [`join-args {:tag :join
                :left ?left
-               :right {:tag :empty}
-               :form ?form}
+               :right {:tag :empty}}
    ?env]
   ?left
+
+  [`join-args
+   {:tag :join,
+    :left {:tag :empty}
+    :right ?right}
+   ?env]
+  ?right
 
   [`join-args ?ast ?env]
   ?ast
