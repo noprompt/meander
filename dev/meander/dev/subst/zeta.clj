@@ -13,28 +13,45 @@
    :next ?next}
   [(me/cata !xs) ... & (me/cata ?next)]
 
+  ;; :empty
+  ;; ------
+
   {:tag :empty}
   []
+
+  ;; :literal
+  ;; --------
 
   {:tag :literal, :form ?form}
   (`m.runtime/constant-generator ('quote ?form))
 
+  ;; :logic-variable
+  ;; ---------------
+
   {:tag :logic-variable :symbol ?symbol}
   (`m.runtime/logic-variable-generator ('quote ?symbol))
 
+  ;; :memory-variable
+  ;; ----------------
+
   {:tag :memory-variable :symbol ?symbol}
   (`m.runtime/memory-variable-generator ('quote ?symbol))
+
+  ;; :seq
+  ;; ----
 
   {:tag :seq
    :next ?next}
   (`m.runtime/seq-generator [& (me/cata ?next)])
 
+  ;; :vector
+  ;; -------
+
   {:tag :vector
    :next ?next}
   (`m.runtime/vector-generator [& (me/cata ?next)])
 
-  ?x ?x)
+  ;; Not implemented
+  ;; ---------------
 
-;; (< ?x 1)
-;; (<
-(generate-compile (dev.parse/parse [2 '(3 4 5) 6]))
+  ?x ?x)
