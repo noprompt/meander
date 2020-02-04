@@ -11,6 +11,13 @@
   `(me/app dec ~x))
 
 (dev.kernel/defmodule match-compile
+  [`mapcat-args (_ [?state] ?body) (`m.runtime/succeed ?state)]
+  ?body
+
+  [`mapcat-args ?fn ?coll]
+  (clojure.core/or (clojure.core/seq (clojure.core/mapcat ?fn ?coll))
+                   (m.runtime/fail))
+
   ;; :and
   ;; ----
 
@@ -89,20 +96,21 @@
 
   (me/and [([{:tag :entry, :key-pattern ?key, :val-pattern ?val, :next ?next} ?target] & ?rest)
            {:state-symbol ?state :as ?env}]
-          (me/let [?key-target (gensym)
+          (me/let [?entry (gensym)
+                   ?key-target (gensym)
                    ?val-target (gensym)
                    ?next-target (gensym)]))
-  (clojure.core/mapcat
-   (fn*
-    ([$entry]
-     (let [?key-target (clojure.core/key $entry)
-           ?val-target (clojure.core/val $entry)
-           ?next-target (clojure.core/dissoc ?target ?key-target)]
-       (clojure.core/mapcat
-        (fn [?state]
-          (me/cata [([?val ?val-target] [?next ?next-target] & ?rest) ?env]))
-        (me/cata [([?key ?key-target]) ?env])))))
-   ?target)
+  (me/cata [`mapcat-args
+            (fn [?entry]
+              (let [?key-target (clojure.core/key ?entry)
+                    ?val-target (clojure.core/val ?entry)
+                    ?next-target (clojure.core/dissoc ?target ?key-target)]
+                (me/cata
+                 [`mapcat-args
+                  (fn [?state]
+                    (me/cata [([?val ?val-target] [?next ?next-target] & ?rest) ?env]))
+                  (me/cata [([?key ?key-target]) ?env])])))
+            ?target])
 
   ;; :into
   ;; -----
@@ -120,13 +128,14 @@
                    ?left-symbol (gensym "left__")
                    ?right-symbol (gensym "right__")]))
   (let* [?partitions-symbol (`m.runtime/partitions ?target)]
-    (clojure.core/mapcat
-     (fn*
-      ([?partition-symbol]
-       (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
-              ?right-symbol (clojure.core/nth ?partition-symbol 1)]
-         (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))))
-     ?partitions-symbol))
+    (me/cata
+     [`mapcat-args
+      (fn*
+       ([?partition-symbol]
+        (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
+               ?right-symbol (clojure.core/nth ?partition-symbol 1)]
+          (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))))
+      ?partitions-symbol]))
 
   ;; :literal
   ;; --------
@@ -139,12 +148,13 @@
   ;; :logic-variable
   ;; ---------------
 
-  [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
-   {?key ?symbol
-    :state-symbol ?state
-    :as ?env}]
-  (let* [$value (clojure.core/get ?state ?key)]
-    (if (= $value ?target)
+  (me/and [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
+           {?key ?symbol
+            :state-symbol ?state
+            :as ?env}]
+          (me/let [?value (gensym)]))
+  (let* [?value (clojure.core/get ?state ?key)]
+    (if (= ?value ?target)
       (me/cata [?rest ?env])
       (`m.runtime/fail)))
 
@@ -165,13 +175,14 @@
   ;; :memory-variable
   ;; ----------------
 
-  [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
-   {?key ?symbol
-    :state-symbol ?state
-    :as ?env}]
-  (let* [$value (clojure.core/get ?state ?key)
-         $value (clojure.core/conj $value ?target)
-         ?state (clojure.core/assoc ?state ?key $value)]
+  (me/and [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
+           {?key ?symbol
+            :state-symbol ?state
+            :as ?env}]
+          (me/let [?value (gensym)]))
+  (let* [?value (clojure.core/get ?state ?key)
+         ?value (clojure.core/conj ?value ?target)
+         ?state (clojure.core/assoc ?state ?key ?value)]
     (me/cata [?rest ?env]))
 
   [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
@@ -180,8 +191,22 @@
   (let* [?state (`m.runtime/bind-memory-variable ?state ('quote ?symbol) ?target)]
     (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
 
-  ;; :or
+  ;; :not
   ;; ----
+
+  [([{:tag :not :pattern {:tag :not :pattern ?pattern}} ?target] & ?rest) ?env]
+  (me/cata [([?pattern ?target] & ?rest) ?env])
+
+  (me/and [([{:tag :not :pattern ?pattern} ?target] & ?rest)
+           ?env]
+          (me/let [?x (gensym)]))
+  (let* [?x (me/cata [([?pattern ?target]) ?env])]
+    (if (`m.runtime/fail? ?x)
+      (me/cata [?rest ?env])
+      (`m.runtime/fail)))
+
+  ;; :or
+  ;; ---
 
   [([{:tag :or :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
   (`clojure.core/concat
@@ -207,9 +232,37 @@
   [([{:tag :reference, :symbol ?symbol} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
-  (clojure.core/mapcat
-   (fn* ([?state] (me/cata [?rest ?env])))
-   (?symbol ?target ?state))
+  (me/cata [`mapcat-args
+            (fn [?state] (me/cata [?rest ?env]))
+            (?symbol ?target ?state)])
+
+  ;; :rest-map
+  ;; ---------
+
+  [([{:tag :rest-map :pattern ?pattern, :next {:tag :some-map}} ?target] & ?rest)
+   ?env]
+  (me/cata [([?pattern ?target] & ?rest) ?env])
+
+  ;; Prioritize subsequent entries over the rest of the map.
+  [([{:tag :rest-map
+      :pattern ?pattern
+      :next {:tag :entry
+             :next ?next
+             :as ?entry}}
+     ?target] & ?rest)
+   ?env]
+  (me/cata [([{:next {:tag :rest-map
+                      :pattern ?pattern
+                      :next ?next}
+               :as ?entry} ?target] & ?rest)
+            ?env])
+
+  ;; Not implemented yet. We need to match all possible submaps of
+  ;; `?target` against `?pattern` with the rest of `?target` being
+  ;; matched against `?next`.
+  [([{:tag :rest-map :pattern ?pattern, :next ?next} ?target] & ?rest)
+   ?env]
+  (`m.runtime/fail)
 
   ;; :root
   ;; -----
@@ -228,12 +281,14 @@
 
   [([{:tag :seq, :next ?next} ?target] & ?rest) ?env]
   (if (clojure.core/seq? ?target)
-    (me/cata [([?next ?target] & ?rest) ?env]))
+    (me/cata [([?next ?target] & ?rest) ?env])
+    (`m.runtime/fail))
 
   ;; :slice
   ;; ------
 
-  (me/and [([{:tag :slice, :size ?size, :pattern ?pattern} ?target] & ?rest) ?env]
+  (me/and [([{:tag :slice, :size ?size, :pattern ?pattern} ?target] & ?rest)
+           ?env]
           (me/let [?split-symbol (gensym)
                    ?take-symbol (gensym)
                    ?drop-symbol (gensym)]))
@@ -253,35 +308,6 @@
   ;; :star
   ;; -----
 
-  ;; (me/and [([{:tag :star
-  ;;             :pattern {:tag :cat, :sequence [!xs ..?n]
-  ;;                       :next {:tag :empty}}
-  ;;             :next {:tag :empty}} ?target] & ?rest)
-  ;;          {:state-symbol ?state :as ?env}]
-  ;;         (me/let [(!nth-symbol ... :as ?nth-symbols) (repeatedly ?n gensym)
-  ;;                  (!nth-symbol ...) ?nth-symbols
-  ;;                  (!index ...) (range ?n)
-  ;;                  ?take-symbol (gensym)
-  ;;                  ?drop-symbol (gensym)
-  ;;                  ?goal-symbol (gensym)]))
-  ;; (let* [?goal-symbol
-  ;;        (fn* ?goal-symbol
-  ;;             ([$input ?state]
-  ;;              (if (clojure.core/seq $input)
-  ;;                (`m.runtime/bind [?take-symbol (`m.runtime/-take $input ?n)]
-  ;;                 (let* [!nth-symbol (clojure.core/nth ?take-symbol !index) ..?n]
-  ;;                   (`m.runtime/bind [?drop-symbol (`m.runtime/-drop $input ?n)]
-  ;;                    (clojure.core/mapcat
-  ;;                     (fn [?state]
-  ;;                       (?goal-symbol ?drop-symbol ?state))
-  ;;                     (me/cata [([!xs !nth-symbol] ..?n) ?env])))))
-  ;;                (`m.runtime/succeed ?state))))]
-  ;;   (clojure.core/mapcat
-  ;;    (fn [?state]
-  ;;      (me/cata [?rest ?env]))
-  ;;    (?goal-symbol ?target ?state)))
-
-
   (me/and [([{:tag :star, :pattern ?pattern, :next ?next} ?target]
             & ?rest)
            {:state-symbol ?state :as ?env}]
@@ -300,7 +326,8 @@
 
   [([{:tag :vector, :next ?next} ?target] & ?rest) ?env]
   (if (clojure.core/vector? ?target)
-    (me/cata [([?next ?target] & ?rest) ?env]))
+    (me/cata [([?next ?target] & ?rest) ?env])
+    (`m.runtime/fail))
 
   ;; :wildcard
   ;; ---------

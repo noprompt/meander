@@ -154,9 +154,11 @@
   ;; {meander.zeta/&name ?pattern ,,,}
   ;; ---------------------------------
 
-  [`parse-entries {(me/symbol "meander.zeta" (me/re #"&.*")) ?pattern & ?rest} ?env]
+  [`parse-entries {(me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest}
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   {:tag :rest-map
-   :pattern ?pattern
+   :pattern (me/cata [?pattern ?env])
    :next (me/cata [`parse-entries ?rest ?env])}
 
   ;; {?pattern1 ?pattern2 ,,,}
@@ -217,16 +219,31 @@
   ;; (meander.zeta/and _ _)
   ;; ----------------------
 
-  [(meander.zeta/and ?left ?right :as ?form) ?env]
+  [((me/symbol ?ns "and") ?left ?right :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   {:tag :and
    :left (me/cata [?left ?env])
    :right (me/cata [?right ?env])
    :form ?form}
 
+  ;; (meander.zeta/not _)
+  ;; ----------------------
+
+  [((me/symbol ?ns "not") ?pattern :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  {:tag :not
+   :pattern (me/cata [?pattern ?env])
+   :form ?form}
+
+
   ;; (meander.zeta/or _ _)
   ;; ----------------------
 
-  [(meander.zeta/or ?left ?right :as ?form) ?env]
+  [((me/symbol ?ns "or") ?left ?right :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   {:tag :or
    :left (me/cata [?left ?env])
    :right (me/cata [?right ?env])

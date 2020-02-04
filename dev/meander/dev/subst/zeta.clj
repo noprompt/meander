@@ -37,6 +37,13 @@
   {:tag :memory-variable :symbol ?symbol}
   (`m.runtime/memory-variable-generator ('quote ?symbol))
 
+  ;; :root
+  ;; -----
+
+  {:tag :root
+   :next ?next}
+  (me/cata ?next)
+
   ;; :seq
   ;; ----
 

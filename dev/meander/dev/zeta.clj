@@ -4,7 +4,8 @@
             [meander.zeta :as mz]
             [meander.runtime.zeta :as m.runtime]
             [meander.dev.parse.zeta :as dev.parse]
-            [meander.dev.match.zeta :as dev.match]))
+            [meander.dev.match.zeta :as dev.match]
+            [meander.dev.subst.zeta :as dev.subst]))
 
 (defn ns-symbolic-alias-map [ns]
   (into {} (map (fn [[alias ns]]
@@ -62,6 +63,23 @@
                       ~right))
                 ~match-form)))
           (me/rewrite clauses (!left !right ...) ([!left !right] ...))))))
+
+(defmacro rewrite-1
+  {:style/indent 1}
+  [expression match-pattern subst-pattern]
+  (let [env (make-env)
+        match-ast (parse-pattern match-pattern env)
+        target (gensym "target__")
+        match-form (dev.match/match-compile [(list [match-ast target]) env])
+        subst-ast (parse-pattern subst-pattern env)
+        generator (gensym "generator__")
+        subst-form (dev.subst/generate-compile subst-ast)]
+    `(let [~target ~expression
+           ~generator ~subst-form]
+       (map
+        (fn [env#]
+          (nth (m.runtime/-generate ~generator env#) 0))
+        ~match-form))))
 
 (defn rewrite-operators [expr]
   (walk/prewalk
