@@ -52,6 +52,21 @@
   (let* [?nth-symbol (clojure.core/nth ?target ?m)]
     (me/cata [`nths [!rest-asts ...] ?target ($inc ?m) ?n [(!queue ... [?ast ?nth-symbol]) ?env]]))
 
+  ;; :cata
+  ;; -----
+
+  (me/and [([{:tag :cata, :pattern ?pattern} ?target]  & ?rest)
+           {:cata-symbol ?cata-symbol :as ?env}]
+          (me/let [?stream (gensym "S__")
+                   ?target* (gensym "T__")]))
+  (let* [?stream (?cata-symbol ?target)]
+    (me/cata
+     [`mapcat-args
+      (fn [?target*]
+        (me/cata [([?pattern ?target*] & ?rest) ?env]))
+      ?stream]))
+
+
   ;; :cons
   ;; -----
 

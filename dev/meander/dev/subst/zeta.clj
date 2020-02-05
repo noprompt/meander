@@ -56,7 +56,7 @@
 
   {:tag :vector
    :next ?next}
-  (`m.runtime/vector-generator [& (me/cata ?next)])
+  (`m.runtime/vector-generator (me/cata ?next))
 
   ;; Not implemented
   ;; ---------------

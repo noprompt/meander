@@ -202,8 +202,14 @@
   ;; --------------
 
   [[& ?sequence] ?env]
+  (me/cata [`vector-args (me/cata [`parse-seq ?sequence ?env]) ?sequence])
+
+  [`vector-args {:tag :literal :as ?literal} _]
+  ?literal
+
+  [`vector-args ?next ?sequence]
   {:tag :vector
-   :next (me/cata [`parse-seq ?sequence ?env])
+   :next ?next
    :form ?sequence}
 
   ;; (meander.zeta/with [,,,])
@@ -225,6 +231,16 @@
   {:tag :and
    :left (me/cata [?left ?env])
    :right (me/cata [?right ?env])
+   :form ?form}
+
+  ;; (meander.zeta/cata _)
+  ;; ---------------------
+
+  [((me/symbol ?ns "cata") ?pattern :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  {:tag :cata
+   :pattern (me/cata [?pattern ?env])
    :form ?form}
 
   ;; (meander.zeta/not _)

@@ -28,6 +28,7 @@
 
 (defn make-env []
   {:aliases (ns-symbolic-alias-map *ns*)
+   :cata-symbol (gensym "C__")
    :state-symbol (gensym "S__")})
 
 (defmacro solve [expression pattern]
@@ -69,17 +70,43 @@
   [expression match-pattern subst-pattern]
   (let [env (make-env)
         match-ast (parse-pattern match-pattern env)
+        cata-symbol (get env :cata-symbol)
         target (gensym "target__")
         match-form (dev.match/match-compile [(list [match-ast target]) env])
         subst-ast (parse-pattern subst-pattern env)
         generator (gensym "generator__")
         subst-form (dev.subst/generate-compile subst-ast)]
     `(let [~target ~expression
-           ~generator ~subst-form]
-       (map
-        (fn [env#]
-          (nth (m.runtime/-generate ~generator env#) 0))
-        ~match-form))))
+           ~cata-symbol (fn ~cata-symbol [~target]
+                          (let [~generator ~subst-form]
+                            (map
+                             (fn [env#]
+                               (nth (m.runtime/-generate ~generator env#) 0))
+                             ~match-form)))]
+       (~cata-symbol ~target))))
+
+
+(defmacro rewrite
+  {:style/indent 1}
+  [expression & clauses]
+  (let [env (make-env)
+        cata-symbol (get env :cata-symbol)
+        target-symbol (gensym "T__")
+        generator-symbol (gensym)
+        state-symbol (gensym)]
+    (me/rewrite clauses
+      (!left !right ...)
+      (`let [~target-symbol ~expression
+             ~cata-symbol
+             (`fn ~cata-symbol [~target-symbol]
+              (`concat .
+               (`let [~generator-symbol (me/app dev.subst/generate-compile (me/app parse-pattern !right ~env))]
+                (`map
+                 (`fn [~state-symbol]
+                  (`nth (`m.runtime/-generate ~generator-symbol ~state-symbol) 0))
+                 (me/app dev.match/match-compile [([(me/app parse-pattern !left ~env) ~target-symbol]) ~env])))
+               ...))]
+       (~cata-symbol ~target-symbol)))))
 
 (defn rewrite-operators [expr]
   (walk/prewalk
