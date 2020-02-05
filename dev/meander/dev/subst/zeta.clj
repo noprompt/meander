@@ -49,7 +49,7 @@
 
   {:tag :seq
    :next ?next}
-  (`m.runtime/seq-generator [& (me/cata ?next)])
+  (`m.runtime/seq-generator (me/cata ?next))
 
   ;; :vector
   ;; -------
