@@ -203,8 +203,8 @@
   [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
-  (let* [?state (`m.runtime/bind-memory-variable ?state ('quote ?symbol) ?target)]
-    (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
+  (`m.runtime/bind-memory-variable [?state ('quote ?symbol) ?target]
+   (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
 
   ;; :not
   ;; ----
