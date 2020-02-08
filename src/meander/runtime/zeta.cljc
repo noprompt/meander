@@ -96,7 +96,7 @@
   [[smap v x] body-expression]
   `(let [~smap (if-some [entry# (find ~smap ~v)]
                  (let [old-val# (val entry#)
-                       new-val# (conj old-val# ~v)]
+                       new-val# (conj old-val# ~x)]
                    (assoc ~smap ~v new-val#))
                  (assoc ~smap ~v [~x]))]
      ~body-expression))
