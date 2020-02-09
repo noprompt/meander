@@ -454,22 +454,23 @@
      (pair ~gen-car ~gen-cdr)))
 
 (defn plus [obj]
-  (reify
-    IGenerate
-    (-generate [this env]
-      (if-gen [state obj env]
-        (let [vals (get-val state)
-              env* (get-env state)
-              obj* (get-gen state)
-              obj* (choice (fmap (fn [xs]
-                                   (concat (nth xs 0) (nth xs 1)))
-                             (pair obj this))
-                           (plus obj*))]
-          [vals env* obj*])))
+  (let [stable (stable? obj)]
+    (reify
+      IGenerate
+      (-generate [this env]
+        (if-gen [state obj env]
+          (let [vals (get-val state)
+                env* (get-env state)
+                obj* (get-gen state)
+                obj* (choice (fmap (fn [xs]
+                                     (concat (nth xs 0) (nth xs 1)))
+                                   (pair obj this))
+                             (plus obj*))]
+            [vals env* obj*])))
 
-    IStable
-    (-stable [this]
-      true)))
+      IStable
+      (-stable [this]
+        stable))))
 
 (defn star
   ([obj]
