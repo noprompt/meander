@@ -71,6 +71,12 @@
   [{:tag :memory-variable :symbol ?symbol} _]
   (`m.runtime/memory-variable ('quote ?symbol))
 
+  ;; :mutable-variable
+  ;; -----------------
+
+  [{:tag :mutable-variable :symbol ?symbol} _]
+  (`m.runtime/mutable-variable ('quote ?symbol))
+
   ;; :or
   ;; ---
 
@@ -79,6 +85,7 @@
 
   ;; :random-symbol
   ;; --------------
+
   [{:tag :random-symbol, :symbol ?symbol} ?env]
   (`m.runtime/random-symbol ('quote ?symbol))
 

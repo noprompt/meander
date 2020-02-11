@@ -207,6 +207,14 @@
   (`m.runtime/bind-memory-variable [?state ('quote ?symbol) ?target]
    (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
 
+  ;; :mutable-variable
+  ;; -----------------
+
+  [([{:tag :mutable-variable :symbol ?symbol} ?target] & ?rest)
+   {:state-symbol ?state :as ?env}]
+  (`m.runtime/bind-mutable-variable [?state ('quote ?symbol) ?target]
+   (me/cata [?rest ?env]))
+
   ;; :not
   ;; ----
 
@@ -282,6 +290,7 @@
 
   ;; :random-symbol
   ;; --------------
+
   (me/and [([{:tag :random-symbol, :symbol ?symbol} ?target] & ?rest)
            {:state-symbol ?state
             :as ?env}]

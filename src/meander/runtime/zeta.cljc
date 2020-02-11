@@ -114,6 +114,15 @@
               ~smap (assoc ~smap ~v value#)]
          ~body-expression))))
 
+(defmacro bind-mutable-variable
+  {:style/indent 1}
+  [[smap symbol target] body-expression]
+  (let [vals (gensym)]
+    `(let [~vals (get ~smap ~symbol)
+           ~vals (cons ~target ~vals)
+           ~smap (assoc ~smap ~symbol ~vals)]
+       ~body-expression)))
+
 (defn knit
   [colls]
   (case (bounded-count 2 colls)
@@ -632,6 +641,29 @@
             (let [env* (assoc env symbol value)]
               (succeed env*))
             (fail)))))
+
+    IStable
+    (-stable [this]
+      false)))
+
+(defn mutable-variable [symbol]
+  (reify
+    IGenerate
+    (-generate [this env]
+      (if-some [entry (find env symbol)]
+        (let [vals (val entry)]
+          (if (seq vals)
+            (let [val (first vals)
+                  vals* (rest vals)
+                  env* (assoc env symbol vals*)]
+              [val env* (fail)])
+            [(fail) env (fail)]))
+        [(fail) env (fail)]))
+
+    ISearch
+    (-search [this target env]
+      (bind-mutable-variable [env symbol target]
+        (succeed env)))
 
     IStable
     (-stable [this]
