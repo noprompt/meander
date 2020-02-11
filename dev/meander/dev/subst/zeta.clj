@@ -77,6 +77,12 @@
   [{:tag :or, :left ?left, :right ?right} ?env]
   (`m.runtime/choice (me/cata [?left ?env]) (me/cata [?right ?env]))
 
+  ;; :random-symbol
+  ;; --------------
+  [{:tag :random-symbol, :symbol ?symbol} ?env]
+  (`m.runtime/random-symbol ('quote ?symbol))
+
+
   ;; :root
   ;; -----
 

@@ -357,29 +357,40 @@
 
 (defn fmap
   [f obj]
-  (let [stable (stable? obj)]
-    (reify
-      IGenerate
-      (-generate [this env]
-        (bind-gen env [state obj]
-          (let [val (get-val state)
-                val* (f val)
-                env* (get-env state)
-                obj* (get-gen state)]
-            [val* env* (fmap f obj*)])))
+  (if (fail? obj)
+    obj
+    (let [stable (stable? obj)]
+      (reify
+        IGenerate
+        (-generate [this env]
+          (bind-gen env [state obj]
+            (let [val (get-val state)
+                  val* (f val)
+                  env* (get-env state)
+                  obj* (get-gen state)]
+              [val* env* (fmap f obj*)])))
 
-      ISearch
-      (-search [this target env]
-        (-search obj (f target) env))
+        ISearch
+        (-search [this target env]
+          (-search obj (f target) env))
 
-      IStable
-      (-stable [this]
-        stable))))
+        IStable
+        (-stable [this]
+          stable)))))
 
 (defn choice
   ([obj-a obj-b]
-   (if (= obj-a obj-b)
+   (cond
+     (fail? obj-a)
+     obj-b
+
+     (fail? obj-b)
      obj-a
+     
+     (= obj-a obj-b)
+     obj-a
+
+     :else
      (let [stable (and (stable? obj-a) (stable? obj-b))]
        (reify
          IGenerate
@@ -407,46 +418,50 @@
 
 (defn pair
   [obj-1 obj-2]
-  (let [obj-1-stable (stable? obj-1)
-        obj-2-stable (stable? obj-2)]
-    (reify
-      IGenerate
-      (-generate [this env]
-        (bind-gen env [state-1 obj-1
-                       state-2 obj-2]
-          (let [val-1 (get-val state-1)
-                val-2 (get-val state-2)
-                obj-1* (get-gen state-1)
-                obj-2* (get-gen state-2)
-                env* (get-env state-2)
-                val [val-1 val-2]
-                seq1 (pair (if obj-1-stable
-                             (const val-1)
-                             obj-1)
-                           obj-2*)
-                seq2 (pair obj-1*
-                           (if obj-2-stable
-                             (const val-2)
-                             obj-2))
-                seq3 (pair obj-1* obj-2*)
-                gen* (choice seq1 seq2 seq3)]
-            [val env* gen*])))
+  (if (or (fail? obj-1)
+          (fail? obj-2))
+    (fail)
+    (let [obj-1-stable (stable? obj-1)
+          obj-2-stable (stable? obj-2)
+          stable (and obj-1-stable obj-2-stable)]
+      (reify
+        IGenerate
+        (-generate [this env]
+          (bind-gen env [state-1 obj-1
+                         state-2 obj-2]
+            (let [val-1 (get-val state-1)
+                  val-2 (get-val state-2)
+                  obj-1* (get-gen state-1)
+                  obj-2* (get-gen state-2)
+                  env* (get-env state-2)
+                  val [val-1 val-2]
+                  seq1 (pair (if obj-1-stable
+                               (const val-1)
+                               obj-1)
+                             obj-2*)
+                  seq2 (pair obj-1*
+                             (if obj-2-stable
+                               (const val-2)
+                               obj-2))
+                  seq3 (pair obj-1* obj-2*)
+                  gen* (choice seq1 seq2 seq3)]
+              [val env* gen*])))
 
-      ISearch
-      (-search [this target env]
-        (if (and (sequential? target)
-                 (= 2 (bounded-count 3 target)))
-          (let [x-1 (nth target 0)
-                x-2 (nth target 1)]
-            (mapcat
-             (fn [env]
-               (-search obj-2 x-2 env))
-             (-search obj-1 x-1 env)))
-          (fail)))
+        ISearch
+        (-search [this target env]
+          (if (and (sequential? target)
+                   (= 2 (bounded-count 3 target)))
+            (let [x-1 (nth target 0)
+                  x-2 (nth target 1)]
+              (mapcat
+               (fn [env]
+                 (-search obj-2 x-2 env))
+               (-search obj-1 x-1 env)))
+            (fail)))
 
-      IStable
-      (-stable [this]
-        (and obj-1-stable obj-2-stable)))))
+        IStable
+        (-stable [this]
+          stable)))))
 
 (defmacro cons-gen [gen-car gen-cdr]
   `(fmap (fn [xs#]
@@ -454,23 +469,28 @@
      (pair ~gen-car ~gen-cdr)))
 
 (defn plus [obj]
-  (let [stable (stable? obj)]
-    (reify
-      IGenerate
-      (-generate [this env]
-        (if-gen [state obj env]
-          (let [vals (get-val state)
-                env* (get-env state)
-                obj* (get-gen state)
-                obj* (choice (fmap (fn [xs]
-                                     (concat (nth xs 0) (nth xs 1)))
-                                   (pair obj this))
-                             (plus obj*))]
-            [vals env* obj*])))
+  (if (fail? obj)
+    (fail)
+    (let [stable (stable? obj)]
+      (reify
+        IGenerate
+        (-generate [this env]
+          (if-gen [state obj env]
+            (let [vals (get-val state)
+                  env* (get-env state)
+                  obj* (get-gen state)
+                  obj* (choice (fmap (fn [xs]
+                                       (concat (nth xs 0) (nth xs 1)))
+                                     (pair obj this))
+                               (plus obj*)
+                               #_
+                               (choice (pair obj this)
+                                       (pair (const vals) (plus obj*))))]
+              [vals env* obj*])))
 
-      IStable
-      (-stable [this]
-        stable))))
+        IStable
+        (-stable [this]
+          stable)))))
 
 (defn star
   ([obj]
@@ -538,30 +558,32 @@
 (defn cata
   {:style/indent 1}
   [f obj]
-  (let [stable (stable? obj)]
-    (reify
-      IGenerate
-      (-generate [this env]
-        (bind-gen env [state obj]
-          (let [val (f (get-val state))]
-            (if (seq val)
-              (let [val* (nth val 0)
-                    env* (get-env state)
-                    obj* (get-gen state)
-                    gen* (choice (source (next val))
-                                 (cata f obj*))]
-                [val* env* gen*])
-              [(fail) env (fail)]))))
+  (if (fail? obj)
+    (fail)
+    (let [stable (stable? obj)]
+      (reify
+        IGenerate
+        (-generate [this env]
+          (bind-gen env [state obj]
+            (let [val (f (get-val state))]
+              (if (seq val)
+                (let [val* (nth val 0)
+                      env* (get-env state)
+                      obj* (get-gen state)
+                      gen* (choice (source (next val))
+                                   (cata f obj*))]
+                  [val* env* gen*])
+                [(fail) env (fail)]))))
 
-      ISearch
-      (-search [this target env]
-        (mapcat
-         (fn [x]
-           (-search obj x env))
-         (f target)))
+        ISearch
+        (-search [this target env]
+          (mapcat
+           (fn [x]
+             (-search obj x env))
+           (f target)))
 
-      IStable
-      (-stable [this] stable))))
+        IStable
+        (-stable [this] stable)))))
 
 (defn join [obj-1 obj-2]
   (fmap (fn [xs]
@@ -583,6 +605,33 @@
         (into-memory-variable [env symbol target]
           (succeed env))
         (fail)))
+
+    IStable
+    (-stable [this]
+      false)))
+
+(defn random-symbol [symbol]
+  (reify
+    IGenerate
+    (-generate [this env]
+      (if-some [entry (find env symbol)]
+        [(val entry) env (fail)]
+        (let [val (gensym)
+              env* (assoc env symbol val)]
+          [val env* (fail)])))
+
+    ISearch
+    (-search [this target env]
+      (if-some [entry (find env symbol)]
+        (let [value (val entry)]
+          (if (= target value)
+            (succeed env)
+            (fail)))
+        (let [value (gensym)]
+          (if (= target value)
+            (let [env* (assoc env symbol value)]
+              (succeed env*))
+            (fail)))))
 
     IStable
     (-stable [this]

@@ -85,10 +85,8 @@
                              ~match-form)))]
        (~cata-symbol ~target))))
 
-
-(defmacro rewrites
-  {:style/indent 1}
-  [expression & clauses]
+(defn rewrites-code
+  [expression clauses]
   (let [env (make-env)
         cata-symbol (get env :cata-symbol)
         target-symbol (gensym "T__")
@@ -107,6 +105,11 @@
                   (me/app dev.match/match-compile [([(me/app parse-pattern !left ~env) ~target-symbol]) ~env])))
                 ...]))]
        (~cata-symbol ~target-symbol)))))
+
+(defmacro rewrites
+  {:style/indent 1}
+  [expression & clauses]
+  (rewrites-code expression clauses))
 
 (defn rewrite-operators [expr]
   (walk/prewalk
@@ -130,13 +133,13 @@
         :solve-answer ~solve-form
         :search-answer ~search-form})))
 
-;; (report (into [] (repeat 10 1)) [!xs ...] {'!xs !xs})
-;; (report (into [] (repeat 10 1)) [?x . ?x ...] {'?x ?x})
-;; (let [root {:tag :root :next (dev.parse/parse '(1 2 3))}]
-;;   (dev.match/match-compile [(list [root 'target]) {}]))
-;; (parse-pattern '(1 1 1) {})
-;; (rewrite-1 '(1 1 1 2) ((mz/and 1 1) 1 ... ?x ?y) [[?x ?y] [?x ?y]])
-;; (parse-pattern '(mz/not (mz/not 2)) (make-env))
-;; (solve {:value 1, :a 2} {:value ?x mz/& (mz/not {_ ?x})})
-;; (solve {:value 1} (mz/not {_ 2}))
-;; (take 20 (rewrites '[X Y] [!xs !xs] [!xs ... | . !xs ...]))
+(defmacro gen [pattern]
+  (let [env (make-env)
+        ast (parse-pattern pattern env)
+        gen (dev.subst/generate-compile [ast env])]
+    `(let [gen# ~gen]
+       (fn
+         ([env#]
+          (m.runtime/run-gen gen# env#))
+         ([env# n#]
+          (m.runtime/run-gen gen# env# n#))))))

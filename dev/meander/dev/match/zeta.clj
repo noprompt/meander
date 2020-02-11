@@ -1,5 +1,6 @@
 (ns meander.dev.match.zeta
-  (:require [meander.dev.kernel.zeta :as dev.kernel]
+  (:require [clojure.core :as clj]
+            [meander.dev.kernel.zeta :as dev.kernel]
             [meander.dev.parse.zeta :as dev.parse]
             [meander.epsilon :as me]
             [meander.runtime.zeta :as m.runtime]))
@@ -272,12 +273,30 @@
                :as ?entry} ?target] & ?rest)
             ?env])
 
-  ;; Not implemented yet. We need to match all possible submaps of
-  ;; `?target` against `?pattern` with the rest of `?target` being
+  ;; TODO: Not implemented yet. We need to match all possible submaps
+  ;; of `?target` against `?pattern` with the rest of `?target` being
   ;; matched against `?next`.
   [([{:tag :rest-map :pattern ?pattern, :next ?next} ?target] & ?rest)
    ?env]
   (`m.runtime/fail)
+
+  ;; :random-symbol
+  ;; --------------
+  (me/and [([{:tag :random-symbol, :symbol ?symbol} ?target] & ?rest)
+           {:state-symbol ?state
+            :as ?env}]
+          (me/let [?entry (gensym)
+                   ?runtime-value (gensym)]))
+  (`clj/let [?entry (`clj/find ?state ('quote ?symbol))
+             ?runtime-value (if ?entry
+                              (`clj/val ?entry)
+                              (`clj/gensym))]
+   (if (`clj/= ?target ?runtime-value)
+     (`clj/let [?state (if ?entry
+                         ?state
+                         (`clj/assoc ?state ('quote ?symbol) ?runtime-value))]
+      (me/cata [?rest ?env]))
+     (`m.runtime/fail)))
 
   ;; :root
   ;; -----
