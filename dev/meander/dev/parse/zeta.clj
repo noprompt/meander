@@ -243,6 +243,22 @@
    :pattern (me/cata [?pattern ?env])
    :form ?form}
 
+  ;; (meander.zeta/fold *mutable-variable initial-value fold-function)
+  ;; -----------------------------------------------------------------
+
+  [((me/symbol ?ns "fold") ?mutable-variable ?initial-value ?fold-function :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (me/cata [`fold-args (me/cata [?mutable-variable ?env]) (me/cata [?initial-value ?env]) ?fold-function ?form])
+
+  [`fold-args {:tag :mutable-variable :as ?variable-ast} ?initial-value-ast ?fold-function ?form]
+  {:tag :fold
+   :variable ?variable-ast
+   :initial-value ?initial-value-ast
+   :fold-function {:tag :host-expression
+                   :form ?fold-function}
+   :form ?form}
+
   ;; (meander.zeta/not _)
   ;; ----------------------
 

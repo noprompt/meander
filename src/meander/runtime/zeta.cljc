@@ -117,11 +117,8 @@
 (defmacro bind-mutable-variable
   {:style/indent 1}
   [[smap symbol target] body-expression]
-  (let [vals (gensym)]
-    `(let [~vals (get ~smap ~symbol)
-           ~vals (cons ~target ~vals)
-           ~smap (assoc ~smap ~symbol ~vals)]
-       ~body-expression)))
+  `(let [~smap (assoc ~smap ~symbol ~target)]
+     ~body-expression))
 
 (defn knit
   [colls]
@@ -651,13 +648,7 @@
     IGenerate
     (-generate [this env]
       (if-some [entry (find env symbol)]
-        (let [vals (val entry)]
-          (if (seq vals)
-            (let [val (first vals)
-                  vals* (rest vals)
-                  env* (assoc env symbol vals*)]
-              [val env* (fail)])
-            [(fail) env (fail)]))
+        [(val entry) env (fail)]
         [(fail) env (fail)]))
 
     ISearch
@@ -668,3 +659,13 @@
     IStable
     (-stable [this]
       false)))
+
+(defn fold [mutable-variable initial-value fold-function]
+  (reify
+    ISearch
+    (-search [this target env]
+      (if-some [entry (find env mutable-variable)]
+        (bind-mutable-variable [env mutable-variable (fold-function (val entry) target)]
+          (succeed env))
+        (bind-mutable-variable [env mutable-variable (fold-function initial-value target)]
+          (succeed env))))))

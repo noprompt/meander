@@ -128,6 +128,22 @@
                   (me/cata [([?key ?key-target]) ?env])])))
             ?target])
 
+  ;; :fold
+  ;; -----
+
+  [([{:tag :fold,
+      :variable {:tag :mutable-variable, :symbol ?symbol},
+      :initial-value {:form ?initial-value}
+      :fold-function {:tag :host-expression, :form ?form}}
+     ?target] & ?rest)
+   {:state-symbol ?state :as ?env}]
+  (me/cata
+   [`mapcat-args
+    (fn [?state]
+      (me/cata [?rest ?env]))
+    (`m.runtime/-search (`m.runtime/fold ('quote ?symbol) ?initial-value ?form) ?target ?state)])
+
+
   ;; :into
   ;; -----
 
