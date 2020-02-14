@@ -111,6 +111,11 @@
   [expression & clauses]
   (rewrites-code expression clauses))
 
+(defmacro rewrite
+  {:style/indent 1}
+  [expression & clauses]
+  `(nth ~(rewrites-code expression clauses) 0))
+
 (defn rewrite-operators [expr]
   (walk/prewalk
    (fn [x]
