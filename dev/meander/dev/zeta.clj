@@ -12,9 +12,14 @@
                   [alias (ns-name ns)]))
         (ns-aliases ns)))
 
+(defn make-env []
+  {:aliases (ns-symbolic-alias-map *ns*)
+   :cata-symbol (gensym "C__")
+   :state-symbol (gensym "S__")})
+
 (defn parse-pattern
   ([pattern]
-   (parse-pattern pattern {}))
+   (parse-pattern pattern (make-env)))
   ([pattern env]
    (let [ast (dev.parse/parse [pattern env])
          ast {:tag :root :next ast}]
@@ -25,11 +30,6 @@
     (me/$ {:tag (me/or :logic-variable :memory-variable :mutable-variable)
            :as ?ast})
     ?ast))
-
-(defn make-env []
-  {:aliases (ns-symbolic-alias-map *ns*)
-   :cata-symbol (gensym "C__")
-   :state-symbol (gensym "S__")})
 
 (defmacro solve [expression pattern]
   (let [;; Evolve this structure.
