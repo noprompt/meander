@@ -215,7 +215,9 @@
   ;; (meander.zeta/with [,,,])
   ;; (meander.zeta/with [,,,] pattern)
 
-  [(meander.zeta/with ?bindings ?body :as ?form) ?env]
+  [((me/symbol ?ns "with") ?bindings ?body :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   {:tag :with
    :bindings {:tag :with-bindings
               :bindings (me/cata [`parse-with-bindings ?bindings ?env])}
@@ -258,6 +260,16 @@
    :fold-function {:tag :host-expression
                    :form ?fold-function}
    :form ?form}
+
+  ;; (meander.zeta/let _ _ _)
+  ;; ------------------------
+
+  [((me/symbol ?ns "let") ?pattern ?expression :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  {:tag :let
+   :pattern (me/cata [?pattern ?env])
+   :expression ?expression}
 
   ;; (meander.zeta/not _)
   ;; ----------------------

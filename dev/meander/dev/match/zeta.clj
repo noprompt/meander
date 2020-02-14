@@ -169,6 +169,14 @@
           (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))))
       ?partitions-symbol]))
 
+  ;; :let
+  ;; ----
+
+  (me/and [([{:tag :let :pattern ?pattern :expression ?expression} ?target] & ?rest) ?env]
+          (me/let [?new-target (gensym)]))
+  (`clj/let [?new-target ?expression]
+   (me/cata [([?pattern ?new-target] & ?rest) ?env]))
+
   ;; :literal
   ;; --------
 
@@ -404,7 +412,7 @@
   ;; --------------
 
   [([{:tag :with-bindings,
-      :bindings [{:reference {:symbol !symbol} :pattern !pattern}]} ?target] & ?rest)
+      :bindings [{:reference {:symbol !symbol} :pattern !pattern} ...]} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
   (letfn [(!symbol [$input ?state]

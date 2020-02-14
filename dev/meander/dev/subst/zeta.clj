@@ -40,6 +40,13 @@
   [{:tag :empty} _]
   (`m.runtime/const [])
 
+  [{:tag :fold
+    :variable {:symbol ?symbol}
+    :initial-value {:form ?initial-value}
+    :fold-function {:tag :host-expression
+                    :form ?fold-function}} ?env]
+  (`m.runtime/fold ('quote ?symbol) (me/cata ?initial-value) ?fold-function)
+
   ;; :into
   ;; -----
 
@@ -65,6 +72,33 @@
   [{:tag :logic-variable :symbol ?symbol} _ ]
   (`m.runtime/logic-variable ('quote ?symbol))
 
+
+  ;; :map
+  ;; ----
+
+  [{:tag :map :next ?next} ?env]
+  (`m.runtime/fmap
+   (`clj/fn [m]
+    (`clj/into {} m))
+   (me/cata [?next ?env]))
+
+  (me/and [{:tag :entry, :key-pattern ?key, :val-pattern ?val, :next ?next} ?env]
+          (me/let [?m (gensym)
+                   ?k (gensym)
+                   ?v (gensym)
+                   ?e (gensym)
+                   ?p (gensym)]))
+  (`m.runtime/fmap
+   (`clj/fn [?p]
+    (`clj/let [?e (nth ?p 0)
+               ?m (nth ?p 1)
+               ?k (nth ?e 0)
+               ?v (nth ?e 1)]
+     (assoc ?m ?k ?v)))
+   (`m.runtime/pair
+    (`m.runtime/pair (me/cata [?key ?env]) (me/cata [?val ?env]))
+    (me/cata [?next ?env])))
+
   ;; :memory-variable
   ;; ----------------
 
@@ -89,7 +123,6 @@
   [{:tag :random-symbol, :symbol ?symbol} ?env]
   (`m.runtime/random-symbol ('quote ?symbol))
 
-
   ;; :root
   ;; -----
 
@@ -101,6 +134,13 @@
 
   [{:tag :seq :next ?next} ?env]
   (`m.runtime/fmap `clojure.core/seq (me/cata [?next ?env]))
+
+  ;; :some-map
+  ;; ---------
+
+  [{:tag :some-map} ?env]
+  (`m.runtime/const {})
+
 
   ;; :star
   ;; -----

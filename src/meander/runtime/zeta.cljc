@@ -1,4 +1,5 @@
-(ns meander.runtime.zeta)
+(ns meander.runtime.zeta
+  (:require [clojure.core :as clj]))
 
 (defprotocol ISearch
   (-search [this target env]))
@@ -660,12 +661,40 @@
     (-stable [this]
       false)))
 
+(defmulti unfold-for
+  (fn [x]
+    (if (fn? x)
+      x
+      ::not-fn)))
+
+(defmethod unfold-for clj/max [_]
+  inc)
+
+(defmethod unfold-for clj/min [_]
+  dec)
+
 (defn fold [mutable-variable initial-value fold-function]
-  (reify
-    ISearch
-    (-search [this target env]
-      (if-some [entry (find env mutable-variable)]
-        (bind-mutable-variable [env mutable-variable (fold-function (val entry) target)]
-          (succeed env))
-        (bind-mutable-variable [env mutable-variable (fold-function initial-value target)]
-          (succeed env))))))
+  (let [unfold-function (unfold-for fold-function)]
+    (reify
+      ISearch
+      (-search [this target env]
+        (try
+          (let [val (if-some [entry (find env mutable-variable)]
+                      (fold-function (val entry) target)
+                      (fold-function initial-value target))]
+            (bind-mutable-variable [env mutable-variable val]
+              (succeed env)))
+          (catch Exception e
+            (fail))))
+
+      IGenerate
+      (-generate [this env]
+        (let [val* (if-some [entry (find env mutable-variable)]
+                     (unfold-function (val entry))
+                     (unfold-function initial-value))]
+          (bind-mutable-variable [env mutable-variable val*]
+            [val* env this])))
+
+      IStable
+      (-stable [this]
+        false))))
