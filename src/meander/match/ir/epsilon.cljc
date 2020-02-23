@@ -418,7 +418,7 @@ compilation decisions."
       (do-merge (:then a) then-b*
                 (fn [then-a*] (assoc a :then then-a*))
                 (fn [_ _]
-                  (assoc a :then (op-branch [(:then a) (:then b)])))))
+                  (assoc a :then (op-branch [(:then a) then-b*])))))
     ::merge-fail))
 
 (defmethod merge* [:branch :branch] [a b]
