@@ -264,12 +264,14 @@
   ;; (meander.zeta/let _ _ _)
   ;; ------------------------
 
-  [((me/symbol ?ns "let") ?pattern ?expression :as ?form)
+  [((me/symbol ?ns "let") ?pattern ?expression ?next :as ?form)
    (me/or (me/let [?ns "meander.zeta"] ?env)
           {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   {:tag :let
    :pattern (me/cata [?pattern ?env])
-   :expression ?expression}
+   :expression {:tag :host-expression
+                :form ?expression}
+   :next (me/cata [?next ?env])}
 
   ;; (meander.zeta/not _)
   ;; ----------------------
@@ -292,7 +294,6 @@
    :left (me/cata [?left ?env])
    :right (me/cata [?right ?env])
    :form ?form}
-
 
   ;; Seq pattern
   ;; -----------
@@ -332,7 +333,7 @@
 
   ;; *example
   [(me/symbol _ (me/re #"\*.+" ?name) :as ?symbol) _]
-  {:tag :mutable-variable
+  {:tag :fold-variable
    :name ?name
    :symbol ?symbol}
 

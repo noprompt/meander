@@ -39,7 +39,7 @@
           (me/let [?split-symbol (gensym)
                    ?take-symbol (gensym)
                    ?drop-symbol (gensym)]))
-  (`m.runtime/bind [?split-symbol (`m.runtime/-split-at ?target ?n)]
+  (`m.runtime/if-result [?split-symbol (`m.runtime/-split-at ?target ?n)]
    (let* [?take-symbol (clojure.core/nth ?split-symbol 0)
           ?drop-symbol (clojure.core/nth ?split-symbol 1)]
      ;; Use `nths form (see below).
@@ -172,10 +172,10 @@
   ;; :let
   ;; ----
 
-  (me/and [([{:tag :let :pattern ?pattern :expression ?expression} ?target] & ?rest) ?env]
+  (me/and [([{:tag :let, :pattern ?pattern, :expression {:form ?expression}, :next ?next} ?target] & ?rest) ?env]
           (me/let [?new-target (gensym)]))
   (`clj/let [?new-target ?expression]
-   (me/cata [([?pattern ?new-target] & ?rest) ?env]))
+   (me/cata [([?pattern ?new-target] [?next ?target] & ?rest) ?env]))
 
   ;; :literal
   ;; --------
@@ -201,8 +201,8 @@
   [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
-  (`m.runtime/bind-logic-variable [?state ('quote ?symbol) ?target]
-   (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
+  (`m.runtime/if-result [?state (`m.runtime/bind-variable ?state (`m.runtime/logic-variable ('quote ?symbol)) ?target)]
+   (me/cata [?rest ?env]))
 
   ;; :map
   ;; ----
@@ -215,20 +215,21 @@
   ;; :memory-variable
   ;; ----------------
 
-  (me/and [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
-           {?key ?symbol
-            :state-symbol ?state
-            :as ?env}]
-          (me/let [?value (gensym)]))
-  (let* [?value (clojure.core/get ?state ?key)
-         ?value (clojure.core/conj ?value ?target)
-         ?state (clojure.core/assoc ?state ?key ?value)]
-    (me/cata [?rest ?env]))
+  ;; TODO: Come back to this once memory variable binding is sorted out.
+  ;; (me/and [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
+  ;;          {?key ?symbol
+  ;;           :state-symbol ?state
+  ;;           :as ?env}]
+  ;;         (me/let [?value (gensym)]))
+  ;; (let* [?value (clojure.core/get ?state (`m.runtime/memory-variable ?key))
+  ;;        ?value (clojure.core/conj ?value ?target)
+  ;;        ?state (clojure.core/assoc ?state (`m.runtime/memory-variable ?key) ?value)]
+  ;;   (me/cata [?rest ?env]))
 
   [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
-  (`m.runtime/bind-memory-variable [?state ('quote ?symbol) ?target]
+  (let [?state (`m.runtime/bind-variable ?state (`m.runtime/memory-variable ('quote ?symbol)) [?target])]
    (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
 
   ;; :mutable-variable
@@ -359,7 +360,7 @@
           (me/let [?split-symbol (gensym)
                    ?take-symbol (gensym)
                    ?drop-symbol (gensym)]))
-  (`m.runtime/bind [?split-symbol (`m.runtime/-split-at ?target ?size)]
+  (`m.runtime/if-result [?split-symbol (`m.runtime/-split-at ?target ?size)]
    (let* [?take-symbol (clojure.core/nth ?split-symbol 0)
           ?drop-symbol (clojure.core/nth ?split-symbol 1)]
      (if (seq ?drop-symbol)

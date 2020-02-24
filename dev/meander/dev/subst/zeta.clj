@@ -13,7 +13,7 @@
   (me/cata [?next ?env])
 
   [{:tag :cat :sequence [?x] :next ?next} ?env]
-  (`m.runtime/fmap
+  (`m.runtime/call
    (`clj/fn [xs]
      (`clj/cons (`clj/nth xs 0) (`clj/nth xs 1)))
    (`m.runtime/pair
@@ -21,7 +21,7 @@
     (me/cata [?next ?env])))
 
   [{:tag :cat :sequence [?x & ?sequence] :next ?next} ?env]
-  (`m.runtime/fmap
+  (`m.runtime/call
    (`clj/fn [xs]
      (`clj/cons (`clj/nth xs 0) (`clj/nth xs 1)))
    (`m.runtime/pair
@@ -51,7 +51,7 @@
   ;; -----
 
   [{:tag :into, :memory-variable {:symbol ?symbol}} ?env]
-  (`m.runtime/star (`m.runtime/fmap `clj/list (`m.runtime/memory-variable ('quote ?symbol))))
+  (`m.runtime/star (`m.runtime/call `clj/list (`m.runtime/memory-variable ('quote ?symbol))))
   ;; (`m.runtime/drain ('quote ?symbol))
 
   ;; :join
@@ -59,6 +59,12 @@
 
   [{:tag :join :left ?left :right ?right} ?env]
   (`m.runtime/join (me/cata [?left ?env]) (me/cata [?right ?env]))
+
+  ;; :let
+  ;; ----
+
+  [{:tag :let, :pattern ?pattern, :expression {:form ?expression,} :next ?next} ?env]
+  (`m.runtime/letp (me/cata [?pattern ?env]) ?expression (me/cata [?next ?env]))
 
   ;; :literal
   ;; --------
@@ -72,12 +78,11 @@
   [{:tag :logic-variable :symbol ?symbol} _ ]
   (`m.runtime/logic-variable ('quote ?symbol))
 
-
   ;; :map
   ;; ----
 
   [{:tag :map :next ?next} ?env]
-  (`m.runtime/fmap
+  (`m.runtime/call
    (`clj/fn [m]
     (`clj/into {} m))
    (me/cata [?next ?env]))
@@ -88,7 +93,7 @@
                    ?v (gensym)
                    ?e (gensym)
                    ?p (gensym)]))
-  (`m.runtime/fmap
+  (`m.runtime/call
    (`clj/fn [?p]
     (`clj/let [?e (nth ?p 0)
                ?m (nth ?p 1)
@@ -133,7 +138,7 @@
   ;; ----
 
   [{:tag :seq :next ?next} ?env]
-  (`m.runtime/fmap `clojure.core/seq (me/cata [?next ?env]))
+  (`m.runtime/call `clojure.core/seq (me/cata [?next ?env]))
 
   ;; :some-map
   ;; ---------
@@ -154,7 +159,7 @@
   ;; -------
 
   [{:tag :vector :next ?next} ?env]
-  (`m.runtime/fmap `clojure.core/vec (me/cata [?next ?env]))
+  (`m.runtime/call `clojure.core/vec (me/cata [?next ?env]))
 
   ;; Not implemented
   ;; ---------------
