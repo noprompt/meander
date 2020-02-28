@@ -864,6 +864,14 @@
   ([obj]
    (choice (const ()) (star* obj))))
 
+(defn plus
+  ([obj n]
+   (if (<= n 0)
+     (star obj)
+     (call (fn [[a b]]
+             (concat a b))
+           (pair obj (plus obj (dec n)))))))
+
 (defn string [obj]
   (reify
     ISearch

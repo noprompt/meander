@@ -122,6 +122,15 @@
   [{:tag :or, :left ?left, :right ?right} ?env]
   (`m.runtime/choice (me/cata [?left ?env]) (me/cata [?right ?env]))
 
+
+  ;; :plus
+  ;; -----
+
+  [{:tag :plus :pattern ?pattern :next ?next :n ?n} ?env]
+  (`m.runtime/join
+   (`m.runtime/plus (me/cata [?pattern ?env]) ?n)
+   (me/cata [?next ?env]))
+
   ;; :random-symbol
   ;; --------------
 
