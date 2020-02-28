@@ -114,7 +114,7 @@
 (defmacro rewrite
   {:style/indent 1}
   [expression & clauses]
-  `(nth ~(rewrites-code expression clauses) 0))
+  `(nth ~(rewrites-code expression clauses) 0 nil))
 
 (defn rewrite-operators [expr]
   (walk/prewalk
@@ -148,3 +148,8 @@
           (m.runtime/run-gen gen# env#))
          ([env# n#]
           (m.runtime/run-gen gen# env# n#))))))
+
+
+(rewrite [1 2]
+  [?x ?y]
+  [?x ?Z])
