@@ -350,14 +350,16 @@
     (let [[forms env] (compile-all* ?elements env)
           n-symbol (gensym "n__")
           return-symbol (gensym "return__")
-          form `(loop [~return-symbol (transient [])]
+          form `(loop [~return-symbol (transient [])
+                       ~n-symbol ~?n]
                   ;; Yield n substitutions.
-                  (dotimes [~n-symbol ~?n]
-                    ~@(map
-                       (fn [form]
-                         `(conj! ~return-symbol ~form))
-                       forms))
-                  (persistent! ~return-symbol))]
+                  (if (zero? ~n-symbol)
+                    (persistent! ~return-symbol)
+                    (do ~@(map
+                           (fn [form]
+                             `(conj! ~return-symbol ~form))
+                           forms)
+                        (recur ~return-symbol (unchecked-dec ~n-symbol)))))]
       [form env])))
 
 (defmethod compile* :rpl [node env]
@@ -368,14 +370,16 @@
           [n-form env] (compile* ?lvr env)
           n-symbol (gensym "n__")
           return-symbol (gensym "return__")
-          form `(loop [~return-symbol (transient [])]
+          form `(loop [~return-symbol (transient [])
+                       ~n-symbol ~n-form]
                   ;; Yield ?n substitutions.
-                  (dotimes [~n-symbol ~n-form]
-                    ~@(map
-                       (fn [form]
-                         `(conj! ~return-symbol ~form))
-                       forms))
-                  (persistent! ~return-symbol))]
+                  (if (zero? ~n-symbol)
+                    (persistent! ~return-symbol)
+                    (do ~@(map
+                           (fn [form]
+                             `(conj! ~return-symbol ~form))
+                           forms)
+                        (recur ~return-symbol (unchecked-dec ~n-symbol)))))]
       [form env])))
 
 (defmethod compile* :rpm [node env]
@@ -386,17 +390,19 @@
           [n-form env] (compile* ?mvr env)
           n-symbol (gensym "n__")
           return-symbol (gensym "return__")
-          form `(loop [~return-symbol (transient [])]
                   ;; Yield !n substitutions. Note that unlike `:rpl`
                   ;; and `:rp+` we need to guard against the
                   ;; possibility of a `nil` value in the case the
                   ;; memory variable has been exauhsted.
-                  (dotimes [~n-symbol (or ~n-form 0)]
-                    ~@(map
-                       (fn [form]
-                         `(conj! ~return-symbol ~form))
-                       forms))
-                  (persistent! ~return-symbol))]
+          form `(loop [~return-symbol (transient [])
+                       ~n-symbol (or ~n-form 0)]
+                  (if (zero? ~n-symbol)
+                    (persistent! ~return-symbol)
+                    (do ~@(map
+                           (fn [form]
+                             `(conj! ~return-symbol ~form))
+                           forms)
+                        (recur ~return-symbol (unchecked-dec ~n-symbol)))))]
       [form env])))
 
 (defmethod compile* :rst
