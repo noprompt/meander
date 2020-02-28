@@ -491,6 +491,11 @@
   (let [unfold-fn (unfold-for fold-fn)]
     (FoldVariable. symbol initial-value fold-fn unfold-fn)))
 
+(defmethod unfold-for clj/+ [_]
+  (fn [current]
+    (let [return (- current)]
+      [return return])))
+
 (defmethod unfold-for clj/max [_]
   (fn [current]
     (let [return (inc current)]

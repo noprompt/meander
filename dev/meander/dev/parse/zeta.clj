@@ -118,6 +118,25 @@
    :pattern (me/cata [?rule-name [!xs ...] ?env])
    :next (me/cata [?rule-name ?rest ?env])}
 
+  ;; [,,, ..?n ?pattern]
+  ;; -----------------
+
+  [(parse-seq-or-string _)
+   [(me/symbol nil (me/re #"\.\.(\?.+)" [_ ?n]) :as ?operator) & ?rest]
+   ?env]
+  {:tag :syntax-error
+   :message "The ?n or more operator ..?n must be preceeded by at least one pattern"}
+
+  [(parse-seq-or-string ?rule-name)
+   [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\?.+)" [_ ?n])) & ?rest]
+   ?env]
+  {:tag :logical-plus
+   :n {:tag :logic-variable
+       :name ?n
+       :symbol (me/symbol ?n)}
+   :pattern (me/cata [?rule-name [!xs ...] ?env])
+   :next (me/cata [?rule-name ?rest ?env])}
+
   ;; [,,,]
   ;; -----
 
