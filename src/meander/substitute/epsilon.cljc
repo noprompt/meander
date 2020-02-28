@@ -368,7 +368,7 @@
           [n-form env] (compile* ?lvr env)
           n-symbol (gensym "n__")
           return-symbol (gensym "return__")
-          form `(let [~return-symbol (transient [])]
+          form `(loop [~return-symbol (transient [])]
                   ;; Yield ?n substitutions.
                   (dotimes [~n-symbol ~n-form]
                     ~@(map
