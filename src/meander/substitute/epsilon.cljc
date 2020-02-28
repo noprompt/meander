@@ -607,16 +607,16 @@
        (clojure.core/into [] (clojure.core/subvec & _ :as ?subvec-form))
        ?subvec-form
 
-       (clojure.core/into [] (clojure.core/let [?ret (clojure.core/transient [])]
+       (clojure.core/into [] (clojure.core/loop [?ret (clojure.core/transient [])]
                                . _ ... .
                                (clojure.core/persistent! ?ret)
-                               :as ?let-form))
-       ?let-form
+                               :as ?loop-form))
+       ?loop-form
 
-       (clojure.core/into {} (clojure.core/let [?ret (clojure.core/transient [])]
+       (clojure.core/into {} (clojure.core/loop [?ret (clojure.core/transient [])]
                                . !forms ... .
                                (clojure.core/persistent! ?ret)))
-       `(clojure.core/let [~?ret (clojure.core/transient {})]
+       `(clojure.core/loop [~?ret (clojure.core/transient {})]
           ~@!forms
           (clojure.core/persistent! ~?ret))
 
