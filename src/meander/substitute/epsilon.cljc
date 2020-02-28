@@ -334,7 +334,7 @@
                 (if (and ~@checks)
                   (recur
                     ~(reduce (fn [ret form] `(conj! ~ret ~form))
-                       return-symbol element-forms))
+                             return-symbol element-forms))
                   (persistent! ~return-symbol)))
          elements-env])
       ;; This should happen in a separate check phase.
@@ -355,11 +355,9 @@
                   ;; Yield n substitutions.
                   (if (zero? ~n-symbol)
                     (persistent! ~return-symbol)
-                    (do ~@(map
-                           (fn [form]
-                             `(conj! ~return-symbol ~form))
-                           forms)
-                        (recur ~return-symbol (unchecked-dec ~n-symbol)))))]
+                    (recur ~(reduce (fn [ret form] `(conj! ~ret ~form))
+                                    return-symbol forms)
+                           (unchecked-dec ~n-symbol))))]
       [form env])))
 
 (defmethod compile* :rpl [node env]
@@ -375,11 +373,9 @@
                   ;; Yield ?n substitutions.
                   (if (zero? ~n-symbol)
                     (persistent! ~return-symbol)
-                    (do ~@(map
-                           (fn [form]
-                             `(conj! ~return-symbol ~form))
-                           forms)
-                        (recur ~return-symbol (unchecked-dec ~n-symbol)))))]
+                    (recur ~(reduce (fn [ret form] `(conj! ~ret ~form))
+                                    return-symbol forms)
+                           (unchecked-dec ~n-symbol))))]
       [form env])))
 
 (defmethod compile* :rpm [node env]
@@ -390,19 +386,17 @@
           [n-form env] (compile* ?mvr env)
           n-symbol (gensym "n__")
           return-symbol (gensym "return__")
-                  ;; Yield !n substitutions. Note that unlike `:rpl`
-                  ;; and `:rp+` we need to guard against the
-                  ;; possibility of a `nil` value in the case the
-                  ;; memory variable has been exauhsted.
+          ;; Yield !n substitutions. Note that unlike `:rpl`
+          ;; and `:rp+` we need to guard against the
+          ;; possibility of a `nil` value in the case the
+          ;; memory variable has been exauhsted.
           form `(loop [~return-symbol (transient [])
                        ~n-symbol (or ~n-form 0)]
                   (if (zero? ~n-symbol)
                     (persistent! ~return-symbol)
-                    (do ~@(map
-                           (fn [form]
-                             `(conj! ~return-symbol ~form))
-                           forms)
-                        (recur ~return-symbol (unchecked-dec ~n-symbol)))))]
+                    (recur ~(reduce (fn [ret form] `(conj! ~ret ~form))
+                                    return-symbol forms)
+                           (unchecked-dec ~n-symbol))))]
       [form env])))
 
 (defmethod compile* :rst
