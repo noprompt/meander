@@ -198,7 +198,7 @@
                    ?? (gensym "?__")
                    ?x (gensym)]))
   (`clj/let [;; Use a fold variable to keep track of number of match times.
-             ?* (`m.runtime/fold-variable ('quote ?*) 0 `clj/+)
+             ?* (`m.runtime/fold-variable (gensym) 0 `clj/+)
              ?? (`m.runtime/logic-variable ('quote ?symbol))]
    (`m.runtime/run-star ?state ?target
     (fn [?state-1 ?input]
