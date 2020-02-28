@@ -240,6 +240,33 @@
     (me/cata [([?next ?target] & ?rest) ?env])
     (`m.runtime/fail))
 
+  ;; :memory-plus
+  ;; ------------
+
+  (me/and [([{:tag :memory-plus, :n {:symbol ?symbol}, :pattern ?pattern, :next ?next} ?target]
+            & ?rest)
+           {:state-symbol ?state :as ?env}]
+          (me/let [?input (gensym)
+                   ?state-1 (gensym)
+                   ?state-2 (gensym)
+                   ?* (gensym "*__")
+                   ?! (gensym "!__")
+                   ?x (gensym)]))
+  (`clj/let [;; Use a fold variable to keep track of number of match times.
+             ?* (`m.runtime/fold-variable (gensym) 0 `clj/+)
+             ?! (`m.runtime/memory-variable ('quote ?symbol))]
+   (`m.runtime/run-star ?state ?target
+    (fn [?state-1 ?input]
+      (`clj/mapcat
+       (fn [?state-1]
+         ;; Increment fold variable by 1.
+         (`m.runtime/succeed (`m.runtime/bind-variable ?state-1 ?* 1)))
+       (me/cata [([?pattern ?input]) {:state-symbol ?state-1 & ?env}])))
+    (fn [?state-2 ?input]
+      (`clj/let [?x (`clj/get ?state-2 ?*)
+                 ?state-2 (`m.runtime/bind-variable ?state-2 ?! [?x])]
+       (me/cata [([?next ?input] & ?rest) {:state-symbol ?state-2 & ?env}])))))
+
   ;; :memory-variable
   ;; ----------------
 

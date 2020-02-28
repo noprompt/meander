@@ -137,6 +137,25 @@
    :pattern (me/cata [?rule-name [!xs ...] ?env])
    :next (me/cata [?rule-name ?rest ?env])}
 
+  ;; [,,, ..?n ?pattern]
+  ;; -----------------
+
+  [(parse-seq-or-string _)
+   [(me/symbol nil (me/re #"\.\.(!.+)" [_ ?n]) :as ?operator) & ?rest]
+   ?env]
+  {:tag :syntax-error
+   :message "The operator ..!n must be preceeded by at least one pattern"}
+
+  [(parse-seq-or-string ?rule-name)
+   [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\!.+)" [_ ?n])) & ?rest]
+   ?env]
+  {:tag :memory-plus
+   :n {:tag :memory-variable
+       :name ?n
+       :symbol (me/symbol ?n)}
+   :pattern (me/cata [?rule-name [!xs ...] ?env])
+   :next (me/cata [?rule-name ?rest ?env])}
+
   ;; [,,,]
   ;; -----
 
@@ -149,7 +168,7 @@
   [`string-cat-args [{:tag :literal, :type (me/or :string :char) :form !forms} ...] {:tag :empty}]
   {:tag :literal
    :form (me/app clojure.string/join [!forms ...])}
-  
+
   [`cat-args [{:tag :literal, :form !forms} ...] {:tag :empty}]
   {:tag :literal
    :form [!forms ...]}
@@ -417,4 +436,3 @@
   ;; Probably not
 
   ?x ?x)
-
