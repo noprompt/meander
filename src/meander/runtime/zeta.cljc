@@ -372,6 +372,10 @@
 (defn logic-variable [symbol]
   (LogicVariable. symbol))
 
+(defmethod print-method LogicVariable [^LogicVariable v writer]
+  (.write writer "#meander.runtime.zeta/logic-variable ")
+  (.write writer (str (.-symbol v))))
+
 ;; Memory Variable
 ;; ---------------
 
@@ -860,6 +864,14 @@
   ([obj]
    (choice (const ()) (star* obj))))
 
+(defn string [obj]
+  (reify
+    ISearch
+    (-search [this target bindings]
+      (if (string? target)
+        (-search obj target bindings)
+        (fail)))))
+
 ;; (defn drain [symbol]
 ;;   (reify
 ;;     IGenerate
@@ -952,6 +964,12 @@
             (f state left))))
        partitions))))
 
+(defn second-argument [_ x] x)
+
+(defmethod unfold-for second-argument [_]
+  (fn [current]
+    [current current]))
+
 ;; Code generation helpers
 ;; -----------------------
 
@@ -994,15 +1012,59 @@
   [[smap symbol target] body-expression]
   `(let [~smap (assoc ~smap ~symbol ~target)]
      ~body-expression))
+
 ;; Extensions
 ;; ---------------------------------------------------------------------
-
 
 (extend-type clojure.lang.IFn
   IStrategyInvokeIn
   (-strategy-invoke-in [this arg env]
     (if-result [result (this arg)]
       (succeed [(this arg) env]))))
+
+(extend-type String
+  ITake
+  (-take [this n]
+    (let [c (count this)]
+      (if (<= n c)
+        (subs this 0 n)
+        (fail))))
+
+  IDrop
+  (-drop [this n]
+    (let [c (count this)]
+      (if (<= n c)
+        (subs this n)
+        (fail))))
+
+  IHead
+  (-head [this]
+    (if (= this "")
+      (fail)
+      (nth this 0)))
+
+  IPartitions
+  (-partitions [this]
+    (sequence
+     (map
+      (fn [i]
+        [(subs this 0 i) (subs this i)]))
+     (range (inc (count this)))))
+
+  
+  ISplitAt
+  (-split-at [this n]
+    (let [c (count this)]
+      (if (<= n c)
+        [(subs this 0 n)
+         (subs this n)]
+        (fail))))
+
+  ITail
+  (-tail [this]
+    (if (= this "")
+      this
+      (subs this 1))))
 
 
 (extend-type clojure.lang.IPersistentVector

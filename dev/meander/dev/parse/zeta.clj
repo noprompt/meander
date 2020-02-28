@@ -11,70 +11,80 @@
 (me/defsyntax not-dot-symbol [pattern]
   (me/and (me/not (dot-symbol)) pattern))
 
+(me/defsyntax parse-seq-or-string [pattern]
+  (if (me/match-syntax? &env)
+    (me/and (me/or `parse-seq `parse-string) pattern)
+    &form))
+
 (dev.kernel/defmodule parse
   ;; Meta Rules
   ;; ----------
 
-  [`parse-seq [] ?env]
+  [(parse-seq-or-string _) [] ?env]
   {:tag :empty}
 
   ;; [,,, :meander.zeta/as ?pattern]
   ;; -------------------------------
 
-  [`parse-seq [!xs ... :meander.zeta/as ?pattern] ?env]
+  [(parse-seq-or-string ?rule-name) [!xs ... :meander.zeta/as ?pattern] ?env]
   {:tag :as
    :pattern (me/cata ?pattern)
-   :next (me/cata [`parse-seq [!xs ...] ?env])}
+   :next (me/cata [?rule-name [!xs ...] ?env])}
 
   ;; [,,, meander.zeta/&N ?pattern]
   ;; -----------------------------
 
-  [`parse-seq [!init ... (me/symbol ?ns (me/re #"&(\d+)" [_ ?n])) ?pattern & ?rest]
+  [(parse-seq-or-string ?rule-name) [!init ... (me/symbol ?ns (me/re #"&(\d+)" [_ ?n])) ?pattern & ?rest]
    (me/or (me/let [?ns "meander.zeta"] ?env)
           {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   (me/cata
    [`join-args
-    (me/cata [`parse-seq [!init ...] ?env])
+    (me/cata [?rule-name [!init ...] ?env])
     (me/cata [`join-args
               {:tag :slice
                :size ~(Integer. ?n)
                :pattern (me/cata [?pattern ?env])}
-              (me/cata [`parse-seq [& ?rest] ?env])])])
+              (me/cata [?rule-name [& ?rest] ?env])])])
 
   ;; [,,, meander.zeta/& ?pattern]
   ;; -----------------------------
 
-  [`parse-seq [!init ... (me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest]
+  [(parse-seq-or-string ?rule-name) [!init ... (me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest]
    (me/or (me/let [?ns "meander.zeta"] ?env)
           {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
   (me/cata [`join-args
-            (me/cata [`parse-seq [!init ...] ?env])
+            (me/cata [?rule-name [!init ...] ?env])
             (me/cata [`join-args
                       (me/cata [?pattern ?env])
-                      (me/cata [`parse-seq [& ?rest] ?env])])])
+                      (me/cata [?rule-name [& ?rest] ?env])])])
 
-  [`parse-seq [!xs ... (me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
+  [(parse-seq-or-string ?rule-name) [!xs ... (me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
    {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}]
-  (me/cata [`parse-seq [!xs ... (me/symbol "meander.zeta" ?name) ?pattern] ?env])
+  (me/cata [?rule-name [!xs ... (me/symbol "meander.zeta" ?name) ?pattern] ?env])
 
   ;; [,,, . ?pattern]
   ;; ----------------
 
-  [`parse-seq [!xs ... '. & ?rest] ?env]
+  [(parse-seq-or-string ?rule-name) [!xs ... '. & ?rest] ?env]
   (me/cata [`join-args
-            (me/cata [`parse-seq [!xs ...] ?env])
-            (me/cata [`parse-seq ?rest ?env])])
+            (me/cata [?rule-name [!xs ...] ?env])
+            (me/cata [?rule-name ?rest ?env])])
 
   ;; [,,, ... ?pattern]
   ;; ----------------
 
-  [`parse-seq ['... & ?rest] ?env]
-  (me/cata [`parse-seq ?rest ?env])
+  [(parse-seq-or-string ?rule-name) ['... & ?rest] ?env]
+  (me/cata [?rule-name ?rest ?env])
 
-  [`parse-seq [(not-dot-symbol !xs) ... '... & ?rest] ?env]
+  [(parse-seq-or-string ?rule-name) [(not-dot-symbol !xs) ... '... & ?rest] ?env]
   (me/cata [`star-args
-            (me/cata [`parse-seq [!xs ...] ?env])
-            (me/cata [`parse-seq ?rest ?env])])
+            (me/cata [?rule-name [!xs ...] ?env])
+            (me/cata [?rule-name ?rest ?env])])
+
+  [`parse-string [(not-dot-symbol !xs) ... '... & ?rest] ?env]
+  (me/cata [`star-args
+            (me/cata [`parse-string [!xs ...] ?env])
+            (me/cata [`parse-string ?rest ?env])])
 
   [`star-args
    {:tag :cat
@@ -94,19 +104,19 @@
   ;; [,,, ..N ?pattern]
   ;; -----------------
 
-  [`parse-seq
+  [(parse-seq-or-string _)
    [(me/symbol nil (me/re #"\.\.(\d+)" [_ ?n]) :as ?operator) & ?rest]
    ?env]
   {:tag :syntax-error
    :message "The n or more operator ..N must be preceeded by at least one pattern"}
 
-  [`parse-seq
+  [(parse-seq-or-string ?rule-name)
    [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\d+)" [_ ?n])) & ?rest]
    ?env]
   {:tag :plus
    :n ~(Integer. ?n)
-   :pattern (me/cata [`parse-seq [!xs ...] ?env])
-   :next (me/cata [`parse-seq ?rest ?env])}
+   :pattern (me/cata [?rule-name [!xs ...] ?env])
+   :next (me/cata [?rule-name ?rest ?env])}
 
   ;; [,,,]
   ;; -----
@@ -114,6 +124,13 @@
   [`parse-seq [!xs ...] ?env]
   (me/cata [`cat-args [(me/cata [!xs ?env]) ...] {:tag :empty}])
 
+  [`parse-string [!xs ...] ?env]
+  (me/cata [`string-cat-args [(me/cata [!xs ?env]) ...] {:tag :empty}])
+
+  [`string-cat-args [{:tag :literal, :type (me/or :string :char) :form !forms} ...] {:tag :empty}]
+  {:tag :literal
+   :form (me/app clojure.string/join [!forms ...])}
+  
   [`cat-args [{:tag :literal, :form !forms} ...] {:tag :empty}]
   {:tag :literal
    :form [!forms ...]}
@@ -123,8 +140,13 @@
    :sequence ?sequence
    :next ?next}
 
+  [`string-cat-args ?sequence ?next]
+  {:tag :string-cat
+   :sequence ?sequence
+   :next ?next}
+
   [`join-args
-   {:tag :cat
+   {:tag (me/or :cat :string-cat)
     :sequence ?sequence
     :next {:tag :empty}}
    ?right]
@@ -295,6 +317,16 @@
    :right (me/cata [?right ?env])
    :form ?form}
 
+  ;; (meander.zeta/string _)
+  ;; ---------------------
+
+  [((me/symbol ?ns "string") & ?sequence :as ?form)
+   (me/or (me/let [?ns "meander.zeta"] ?env)
+          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  {:tag :string
+   :next (me/cata [`parse-string [& ?sequence] ?env])
+   :form ?form}
+
   ;; Seq pattern
   ;; -----------
 
@@ -333,7 +365,7 @@
 
   ;; *example
   [(me/symbol _ (me/re #"\*.+" ?name) :as ?symbol) _]
-  {:tag :fold-variable
+  {:tag :mutable-variable
    :name ?name
    :symbol ?symbol}
 
@@ -349,6 +381,16 @@
    :name ?name
    :symbol ?symbol}
 
+  [(me/pred string? ?x) _]
+  {:tag :literal
+   :type :string
+   :form ?x}
+
+  [(me/pred char? ?x) _]
+  {:tag :literal
+   :type :char
+   :form ?x}
+
   [?x _]
   {:tag :literal
    :form ?x}
@@ -356,3 +398,4 @@
   ;; Probably not
 
   ?x ?x)
+

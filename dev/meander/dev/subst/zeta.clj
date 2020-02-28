@@ -114,7 +114,7 @@
   ;; -----------------
 
   [{:tag :mutable-variable :symbol ?symbol} _]
-  (`m.runtime/mutable-variable ('quote ?symbol))
+  (`m.runtime/fold-variable ('quote ?symbol) nil `m.runtime/second-argument)
 
   ;; :or
   ;; ---

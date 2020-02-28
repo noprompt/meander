@@ -141,7 +141,7 @@
    [`mapcat-args
     (fn [?state]
       (me/cata [?rest ?env]))
-    (`m.runtime/-search (`m.runtime/fold ('quote ?symbol) ?initial-value ?form) ?target ?state)])
+    (`m.runtime/-search (`m.runtime/fold-variable ('quote ?symbol) ?initial-value ?form) ?target ?state)])
 
 
   ;; :into
@@ -237,7 +237,7 @@
 
   [([{:tag :mutable-variable :symbol ?symbol} ?target] & ?rest)
    {:state-symbol ?state :as ?env}]
-  (`m.runtime/bind-mutable-variable [?state ('quote ?symbol) ?target]
+  (`clj/let [?state (`m.runtime/bind-variable ?state (`m.runtime/fold-variable ('quote ?symbol) nil `m.runtime/second-argument) ?target)]
    (me/cata [?rest ?env]))
 
   ;; :not
@@ -385,6 +385,14 @@
      (me/cata [([?pattern ?input]) ?env]))
    (fn [?state ?input]
      (me/cata [([?next ?input] & ?rest) ?env])))
+
+  ;; :string
+  ;; -------
+
+  [([{:tag :string, :next ?next} ?target] & ?rest) ?env]
+  (if (clojure.core/string? ?target)
+    (me/cata [([?next ?target] & ?rest) ?env])
+    (`m.runtime/fail))
 
   ;; :vector
   ;; -------
