@@ -386,7 +386,7 @@
           [n-form env] (compile* ?mvr env)
           n-symbol (gensym "n__")
           return-symbol (gensym "return__")
-          form `(let [~return-symbol (transient [])]
+          form `(loop [~return-symbol (transient [])]
                   ;; Yield !n substitutions. Note that unlike `:rpl`
                   ;; and `:rp+` we need to guard against the
                   ;; possibility of a `nil` value in the case the
