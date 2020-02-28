@@ -330,12 +330,12 @@
             ;; one at a time.
             [element-forms elements-env] (compile-all* (:elements (:cat node)) env)
             return-symbol (gensym "return__")]
-        [`(let [~return-symbol (transient [])]
-            (while (and ~@checks)
-              ~@(map (fn [form]
-                       `(conj! ~return-symbol ~form))
-                     element-forms))
-            (persistent! ~return-symbol))
+        [`(loop [~return-symbol (transient [])]
+                (if (and ~@checks)
+                  (recur
+                    ~(reduce (fn [ret form] `(conj! ~ret ~form))
+                       return-symbol element-forms))
+                  (persistent! ~return-symbol)))
          elements-env])
       ;; This should happen in a separate check phase.
       (throw (ex-info "No memory variables found for operator (...)"
