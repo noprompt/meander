@@ -248,6 +248,10 @@
             [x env (source xs*)])
           [(fail) env (fail)]))
 
+      IHeight
+      (-height [this]
+        1)
+
       ISearch
       (-search [this target env]
         (if (= target xs)
