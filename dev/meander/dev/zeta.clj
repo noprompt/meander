@@ -36,7 +36,7 @@
         env (make-env)
         ast (parse-pattern pattern env)
         target (gensym "target__")
-        match-form (dev.match/match-compile [(list [ast target]) env])]
+        match-form (dev.match/match-compile [(list [ast target]) (merge env (meta &form))])]
     `(let [~target ~expression]
        ~match-form)))
 
