@@ -894,10 +894,16 @@
         (-search obj target bindings)
         (fail)))))
 
+
 (defn drain [obj]
   (reify
     IGenerate
     (-generate [this env]
+      ;; The goal here is to yield the "deepest" generation first,
+      ;; then the previous one, etc. The idea is that we can use this
+      ;; for zero or more patterns containing memory variables to
+      ;; generate the deepest dispersal first for rewrite.
+      ;;
       ;; 1000 is the maximum generator depth and is temporarily
       ;; hardcode for now.
       (-generate (source (reverse (run-gen obj env 1000))) env))
@@ -909,14 +915,12 @@
     ISearch
     (-search [this target env]
       (if (sequential? target)
-        (let [val (get env symbol)
-              env* (assoc env symbol (concat val target))]
-          (succeed env*))
+        (succeed env)
         (fail)))
 
     IStable
     (-stable [this]
-      false)))
+      true)))
 
 
 ;; Helpers
