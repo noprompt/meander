@@ -28,7 +28,7 @@
 
   [(parse-seq-or-string ?rule-name) [!xs ... :meander.zeta/as ?pattern] ?env]
   {:tag :as
-   :pattern (me/cata ?pattern)
+   :pattern (me/cata [?pattern ?env])
    :next (me/cata [?rule-name [!xs ...] ?env])}
 
   ;; [,,, meander.zeta/&N ?pattern]
