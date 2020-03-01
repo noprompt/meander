@@ -715,35 +715,47 @@ says find every subsequence in the vector being matched after _any_ occurrence o
 
 ### Rest
 
-We can use the `&` operator on the lhs side of a match to match of the rest of some sequence.
+We can use the `&` operator to match of the rest of sequences, vectors, maps and sets.
 
 ```clj
 (m/match [1 2 3]
   [1 & ?xs]
   ?xs)
-
 ;; =>
-
 [2 3]
 
 (m/match {:a 1 :b 2}
   {:a 1 & ?rest}
   ?rest)
-
 ;; =>
 {:b 2}
+
+(m/match #{1 2 3}
+  #{^& ?rest}
+  ?rest)
+;; => #{1 3 2}
 ```
 
-We can also use `&` with substitution to help us build up maps.
+We can also use `&` with substitution to build up sequences, vectors, maps and sets.
 
 ```clj
-(m/rewrite [:a 1 :b 2]
-  [!xs ...]
-  {& [[!xs ..2] ...]})
-  
+(m/rewrite '(1 2 3)
+  ?xs
+  [& ?xs])
 ;; =>
+[1 2 3]
 
+(m/rewrite [:a 1 :b 2]
+  [!ks !vs ...]
+  {& ([!ks !vs] ...)})
+;; =>
 {:a 1 :b 2}
+
+(m/rewrite [1 2 3]
+  ?xs
+  #{^& ?xs})
+;; =>
+#{1 3 2}
 ```
 
 ## Escaping
