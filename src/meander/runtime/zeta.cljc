@@ -2,6 +2,11 @@
   (:refer-clojure :exclude [drop])
   (:require [clojure.core :as clj]))
 
+;; TODO: Allow a maximum depth to be configured for search, find, and
+;;       generate.
+;; TODO: Allow a maximum width to be configured for search, find, and
+;;       generate.
+
 ;; Protocols
 ;; ---------------------------------------------------------------------
 
