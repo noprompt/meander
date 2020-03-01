@@ -894,29 +894,29 @@
         (-search obj target bindings)
         (fail)))))
 
-;; (defn drain [symbol]
-;;   (reify
-;;     IGenerate
-;;     (-generate [this env]
-;;       (let [val (get env symbol)
-;;             env* (assoc env symbol ())
-;;             gen* (fail)]
-;;         [val env* gen*]))
+(defn drain [obj]
+  (reify
+    IGenerate
+    (-generate [this env]
+      ;; 1000 is the maximum generator depth and is temporarily
+      ;; hardcode for now.
+      (-generate (source (reverse (run-gen obj env 1000))) env))
 
-;;     IHeight
-;;     (-height [this]
-;;       0)
+    IHeight
+    (-height [this]
+      0)
 
-;;     ISearch
-;;     (-search [this target env]
-;;       (if (sequential? target)
-;;         (into-memory-variable [env symbol target]
-;;           (succeed env))
-;;         (fail)))
+    ISearch
+    (-search [this target env]
+      (if (sequential? target)
+        (let [val (get env symbol)
+              env* (assoc env symbol (concat val target))]
+          (succeed env*))
+        (fail)))
 
-;;     IStable
-;;     (-stable [this]
-;;       false)))
+    IStable
+    (-stable [this]
+      false)))
 
 
 ;; Helpers
@@ -1003,7 +1003,7 @@
        (let* [y# (val entry#)]
          (if (= ~x y#)
            ~body-expression
-           (fail)))   
+           (fail)))
        (let* [~smap (assoc ~smap ~v ~x)]
          ~body-expression))))
 
@@ -1073,7 +1073,7 @@
         [(subs this 0 i) (subs this i)]))
      (range (inc (count this)))))
 
-  
+
   ISplitAt
   (-split-at [this n]
     (let [c (count this)]
@@ -1118,7 +1118,7 @@
         [(subvec this 0 i) (subvec this i)]))
      (range (inc (count this)))))
 
-  
+
   ISplitAt
   (-split-at [this n]
     (let [c (count this)]
@@ -1167,7 +1167,7 @@
     (if-result [left (-take this n)]
       (let [right (clojure.core/drop n this)]
         [left right])))
-  
+
   ITail
   (-tail [this]
     (if (seq this)
