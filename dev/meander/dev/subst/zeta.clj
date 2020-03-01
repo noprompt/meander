@@ -52,7 +52,8 @@
 
   [{:tag :into, :memory-variable {:symbol ?symbol}} ?env]
   (`m.runtime/star (`m.runtime/call `clj/list (`m.runtime/memory-variable ('quote ?symbol))))
-  ;; (`m.runtime/drain ('quote ?symbol))
+  ;; (`m.runtime/drain (`m.runtime/star (`m.runtime/call `clj/list (`m.runtime/memory-variable ('quote ?symbol)))))
+
 
   ;; :join
   ;; -----
