@@ -262,7 +262,7 @@
         (if (= target xs)
           (succeed env)
           (fail)))
-      
+
       IStable
       (-stable [this] true))
     (fail)))
@@ -622,7 +622,7 @@
 
      (fail? obj-b)
      obj-a
-     
+
      (= obj-a obj-b)
      obj-a
 
