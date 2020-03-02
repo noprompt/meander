@@ -49,6 +49,14 @@
   [([{:tag :and :left ?left :right ?right :form ?form} ?target] & ?rest) ?env]
   (me/cata [([?left ?target] [?right ?target] & ?rest) ?env])
 
+  ;; :apply
+  ;; ----
+
+  (me/and [([{:tag :apply :fn ?fn :pattern ?pattern} ?target] & ?rest) ?env]
+          (me/let [?new-target (gensym)]))
+  (`clj/let [?new-target (?fn ?target)]
+   (me/cata [([?pattern ?new-target] & ?rest) ?env]))
+
   ;; :as
   ;; ---
 

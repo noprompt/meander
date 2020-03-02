@@ -16,6 +16,26 @@
     (me/and (me/or `parse-seq `parse-string) pattern)
     &form))
 
+(me/defsyntax special
+  "Equivalent to form
+
+  [((symbol ?_ns ?name) & _ :as ?form)
+   (or (let [?_ns \"meander.zeta\"] ?env)
+       {:aliases {(symbol ?_ns) (symbol \"meander.zeta\")
+        :as ?env}
+
+  where ?_ns is internal to the pattern."
+  [?name ?form ?env]
+  {:pre [(string? name)]}
+  (if (me/match-syntax? &env)
+    (let [?ns (gensym "?__")]
+      (me/subst
+        (`me/and [((`me/symbol ?ns ?name) '& '_)
+                  (`me/or (`me/let [?ns "meander.zeta"])
+                   {:aliases {(`me/symbol ?ns) (`me/symbol "meander.zeta")}})]
+         [?form ?env])))
+    &form))
+
 (dev.kernel/defmodule parse
   ;; Meta Rules
   ;; ----------
@@ -275,21 +295,26 @@
   ;; (meander.zeta/with [,,,])
   ;; (meander.zeta/with [,,,] pattern)
 
-  [((me/symbol ?ns "with") ?bindings ?body :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "with" (_  ?bindings ?body :as ?form) ?env)
   {:tag :with
    :bindings {:tag :with-bindings
               :bindings (me/cata [`parse-with-bindings ?bindings ?env])}
    :body (me/cata [?body ?env])
    :form ?form}
 
+  ;; (meander.zeta/apply f pattern)
+  ;; ------------------------------
+
+  (special "apply" (_ ?fn ?pattern :as ?form) ?env)
+  {:tag :apply
+   :fn ?fn
+   :pattern (me/cata [?pattern ?env])
+   :form ?form}
+
   ;; (meander.zeta/and _ _)
   ;; ----------------------
 
-  [((me/symbol ?ns "and") ?left ?right :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "and" (_ ?left ?right :as ?form) ?env)
   {:tag :and
    :left (me/cata [?left ?env])
    :right (me/cata [?right ?env])
@@ -298,9 +323,7 @@
   ;; (meander.zeta/cata _)
   ;; ---------------------
 
-  [((me/symbol ?ns "cata") ?pattern :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "cata" (_ ?pattern :as ?form) ?env)
   {:tag :cata
    :pattern (me/cata [?pattern ?env])
    :form ?form}
@@ -308,9 +331,7 @@
   ;; (meander.zeta/fold *mutable-variable initial-value fold-function)
   ;; -----------------------------------------------------------------
 
-  [((me/symbol ?ns "fold") ?mutable-variable ?initial-value ?fold-function :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "fold" (_  ?mutable-variable ?initial-value ?fold-function :as ?form) ?env)
   (me/cata [`fold-args (me/cata [?mutable-variable ?env]) (me/cata [?initial-value ?env]) ?fold-function ?form])
 
   [`fold-args {:tag :mutable-variable :as ?variable-ast} ?initial-value-ast ?fold-function ?form]
@@ -324,9 +345,7 @@
   ;; (meander.zeta/let _ _ _)
   ;; ------------------------
 
-  [((me/symbol ?ns "let") ?pattern ?expression ?next :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "let" (?pattern ?expression ?next :as ?form) ?env)
   {:tag :let
    :pattern (me/cata [?pattern ?env])
    :expression {:tag :host-expression
@@ -336,9 +355,7 @@
   ;; (meander.zeta/not _)
   ;; ----------------------
 
-  [((me/symbol ?ns "not") ?pattern :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "not" (_ ?pattern :as ?form) ?env)
   {:tag :not
    :pattern (me/cata [?pattern ?env])
    :form ?form}
@@ -347,9 +364,7 @@
   ;; (meander.zeta/or _ _)
   ;; ----------------------
 
-  [((me/symbol ?ns "or") ?left ?right :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "or" (_ ?left ?right :as ?form) ?env)
   {:tag :or
    :left (me/cata [?left ?env])
    :right (me/cata [?right ?env])
@@ -358,9 +373,7 @@
   ;; (meander.zeta/string _)
   ;; ---------------------
 
-  [((me/symbol ?ns "string") & ?sequence :as ?form)
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (special "string" (_ & ?sequence :as ?form) ?env)
   {:tag :string
    :next (me/cata [`parse-string [& ?sequence] ?env])
    :form ?form}
