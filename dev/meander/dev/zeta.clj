@@ -148,8 +148,3 @@
           (m.runtime/run-gen gen# env#))
          ([env# n#]
           (m.runtime/run-gen gen# env# n#))))))
-
-
-(rewrite [1 2]
-  [?x ?y]
-  [?x ?Z])
