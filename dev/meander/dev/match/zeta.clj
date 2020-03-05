@@ -66,7 +66,7 @@
   ;; :cat
   ;; ----
 
-  (me/and [([{:tag :cat, :sequence [!asts ..?n], :next ?next} ?target] & ?rest)
+  (me/and [([{:tag (me/or :cat :string-cat), :sequence [!asts ..?n], :next ?next} ?target] & ?rest)
            ?env]
           (me/let [?split-symbol (gensym)
                    ?take-symbol (gensym)
@@ -180,6 +180,10 @@
     :as ?env}]
   (`m.runtime/into-memory-variable [?state ('quote ?symbol) ?target]
     (me/cata [?rest ?env]))
+
+
+  ;; :join
+  ;; -----
 
   (me/and [([{:tag :join, :left ?left, :right ?right} ?target] & ?rest) ?env]
           (me/let [?partitions-symbol (gensym "partitions__")
@@ -473,6 +477,42 @@
   (if (clojure.core/string? ?target)
     (me/cata [([?next ?target] & ?rest) ?env])
     (`m.runtime/fail))
+
+
+
+  ;; :string-join
+  ;; ------------
+
+  (me/and [([{:tag :string-join, :left {:tag :literal :type :string :form ?string},:right ?right} ?target] & ?rest)
+           ?env]
+          (me/let [?target-0 (gensym)
+                   ?target-1 (gensym)
+                   ?target-2 (gensym)]))
+  (`m.runtime/if-result [?target-0 (`m.runtime/-split-at ?target ~(count ?string))]
+   (let [?target-1 (`clj/nth ?target-0 0)]
+     (if (= ?target-1 ?string)
+       (let [?target-2 (`clj/nth ?target-0 1)]
+         (me/cata [([?right ?target-2] & ?rest) ?env]))
+       (`m.runtime/fail))))
+
+  [([{:tag :string-join, :left ?left, :right {:tag :empty}} ?target] & ?rest) ?env]
+  (me/cata [([?left ?target] & ?rest) ?env])
+
+  (me/and [([{:tag :string-join, :left ?left, :right ?right} ?target] & ?rest) ?env]
+          (me/let [?partitions-symbol (gensym "partitions__")
+                   ?partition-symbol (gensym "partition__")
+                   ?left-symbol (gensym "left__")
+                   ?right-symbol (gensym "right__")]))
+  (let* [?partitions-symbol (`m.runtime/partitions ?target)]
+    (me/cata
+     [`query
+      ?partition-symbol
+      (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
+             ?right-symbol (clojure.core/nth ?partition-symbol 1)]
+        (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
+      ?partitions-symbol
+      ?env]))
+  
 
   ;; :vector
   ;; -------
