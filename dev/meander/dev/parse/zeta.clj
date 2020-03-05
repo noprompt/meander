@@ -51,6 +51,7 @@
    :pattern (me/cata [?pattern ?env])
    :next (me/cata [?rule-name [!xs ...] ?env])}
 
+
   ;; [,,, meander.zeta/&N ?pattern]
   ;; -----------------------------
 
@@ -98,10 +99,16 @@
   ;; [,,, . ?pattern]
   ;; ----------------
 
-  [(parse-seq-or-string ?rule-name) [!xs ... '. & ?rest] ?env]
+  [`parse-seq [!xs ... '. & ?rest] ?env]
   (me/cata [`join-args
-            (me/cata [?rule-name [!xs ...] ?env])
-            (me/cata [?rule-name ?rest ?env])])
+            (me/cata [`parse-seq [!xs ...] ?env])
+            (me/cata [`parse-seq ?rest ?env])])
+
+
+  [`parse-string [!xs ... '. & ?rest] ?env]
+  (me/cata [`string-join-args
+            (me/cata [`parse-string [!xs ...] ?env])
+            (me/cata [`parse-string ?rest ?env])])
 
   ;; [,,, ... ?pattern]
   ;; ----------------
@@ -109,18 +116,16 @@
   [(parse-seq-or-string ?rule-name) ['... & ?rest] ?env]
   (me/cata [?rule-name ?rest ?env])
 
-  [(parse-seq-or-string ?rule-name) [(not-dot-symbol !xs) ... '... & ?rest] ?env]
-  (me/cata [`star-args
+  (me/with [%1 (me/and `parse-string ?rule-name (me/let [?star-name `string-star-args]))
+            %2 (me/and `parse-seq ?rule-name (me/let [?star-name `star-args]))
+            %3 (me/or %1 %2)]
+    [%3 [(not-dot-symbol !xs) ... '... & ?rest] ?env])
+  (me/cata [?star-name
             (me/cata [?rule-name [!xs ...] ?env])
             (me/cata [?rule-name ?rest ?env])])
 
-  [`parse-string [(not-dot-symbol !xs) ... '... & ?rest] ?env]
-  (me/cata [`star-args
-            (me/cata [`parse-string [!xs ...] ?env])
-            (me/cata [`parse-string ?rest ?env])])
-
   [`star-args
-   {:tag (me/or :cat :string-cat)
+   {:tag :cat
     :sequence [{:tag :memory-variable :as ?memory-variable}]
     :next {:tag :empty}}
    ?next]
@@ -131,6 +136,21 @@
 
   [`star-args ?pattern ?next]
   {:tag :star
+   :pattern ?pattern
+   :next ?next}
+
+  [`string-star-args
+   {:tag :string-cat
+    :sequence [{:tag :memory-variable :as ?memory-variable}]
+    :next {:tag :empty}}
+   ?next]
+  (me/cata [`string-join-args
+            {:tag :into
+             :memory-variable ?memory-variable}
+            ?next])
+
+  [`string-star-args ?pattern ?next]
+  {:tag :string-star
    :pattern ?pattern
    :next ?next}
 
@@ -198,25 +218,12 @@
   [`parse-string [!xs ...] ?env]
   (me/cata [`string-cat-args [(me/cata [!xs ?env]) ...] {:tag :empty}])
 
-  [`string-cat-args [{:tag :literal, :type (me/or :string :char) :form !forms} ...] {:tag :empty}]
-  {:tag :literal
-   :type :string
-   :form (me/app clojure.string/join [!forms ...])}
-
   [`cat-args [{:tag :literal, :form !forms} ...] {:tag :empty}]
   {:tag :literal
    :form [!forms ...]}
 
   [`cat-args ?sequence ?next]
   {:tag :cat
-   :sequence ?sequence
-   :next ?next}
-
-  [`string-cat-args [{:tag :literal, :type :string, :as ?ast} & ?rest] ?next]
-  (me/cata [`string-join-args ?ast (me/cata [`string-cat-args ?rest ?next])])
-
-  [`string-cat-args ?sequence ?next]
-  {:tag :string-cat
    :sequence ?sequence
    :next ?next}
 
@@ -238,41 +245,51 @@
    :left ?left
    :right ?right}
 
+  [`string-cat-args [{:tag :literal, :type (me/or :string :char) :form !forms} ...] {:tag :empty}]
+  {:tag :literal
+   :type :string
+   :form (me/app clojure.string/join [!forms ...])}
+
+  [`string-cat-args [{:tag :literal, :type :string, :as ?ast} & ?rest] ?next]
+  (me/cata [`string-join-args ?ast (me/cata [`string-cat-args ?rest ?next])])
+
+  [`string-cat-args ?sequence ?next]
+  {:tag :string-cat
+   :sequence ?sequence
+   :next ?next}
+
   [`string-join-args
-   {:tag :literal
-    :type :string
-    :form ?form-1}
+   {:tag :literal, :type :string, :form ?form-1}
    {:tag :string-join
     :left {:tag :literal :type :string :form ?form-2}
     :right ?right}]
   (me/cata [`string-join-args
-            {:tag :literal
-             :type :string
-             :form (me/app str ?form-1 ?form-2)}
+            {:tag :literal, :type :string, :form (me/app str ?form-1 ?form-2)}
             ?right])
 
   [`string-join-args
-   {:tag :literal
-    :type :string
-    :as ?ast}
-   {:tag :string-cat
-    :sequence ?sequence 
-    :next ?next}]
+   {:tag :literal :type :string :as ?ast}
+   {:tag :string-cat :sequence ?sequence :next ?next}]
   {:tag :string-cat
-   :sequence [?ast & ?sequence] 
+   :sequence [?ast & ?sequence]
    :next ?next}
 
   [`string-join-args
-   {:tag :string-cat
-    :sequence ?sequence
-    :next {:tag :empty}}
+   {:tag :string-cat :sequence ?sequence :next {:tag :empty}}
    ?right]
   (me/cata [`string-cat-args ?sequence ?right])
 
+  [`string-join-args {:tag :string-star, :pattern ?pattern, :next {:tag :empty}} ?right]
+  {:tag :string-star, :pattern ?pattern, :next ?right}
+
+  [`string-join-args {:tag :string-join, :left ?left, :right ?right-1} ?right-2]
+  {:tag :string-join, :left ?left, :right (me/cata [`string-join-args ?right-1 ?right-2])}
+
+  [`string-join-args ?left {:tag :empty}]
+  ?left
+
   [`string-join-args ?left ?right]
-  {:tag :string-join
-   :left ?left
-   :right ?right}
+  {:tag :string-join, :left ?left, :right ?right}
 
   ;; {meander.zeta/:as ?pattern ,,,}
   ;; -------------------------------
