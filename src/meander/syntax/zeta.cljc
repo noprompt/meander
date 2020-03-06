@@ -19,7 +19,7 @@
 
 (defn parse
   ([form]
-   (m.parse/parse [form (make-parse-env *ns*)]))
+   (parse form (make-parse-env *ns*)))
   ([form env]
    (let [ast (m.parse/parse [form env])]
      {:tag :root, :next ast})))
