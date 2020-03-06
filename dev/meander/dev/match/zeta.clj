@@ -478,8 +478,6 @@
     (me/cata [([?next ?target] & ?rest) ?env])
     (`m.runtime/fail))
 
-
-
   ;; :string-join
   ;; ------------
 
@@ -512,7 +510,36 @@
         (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
       ?partitions-symbol
       ?env]))
-  
+
+  ;; :string-star
+  ;; ------------
+
+  (me/and [([{:tag :string-star, :pattern {:tag :literal, :type :string, :form ?form}, :next {:tag :empty}} ?target] & ?rest) ?env]
+          (me/let [?re (gensym)]))
+  (`clj/let [;; TODO: Regex escape ?form
+             ?re ~(clojure.core/re-pattern (clojure.core/str "\\A(?:" ?form ")*\\z"))]
+   (if (`clj/re-matches ?re ?target)
+    (me/cata [?rest ?env])))
+
+  (me/and [([{:tag :string-star, :pattern {:tag :literal, :type :string, :form ?form}, :next ?next} ?target] & ?rest) ?env]
+          (me/let [?re (gensym)
+                   ?indexes (gensym)
+                   ?index (gensym)
+                   ?f (gensym)
+                   ?next-target (gensym)]))
+  (`clj/let [;; TODO: Regex escape ?form
+             ?re ~(clojure.core/re-pattern ?form)
+             ?indexes (`m.runtime/re-match-index-seq ?re ?target)
+             ?f (`clj/fn [?next-target]
+                 (me/cata [([?next ?next-target] & ?rest) ?env]))]
+   (`clj/concat
+    (?f ?target)
+    (me/cata [`query
+              ?index
+              (`clj/let [?next-target (`clj/subs ?target (`clj/+ ?index ~(count ?form)))]
+               (?f ?next-target))
+              ?indexes
+              ?env])))
 
   ;; :vector
   ;; -------

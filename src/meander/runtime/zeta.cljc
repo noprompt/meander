@@ -996,6 +996,13 @@
   (fn [current]
     [current current]))
 
+(defn re-match-index-seq [re s]
+  (let [m (re-matcher re s)]
+    ((fn f []
+       (lazy-seq
+        (if (.find m)
+          (cons (.start m) (f))))))))
+
 ;; Code generation helpers
 ;; -----------------------
 

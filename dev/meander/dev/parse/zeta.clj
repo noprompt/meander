@@ -288,6 +288,9 @@
   [`string-join-args ?left {:tag :empty}]
   ?left
 
+  [`string-join-args {:tag :empty} ?right]
+  ?right
+
   [`string-join-args ?left ?right]
   {:tag :string-join, :left ?left, :right ?right}
 
