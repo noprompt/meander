@@ -130,10 +130,3 @@
           (m.runtime/run-gen gen# env#))
          ([env# n#]
           (m.runtime/run-gen gen# env# n#))))))
-
-(m.syntax/parse
- '(mz/string mz/& ?bar mz/& ?foo))
-
-(solve "foofoo" (mz/string mz/& ?foo mz/& ?bar))
-
-
