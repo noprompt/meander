@@ -165,6 +165,19 @@
    (`m.runtime/star (me/cata [?pattern ?env]))
    (me/cata [?next ?env]))
 
+
+  ;; symbol
+  ;; ------
+
+  [{:tag :symbol :name (me/some ?name) :namespace (me/some ?namespace)} ?env]
+  (`m.runtime/call (`clj/fn [[namespace name]] (`clj/symbol namespace name))
+   [(me/cata [?namespace ?env])
+    (me/cata [?name ?env])])
+
+  [{:tag :symbol :name (me/some ?name)} ?env]
+  (`m.runtime/call `clj/symbol (me/cata [?name ?env]))
+
+
   ;; :vector
   ;; -------
 

@@ -294,15 +294,17 @@
   [`string-join-args ?left ?right]
   {:tag :string-join, :left ?left, :right ?right}
 
-  ;; {meander.zeta/:as ?pattern ,,,}
+  ;; {:meander.zeta/as ?pattern ,,,}
   ;; -------------------------------
 
   [`parse-entries (me/and {:meander.zeta/as ?pattern & ?rest}
                           (me/not ?rest))
    ?env]
   {:tag :as
-   :pattern ?pattern
+   :pattern (me/cata [?pattern ?env])
    :next (me/cata [?rest ?env])}
+
+
 
   ;; {meander.zeta/&name ?pattern ,,,}
   ;; ---------------------------------
@@ -449,6 +451,34 @@
   (special "string" (_ & ?sequence :as ?form) ?env)
   {:tag :string
    :next (me/cata [`parse-string [& ?sequence] ?env])
+   :form ?form}
+
+  ;; (meander.zeta/symbol _)
+  ;; ---------------------
+
+  (special "symbol" (_ ?name :as ?form) ?env)
+  {:tag :symbol
+   :name (me/cata [?name ?env])
+   :form ?form}
+
+  ;; (meander.zeta/symbol _ _)
+  ;; ---------------------
+
+  (special "symbol" (_ ?name ?namespace :as ?form) ?env)
+  {:tag :symbol
+   :name (me/cata [?name ?env])
+   :namespace (me/cata [?namespace ?env])
+   :form ?form}
+
+  ;; (meander.zeta/symbol _ _ :meander.zeta/as _)
+  ;; ---------------------
+
+  (special "symbol" (_ & ?name ?namespace :meander.zeta/as ?pattern :as ?form) ?env)
+  {:tag :symbol
+   :name (me/cata [?name ?env])
+   :namespace (me/cata [?namespace ?env])
+   :next {:tag :as
+          :pattern (me/cata [?pattern ?env])}
    :form ?form}
 
   ;; Seq pattern

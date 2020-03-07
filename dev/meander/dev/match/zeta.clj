@@ -541,6 +541,36 @@
               ?indexes
               ?env])))
 
+  ;; :symbol
+  ;; -------
+
+  (me/and [([{:tag :symbol :name (me/some ?name) :namespace (me/some ?namespace) :as-pattern (me/some ?as)} 
+             ?target] & ?rest) ?env]
+   (me/let [?name-target (gensym)
+            ?namespace-target (gensym)]))
+  (if (symbol? ?target)
+    (let [?name-target (name ?target)
+          ?namespace-target (namespace ?target)]
+      (me/cata [([?as ?target] [?name ?name-target] [?namespace ?namespace-target] & ?rest) ?env]))
+    (`m.runtime/fail))
+
+  (me/and [([{:tag :symbol :name (me/some ?name) :namespace (me/some ?namespace)} ?target] & ?rest) ?env]
+         (me/let [?name-target (gensym)
+                  ?namespace-target (gensym)]))
+  (if (symbol? ?target)
+    (let [?name-target (name ?target)
+          ?namespace-target (namespace ?target)]
+      (me/cata [([?name ?name-target] [?namespace ?namespace-target] & ?rest) ?env]))
+    (`m.runtime/fail))
+
+  (me/and [([{:tag :symbol :name (me/some ?name)} ?target] & ?rest) ?env]
+         (me/let [?name-target (gensym)]))
+  (if (symbol? ?target)
+    (let [?name-target (name ?target)]
+      (me/cata [([?name ?name-target] & ?rest) ?env]))
+    (`m.runtime/fail))
+
+
   ;; :vector
   ;; -------
 
