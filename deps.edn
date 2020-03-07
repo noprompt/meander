@@ -3,7 +3,7 @@
         org.clojure/clojurescript {:mvn/version "1.10.439"}
         org.clojure/test.check {:mvn/version "0.10.0-alpha3"}}
  :aliases {:dev {:extra-deps {fipp/fipp {:mvn/version "0.6.21"}
-                              meander/epsilon {:mvn/version "0.0.389"}}
+                              meander/epsilon {:mvn/version "0.0.402"}}
                  :extra-paths ["dev" "test"]}
            :test {:extra-paths ["test"]
                   :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
