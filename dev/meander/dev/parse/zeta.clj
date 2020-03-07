@@ -445,6 +445,24 @@
    :right (me/cata [?right ?env])
    :form ?form}
 
+
+  ;; (meander.zeta/re _)
+  ;; ----------------------
+
+  (special "re" (_ ?regex :as ?form) ?env)
+  {:tag :regex
+   :regex ?regex
+   :form ?form}
+
+  ;; (meander.zeta/re _ _)
+  ;; ----------------------
+
+  (special "re" (_ ?regex ?capture :as ?form) ?env)
+  {:tag :regex
+   :regex ?regex
+   :capture (me/cata [?capture ?env])
+   :form ?form}
+
   ;; (meander.zeta/string _)
   ;; ---------------------
 
@@ -464,7 +482,7 @@
   ;; (meander.zeta/symbol _ _)
   ;; ---------------------
 
-  (special "symbol" (_ ?name ?namespace :as ?form) ?env)
+  (special "symbol" (_ ?namespace ?name :as ?form) ?env)
   {:tag :symbol
    :name (me/cata [?name ?env])
    :namespace (me/cata [?namespace ?env])
@@ -473,12 +491,11 @@
   ;; (meander.zeta/symbol _ _ :meander.zeta/as _)
   ;; ---------------------
 
-  (special "symbol" (_ & ?name ?namespace :meander.zeta/as ?pattern :as ?form) ?env)
+  (special "symbol" (_ ?namespace ?name :meander.zeta/as ?pattern :as ?form) ?env)
   {:tag :symbol
    :name (me/cata [?name ?env])
    :namespace (me/cata [?namespace ?env])
-   :next {:tag :as
-          :pattern (me/cata [?pattern ?env])}
+   :as-pattern (me/cata [?pattern ?env])
    :form ?form}
 
   ;; Seq pattern

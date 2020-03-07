@@ -416,6 +416,26 @@
       (me/cata [?rest ?env]))
      (`m.runtime/fail)))
 
+
+  ;; :regex
+  ;; -------
+
+  (me/and [([{:tag :regex, :regex ?regex :capture (me/some ?capture)} ?target] & ?rest) ?env]
+          (me/let [?matches (gensym)]))
+  (if (`clj/string? ?target)
+    (let [?matches (re-matches ?regex ?target)]
+      (if ?matches
+        (me/cata [([?capture ?matches] & ?rest) ?env])
+        `(m.runtime/fail)))
+    (`m.runtime/fail))
+
+  [([{:tag :regex, :regex ?regex} ?target] & ?rest) ?env]
+  (if (`clj/string? ?target)
+    (if (re-matches ?regex ?target)
+      (me/cata [?rest ?env])
+      `(m.runtime/fail))
+    (`m.runtime/fail))
+
   ;; :root
   ;; -----
 
