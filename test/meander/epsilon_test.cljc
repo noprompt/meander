@@ -2442,17 +2442,17 @@
 (t/deftest map-of-test
   (t/is (= (r/find {"foo" "bar", "baz" "quux"}
              (r/map-of (r/pred string? !k) !v)
-             [!k !v])
-          [["baz" "foo"] ["quux" "bar"]]))
+             #{(set !k) (set !v)})
+          #{#{"baz" "foo"} #{"quux" "bar"}}))
 
   (t/is (= (r/find {:foo "bar", :baz "quux"}
              (r/map-of (r/pred string? !k) !v)
-             [!k !v])
+             #{!k !v})
           nil))
 
   (t/is (= (r/find {"foo" "bar", :baz "quux"}
              (r/map-of (r/pred string? !k) !v)
-             [!k !v])
+             #{!k !v})
           nil)))
 
 (t/deftest submap-of-test
@@ -2461,17 +2461,17 @@
              [!k !v])
           [[] []]))
 
-  (t/is (= (r/find {"foo" "bar", "baz" "quux"}
-             (r/submap-of (r/pred string? !k) !v)
-             [!k !v])
-          [["baz" "foo"] ["quux" "bar"]]))
+  (t/is (= (set (r/find {"foo" "bar", "baz" "quux"}
+                  (r/submap-of (r/pred string? !k) !v)
+                  #{(set !k) (set !v)}))
+          #{#{"baz" "foo"} #{"quux" "bar"}}))
 
   (t/is (= (r/find {:foo "bar", :baz "quux"}
              (r/submap-of (r/pred string? !k) !v)
              [!k !v])
           [[] []]))
 
-  (t/is (= (r/find {"foo" "bar", :baz "quux"}
-             (r/submap-of (r/pred string? !k) !v)
-             [!k !v])
-          [["foo"] ["bar"]])))
+  (t/is (= (set (r/find {"foo" "bar", :baz "quux"}
+                  (r/submap-of (r/pred string? !k) !v)
+                  [!k !v]))
+          #{["foo"] ["bar"]})))
