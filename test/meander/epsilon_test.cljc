@@ -2455,6 +2455,11 @@
              (r/map-of (r/pred string? !k) !v)
              #{!k !v})))
 
+  (t/is (= {}
+          (let [!k []
+                !v []]
+            (r/subst (r/map-of !k !v)))))
+
   (t/is (= {"foo" 1, "bar" 2}
           (let [!k ["foo" "bar"]
                 !v [1 2]]
@@ -2479,4 +2484,13 @@
   (t/is (= #{["foo"] ["bar"]}
           (set (r/find {"foo" "bar", :baz "quux"}
                   (r/submap-of (r/pred string? !k) !v)
-                  [!k !v])))))
+                  [!k !v]))))
+  (t/is (= {}
+          (let [!k []
+                !v []]
+            (r/subst (r/submap-of !k !v)))))
+
+  (t/is (= {"foo" 1, "bar" 2}
+          (let [!k ["foo" "bar"]
+                !v [1 2]]
+            (r/subst (r/submap-of !k !v))))))
