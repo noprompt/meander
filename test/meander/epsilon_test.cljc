@@ -2453,7 +2453,12 @@
   (t/is (= (r/find {"foo" "bar", :baz "quux"}
              (r/map-of (r/pred string? !k) !v)
              #{!k !v})
-          nil)))
+          nil))
+
+  (t/is (= (let [!k ["foo" "bar"]
+                 ?v true]
+             (r/subst (r/map-of !k !v)))
+          {"foo" 1, "bar" 2})))
 
 (t/deftest submap-of-test
   (t/is (= (r/find {}

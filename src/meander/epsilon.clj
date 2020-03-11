@@ -856,10 +856,16 @@
   entries have keys which match `k-pattern` and all the values match
   `v-pattern`."
   [k-pattern v-pattern]
-  (if (match-syntax? &env)
+  (cond
+    (match-syntax? &env)
     `(with [%map# (or {~k-pattern ~v-pattern & %map#}
                      '{})]
        %map#)
+
+    (subst-syntax? &env)
+    `{& [[~k-pattern ~v-pattern] ...]}
+
+    :else
     &form))
 
 (defsyntax submap-of
