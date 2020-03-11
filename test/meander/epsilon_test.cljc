@@ -2440,43 +2440,43 @@
 
 
 (t/deftest map-of-test
-  (t/is (= (r/find {"foo" "bar", "baz" "quux"}
+  (t/is (= #{#{"baz" "foo"} #{"quux" "bar"}}
+          (r/find {"foo" "bar", "baz" "quux"}
              (r/map-of (r/pred string? !k) !v)
-             #{(set !k) (set !v)})
-          #{#{"baz" "foo"} #{"quux" "bar"}}))
+             #{(set !k) (set !v)})))
 
-  (t/is (= (r/find {:foo "bar", :baz "quux"}
+  (t/is (= nil
+          (r/find {:foo "bar", :baz "quux"}
              (r/map-of (r/pred string? !k) !v)
-             #{!k !v})
-          nil))
+             #{!k !v})))
 
-  (t/is (= (r/find {"foo" "bar", :baz "quux"}
+  (t/is (= nil
+          (r/find {"foo" "bar", :baz "quux"}
              (r/map-of (r/pred string? !k) !v)
-             #{!k !v})
-          nil))
+             #{!k !v})))
 
-  (t/is (= (let [!k ["foo" "bar"]
-                 ?v true]
-             (r/subst (r/map-of !k !v)))
-          {"foo" 1, "bar" 2})))
+  (t/is (= {"foo" 1, "bar" 2}
+          (let [!k ["foo" "bar"]
+                !v [1 2]]
+             (r/subst (r/map-of !k !v))))))
 
 (t/deftest submap-of-test
-  (t/is (= (r/find {}
+  (t/is (= [[] []]
+          (r/find {}
              (r/submap-of (r/pred string? !k) !v)
-             [!k !v])
-          [[] []]))
+             [!k !v])))
 
-  (t/is (= (set (r/find {"foo" "bar", "baz" "quux"}
+  (t/is (= #{#{"baz" "foo"} #{"quux" "bar"}}
+          (set (r/find {"foo" "bar", "baz" "quux"}
                   (r/submap-of (r/pred string? !k) !v)
-                  #{(set !k) (set !v)}))
-          #{#{"baz" "foo"} #{"quux" "bar"}}))
+                  #{(set !k) (set !v)}))))
 
-  (t/is (= (r/find {:foo "bar", :baz "quux"}
+  (t/is (= [[] []]
+          (r/find {:foo "bar", :baz "quux"}
              (r/submap-of (r/pred string? !k) !v)
-             [!k !v])
-          [[] []]))
+             [!k !v])))
 
-  (t/is (= (set (r/find {"foo" "bar", :baz "quux"}
+  (t/is (= #{["foo"] ["bar"]}
+          (set (r/find {"foo" "bar", :baz "quux"}
                   (r/submap-of (r/pred string? !k) !v)
-                  [!k !v]))
-          #{["foo"] ["bar"]})))
+                  [!k !v])))))
