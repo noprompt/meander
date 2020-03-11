@@ -2437,3 +2437,41 @@
              [!n (!a !b ...)]
              {& [[!a !b] ..!n]})
            {0 1, 2 3, 4 5, 6 7})))
+
+
+(t/deftest map-of-test
+  (t/is (= (r/find {"foo" "bar", "baz" "quux"}
+             (r/map-of (r/pred string? !k) !v)
+             [!k !v])
+          [["baz" "foo"] ["quux" "bar"]]))
+
+  (t/is (= (r/find {:foo "bar", :baz "quux"}
+             (r/map-of (r/pred string? !k) !v)
+             [!k !v])
+          nil))
+
+  (t/is (= (r/find {"foo" "bar", :baz "quux"}
+             (r/map-of (r/pred string? !k) !v)
+             [!k !v])
+          nil)))
+
+(t/deftest submap-of-test
+  (t/is (= (r/find {}
+             (r/submap-of (r/pred string? !k) !v)
+             [!k !v])
+          [[] []]))
+
+  (t/is (= (r/find {"foo" "bar", "baz" "quux"}
+             (r/submap-of (r/pred string? !k) !v)
+             [!k !v])
+          [["baz" "foo"] ["quux" "bar"]]))
+
+  (t/is (= (r/find {:foo "bar", :baz "quux"}
+             (r/submap-of (r/pred string? !k) !v)
+             [!k !v])
+          [[] []]))
+
+  (t/is (= (r/find {"foo" "bar", :baz "quux"}
+             (r/submap-of (r/pred string? !k) !v)
+             [!k !v])
+          [["foo"] ["bar"]])))
