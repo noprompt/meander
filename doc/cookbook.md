@@ -29,7 +29,7 @@ Please add your own tips and tricks! You can edit this file from Github by click
 ;; => [[2 3 4] [5]]
 ```
 
-## Tokenize a sequence
+## Tokenize a sequence (partitioning)
 
 You can use `..!n` as a subsequence grouping facility, and `with` to define a recursive pattern.
 
@@ -40,6 +40,19 @@ You can use `..!n` as a subsequence grouping facility, and `with` to define a re
     %split)
   [[!xs ..!n] ...])
 ;; => [[1 2 3] [4 5 6] [7 8] [9]]
+```
+
+## Multiple variable length sub-sequences
+
+You can use `m/cata` to recursively apply the same pattern for identifying a separator and subsequent values.
+Here we group odd numbers after even numbers together.
+
+```clojure
+(m/rewrite [2 3 5 4 3 2]
+  [] [] ; The base case for no values left
+  [(m/pred even? ?x) . (m/pred odd? !ys) ... & ?more]
+  [[?x [!ys ...]] & (m/cata ?more)])
+;; => [[2 [3 5]] [4 [3]] [2 []]]
 ```
 
 ## Get all keys and values from a map
