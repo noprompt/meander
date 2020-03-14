@@ -32,21 +32,36 @@
          [?form ?env])))
     &form))
 
-(me/defsyntax parse-sequential
-  [x env]
-  [`parse-sequential x env])
+(defmacro defconstructor
+  "Defines a pattern matchin and substitution operator.
 
-(me/defsyntax make-join
-  ([left right env]
-   [`make-join left right env]))
+  When the defined operator is used as a pattern matching opeator,
+  it attempts to match the form
 
-(me/defsyntax make-cat
-  ([sequence next env]
-   [`make-cate sequence next env]))
+     ['ns/name ~@args]
 
-(me/defsyntax make-star
-  [pattern next env]
-  [`make-star pattern next env])
+  When the defined operator is used as a pattern substitution operator,
+  it constructs a shape of the same form accepted by match and wrapped
+  in `meander.epsilon/cata`.
+
+     (meander.epsilon/cata ['ns/name ~@args])"
+  [name args]
+  `(me/defsyntax ~name [~@args]
+     (let [shape# ['~(symbol (str (ns-name *ns*)) (str name)) ~@args]]
+        (cond
+          (me/match-syntax? ~'&env)
+          shape#
+
+          (me/subst-syntax? ~'&env)
+          (me/cata shape#)))))
+
+(defconstructor parse-sequential [x env])
+(defconstructor parse-sequential [x env])
+(defconstructor parse-with-bindings [bindings env])
+(defconstructor make-join [left right env])
+(defconstructor make-cat [sequence next env])
+(defconstructor make-star [pattern next env])
+(defconstructor make-fold [var-ast init-ast fold-form form])
 
 (dev.kernel/defmodule parse
   ;; Meta Rules
@@ -61,8 +76,7 @@
   (parse-sequential [!xs ... :meander.zeta/as ?pattern] ?env)
   {:tag :as
    :pattern (me/cata [?pattern ?env])
-   :next (me/cata (parse-sequential [!xs ...] ?env))}
-
+   :next (parse-sequential [!xs ...] ?env)}
 
   ;; [,,, meander.zeta/&N ?pattern]
   ;; -----------------------------
@@ -70,13 +84,13 @@
   (parse-sequential [!init ... (me/symbol ?ns (me/re #"&(\d+)" [_ ?n])) ?pattern & ?rest]
                     (me/or (me/let [?ns "meander.zeta"] ?env)
                            {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}))
-  (me/cata (make-join (me/cata (parse-sequential [!init ...] ?env))
-                      (me/cata (make-join {:tag :slice
-                                           :size ~(Integer. ?n)
-                                           :pattern (me/cata [?pattern ?env])}
-                                          (me/cata (parse-sequential [& ?rest] ?env))
-                                          ?env))
-                      ?env))
+  (make-join (parse-sequential [!init ...] ?env)
+             (make-join {:tag :slice
+                         :size ~(Integer. ?n)
+                         :pattern (me/cata [?pattern ?env])}
+                        (parse-sequential [& ?rest] ?env)
+                        ?env)
+             ?env)
 
   ;; [,,, meander.zeta/& ?pattern]
   ;; -----------------------------
@@ -84,44 +98,44 @@
   (parse-sequential [!init ... (me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest]
                     (me/or (me/let [?ns "meander.zeta"] ?env)
                            {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}))
-  (me/cata (make-join (me/cata (parse-sequential [!init ...] ?env))
-                      (me/cata (make-join (me/cata [?pattern ?env])
-                                          (me/cata (parse-sequential [& ?rest] ?env))
-                                          ?env))
-                      ?env))
+  (make-join (parse-sequential [!init ...] ?env)
+             (make-join (me/cata [?pattern ?env])
+                        (parse-sequential [& ?rest] ?env)
+                        ?env)
+             ?env)
 
   (parse-sequential [!xs ... (me/symbol ?ns (me/re #"&.*" ?name)) ?pattern]
                     {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})
-  (me/cata (parse-sequential [!xs ... (me/symbol "meander.zeta" ?name) ?pattern] ?env))
+  (parse-sequential [!xs ... (me/symbol "meander.zeta" ?name) ?pattern] ?env)
 
   ;; [,,, . ?pattern]
   ;; ----------------
 
   (parse-sequential [!xs ... '. & ?rest] ?env)
-  (me/cata (make-join (me/cata (parse-sequential [!xs ...] ?env))
-                      (me/cata (parse-sequential ?rest ?env))
-                      ?env))
+  (make-join (parse-sequential [!xs ...] ?env)
+             (parse-sequential ?rest ?env)
+             ?env)
 
 
   ;; [,,, ... ?pattern]
   ;; ----------------
 
   (parse-sequential ['... & ?rest] ?env)
-  (me/cata (parse-sequential ?rest ?env))
+  (parse-sequential ?rest ?env)
 
   (parse-sequential [(not-dot-symbol !xs) ... '... & ?rest] ?env)
-  (me/cata (make-star (me/cata (parse-sequential [!xs ...] ?env))
-                      (me/cata (parse-sequential ?rest ?env))
-                      ?env))
+  (make-star (parse-sequential [!xs ...] ?env)
+             (parse-sequential ?rest ?env)
+             ?env)
 
   (make-star {:tag :cat
               :sequence [{:tag :memory-variable :as ?memory-variable}]
               :next {:tag :empty}}
              ?next
              ?env)
-  (me/cata (make-join {:tag :into :memory-variable ?memory-variable}
-                      ?next
-                      ?env))
+  (make-join {:tag :into :memory-variable ?memory-variable}
+             ?next
+             ?env)
 
   (make-star ?pattern ?next {:context :string})
   {:tag :string-star, :pattern ?pattern, :next ?next}
@@ -141,8 +155,8 @@
                     ?env)
   {:tag :plus ;; TODO: Rename to :frugal-plus
    :n ~(Integer. ?n)
-   :pattern (me/cata (parse-sequential [!xs ...] ?env))
-   :next (me/cata (parse-sequential ?rest ?env))}
+   :pattern (parse-sequential [!xs ...] ?env)
+   :next (parse-sequential ?rest ?env)}
 
   ;; [,,, ..?n ?pattern]
   ;; -----------------
@@ -158,8 +172,8 @@
    :n {:tag :logic-variable
        :name ?n
        :symbol (me/symbol ?n)}
-   :pattern (me/cata (parse-sequential [!xs ...] ?env))
-   :next (me/cata (parse-sequential ?rest ?env))}
+   :pattern (parse-sequential [!xs ...] ?env)
+   :next (parse-sequential ?rest ?env)}
 
   ;; [,,, ..?n ?pattern]
   ;; -----------------
@@ -175,14 +189,14 @@
    :n {:tag :memory-variable
        :name ?n
        :symbol (me/symbol ?n)}
-   :pattern (me/cata (parse-sequential [!xs ...] ?env))
-   :next (me/cata (parse-sequential ?rest ?env))}
+   :pattern (parse-sequential [!xs ...] ?env)
+   :next (parse-sequential ?rest ?env)}
 
   ;; [,,,]
   ;; -----
 
   (parse-sequential [!xs ...] ?env)
-  (me/cata (make-cat [(me/cata [!xs ?env]) ...] {:tag :empty} ?env))
+  (make-cat [(me/cata [!xs ?env]) ...] {:tag :empty} ?env)
 
   (make-cat [{:tag :literal, :type (me/or :string :char) :form !forms} ...] {:tag :empty} _)
   {:tag :literal
@@ -190,9 +204,9 @@
    :form (me/app clojure.string/join [!forms ...])}
 
   (make-cat [{:tag :literal, :type :string, :as ?ast} & ?rest] ?next ?env)
-  (me/cata (make-join ?ast
-                      (me/cata (make-cat ?rest ?next ?env))
-                      ?env))
+  (make-join ?ast
+             (make-cat ?rest ?next ?env)
+             ?env)
 
   (make-cat [{:tag :literal, :form !forms} ...] {:tag :empty} ?env)
   {:tag :literal
@@ -204,7 +218,7 @@
    :next ?next}
 
   (make-join {:tag :cat, :sequence ?sequence, :next {:tag :empty}} ?right ?env)
-  (me/cata (make-cat ?sequence ?right ?env))
+  (make-cat ?sequence ?right ?env)
 
   (make-join ?left {:tag :empty} ?env)
   ?left
@@ -223,9 +237,9 @@
               :left {:tag :literal :type :string :form ?form-2}
               :right ?right}
              {:context :string :as ?env})
-  (me/cata (make-join {:tag :literal, :type :string, :form (me/app str ?form-1 ?form-2)}
-                      ?right
-                      ?env))
+  (make-join {:tag :literal, :type :string, :form (me/app str ?form-1 ?form-2)}
+             ?right
+             ?env)
 
   (make-join {:tag :literal :type :string :as ?ast}
              {:tag :string-cat :sequence ?sequence :next ?next}
@@ -237,7 +251,7 @@
   (make-join {:tag :string-cat :sequence ?sequence :next {:tag :empty}}
              ?right
              ?env)
-  (me/cata (make-join ?sequence ?right ?env))
+  (make-join ?sequence ?right ?env)
 
   (make-join {:tag :string-star, :pattern ?pattern, :next {:tag :empty}}
              ?right
@@ -246,63 +260,61 @@
 
   (make-join {:tag :string-join, :left ?left, :right ?right-1}
              ?right-2
-             {:context :string
-              :as ?env})
-  {:tag :string-join, :left ?left, :right (me/cata (make-join ?right-1 ?right-2 ?env))}
+             {:context :string, :as ?env})
+  {:tag :string-join, :left ?left, :right (make-join ?right-1 ?right-2 ?env)}
 
   ;; {:meander.zeta/as ?pattern ,,,}
   ;; -------------------------------
 
-  [`parse-entries (me/and {:meander.zeta/as ?pattern & ?rest}
-                          (me/not ?rest))
-   ?env]
+  (parse-entries (me/and {:meander.zeta/as ?pattern & ?rest}
+                         (me/not ?rest))
+                 ?env)
   {:tag :as
    :pattern (me/cata [?pattern ?env])
    :next (me/cata [?rest ?env])}
 
-
-
   ;; {meander.zeta/&name ?pattern ,,,}
   ;; ---------------------------------
 
-  [`parse-entries {(me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest}
-   (me/or (me/let [?ns "meander.zeta"] ?env)
-          {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env})]
+  (parse-entries {(me/symbol ?ns (me/re #"&.*")) ?pattern & ?rest}
+                 (me/or (me/let [?ns "meander.zeta"] ?env)
+                        {:aliases {(me/symbol ?ns) (me/symbol "meander.zeta")} :as ?env}))
   {:tag :rest-map
    :pattern (me/cata [?pattern ?env])
-   :next (me/cata [`parse-entries ?rest ?env])}
+   :next (parse-entries ?rest ?env)}
 
   ;; {?pattern1 ?pattern2 ,,,}
   ;; -------------------------
 
-  [`parse-entries {?key-pattern ?val-pattern & ?rest} ?env]
+  (parse-entries {?key-pattern ?val-pattern & ?rest} ?env)
   {:tag :entry
    :key-pattern (me/cata [?key-pattern ?env])
    :val-pattern (me/cata [?val-pattern ?env])
-   :next (me/cata [`parse-entries ?rest ?env])}
+   :next (parse-entries ?rest ?env)}
 
   ;; {}
   ;; --
 
-  [`parse-entries {} ?env]
+  (parse-entries {} ?env)
   {:tag :some-map}
 
-  [`parse-with-bindings [] ?env]
+  (parse-with-bindings [] ?env)
   []
 
-  [`parse-with-bindings [_] ?env]
+  (parse-with-bindings [_] ?env)
   [{:tag :error
     :message "meander.zeta/with expects an even number of bindings"}]
 
-  [`parse-with-bindings [(me/symbol _ (me/re #"%.+") :as ?symbol) ?pattern & ?rest] ?env]
+  (parse-with-bindings [(me/symbol _ (me/re #"%.+") :as ?symbol) ?pattern & ?rest]
+                       ?env)
   [{:tag :with-binding
     :reference {:tag :reference
                 :symbol ?symbol
                 :form ?symbol}
     :pattern (me/cata [?pattern ?env])}
-   & (me/cata [`parse-with-bindings ?rest ?env])]
+   & (parse-with-bindings ?rest ?env)]
 
-  [`parse-with-bindings [?x ?pattern & ?rest] ?env]
+  (parse-with-bindings [?x ?pattern & ?rest] ?env)
   [{:tag :error
     :message "meander.zeta/with bindings must be an repeating sequence of %name pattern"}]
 
@@ -314,7 +326,7 @@
 
   [[& ?sequence :as ?form] ?env]
   {:tag :vector
-   :next (me/cata (parse-sequential ?sequence ?env))
+   :next (parse-sequential ?sequence ?env)
    :form ?form}
 
   ;; (meander.zeta/with [,,,])
@@ -323,7 +335,7 @@
   (special "with" (_  ?bindings ?body :as ?form) ?env)
   {:tag :with
    :bindings {:tag :with-bindings
-              :bindings (me/cata [`parse-with-bindings ?bindings ?env])}
+              :bindings (parse-with-bindings ?bindings ?env)}
    :body (me/cata [?body ?env])
    :form ?form}
 
@@ -357,9 +369,9 @@
   ;; -----------------------------------------------------------------
 
   (special "fold" (_  ?mutable-variable ?initial-value ?fold-function :as ?form) ?env)
-  (me/cata [`fold-args (me/cata [?mutable-variable ?env]) (me/cata [?initial-value ?env]) ?fold-function ?form])
+  (make-fold (me/cata [?mutable-variable ?env]) (me/cata [?initial-value ?env]) ?fold-function ?form)
 
-  [`fold-args {:tag :mutable-variable :as ?variable-ast} ?initial-value-ast ?fold-function ?form]
+  (make-fold {:tag :mutable-variable :as ?variable-ast} ?initial-value-ast ?fold-function ?form)
   {:tag :fold
    :variable ?variable-ast
    :initial-value ?initial-value-ast
@@ -418,7 +430,7 @@
 
   (special "string" (_ & ?sequence :as ?form) ?env)
   {:tag :string
-   :next (me/cata [`parse-string [& ?sequence] ?env])
+   :next (parse-sequential [& ?sequence] {:context :string & ?env})
    :form ?form}
 
   ;; (meander.zeta/symbol _)
@@ -453,7 +465,7 @@
 
   [(& ?sequence) ?env]
   {:tag :seq
-   :next (me/cata (parse-sequential [& ?sequence] ?env))
+   :next (parse-sequential [& ?sequence] ?env)
    :form ?sequence}
 
   ;; Map pattern
@@ -461,7 +473,7 @@
 
   [{:as ?map} ?env]
   {:tag :map
-   :next (me/cata [`parse-entries ?map ?env])
+   :next (parse-entries ?map ?env)
    :form ?map}
 
   ;; _example
