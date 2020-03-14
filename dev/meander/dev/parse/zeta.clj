@@ -137,10 +137,16 @@
              ?env)
 
   (make-star ?pattern ?next {:context :string})
-  {:tag :string-star, :pattern ?pattern, :next ?next}
+  {:tag :string-star
+   :greedy? false
+   :pattern ?pattern
+   :next ?next}
 
   (make-star ?pattern ?next _)
-  {:tag :star, :pattern ?pattern, :next ?next}
+  {:tag :star
+   :greedy? false
+   :pattern ?pattern
+   :next ?next}
 
   ;; [,,, ..N ?pattern]
   ;; ------------------
@@ -151,9 +157,11 @@
    :message "The n or more operator ..N must be preceeded by at least one pattern"}
 
   (parse-sequential [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\d+)" [_ ?n])) & ?rest]
-                    ?env)
-  {:tag :plus ;; TODO: Rename to :frugal-plus
+                    (me/or (me/let [?tag :string-plus] {:context :string :as ?env})
+                           (me/let [?tag :plus] ?env)))
+  {:tag ?tag
    :n ~(Integer. ?n)
+   :greedy? false
    :pattern (parse-sequential [!xs ...] ?env)
    :next (parse-sequential ?rest ?env)}
 
@@ -166,11 +174,13 @@
    :message "The ?n or more operator ..?n must be preceeded by at least one pattern"}
 
   (parse-sequential [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\?.+)" [_ ?n])) & ?rest]
-                    ?env)
-  {:tag :logical-plus ;; TODO: Rename to :frugal-logical-plus
+                    (me/or (me/let [?tag :string-logical-plus] {:context :string :as ?env})
+                           (me/let [?tag :logical-plus] ?env)))
+  {:tag ?tag
    :n {:tag :logic-variable
        :name ?n
        :symbol (me/symbol ?n)}
+   :greedy? false
    :pattern (parse-sequential [!xs ...] ?env)
    :next (parse-sequential ?rest ?env)}
 
@@ -183,11 +193,13 @@
    :message "The operator ..!n must be preceeded by at least one pattern"}
 
   (parse-sequential [(not-dot-symbol !xs) ... (me/symbol nil (me/re #"\.\.(\!.+)" [_ ?n])) & ?rest]
-                    ?env)
-  {:tag :memory-plus ;; TODO: Rename to :frugal-memory-plus
+                    (me/or (me/let [?tag :string-memory-plus] {:context :string :as ?env})
+                           (me/let [?tag :memory-plus] ?env)))
+  {:tag ?tag
    :n {:tag :memory-variable
        :name ?n
        :symbol (me/symbol ?n)}
+   :greedy? false
    :pattern (parse-sequential [!xs ...] ?env)
    :next (parse-sequential ?rest ?env)}
 
@@ -233,14 +245,15 @@
              ?right
              ?env)
 
-  (make-join {:tag (me/not :join) :as ?ast}
+  (make-join {:tag (me/not (me/or :join :star :plus)) :as ?ast}
              {:tag :cat :sequence ?sequence :next ?next}
              _)
   {:tag :cat
    :sequence [?ast & ?sequence]
    :next ?next}
 
-  (make-join {:tag (me/not :string-join) :as ?ast}
+  (make-join {:tag (me/not (me/or :string-join :string-star :string-plus))
+              :as ?ast}
              {:tag :string-cat :sequence ?sequence :next ?next}
              _)
   {:tag :string-cat
