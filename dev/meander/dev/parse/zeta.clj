@@ -11,7 +11,6 @@
 (me/defsyntax not-dot-symbol [pattern]
   (me/and (me/not (dot-symbol)) pattern))
 
-
 (me/defsyntax special
   "Equivalent to form
 
@@ -55,8 +54,8 @@
           (me/subst-syntax? ~'&env)
           (me/cata shape#)))))
 
-(defconstructor parse-sequential [x env])
-(defconstructor parse-sequential [x env])
+(defconstructor parse-sequential [forms env])
+(defconstructor parse-entries [map-form env])
 (defconstructor parse-with-bindings [bindings env])
 (defconstructor make-join [left right env])
 (defconstructor make-cat [sequence next env])
