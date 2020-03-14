@@ -211,6 +211,11 @@
   {:tag :literal
    :form [!forms ...]}
 
+  (make-cat ?sequence ?next {:context :string})
+  {:tag :string-cat
+   :sequence ?sequence
+   :next ?next}
+
   (make-cat ?sequence ?next _)
   {:tag :cat
    :sequence ?sequence
@@ -218,18 +223,6 @@
 
   (make-join {:tag :cat, :sequence ?sequence, :next {:tag :empty}} ?right ?env)
   (make-cat ?sequence ?right ?env)
-
-  (make-join ?left {:tag :empty} ?env)
-  ?left
-
-  (make-join {:tag :empty} ?right ?env)
-  ?right
-
-  (make-join ?left ?right {:context :string})
-  {:tag :string-join, :left ?left, :right ?right}
-
-  (make-join ?left ?right ?env)
-  {:tag :join, :left ?left, :right ?right}
 
   (make-join {:tag :literal, :type :string, :form ?form-1}
              {:tag :string-join
@@ -240,9 +233,16 @@
              ?right
              ?env)
 
-  (make-join {:tag :literal :type :string :as ?ast}
+  (make-join {:tag (me/not :join) :as ?ast}
+             {:tag :cat :sequence ?sequence :next ?next}
+             _)
+  {:tag :cat
+   :sequence [?ast & ?sequence]
+   :next ?next}
+
+  (make-join {:tag (me/not :string-join) :as ?ast}
              {:tag :string-cat :sequence ?sequence :next ?next}
-             {:context :string})
+             _)
   {:tag :string-cat
    :sequence [?ast & ?sequence]
    :next ?next}
@@ -261,6 +261,19 @@
              ?right-2
              {:context :string, :as ?env})
   {:tag :string-join, :left ?left, :right (make-join ?right-1 ?right-2 ?env)}
+
+  (make-join ?left {:tag :empty} ?env)
+  ?left
+
+  (make-join {:tag :empty} ?right ?env)
+  ?right
+
+  (make-join ?left ?right {:context :string})
+  {:tag :string-join, :left ?left, :right ?right}
+
+  (make-join ?left ?right ?env)
+  {:tag :join, :left ?left, :right ?right}
+
 
   ;; {:meander.zeta/as ?pattern ,,,}
   ;; -------------------------------
@@ -325,7 +338,7 @@
 
   [[& ?sequence :as ?form] ?env]
   {:tag :vector
-   :next (parse-sequential ?sequence ?env)
+   :next (parse-sequential ?sequence {:context :vector & ?env})
    :form ?form}
 
   ;; (meander.zeta/with [,,,])
@@ -464,7 +477,7 @@
 
   [(& ?sequence) ?env]
   {:tag :seq
-   :next (parse-sequential [& ?sequence] ?env)
+   :next (parse-sequential [& ?sequence] {:context :seq & ?env})
    :form ?sequence}
 
   ;; Map pattern
