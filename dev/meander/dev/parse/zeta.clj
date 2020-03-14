@@ -32,7 +32,7 @@
     &form))
 
 (defmacro defconstructor
-  "Defines a pattern matchin and substitution operator.
+  "Defines a pattern matching and substitution operator.
 
   When the defined operator is used as a pattern matching opeator,
   it attempts to match the form
