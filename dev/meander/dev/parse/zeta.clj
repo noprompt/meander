@@ -209,7 +209,17 @@
   (parse-sequential [!xs ...] ?env)
   (make-cat [(me/cata [!xs ?env]) ...] {:tag :empty} ?env)
 
-  (make-cat [{:tag :literal, :type (me/or :string :char) :form !forms} ...] {:tag :empty} _)
+  (make-cat [] ?next ?env)
+  ?next
+
+  (make-cat [(me/and (me/not {:tag :group}) !xs) ... {:tag :group :as ?group} & ?rest] ?next ?env)
+  (make-join (make-cat [!xs ...] {:tag :empty} ?env)
+             (make-join ?group
+                        ?rest
+                        ?env)
+             ?env)
+
+  (make-cat [{:tag :literal, :type (me/or :string :char) :form !forms} ..1] {:tag :empty} _)
   {:tag :literal
    :type :string
    :form (me/app clojure.string/join [!forms ...])}
@@ -219,8 +229,9 @@
              (make-cat ?rest ?next ?env)
              ?env)
 
-  (make-cat [{:tag :literal, :form !forms} ...] {:tag :empty} ?env)
+  (make-cat [{:tag :literal, :form !forms} ..1] {:tag :empty} {:context ?context :as ?env})
   {:tag :literal
+   :type ?context
    :form [!forms ...]}
 
   (make-cat ?sequence ?next {:context :string})
@@ -245,14 +256,14 @@
              ?right
              ?env)
 
-  (make-join {:tag (me/not (me/or :join :star :plus)) :as ?ast}
+  (make-join {:tag :cat :as ?ast}
              {:tag :cat :sequence ?sequence :next ?next}
              _)
   {:tag :cat
    :sequence [?ast & ?sequence]
    :next ?next}
 
-  (make-join {:tag (me/not (me/or :string-join :string-star :string-plus))
+  (make-join {:tag :string-cat
               :as ?ast}
              {:tag :string-cat :sequence ?sequence :next ?next}
              _)
@@ -354,6 +365,11 @@
    :next (parse-sequential ?sequence {:context :vector & ?env})
    :form ?form}
 
+  ;; (meander.zeta/<> pattern ,,,)
+  (special "<>" (_ & ?patterns :as ?form) ?env)
+  {:tag :group
+   :pattern (parse-sequential [& ?patterns] ?env)}
+  
   ;; (meander.zeta/with [,,,])
   ;; (meander.zeta/with [,,,] pattern)
 
