@@ -26,3 +26,72 @@
   ([form env]
    (let [ast (m.parse/parse [form env])]
      {:tag :root, :next ast})))
+
+(defn ast?
+  [x]
+  (and (map? x) (contains? x :tag)))
+
+(defn cat?
+  [x]
+  (= (get x :tag) :cat))
+
+(defn child-entries
+  [ast]
+  (cond
+    (cat? ast)
+    [(find ast :sequence)
+     (find ast :next)]
+
+    (ast? ast)
+    (into [] (keep (fn [e]
+                     (if (ast? (val e))
+                       e)))
+         ast)
+
+    :else
+    []))
+
+(defn children
+  [ast]
+  (mapcat (fn [e]
+            (let [x (val e)]
+              (if (sequential? x)
+                x
+                (list x))))
+   (child-entries ast)))
+
+(defn subnodes [ast]
+  (tree-seq ast? children ast))
+
+(defn variables [ast]
+  (into #{} (filter
+             (fn [ast]
+               (case (get ast :tag)
+                 (:logic-variable :memory-variable :mutable-variable)
+                 true
+                 ;;
+                 nil)))
+        (subnodes ast)))
+
+(defn prewalk [f ast]
+  (let [ast* (f ast)]
+    (reduce
+     (fn [ast* [key val]]
+       (let [val* (if (sequential? val)
+                    (mapv (fn [ast]
+                            (prewalk f ast)) val)
+                    (prewalk f val))]
+         (assoc ast* key val*)))
+     ast*
+     (child-entries ast*))))
+
+(defn postwalk [f ast]
+  (f (reduce
+      (fn [ast [key val]]
+        (let [val* (if (sequential? val)
+                     (mapv (fn [ast]
+                             (postwalk f ast)) val)
+                     (postwalk f val))]
+          (assoc ast key val*)))
+      ast
+      (child-entries ast))))
