@@ -945,22 +945,6 @@
                       colls)
             (lazy-seq (knit (keep next colls))))))
 
-;; Temporary. Remove this when zeta can bootstrap without epsilon.
-(defn epsilon-run-star-1
-  {:style/indent :defn}
-  [coll rets body-f then-f]
-  (let [rets* (reduce
-               (fn [acc xs]
-                 (let [acc (body-f acc [xs])]
-                   (if (fail? acc)
-                     (reduced FAIL)
-                     acc)))
-               rets
-               coll)]
-    (if (fail? rets*)
-      FAIL
-      (then-f rets*))))
-
 (defn run-star [state input f g]
   (let [partitions (partitions input)]
     (concat
@@ -1308,3 +1292,261 @@
 ;;         (strategy-invoke-in obj1 x env)))))
 ;;   ([obj1 obj2 & more]
 ;;    (pipe obj1 (clj/apply pipe obj2 more))))
+
+;; Epsilon runtime
+;; ---------------
+
+(defn vec-partitions
+  "
+  (let [coll [:a :b]
+        n 3]
+  (vec-partitions n coll))
+  ;; => ([[] [] [:a :b]]
+  ;;     [[] [:a] [:b]]
+  ;;     [[:a] [] [:b]]
+  ;;     [[] [:a :b] []]
+  ;;     [[:a] [:b] []]
+  ;;     [[:a :b] [] []])
+  "
+  {:private true}
+  ([n v]
+   {:pre [(nat-int? n)]}
+   (case n
+     0 (list [])
+     1 (list [v])
+     2 (sequence
+        (map
+         (fn [i]
+           [(subvec v 0 i) (subvec v i)]))
+        (range (inc (count v))))
+     ;; else
+     (sequence
+      (comp (map-indexed
+             (fn [i _]
+               [(subvec v 0 i) (subvec v i)]))
+            (mapcat
+             (fn [[a b]]
+               (sequence
+                (map conj)
+                (vec-partitions (dec n) a)
+                (repeat b)))))
+      (range (inc (count v))))))
+  ([n m v]
+   {:pre [(nat-int? n) (nat-int? m)]}
+   (if (<= m (count v))
+     (case n
+       0 (list [])
+       1 (list [v])
+       2 (sequence
+          (comp (take-while
+                 (let [j (count v)]
+                   (fn [i]
+                     (<= (+ i m) j))))
+                (map
+                 (fn [i]
+                   [(subvec v 0 (+ i m)) (subvec v (+ i m))])))
+          (range (inc (count v))))
+       ;; else
+       (sequence
+        (comp (take-while
+               (let [j (count v)]
+                 (fn [i]
+                   (<= (+ i m) j))))
+              (map
+               (fn [i]
+                 [(subvec v 0 (+ i m)) (subvec v (+ i m))]))
+              (mapcat
+               (fn [[a b]]
+                 (sequence
+                  (map conj)
+                  (vec-partitions (dec n) m a)
+                  (repeat b)))))
+        (range (inc (count v)))))
+     (list []))))
+
+
+(defn coll-partitions
+  {:private true}
+  ([n coll]
+   {:pre [(nat-int? n)]}
+   (case n
+     0 (list [])
+     1 (list [coll])
+     2 (sequence
+        (map-indexed
+         (fn [i _]
+           (split-at i coll)))
+        (cons 1 coll))
+     ;; else
+     (sequence
+      (comp
+       (map-indexed
+        (fn [i _]
+          (split-at i coll)))
+       (mapcat
+        (fn [[a b]]
+          (sequence
+           (map conj)
+           (coll-partitions (dec n) a)
+           (repeat b)))))
+      ;; Adding one more element to the coll ensures we split at 0
+      ;; *and* at (count coll) without counting the collection.
+      (cons (first coll) coll))))
+  ([n m coll]
+   {:pre [(nat-int? n) (nat-int? m)]}
+   (if (<= m (bounded-count m coll))
+     (case n
+       0 (list [])
+       1 (list [coll])
+       2 (sequence
+          (comp (map-indexed
+                 (fn [i _]
+                   (split-at (+ i m) coll)))
+                (distinct))
+          (cons 1 coll))
+       ;; else
+       (sequence
+        (comp (map-indexed
+               (fn [i _]
+                 (split-at (+ i m) coll)))
+              (distinct)
+              (mapcat
+               (fn [[a b]]
+                 (sequence
+                  (map conj)
+                  (coll-partitions (dec n) m a)
+                  (repeat b)))))
+        ;; Adding one more element to the coll ensures we split at 0
+        ;; *and* at (count coll) without counting the collection.
+        (cons (first coll) coll)))
+     (list []))))
+
+
+(defn str-partitions
+  "
+  Examples:
+
+  (let [str \"ab\"
+      n 0]
+  (str-partitions n str))
+  ;; => ([])
+
+  (let [str \"ab\"
+      n 1]
+  (partitions n coll))
+  ;; => ([\"ab\"])
+
+  (let [str \"ab\"
+      n 2]
+  (partitions n coll))
+  ;; => ([[] [\"ab\"]
+  ;;     [[\"a\"] [\"b\"]]
+  ;;     [[\"ab\"] []])
+
+  (let [str \"ab\"
+      n 3]
+  (partitions n coll))
+  ;; => ([[] [] [\"ab\"]]
+  ;;     [[] [\"a\"] [\"b\"]]
+  ;;     [[\"a\"] [] [\"b\"]]
+  ;;     [[] [\"ab\"] []]
+  ;;     [[\"a\"] [\"b\"] []]
+  ;;     [[\"ab\"] [] []])
+  "
+  [n str]
+  {:pre [(nat-int? n)]}
+  (case n
+    0 (list [])
+    1 (list [str])
+    2 (sequence
+       (map
+        (fn [i]
+          [(subs str 0 i) (subs str i)]))
+       (range (inc (.length str))))
+    ;; else
+    (sequence
+     (comp
+      (map
+       (fn [i]
+         [(subs str 0 i) (subs str i)]))
+      (mapcat
+       (fn [[a b]]
+         (sequence
+          (map conj)
+          (str-partitions (dec n) a)
+          (repeat b)))))
+     (range (inc (.length str))))))
+
+
+(defn epsilon-partitions "
+  Examples:
+
+  (def coll [:a :b])
+
+  (partitions 0 coll))
+  ;; => ([])
+
+  (partitions 1 coll)
+  ;; => ([[:a :b]])
+
+  (partitions 2 coll)
+  ;; => '([[] [:a :b]]
+  ;;      [[:a] [:b]]
+  ;;      [[:a :b] []])
+
+  (partitions 3 coll)
+  ;; => '([[] [] [:a :b]]
+  ;;      [[] [:a] [:b]]
+  ;;      [[:a] [] [:b]]
+  ;;      [[] [:a :b] []]
+  ;;      [[:a] [:b] []]
+  ;;      [[:a :b] [] []])
+  "
+  ([n coll]
+   (cond
+     (vector? coll)
+     (vec-partitions n coll)
+
+     (coll? coll)
+     (coll-partitions n coll)
+
+     (string? coll)
+     (str-partitions n coll)
+
+     (nil? coll)
+     ()
+
+     :else
+     (throw (ex-info "coll must be a string? or coll?" {:type (type coll)}))))
+  ([n m coll]
+   (cond
+     (vector? coll)
+     (vec-partitions n m coll)
+
+     (coll? coll)
+     (coll-partitions n m coll)
+
+     (string? coll)
+     (str-partitions n coll)
+
+     (nil? coll)
+     ()
+
+     :else
+     (throw (ex-info "coll must be a string? or coll?" {:type (type coll)})))))
+
+;; Temporary. Remove this when zeta can bootstrap without epsilon.
+(defn epsilon-run-star-1
+  {:style/indent :defn}
+  [coll rets body-f then-f]
+  (let [rets* (reduce
+               (fn [acc xs]
+                 (let [acc (body-f acc [xs])]
+                   (if (fail? acc)
+                     (reduced FAIL)
+                     acc)))
+               rets
+               coll)]
+    (if (fail? rets*)
+      FAIL
+      (then-f rets*))))

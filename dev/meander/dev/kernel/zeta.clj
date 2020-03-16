@@ -12,6 +12,9 @@
        meander.substitute.runtime.epsilon/fail?
        meander.runtime.zeta/fail?
 
+       meander.match.runtime.epsilon/partitions
+       meander.runtime.zeta/epsilon-partitions
+
        meander.match.runtime.epsilon/fail?
        meander.runtime.zeta/fail?
 
