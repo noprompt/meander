@@ -21,6 +21,7 @@
     * [`let`](#let)
     * [`not`](#not)
     * [`scan`](#scan)
+    * [`$`](#subtree-search-)
     * [`with`](#with)
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
@@ -475,7 +476,7 @@ searches a sequence for elements that match `pattern`.
 ;; => ({1 :x} {2 :y} {3 :z})
 ```
 
-### `$`
+### Subtree search `$`
 
 ```clj
 (meander.epsilon/$ pattern)
@@ -491,13 +492,15 @@ recursively searches for any subtree that matches `pattern`.
 ;; => ([[3 4] 5] [3 4])
 ```
 
-Additionally, you can optionally specify a `context` variable that, when called with an argument, returns the toplevel collection with all matched variables replaced with the argument.
+You can optionally specify a `?context` variable that,
+when called with an argument, returns the toplevel collection with the
+matched variable replaced with the argument.
 
 ```clj
 (m/search [[1] 2 [[3 4] 5]]
-  (m/$ ?context [?a ?b])
-  (?context [9])
-;; => ([[1] 2 [9]] [[1] 2 [[9] 5]])
+          (m/$ ?context [?a ?b])
+          (?context (str "a:" ?a ", b:" ?b)))
+;; => ([[1] 2 "a:[3 4], b:5"] [[1] 2 ["a:3, b:4" 5]])
 ```
 
 ### `with`
