@@ -105,3 +105,16 @@ When you have a match pattern that contains a memory varible `!n` and a substitu
   [[!k !n (me/app str !n2)] ...])
 ;; => [[:a 1 "1"] [:b 2 "2"] [:c 3 "3"]]
 ```
+
+## Replace all occurrences
+
+You can use `meander.strategy.epsilon/top-down` or `bottom-up` to find and replace.
+```clojure
+(def p
+  (s/top-down
+    (s/match
+      (m/pred string? ?s) (keyword ?s)
+      ?x ?x)))
+(p [1 ["a" 2] "b" 3 "c"])
+;; => [1 [:a 2] :b 3 :c]
+```
