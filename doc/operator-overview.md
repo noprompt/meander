@@ -21,7 +21,7 @@
     * [`let`](#let)
     * [`not`](#not)
     * [`scan`](#scan)
-    * [`$`](#$)
+    * [`$`](#subtree-search-)
     * [`with`](#with)
   * [Subsequences](#subsequences)
     * [Zero or More](#zero-or-more)
@@ -476,7 +476,7 @@ searches a sequence for elements that match `pattern`.
 ;; => ({1 :x} {2 :y} {3 :z})
 ```
 
-### `$`
+### Subtree search `$`
 
 ```clj
 (meander.epsilon/$ pattern)
