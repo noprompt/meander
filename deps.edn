@@ -1,12 +1,12 @@
 {:paths ["src"]
- :deps {org.clojure/clojurescript {:mvn/version "1.10.439"}}
+ :deps {}
  :aliases {:dev {:extra-deps {fipp/fipp {:mvn/version "0.6.21"}
                               org.clojure/clojure {:mvn/version "1.10.0"}
                               org.clojure/clojurescript {:mvn/version "1.10.439"}
                               org.clojure/test.check {:mvn/version "0.10.0-alpha3"}}}
            :test {:extra-paths ["test"]
                   :extra-deps {org.clojure/clojure {:mvn/version "1.10.0"}
-                               org.clojure/clojurescript {:mvn/version "1.10.439"}
+                               ;;org.clojure/clojurescript {:mvn/version "1.10.439"}
                                org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                                           :sha "209b64504cb3bd3b99ecfec7937b358a879f55c1"}
@@ -16,6 +16,7 @@
                   #_["-m" "cognitect.test-runner"]}
            :cljs-test {:extra-paths ["test"]
                        :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
+                                    org.clojure/clojurescript {:mvn/version "1.10.439"}
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
                        :main-opts ["-m" "cljs-test-runner.main"]}
            :make-defproject {:extra-paths ["bin"]
