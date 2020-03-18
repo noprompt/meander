@@ -884,16 +884,17 @@
   When used as a pattern substitution operator constructs a map of
   by which all entries are constructed with keys with `k-pattern` and
   values with `v-pattern`."
-  [k-pattern v-pattern]
-  (cond
-    (match-syntax? &env)
-    `(with [%map# (or {~k-pattern ~v-pattern & %map#}
-                      {_# _# & %map#}
-                     '{})]
-       %map#)
+  ([k-pattern v-pattern]
+   (cond
+     (match-syntax? &env)
+     `(with [%map# (or {~k-pattern ~v-pattern & %map#}
+                       {_# _# & %map#}
+                       '{})]
+        %map#)
 
-    (subst-syntax? &env)
-    `{& [[~k-pattern ~v-pattern] ...]}
+     (subst-syntax? &env)
+     `{& [[~k-pattern ~v-pattern] ...]}
 
-    :else
-    &form))
+     :else
+     &form)))
+
