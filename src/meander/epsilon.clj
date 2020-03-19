@@ -830,3 +830,51 @@
 
      :else
      &form)))
+
+(defsyntax map-of
+  "Pattern matching and substitution operator.
+
+  When used as a pattern matching operator matches a map of which all
+  then entries have keys which match `k-pattern` and all the values
+  match `v-pattern`.
+
+  When used as a pattern substitution operator constructs a map of
+  by which all entries are constructed with keys with `k-pattern` and
+  values with `v-pattern`."
+  [k-pattern v-pattern]
+  (cond
+    (match-syntax? &env)
+    `(with [%map# (or {~k-pattern ~v-pattern & %map#}
+                     '{})]
+       %map#)
+
+    (subst-syntax? &env)
+    `{& [[~k-pattern ~v-pattern] ...]}
+
+    :else
+    &form))
+
+(defsyntax submap-of
+  "Pattern matching and substitution operator.
+
+  When used as a pattern matching operator matches a map of which some
+  or none of the entries have keys that match `k-pattern` and values
+  which match `v-pattern`.
+
+  When used as a pattern substitution operator constructs a map of
+  by which all entries are constructed with keys with `k-pattern` and
+  values with `v-pattern`."
+  ([k-pattern v-pattern]
+   (cond
+     (match-syntax? &env)
+     `(with [%map# (or {~k-pattern ~v-pattern & %map#}
+                       {_# _# & %map#}
+                       '{})]
+        %map#)
+
+     (subst-syntax? &env)
+     `{& [[~k-pattern ~v-pattern] ...]}
+
+     :else
+     &form)))
+
