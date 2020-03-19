@@ -4,7 +4,6 @@
                [clojure.set :as set]
                [clojure.spec.alpha :as s]
                [clojure.string :as string]
-               [cljs.tagged-literals]
                [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util])
      :cljs
@@ -16,9 +15,7 @@
                [meander.util.epsilon :as r.util]
                [goog.object]))
   #?(:cljs
-     (:require-macros [meander.syntax.epsilon]))
-  #?(:clj
-     (:import (cljs.tagged_literals JSValue))))
+     (:require-macros [meander.syntax.epsilon])))
 
 #?(:clj (set! *warn-on-reflection* true))
 
@@ -727,24 +724,24 @@
              :value sym}))))))
 
 (defn parse-js-value
-  {:private true}
-  [^JSValue js-value env]
-  (let [x (.val js-value)]
-    (cond
-      (vector? x)
-      {:tag :jsa
-       :prt (expand-prt (parse-all x env))}
+  {:arglists '([val-of-js-value env])
+   :private true}
+  [x env]
+  (cond
+    (vector? x)
+    {:tag :jsa
+     :prt (expand-prt (parse-all x env))}
 
-      (map? x)
-      {:tag :jso
-       :object (into {}
-                     (map
-                      (fn [[k v]]
-                        (let [k* (if (keyword? k)
-                                   (subs (str k) 1)
-                                   k)]
-                          [(parse k* env) (parse v env)])))
-                     x)})))
+    (map? x)
+    {:tag :jso
+     :object (into {}
+                   (map
+                    (fn [[k v]]
+                      (let [k* (if (keyword? k)
+                                 (subs (str k) 1)
+                                 k)]
+                        [(parse k* env) (parse v env)])))
+                   x)}))
 
 (defn parse-vector
   {:private true}
@@ -852,8 +849,8 @@
                 (symbol? form)
                 (parse-symbol form)
 
-                #?@(:clj [(instance? JSValue form)
-                          (parse-js-value form env)])
+                #?@(:clj [(r.util/js-value? form)
+                          (parse-js-value (r.util/val-of-js-value form) env)])
 
                 :else
                 {:tag :lit
@@ -948,10 +945,11 @@
   (max-length (:prt node)))
 
 (defmethod unparse :jsa [node]
-  #?(:clj
-     (JSValue. (vec (unparse (:prt node))))
-     :cljs
-     (into-array (unparse (:prt node)))))
+  (let [p (unparse (:prt node))]
+    #?(:clj
+       (r.util/make-js-value (vec p))
+       :cljs
+       (into-array p))))
 
 (defmethod search? :jsa [node]
   (search? (:prt node)))
@@ -970,11 +968,12 @@
 
 (defmethod unparse :jso [node]
   #?(:clj
-     (JSValue. (reduce-kv
+     (let [m (reduce-kv
                 (fn [m k v]
                   (assoc m (unparse k) (unparse v)))
                 {}
-                (:object node)))
+                (:object node))]
+       (r.util/make-js-value m))
      :cljs
      (reduce-kv
       (fn [obj [k v]]
@@ -1824,10 +1823,11 @@
     (map lit-form (:elements node))
 
     :jsa
-    #?(:clj
-       (JSValue. (vec (lit-form (:prt node))))
-       :cljs
-       (into-array (lit-form (:prt node))))
+    (let [form (lit-form (:prt node))]
+      #?(:clj
+         (r.util/make-js-value (vec form))
+         :cljs
+         (into-array form)))
 
     :lit
     (:value node)

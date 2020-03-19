@@ -430,3 +430,30 @@
                    sym))
                (symbol (name (:name cljs-ns)) (name sym)))
              sym)))
+
+#?(:clj
+   (try
+     (let [c (Class/forName "cljs.tagged_literals.JSValue")]
+       (defn js-value? [x]
+         (instance? c x)))
+     (catch ClassNotFoundException _
+       (defn js-value? [x]
+         false)))
+   :cljs
+   (defn js-value? [x]
+     false))
+
+#?(:clj
+   (try
+     (let [c (Class/forName "cljs.tagged_literals.JSValue")
+           s 'cljs.tagged_literals.JSValue]
+       (defn make-js-value [x]
+         (eval `(new ~s ~x))))
+     (catch ClassNotFoundException _
+       (defn make-js-value [x]
+         x)))
+   :cljs
+   (defn make-js-value [x] x))
+
+(defn val-of-js-value [x]
+  (if (js-value? x) (.val x) x))

@@ -14,9 +14,7 @@
             [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.match.runtime.epsilon :as r.match.runtime]
             [meander.util.epsilon :as r.util]
-            #?(:cljs [goog.object :as gobj]))
-  #?(:clj
-     (:import (cljs.tagged_literals JSValue))))
+            #?(:cljs [goog.object :as gobj])))
 
 (def
   ^{:dynamic true
@@ -187,10 +185,11 @@
     (map compile-ground (:elements node))
 
     :jsa
-    #?(:clj
-       (JSValue. (vec (compile-ground (:prt node))))
-       :cljs
-       (into-array (compile-ground (:prt node))))
+    (let [v (vec (compile-ground (:prt node)))]
+      #?(:clj
+         (r.util/make-js-value v)
+         :cljs
+         (into-array v)))
 
     :lit
     (r.syntax/unparse node)
