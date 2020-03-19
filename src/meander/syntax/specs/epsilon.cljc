@@ -300,8 +300,8 @@
 (s/fdef meander.syntax.epsilon/resolve-expander
   :args (s/cat :sym symbol?
                :env :meander.syntax.epsilon/env)
-  :ret (s/alt :fn fn?
-              :nil nil?))
+  :ret (s/or :fn fn?
+             :nil nil?))
 
 (s/fdef meander.syntax.epsilon/expand-form
   :args (s/cat :form any?

@@ -1,13 +1,11 @@
 (ns meander.epsilon
   (:refer-clojure :exclude [and find keyword let not or some symbol])
   (:require [clojure.core :as clj]
-            [clojure.spec.alpha :as s]
             [meander.match.epsilon :as r.match]
             [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.rewrite.epsilon :as r.rewrite]
             [meander.strategy.epsilon :as r]
             [meander.syntax.epsilon :as r.syntax]
-            [meander.syntax.specs.epsilon :as r.syntax.specs]
             [meander.substitute.epsilon :as r.subst]
             [meander.substitute.syntax.epsilon :as r.subst.syntax]
             [meander.util.epsilon :as r.util]))
@@ -140,12 +138,6 @@
       (throw y)
       y)))
 
-(s/fdef rewrite
-  :args (s/cat :x any?
-               :clauses (s/* (s/cat :match any?
-                                    :substitution any?)))
-  :ret any?)
-
 (defmacro rewrites
   {:style/indent :defn}
   [x & clauses]
@@ -159,12 +151,6 @@
 
       :else
       y)))
-
-(s/fdef rewrites
-  :args (s/cat :x any?
-               :clauses (s/* (s/cat :match any?
-                                    :substitution any?)))
-  :ret any?)
 
 ;; ---------------------------------------------------------------------
 ;; Syntax extensions
@@ -194,8 +180,7 @@
   [& args]
   `(r.syntax/defsyntax ~@args))
 
-(s/fdef defsyntax
-  :args ::r.syntax.specs/defsyntax-args)
+
 
 (defsyntax and
   "Pattern matching operator which matches when `pattern` and,
@@ -264,11 +249,6 @@
 
      ;; else
      &form)))
-
-(s/fdef let
-  :args (s/cat :binding-patterns (s/and vector? (s/cat :pattern any? :expression any?))
-               :target-pattern (s/? any?))
-  :ret seq?)
 
 (defsyntax pred
   "Pattern matching operator which successfully matches whenever the
