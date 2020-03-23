@@ -31,36 +31,13 @@
          [?form ?env])))
     &form))
 
-(defmacro defconstructor
-  "Defines a pattern matching and substitution operator.
-
-  When the defined operator is used as a pattern matching opeator,
-  it attempts to match the form
-
-     ['ns/name ~@args]
-
-  When the defined operator is used as a pattern substitution operator,
-  it constructs a shape of the same form accepted by match and wrapped
-  in `meander.epsilon/cata`.
-
-     (meander.epsilon/cata ['ns/name ~@args])"
-  [name args]
-  `(me/defsyntax ~name [~@args]
-     (let [shape# ['~(symbol (str (ns-name *ns*)) (str name)) ~@args]]
-        (cond
-          (me/match-syntax? ~'&env)
-          shape#
-
-          (me/subst-syntax? ~'&env)
-          (me/cata shape#)))))
-
-(defconstructor parse-sequential [forms env])
-(defconstructor parse-entries [map-form env])
-(defconstructor parse-with-bindings [bindings env])
-(defconstructor make-join [left right env])
-(defconstructor make-cat [sequence next env])
-(defconstructor make-star [pattern next env])
-(defconstructor make-fold [var-ast init-ast fold-form form])
+(dev.kernel/defconstructor parse-sequential [forms env])
+(dev.kernel/defconstructor parse-entries [map-form env])
+(dev.kernel/defconstructor parse-with-bindings [bindings env])
+(dev.kernel/defconstructor make-join [left right env])
+(dev.kernel/defconstructor make-cat [sequence next env])
+(dev.kernel/defconstructor make-star [pattern next env])
+(dev.kernel/defconstructor make-fold [var-ast init-ast fold-form form])
 
 (dev.kernel/defmodule parse
   ;; Meta Rules
@@ -114,7 +91,6 @@
   (make-join (parse-sequential [!xs ...] ?env)
              (parse-sequential ?rest ?env)
              ?env)
-
 
   ;; [,,, ... ?pattern]
   ;; ----------------
@@ -215,7 +191,14 @@
   (make-cat [(me/and (me/not {:tag :group}) !xs) ... {:tag :group :as ?group} & ?rest] ?next ?env)
   (make-join (make-cat [!xs ...] {:tag :empty} ?env)
              (make-join ?group
-                        ?rest
+                        (make-cat ?rest ?next ?env)
+                        ?env)
+             ?env)
+
+  (make-cat [(me/and (me/not {:tag :star}) !xs) ... {:tag :star :as ?group} & ?rest] ?next ?env)
+  (make-join (make-cat [!xs ...] {:tag :empty} ?env)
+             (make-join ?group
+                        (make-cat ?rest ?next ?env)
                         ?env)
              ?env)
 
@@ -292,8 +275,14 @@
   (make-join {:tag :empty} ?right ?env)
   ?right
 
+  (make-join {:tag :star, :next {:tag :empty} :as ?left}
+             ?right
+             ?env)
+  {:tag :star :next ?right & ?left}
+
   (make-join ?left ?right {:context :string})
   {:tag :string-join, :left ?left, :right ?right}
+
 
   (make-join ?left ?right ?env)
   {:tag :join, :left ?left, :right ?right}
@@ -365,7 +354,16 @@
    :next (parse-sequential ?sequence {:context :vector & ?env})
    :form ?form}
 
+  ;; (meander.zeta/* pattern ,,,)
+
+  (special "*" (_ & ?patterns :as ?form) ?env)
+  {:tag :star
+   :greedy? true
+   :pattern (parse-sequential [& ?patterns] ?env)
+   :next {:tag :empty}}
+
   ;; (meander.zeta/<> pattern ,,,)
+
   (special "<>" (_ & ?patterns :as ?form) ?env)
   {:tag :group
    :pattern (parse-sequential [& ?patterns] ?env)}

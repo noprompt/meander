@@ -11,33 +11,37 @@
 (me/defsyntax $dec [x]
   `(me/app dec ~x))
 
+(dev.kernel/defconstructor query [bindings body search-space environment])
+(dev.kernel/defconstructor succeed [bindings environment])
+(dev.kernel/defconstructor search [object target bindings environment])
+
 (dev.kernel/defmodule match-compile
   ;; Support rules
   ;; -------------
 
-  [`query _ ?body (`m.runtime/succeed ?state) _]
+  (query _ ?body (`m.runtime/succeed ?state) _)
   ?body
 
-  [`query ?state-symbol ?body ?space {:return :one}]
+  (query ?state-symbol ?body ?space {:return :one})
   (`m.runtime/if-result [?state-symbol ?space]
    ?body)
 
-  [`query ?state-symbol ?body ?space _]
+  (query ?state-symbol ?body ?space _)
   (clojure.core/or
    (clojure.core/seq (clojure.core/mapcat (fn [?state-symbol] ?body) ?space))
    (m.runtime/fail))
 
-  [`search ?obj ?target ?state {:return :one}]
+  (search ?obj ?target ?state {:return :one})
   ;; TODO: Create a runtime protocol for `find`.
-  (nth (`m.runtime/search ?obj ?target ?state) 0 (`m.runtime/fail))
+  (nth (`m.runtime/-search ?obj ?target ?state) 0 (`m.runtime/fail))
 
-  [`search ?obj ?target ?state _]
-  (`m.runtime/search ?obj ?target ?state)
+  (search ?obj ?target ?state _)
+  (`m.runtime/-search ?obj ?target ?state)
 
-  [`succeed ?state {:return :one}]
+  (succeed ?state {:return :one})
   ?state
 
-  [`succeed ?state _]
+  (succeed ?state _)
   (`m.runtime/succeed ?state)
 
   ;; Public rules
@@ -93,8 +97,7 @@
           (me/let [?stream (gensym "S__")
                    ?target* (gensym "T__")]))
   (let* [?stream (?cata-symbol ?target)]
-    (me/cata [`query ?target* (me/cata [([?pattern ?target*] & ?rest) ?env]) ?stream ?env]))
-
+    (query ?target* (me/cata [([?pattern ?target*] & ?rest) ?env]) ?stream ?env))
 
   ;; :cons
   ;; -----
@@ -144,19 +147,16 @@
                    ?key-target (gensym)
                    ?val-target (gensym)
                    ?next-target (gensym)]))
-  (me/cata [`query
-            ?entry
-            (let [?key-target (clojure.core/key ?entry)
-                  ?val-target (clojure.core/val ?entry)
-                  ?next-target (clojure.core/dissoc ?target ?key-target)]
-              (me/cata
-               [`query
-                ?state
-                (me/cata [([?val ?val-target] [?next ?next-target] & ?rest) ?env])
-                (me/cata [([?key ?key-target]) ?env])
-                ?env]))
-            ?target
-            ?env])
+  (query ?entry
+         (let [?key-target (clojure.core/key ?entry)
+               ?val-target (clojure.core/val ?entry)
+               ?next-target (clojure.core/dissoc ?target ?key-target)]
+           (query ?state
+                  (me/cata [([?val ?val-target] [?next ?next-target] & ?rest) ?env])
+                  (me/cata [([?key ?key-target]) ?env])
+                  ?env))
+         ?target
+         ?env)
 
   ;; :fold
   ;; -----
@@ -167,9 +167,10 @@
       :fold-function {:tag :host-expression, :form ?form}}
      ?target] & ?rest)
    {:state-symbol ?state :as ?env}]
-  (me/cata [`query ?state (me/cata [?rest ?env])
-            [`search (`m.runtime/fold-variable ('quote ?symbol) ?initial-value ?form) ?target ?state ?env]
-            ?env])
+  (query ?state
+         (me/cata [?rest ?env])
+         (search (`m.runtime/fold-variable ('quote ?symbol) ?initial-value ?form) ?target ?state ?env)
+         ?env)
 
   ;; :into
   ;; -----
@@ -178,7 +179,7 @@
       :memory-variable {:symbol ?symbol}} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
-  (`m.runtime/into-memory-variable [?state ('quote ?symbol) ?target]
+  (`m.runtime/into-memory-variable [?state (`m.runtime/memory-variable ('quote ?symbol)) ?target]
     (me/cata [?rest ?env]))
 
 
@@ -191,14 +192,12 @@
                    ?left-symbol (gensym "left__")
                    ?right-symbol (gensym "right__")]))
   (let* [?partitions-symbol (`m.runtime/partitions ?target)]
-    (me/cata
-     [`query
-      ?partition-symbol
-      (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
-             ?right-symbol (clojure.core/nth ?partition-symbol 1)]
-        (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
-      ?partitions-symbol
-      ?env]))
+    (query ?partition-symbol
+           (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
+                  ?right-symbol (clojure.core/nth ?partition-symbol 1)]
+             (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
+           ?partitions-symbol
+           ?env))
 
   ;; :let
   ;; ----
@@ -236,7 +235,7 @@
       (`clj/mapcat
        (fn [?state-1]
          ;; Increment fold variable by 1.
-         (me/cata [`succeed (`m.runtime/bind-variable ?state-1 ?* 1) ?env]))
+         (succeed (`m.runtime/bind-variable ?state-1 ?* 1) ?env))
        (me/cata [([?pattern ?input]) {:state-symbol ?state-1 & ?env}])))
     (fn [?state-2 ?input]
       (`clj/let [?x (`clj/get ?state-2 ?*)]
@@ -291,7 +290,7 @@
       (`clj/mapcat
        (fn [?state-1]
          ;; Increment fold variable by 1.
-         [`succeed (`m.runtime/bind-variable ?state-1 ?* 1) ?env])
+         (succeed (`m.runtime/bind-variable ?state-1 ?* 1) ?env))
        (me/cata [([?pattern ?input]) {:state-symbol ?state-1 & ?env}])))
     (fn [?state-2 ?input]
       (`clj/let [?x (`clj/get ?state-2 ?*)
@@ -367,7 +366,10 @@
   [([{:tag :reference, :symbol ?symbol} ?target] & ?rest)
    {:state-symbol ?state
     :as ?env}]
-  (me/cata [`query ?state (me/cata [?rest ?env]) (?symbol ?target ?state) ?env])
+  (query ?state
+         (me/cata [?rest ?env])
+         (?symbol ?target ?state)
+         ?env)
 
   ;; :rest-map
   ;; ---------
@@ -480,6 +482,16 @@
   ;; :star
   ;; -----
 
+  (me/and [([{:tag :star, :greedy? true, :pattern ?pattern, :next ?next} ?target]
+            & ?rest)
+           {:state-symbol ?state :as ?env}]
+          (me/let [?input (gensym)]))
+  (`m.runtime/run-greedy-star ?state ?target
+   (fn [?state ?input]
+     (me/cata [([?pattern ?input]) ?env]))
+   (fn [?state ?input]
+     (me/cata [([?next ?input] & ?rest) ?env])))
+
   (me/and [([{:tag :star, :pattern ?pattern, :next ?next} ?target]
             & ?rest)
            {:state-symbol ?state :as ?env}]
@@ -522,14 +534,12 @@
                    ?left-symbol (gensym "left__")
                    ?right-symbol (gensym "right__")]))
   (let* [?partitions-symbol (`m.runtime/partitions ?target)]
-    (me/cata
-     [`query
-      ?partition-symbol
-      (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
-             ?right-symbol (clojure.core/nth ?partition-symbol 1)]
-        (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
-      ?partitions-symbol
-      ?env]))
+    (query ?partition-symbol
+           (let* [?left-symbol (clojure.core/nth ?partition-symbol 0)
+                  ?right-symbol (clojure.core/nth ?partition-symbol 1)]
+             (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
+           ?partitions-symbol
+           ?env))
 
   ;; :string-star
   ;; ------------
@@ -554,12 +564,11 @@
                  (me/cata [([?next ?next-target] & ?rest) ?env]))]
    (`clj/concat
     (?f ?target)
-    (me/cata [`query
-              ?index
-              (`clj/let [?next-target (`clj/subs ?target (`clj/+ ?index ~(count ?form)))]
-               (?f ?next-target))
-              ?indexes
-              ?env])))
+    (query ?index
+           (`clj/let [?next-target (`clj/subs ?target (`clj/+ ?index ~(count ?form)))]
+            (?f ?next-target))
+           ?indexes
+           ?env)))
 
   ;; :symbol
   ;; -------
@@ -629,7 +638,7 @@
   ;; Success!
 
   [() {:state-symbol ?state :as ?env}]
-  (me/cata [`succeed ?state ?env])
+  (succeed ?state ?env)
 
 
   ;; Probably not.

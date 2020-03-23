@@ -1,14 +1,23 @@
 (ns meander.runtime.zeta
-  (:refer-clojure :exclude [drop])
+  (:refer-clojure :exclude [cat drop])
   (:require [clojure.core :as clj]))
 
 ;; TODO: Allow a maximum depth to be configured for search, find, and
 ;;       generate.
 ;; TODO: Allow a maximum width to be configured for search, find, and
 ;;       generate.
+;; TODO: IHeight with respect to env. This is needed for `Reference`.
 
 ;; Protocols
 ;; ---------------------------------------------------------------------
+
+(defprotocol IAmbiguousPattern
+  "Marker protocol indicating the object is an ambiguous pattern."
+  (-ambiguous-pattern? [this]))
+
+(defn ambiguous-pattern? [x]
+  (and (satisfies? IAmbiguousPattern x)
+       (-ambiguous-pattern? x)))
 
 (defprotocol IBindVariable
   (-bind-variable [variable value bindings]))
@@ -76,8 +85,14 @@
 (defprotocol ISplitAt
   (-split-at [coll n]))
 
+(defprotocol IVariable
+  "Marker protocol indicating")
+
 ;; Implementation
 ;; ---------------------------------------------------------------------
+
+(defmacro result-stream [seq-returning-expr]
+  `(or (seq ~seq-returning-expr) (fail)))
 
 (defmacro succeed [x]
   `(list ~x))
@@ -354,11 +369,6 @@
         (fail))
       (assoc bindings this value)))
 
-  IStrategyInvokeIn
-  (-strategy-invoke-in [this target bindings]
-    (if-result [new-bindings (-bind-variable this target bindings)]
-      (succeed [target bindings])))
-
   IGenerate
   (-generate [this bindings]
     (if-some [entry (find bindings this)]
@@ -376,7 +386,12 @@
 
   IStable
   (-stable [this]
-    true))
+    true)
+
+  IStrategyInvokeIn
+  (-strategy-invoke-in [this target bindings]
+    (if-result [new-bindings (-bind-variable this target bindings)]
+      (succeed [target bindings]))))
 
 (defn logic-variable [symbol]
   (LogicVariable. symbol))
@@ -435,6 +450,10 @@
   (-stable [this]
     false))
 
+(defmethod print-method MemoryVariable [^MemoryVariable v writer]
+  (.write writer "#meander.runtime.zeta/memory-variable ")
+  (.write writer (str (.-symbol v))))
+
 (defn memory-variable [symbol]
   (MemoryVariable. symbol))
 
@@ -465,7 +484,6 @@
       (assoc bindings this (fold-fn (val entry) value))
       (assoc bindings this (fold-fn initial-value value))))
 
-
   IGenerate
   (-generate [this bindings]
     (let [result (if-some [entry (find bindings this)]
@@ -489,6 +507,17 @@
   IStable
   (-stable [this]
     false))
+
+(defmethod print-method FoldVariable [^FoldVariable v writer]
+  (.write writer "#meander.runtime.zeta/fold-variable [")
+  (.write writer (str (.-symbol v)))
+  (.write writer " ")
+  (.write writer (str (.-initial-value v)))
+  (.write writer " ")
+  (.write writer (str (.-fold-fn v)))
+  (.write writer " ")
+  (.write writer (str (.-unfold-fn v)))
+  (.write writer "]"))
 
 (defmulti unfold-for
   (fn [x]
@@ -534,10 +563,14 @@
 ;; Call
 ;; ----
 
-(deftype Call [f obj height stable]
+(deftype Call [f obj height stable ambiguous]
   clojure.lang.IFn
   (invoke [this x]
     (f x))
+
+  IAmbiguousPattern
+  (-ambiguous-pattern? [this]
+    ambiguous)
 
   IGenerate
   (-generate [this bindings]
@@ -546,19 +579,12 @@
             val* (f val)
             bindings* (get-bindings state)]
         (if-result [obj* (get-gen state)]
-          [val* bindings* (Call. f obj* height (stable? obj*))]
+          [val* bindings* (Call. f obj* height (stable? obj*) (ambiguous-pattern? obj*))]
           [val* bindings* (fail)]))))
 
   IHeight
   (-height [this]
     height)
-
-  IStrategyInvokeIn
-  (-strategy-invoke-in [this x bindings]
-    (let [x* (f x)]
-      (if (fail? x*)
-        x*
-        (strategy-invoke-in obj x* bindings))))
 
   ISearch
   (-search [this target bindings]
@@ -566,7 +592,14 @@
 
   IStable
   (-stable [this]
-    stable))
+    stable)
+
+  IStrategyInvokeIn
+  (-strategy-invoke-in [this x bindings]
+    (let [x* (f x)]
+      (if (fail? x*)
+        x*
+        (strategy-invoke-in obj x* bindings)))))
 
 (defn call
   ([f]
@@ -574,7 +607,7 @@
   ([f obj]
    (if (fail? obj)
      obj
-     (Call. f obj (+ 1 (-height obj)) (stable? obj)))))
+     (Call. f obj (+ 1 (-height obj)) (stable? obj) (ambiguous-pattern? obj)))))
 
 ;; Choice
 ;; ------
@@ -582,6 +615,10 @@
 (declare choice)
 
 (deftype Choice [obj-a obj-b stable height]
+  IAmbiguousPattern
+  (-ambiguous-pattern? [this]
+    true)
+
   IGenerate
   (-generate [this bindings]
     (if-gen [state obj-a bindings]
@@ -894,7 +931,6 @@
         (-search obj target bindings)
         (fail)))))
 
-
 (defn drain [obj]
   (reify
     IGenerate
@@ -922,6 +958,179 @@
     (-stable [this]
       true)))
 
+(defn pred
+  ([p]
+   (reify
+     ISearch
+     (-search [this x env]
+       (if (p x)
+         (succeed env)
+         (fail)))))
+  ([p obj]
+   (reify
+     ISearch
+     (-search [this x env]
+       (if (p x)
+         (-search obj x env)
+         (fail))))))
+
+(defn vector-p [obj]
+  (let [height (+ 1 (-height obj))]
+    (reify
+      ISearch
+      (-search [this x bindings]
+        (if (vector? x)
+          (-search obj x bindings)
+          (fail)))
+
+      IGenerate
+      (-generate [this bindings]
+        (if-result [gen-state (-generate obj bindings)]
+          (put-val gen-state (into [] (get-val gen-state)))
+          (fail)))
+
+      IHeight
+      (-height [this]
+        height))))
+
+(defn cat
+  ([objs]
+   {:pre [(sequential? objs)]}
+   (cat objs wildcard))
+  ([objs next-obj]
+   {:pre [(sequential? objs)]}
+   (let [n (count objs)
+         g (case n
+             0 next-obj
+             1 (call (fn [[xs ys]]
+                       (cons xs ys))
+                     (pair (nth objs 0) next-obj))
+             ;; else
+             (reduce (fn [obj1 obj2]
+                       (call (fn [[xs ys]]
+                               (concat xs ys))
+                             (pair obj1 obj2)))
+                     (pair (nth objs 0) (nth objs 1))
+                     (concat (clj/drop 2 objs)
+                             (list next-obj))))
+         height (reduce max 0 (map -height objs))]
+     (reify
+       IGenerate
+       (-generate [this bindings]
+         (-generate g bindings))
+
+       IHeight
+       (-height [this]
+         height)
+
+       ISearch
+       (-search [this x bindings]
+         (if-result [[init tail] (-split-at x n)]
+           (sequence
+            (comp (reduce comp
+                          (map (fn [x obj]
+                                 (mapcat (fn [bindings] (-search obj x bindings))))
+                               init
+                               objs))
+                  (mapcat (fn [bindings] (-search next-obj tail bindings))))
+            (list bindings))
+           (fail)))))))
+
+(deftype With [with-bindings obj]
+  IGenerate
+  (-generate [this bindings]
+    (-generate obj (merge bindings with-bindings)))
+
+  IHeight
+  (-height [this]
+    ;; TODO
+    (-height obj))
+
+  ISearch
+  (-search [this target bindings]
+    (let [old-references (get bindings ::references)
+          new-references (merge old-references with-bindings)
+          f (if (some? old-references)
+              (fn [bindings*]
+                (assoc bindings* ::references old-references))
+              (fn [bindings*]
+                (dissoc bindings* ::references)))]
+      (map f (-search obj target (assoc bindings ::references new-references))))))
+
+(defn with [with-bindings obj]
+  (With. with-bindings obj))
+
+
+(deftype Reference [symbol]
+  Object
+  (hashCode [this]
+    (hash symbol))
+
+  (equals [this that]
+    (and (instance? Reference that)
+         (= symbol (.-symbol ^Reference that))))
+
+  clojure.lang.IHashEq
+  (hasheq [this]
+    (hash symbol))
+
+  clojure.lang.IFn
+  (invoke [this x]
+    ;; This fails because there is no environment to consult.
+    (fail))
+
+  IGenerate
+  (-generate [this bindings]
+    (let [result (if-some [x (get-in bindings [::references this])]
+                   x
+                   (fail))]
+      (if (fail? result)
+        [(fail) bindings (fail)]
+        (-generate result bindings))))
+
+  IHeight
+  (-height [this]
+    0)
+
+  ISearch
+  (-search [this target bindings]
+    (let [result (if-some [x (get-in bindings [::references this])]
+                   x
+                   (fail))]
+      (if (fail? result)
+        [(fail) bindings (fail)]
+        (-search result target bindings))))
+
+  IStable
+  (-stable [this]
+    false))
+
+(defn reference [symbol]
+  (Reference. symbol))
+
+(defn greedy-star [obj next-obj]
+  (reify
+    IHeight
+    (-height [this]
+      (max (-height obj) (-height next-obj)))
+
+    ISearch
+    (-search [this target bindings]
+      (reduce
+       (fn [default partition]
+         (let [left (nth partition 0)
+               right (nth partition 1)]
+           (if-some [stream (and (seq left)
+                                 (seq (-search this bindings left)))]
+             (mapcat
+              (fn [bindings]
+                (or (seq (-search this right bindings))
+                    (seq (-search next-obj right bindings))))
+              stream)
+             default)))
+       (fail)
+       (partitions target)))))
+
 
 ;; Helpers
 ;; ---------------------------------------------------------------------
@@ -945,7 +1154,7 @@
                       colls)
             (lazy-seq (knit (keep next colls))))))
 
-(defn run-star [state input f g]
+(defn run-star [bindings input f g]
   (let [partitions (partitions input)]
     (concat
      (mapcat
@@ -953,11 +1162,29 @@
         (let [left (nth partition 0)
               right (nth partition 1)]
           (mapcat
-           (fn [state]
-             (run-star state right f g))
-           (f state left))))
+           (fn [bindings]
+             (run-star bindings right f g))
+           (f bindings left))))
       partitions)
-     (g state input))))
+     (g bindings input))))
+
+(defn run-greedy-star
+  [bindings input f g]
+  (reduce
+   (fn [default partition]
+     (let [left (nth partition 0)
+           right (nth partition 1)]
+       ;; If we can consume the left
+       (if (seq left)
+         (if-some [bindings (seq (mapcat
+                                  (fn [bindings]
+                                    (run-greedy-star bindings right f g))
+                                  (f bindings left)))]
+           (reduced bindings)
+           default)
+         default)))
+   (g bindings input)
+   (partitions input)))
 
 (defn run-plus [state n input f g]
   (if (<= n 0)

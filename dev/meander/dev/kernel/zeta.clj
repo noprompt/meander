@@ -5,6 +5,51 @@
             [meander.epsilon :as me]
             [meander.runtime.zeta :as m.runtime]))
 
+(defn defconstructor-doc-string
+  {:private true}
+  [symbol args]
+  (format "Pattern matching and substitution operator.
+
+  When used as a pattern matching opeator, it attempts to match the
+  form
+
+     ['%s %s]
+
+  When used as a pattern substitution operator, it constructs a shape
+  of the same form accepted by match and wrapped in
+  `meander.epsilon/cata`.
+
+     (meander.epsilon/cata ['%s %s]"
+          (str symbol)
+          (clojure.string/join " " args)
+          (str symbol)
+          (clojure.string/join " " args)))
+
+(defmacro defconstructor
+  "Defines a pattern matching and substitution operator.
+
+  When the defined operator is used as a pattern matching opeator,
+  it attempts to match the form
+
+     ['ns/name ~@args]
+
+  When the defined operator is used as a pattern substitution operator,
+  it constructs a shape of the same form accepted by match and wrapped
+  in `meander.epsilon/cata`.
+
+     (meander.epsilon/cata ['ns/name ~@args])"
+  [name args]
+  (let [fq-sym (symbol (str (ns-name *ns*)) (str name))
+        name (vary-meta name assoc :doc (defconstructor-doc-string fq-sym args))]
+    `(me/defsyntax ~name [~@args]
+       (let [shape# ['~fq-sym ~@args]]
+         (cond
+           (me/match-syntax? ~'&env)
+           shape#
+
+           (me/subst-syntax? ~'&env)
+           (me/cata shape#))))))
+
 (defn epsilon->zeta [form]
   (walk/prewalk
    (fn [x]
@@ -49,7 +94,11 @@
 
 (defmacro defmodule [module-name & rules]
   (let [input-symbol (gensym "input__")
-        rewrite-form (macroexpand `(me/rewrite ~input-symbol ~@rules))
+        rewrite-form (macroexpand (case (:type (meta &form))
+                                    :match
+                                    `(me/match ~input-symbol ~@rules)
+                                    ;; else
+                                    `(me/rewrite ~input-symbol ~@rules)))
         rewrite-form (epsilon->zeta rewrite-form)
         rewrite-form (replace-$-variables rewrite-form)
         defn-form `(defn ~module-name [~input-symbol] ~rewrite-form)
