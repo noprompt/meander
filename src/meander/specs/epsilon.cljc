@@ -1,5 +1,6 @@
 (ns meander.specs.epsilon
   (:require [meander.match.syntax.epsilon :as r.match.syntax]
+            [meander.syntax.specs.epsilon :as r.syntax.specs]
             [clojure.spec.alpha :as s]))
 
 
