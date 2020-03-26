@@ -20,16 +20,27 @@
         :as ?env}
 
   where ?_ns is internal to the pattern."
-  [?name ?form ?env]
-  {:pre [(string? name)]}
-  (if (me/match-syntax? &env)
-    (let [?ns (gensym "?__")]
-      (me/subst
-        (`me/and [((`me/symbol ?ns ?name) '& '_)
-                  (`me/or (`me/let [?ns "meander.zeta"])
-                   {:aliases {(`me/symbol ?ns) (`me/symbol "meander.zeta")}})]
-         [?form ?env])))
-    &form))
+  ([?name ?form ?env]
+   {:pre [(string? name)]}
+   (if (me/match-syntax? &env)
+     (let [?ns (gensym "?__")]
+       (me/subst
+         (`me/and [((`me/symbol ?ns ?name) '& '_)
+                   (`me/or (`me/let [?ns "meander.zeta"])
+                    {:aliases {(`me/symbol ?ns) (`me/symbol "meander.zeta")}})]
+          [?form ?env])))
+     &form))
+  ([?namespace ?name ?form ?env]
+   {:pre [(string? name)
+          (string? namespace)]}
+   (if (me/match-syntax? &env)
+     (let [?ns (gensym "?__")]
+       (me/subst
+         (`me/and [((`me/symbol ?ns ?name) '& '_)
+                   (`me/or (`me/let [?ns ?namespace])
+                    {:aliases {(`me/symbol ?ns) (`me/symbol ?namespace)}})]
+          [?form ?env])))
+     &form)))
 
 (dev.kernel/defconstructor parse-sequential [forms env])
 (dev.kernel/defconstructor parse-entries [map-form env])
@@ -368,6 +379,11 @@
   {:tag :group
    :pattern (parse-sequential [& ?patterns] ?env)}
   
+  (special "meander.math.zeta" "+" (_ ?a ?b :as ?form) ?env)
+  {:tag :meander.math.zeta/+
+   :left (me/cata [?a ?env])
+   :right (me/cata [?b ?env])}
+
   ;; (meander.zeta/with [,,,])
   ;; (meander.zeta/with [,,,] pattern)
 
@@ -481,7 +497,7 @@
    :form ?form}
 
   ;; (meander.zeta/symbol _ _)
-  ;; ---------------------
+  ;; -------------------------
 
   (special "symbol" (_ ?namespace ?name :as ?form) ?env)
   {:tag :symbol
@@ -490,7 +506,7 @@
    :form ?form}
 
   ;; (meander.zeta/symbol _ _ :meander.zeta/as _)
-  ;; ---------------------
+  ;; --------------------------------------------
 
   (special "symbol" (_ ?namespace ?name :meander.zeta/as ?pattern :as ?form) ?env)
   {:tag :symbol

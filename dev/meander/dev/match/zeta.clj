@@ -14,6 +14,7 @@
 (dev.kernel/defconstructor query [bindings body search-space environment])
 (dev.kernel/defconstructor succeed [bindings environment])
 (dev.kernel/defconstructor search [object target bindings environment])
+(dev.kernel/defconstructor make-object [ast environment])
 
 (dev.kernel/defmodule match-compile
   ;; Support rules
@@ -44,8 +45,37 @@
   (succeed ?state _)
   (`m.runtime/succeed ?state)
 
-  ;; Public rules
+  ;; make-object
   ;; -----------
+
+  (make-object {:tag :and, :left ?left, :right ?right} ?bindings)
+  (`m.runtime/andp (make-object ?left ?bindings) (make-object ?right ?bindings))
+
+  (make-object {:tag :literal :form ?form} ?bindings)
+  (`m.runtime/const ('quote ?form))
+
+  (me/and (make-object {:tag :logic-variable :symbol ?symbol}
+                       {?lv-sym ?symbol
+                        :state-symbol ?bindings-symbol})
+          (me/let [?result-sym (gensym)]))
+  (`m.runtime/if-result [?result-sym (`m.runtime/-constant-value ?lv-sym ?bindings-symbol)]
+   (`m.runtime/const ?result-sym)
+   ?lv-sym)
+
+  (me/and (make-object {:tag :logic-variable :symbol ?symbol}
+                       {:state-symbol ?bindings-symbol})
+          (me/let [?lv-sym (gensym)
+                   ?result-sym (gensym)]))
+  (let [?lv-sym (`m.runtime/logic-variable ('quote ?symbol))]
+    (`m.runtime/if-result [?result-sym (`m.runtime/-constant-value ?lv-sym ?bindings-symbol)]
+     (`m.runtime/const ?result-sym)
+     ?lv-sym))
+
+  (make-object ?x _)
+  (throw (ex-info "Missing definition for make-object" ('quote ?x)))
+
+  ;; Primary rules
+  ;; -------------
 
   ;; :and
   ;; ----
@@ -256,11 +286,13 @@
       (me/cata [?rest ?env])
       (`m.runtime/fail)))
 
-  [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
-   {:state-symbol ?state
-    :as ?env}]
-  (`m.runtime/if-result [?state (`m.runtime/bind-variable ?state (`m.runtime/logic-variable ('quote ?symbol)) ?target)]
-   (me/cata [?rest ?env]))
+  (me/and [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
+           {:state-symbol ?state
+            :as ?env}]
+          (me/let [?lv-sym (gensym "L__")]))
+  (let [?lv-sym (`m.runtime/logic-variable ('quote ?symbol))]
+    (`m.runtime/if-result [?state (`m.runtime/bind-variable ?state ?lv-sym ?target)]
+     (me/cata [?rest {?lv-sym ?symbol :as ?env}])))
 
   ;; :map
   ;; ----
@@ -573,7 +605,7 @@
   ;; :symbol
   ;; -------
 
-  (me/and [([{:tag :symbol :name (me/some ?name) :namespace (me/some ?namespace) :as-pattern (me/some ?as)} 
+  (me/and [([{:tag :symbol :name (me/some ?name) :namespace (me/some ?namespace) :as-pattern (me/some ?as)}
              ?target] & ?rest) ?env]
    (me/let [?name-target (gensym)
             ?namespace-target (gensym)]))
@@ -635,11 +667,29 @@
           ...]
     (me/cata [?rest ?env]))
 
+  ;; :meander.math.zeta/+
+
+  (me/and [([{:tag :meander.math.zeta/+, :left ?left, :right ?right} ?target] & ?rest)
+           {:state-symbol ?bindings
+            :as ?env}]
+          (me/let [?np-symbol (gensym)
+                   ?mp-symbol (gensym)
+                   ?bindings-symbol (gensym)
+                   ?target-symbol (gensym)]))
+  (`clj/let [?np-symbol (make-object ?left ?env)
+             ?mp-symbol (make-object ?right ?env)]
+   (query ?bindings
+          (me/cata [?rest ?env])
+          (search (`m.runtime/addp ?np-symbol ?mp-symbol)
+                  ?target
+                  ?bindings
+                  ?env)
+          ?env))
+
   ;; Success!
 
   [() {:state-symbol ?state :as ?env}]
   (succeed ?state ?env)
-
 
   ;; Probably not.
 

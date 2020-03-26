@@ -7,17 +7,18 @@
 ;; TODO: Allow a maximum width to be configured for search, find, and
 ;;       generate.
 ;; TODO: IHeight with respect to env. This is needed for `Reference`.
+;; TODO: Replace the word `state` to refer to the triple that is
+;;       returned by `-generate` with more descriptive one.
 
 ;; Protocols
 ;; ---------------------------------------------------------------------
 
 (defprotocol IAmbiguousPattern
-  "Marker protocol indicating the object is an ambiguous pattern."
+  "Protocol indicating the object is an ambiguous pattern."
   (-ambiguous-pattern? [this]))
 
-(defn ambiguous-pattern? [x]
-  (and (satisfies? IAmbiguousPattern x)
-       (-ambiguous-pattern? x)))
+(defprotocol IConstantValue
+  (-constant-value [pattern bindings]))
 
 (defprotocol IBindVariable
   (-bind-variable [variable value bindings]))
@@ -91,13 +92,14 @@
 ;; Implementation
 ;; ---------------------------------------------------------------------
 
-(defmacro result-stream [seq-returning-expr]
-  `(or (seq ~seq-returning-expr) (fail)))
-
-(defmacro succeed [x]
-  `(list ~x))
+(defmacro succeed
+  "Returns code used to indicate pattern search/genearte success: a
+  list of bindings returned by `bindings-expr` at rutime."
+  [bindings-expr]
+  `(list ~bindings-expr))
 
 (def FAIL
+  "Singleton used to indicate a pattern search/generate failure."
   #?(:clj
      (proxy [java.lang.Throwable
              clojure.lang.Seqable] []
@@ -150,11 +152,17 @@
 (defmethod print-method (class FAIL) [g writer]
   (.write writer "#meander.runtime.zeta/fail[]"))
 
-(defmacro fail []
-  `FAIL)
+(defmacro fail
+  "Code for the singleton value `FAIL`."
+  [] `FAIL)
 
-(defmacro fail? [x]
-  `(identical? ~x FAIL))
+(defmacro fail?
+  "Code to ask if runtime value of `expr` is `FAIL`."
+  [expr]
+  `(identical? ~expr FAIL))
+
+(defmacro result-stream [seq-returning-expr]
+  `(or (seq ~seq-returning-expr) (fail)))
 
 (defmacro if-result
   "Like if-some but tests the result of `expr` with `fail?`."
@@ -172,9 +180,22 @@
         (let [~binding result#]
           ~then)))))
 
+(defn variable? [x]
+  (satisfies? IVariable x))
+
 (defn bind-variable [bindings variable value]
-  {:post [(or (map? %) (fail? %))]}
+  {:pre [(variable? variable)]
+   :post [(or (map? %) (fail? %))]}
   (-bind-variable variable value bindings))
+
+(defn bound-variable? [bindings x]
+  (and (variable? x) (contains? bindings x)))
+
+(defn resolve-variable [bindings variable]
+  {:pre [(variable? variable)]}
+  (if-some [e (find bindings variable)]
+    (val e)
+    (fail)))
 
 (defn merge-bindings [left-bindings right-bindings]
   (reduce
@@ -199,6 +220,10 @@
           nil))
       right-binding-stream))
    left-binding-stream))
+
+(defn ambiguous-pattern? [x]
+  (and (satisfies? IAmbiguousPattern x)
+       (-ambiguous-pattern? x)))
 
 ;; Generator helpers
 ;; -----------------
@@ -243,7 +268,7 @@
              ~return))))
     return))
 
-(defn run-gen
+(defn gen-stream
   ([gen env]
    (lazy-seq
     (let [state (-generate gen env)
@@ -251,7 +276,21 @@
       (if (fail? val)
         ()
         (let [gen* (get-gen state)]
-          (cons val (run-gen gen* env)))))))
+          (cons state (gen-stream gen* env)))))))
+  ([gen env n]
+   (take n (gen-stream gen env))))
+
+(defn run-gen
+  ([gen env]
+   (lazy-seq
+    (let [state (-generate gen env)
+          val (get-val state)
+          gen* (get-gen state)]
+      (if (fail? val)
+        (if (fail? gen*)
+          ()
+          (run-gen gen* env))
+        (cons val (run-gen gen* env))))))
   ([gen env n]
    (take n (run-gen gen env))))
 
@@ -288,6 +327,10 @@
 (deftype Const [value]
   clojure.lang.IFn
   (invoke [this _]
+    value)
+
+  IConstantValue
+  (-constant-value [this bindings]
     value)
 
   IGenerate
@@ -369,6 +412,12 @@
         (fail))
       (assoc bindings this value)))
 
+  IConstantValue
+  (-constant-value [this bindings]
+    (if-some [entry (find bindings this)]
+      (val entry)
+      (fail)))
+
   IGenerate
   (-generate [this bindings]
     (if-some [entry (find bindings this)]
@@ -378,6 +427,8 @@
   IHeight
   (-height [this]
     0)
+
+  IVariable
 
   ISearch
   (-search [this target bindings]
@@ -442,6 +493,8 @@
   (-height [this]
     0)
 
+  IVariable
+
   ISearch
   (-search [this target bindings]
     (succeed (-bind-variable this [target] bindings)))
@@ -499,6 +552,8 @@
   IHeight
   (-height [this]
     0)
+
+  IVariable
 
   ISearch
   (-search [this target bindings]
@@ -799,6 +854,20 @@
       (if (<= (-height obj-1) (-height obj-2))
         (PairFirstThenSecond. obj-1 obj-2 stable height)
         (PairSecondThenFirst. obj-1 obj-2 stable height)))))
+
+(defn andp [leftp rightp]
+  (let [height (max (-height leftp) (-height rightp))]
+    (reify
+      IHeight
+      (-height [this]
+        height)
+
+      ISearch
+      (-search [this target bindings]
+        (combine-binding-streams
+         (-search leftp target bindings)
+         (-search rightp target bindings)
+         merge-bindings)))))
 
 (defn cons-gen [gen-car gen-cdr]
   (call (fn [xs]
@@ -1131,6 +1200,83 @@
        (fail)
        (partitions target)))))
 
+(defn addp [np mp]
+  (if (or (fail? np) (fail? mp))
+    (fail)
+    (let [height (max (-height np) (-height mp))]
+      (reify
+        IConstantValue
+        (-constant-value [this bindings]
+          (let [n (-constant-value np bindings)
+                m (-constant-value mp bindings)]
+            (if (and (number? n) (number? m))
+              (+ n m)
+              (fail))))
+
+        IHeight
+        (-height [this]
+          height)
+
+        ISearch
+        (-search [this target bindings]
+          (if (number? target)
+            (let [n (-constant-value np bindings)
+                  m (-constant-value mp bindings)]
+              (case [(fail? n) (fail? m)]
+                [false false]
+                (if (and (number? n)
+                         (number? m)
+                         (= target (+ n m)))
+                  (succeed bindings)
+                  (fail))
+
+                [false true]
+                (if (number? n)
+                  (-search mp (- target n) bindings)
+                  (fail))
+
+                [true false]
+                (if (number? m)
+                  (-search np (- target m) bindings)
+                  (fail))
+
+                ;; Search pairs of numbers which sum to the target.
+                [true true]
+                (mapcat
+                 (fn [n m]
+                   (combine-binding-streams
+                    (-search np n bindings)
+                    (-search mp m bindings)
+                    merge-bindings))
+                 ;; These need to be controlled by a max-length
+                 (iterate inc 0)
+                 (iterate dec target))))
+            (fail)))
+
+        IGenerate
+        (-generate [this bindings]
+          (if-gen [n-result np bindings]
+            (let [n (get-val n-result)]
+              (if (number? n)
+                (if-gen [m-result mp (get-bindings n-result)]
+                  (let [m (get-val m-result)
+                        n-gen* (get-gen n-result)
+                        m-gen* (get-gen m-result)
+                        gen* (choice (addp n-gen* m-gen*)
+                                     (addp np m-gen*)
+                                     (addp n-gen* mp))]
+                    (if (number? m)
+                      [(+ n m) (get-bindings m-result) gen*]
+                      [(fail) bindings gen*])))
+                [(fail) bindings (addp (get-gen n-result) mp)]))))))))
+
+
+(let [?x (logic-variable '?x)]
+  (run-gen
+   (addp (choice (const 4) (const 5))
+         (choice (const 4) (const 5)))
+   {?x "foo"}
+   15))
 
 ;; Helpers
 ;; ---------------------------------------------------------------------
@@ -1412,6 +1558,11 @@
   ITail
   (-tail [this]
     nil))
+
+(extend-protocol IConstantValue
+  Object
+  (-constant-value [this bindings]
+    (fail)))
 
 ;; (defn mutable-variable [symbol]
 ;;   (reify
