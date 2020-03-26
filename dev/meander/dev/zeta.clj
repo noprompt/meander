@@ -121,7 +121,7 @@
         :search-answer ~search-form})))
 
 (defmacro gen [pattern]
-  (let [env (m.syntax/make-parse-env)
+  (let [env (m.syntax/make-parse-env *ns*)
         ast (m.syntax/parse pattern env)
         gen (dev.subst/generate-compile [ast env])]
     `(let [gen# ~gen]
