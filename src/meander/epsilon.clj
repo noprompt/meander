@@ -14,12 +14,9 @@
 ;; Match, Find, Search
 
 (defmacro match
-  "Given some data `x`, return the corresponding `result` if it matches `match-pattern`.
-  Logic variables may exist in both the `match-pattern` and `result`,
-  enabling the reshaping of data.
-  `match` is the fundamental pattern matching operator.
+  "Basic pattern matching macro.
 
-  Syntax
+  Syntax:
 
       (match x
         pattern_1 expr_1
@@ -32,8 +29,8 @@
   match successfully an error will be thrown indicating the pattern
   match failed.
 
-  This operator restricts patterns which may have several possible
-  solutions. For example, the pattern
+  This operator restricts ambiguous patterns i.e. patterns which have
+  more than one possible match. For example, the pattern
 
       #{?x ?y}
 
@@ -43,34 +40,46 @@
   `?y`. Because there is no obvious way to know which solution to
   pick, patterns which have this property are illegal in the context
   of this operator.
+
   For operators which relax this restriction, see `find` and `search`."
-  {:arglists '([x match-pattern result & more-pattern-result-pairs])
-   :style/indent :defn}
-  [& args]
-  (with-meta `(meander.match.epsilon/match ~@args)
-    (meta &form)))
+  {:style/indent :defn}
+  ([x pattern expr]
+   (with-meta `(meander.match.epsilon/match ~x ~pattern ~expr)
+     (meta &form)))
+  ([x pattern expr & more-clauses]
+   (assert (even? (count more-clauses)) "match requires an even number of clauses")
+   (with-meta `(meander.match.epsilon/match ~x ~pattern ~expr ~@more-clauses)
+     (meta &form))))
 
 
 (defmacro find
-  "Given some data `x`, returns a single `result` that satisfies `match-clause`
-  which is the first solution explored in depth-first order.
+  "Like `search` but returns only the first successful match.
 
-  Like `search` but returns only the first successful match."
-  {:arglists '([x match-pattern result & more-pattern-result-pairs])
-   :style/indent :defn}
-  [& args]
-  (with-meta `(meander.match.epsilon/find ~@args)
+  Syntax:
+
+      (find x
+        pattern_1 expr_1
+        ,,,
+        pattern_n expr_n)
+  "
+  {:style/indent :defn}
+  [x & clauses]
+  (assert (even? (count clauses)) "find requires an even number of clauses")
+  (with-meta `(meander.match.epsilon/find ~x ~@clauses)
     (meta &form)))
 
 (defmacro search
-  "Given some data `x`, searches for variable assignments that satisfy a `match-pattern`,
-  and returns a user defined `result` which may use those variables.
-  Returns a lazy sequence of expression values in depth-first order.
+  "Like `match` but allows for ambiguous patterns and returns a lazy
+  sequence of all expression values in depth-first order.
 
-  Like `match` but allows for patterns which may match `x` in more
-  than one way.
+  Syntax:
 
-  Example
+      (search x
+        pattern_1 expr_1
+        ,,,
+        pattern_n expr_n)
+
+  Example:
 
       (search [1 2 3]
         [!xs ... !ys ...]
@@ -81,6 +90,20 @@
        {!xs [1 2], !ys [3]}
        {!xs [1 2 3], !ys []})
 
+  Example:
+  
+      (search {:foo 1, :bar 2, :baz 1, :quux 2}
+        {?k 1}
+        [?k :one]
+      
+        {?k 2}
+        [?k :two])
+      ;; =>
+      ([:foo :one]
+       [:baz :one]
+       [:quux :two]
+       [:bar :two])
+
   Note, if only the first value is needed, use `find` instead. The
   expression
 
@@ -89,17 +112,18 @@
   can be significantly slower than
 
       (find x ,,,)"
-  {:arglists '([x match-pattern result & more-pattern-result-pairs])
-   :style/indent :defn}
-  [& args] `(meander.match.epsilon/search ~@args))
+  {:style/indent :defn}
+  [x & clauses]
+  (assert (even? (count clauses)) "search requires an even number of clauses")
+  `(meander.match.epsilon/search ~x ~@clauses))
 
 (defmacro breadth-first-search
   "Like `search` but traverses the search space in breadth first
   order."
-  {:arglists '([x & clauses])
-   :style/indent :defn}
-  [& args]
-  (with-meta `(meander.match.epsilon/search ~@args)
+  {:style/indent :defn}
+  [x & clauses]
+  (assert (even? (count clauses)) "breadth-first-search requires an even number of clauses")
+  (with-meta `(meander.match.epsilon/search ~x ~@clauses)
     (assoc (meta &form) :search-order :breadth-first)))
 
 ;; ---------------------------------------------------------------------
@@ -122,7 +146,8 @@
 ;; Rewrite
 
 (defmacro rewrite
-  "Given some data x, match a `match-pattern` and substitute with the `subst-pattern`.
+  "Given some data `x`, match a `match-pattern` and substitute with
+  the `subst-pattern`.
 
   Syntactic sugar for
 
@@ -133,14 +158,23 @@
   {:arglists '([x match-pattern subst-pattern & more-pattern-pairs])
    :style/indent :defn}
   [x & clauses]
+  (assert (even? (count clauses)) "rewrite requires an even number of clauses")
   (clj/let [y (r.rewrite/compile-rewrite-args (list* x clauses) &env)]
     (if (instance? Exception y)
       (throw y)
       y)))
 
 (defmacro rewrites
+  "Like `rewrite` but is sugar for
+
+       (search x
+         p_1 (subst p_2)
+         ,,,
+         p_n-1 (subst p_n))"
+
   {:style/indent :defn}
   [x & clauses]
+  (assert (even? (count clauses)) "rewrites requires an even number of clauses")
   (clj/let [y (r.rewrite/compile-rewrites-args (list* x clauses) &env)]
     (cond
       (instance? Exception y)

@@ -43,9 +43,6 @@
   [rewrite-args env]
   (let [rewrite-analysis (analyze-rewrite-args rewrite-args env)]
     (m.match/match rewrite-analysis
-      {:error [?error & _]}
-      ?error
-
       {:cata-symbol ?cata-symbol
        :match-cata? ?match-cata?
        :matrix ?matrix
@@ -61,7 +58,10 @@
                              (assoc column :rhs ir)))
                          ?matrix)
             find-analysis (assoc rewrite-analysis :matrix find-matrix)]
-        (m.match/compile-find-analysis find-analysis env)))))
+        (m.match/compile-find-analysis find-analysis env))
+
+      ?error
+      ?error)))
 
 ;; rewrites compilation
 ;; --------------------
@@ -99,9 +99,6 @@
   [rewrite-args env]
   (let [rewrites-analysis (analyze-rewrites-args rewrite-args env)]
     (m.match/match rewrites-analysis
-      {:error [?error & _]}
-      ?error
-
       {:cata-symbol ?cata-symbol
        :match-cata? ?match-cata?
        :matrix ?matrix
@@ -119,4 +116,7 @@
                                  (assoc column :rhs ir)))
                              ?matrix)
               search-analysis (assoc rewrites-analysis :matrix search-matrix)]
-          (m.match/compile-search-analysis search-analysis env))))))
+          (m.match/compile-search-analysis search-analysis env)))
+
+      ?error
+      ?error)))
