@@ -520,17 +520,18 @@
 (defn memory-variable [symbol]
   (MemoryVariable. symbol))
 
-;; Fold Variable
-;; -------------
 
-(deftype FoldVariable [symbol initial-value fold-fn unfold-fn]
+;; Mutable Variable
+;; ----------------
+
+(deftype MutableVariable [symbol]
   Object
   (hashCode [this]
     (hash symbol))
 
   (equals [this that]
-    (and (instance? FoldVariable that)
-         (= symbol (.-symbol ^FoldVariable that))))
+    (and (instance? MutableVariable that)
+         (= symbol (.-symbol ^MutableVariable that))))
 
   clojure.lang.IHashEq
   (hasheq [this]
@@ -543,21 +544,13 @@
 
   IBindVariable
   (-bind-variable [this value bindings]
-    (if-some [entry (find bindings this)]
-      (assoc bindings this (fold-fn (val entry) value))
-      (assoc bindings this (fold-fn initial-value value))))
+    (assoc bindings this value))
 
   IGenerate
   (-generate [this bindings]
-    (let [result (if-some [entry (find bindings this)]
-                   (unfold-fn (val entry))
-                   (unfold-fn initial-value))]
-      (if (fail? result)
-        [(fail) bindings (fail)]
-        (let [val* (nth result 0)
-              next (nth result 1)
-              bindings* (-bind-variable this next bindings)]
-          [val* bindings* (fail)]))))
+    (if-some [entry (find bindings this)]
+      [(val entry) bindings (fail)]
+      (fail)))
 
   IHeight
   (-height [this]
@@ -573,15 +566,77 @@
   (-stable [this]
     false))
 
-(defmethod print-method FoldVariable [^FoldVariable v writer]
-  (.write writer "#meander.runtime.zeta/fold-variable [")
-  (.write writer (str (.-symbol v)))
+
+#?(:clj
+   (defmethod print-method MutableVariable [^MutableVariable v writer]
+     (.write writer "#meander.runtime.zeta/mutable-variable ")
+     (.write writer (str (.-symbol v)))))
+
+(defn mutable-variable [symbol]
+  (MutableVariable. symbol))
+
+;; Fold
+;; ----
+
+(deftype Fold [^MutableVariable variable initial-value fold-fn unfold-fn]
+  Object
+  (hashCode [this]
+    (hash variable))
+
+  (equals [this that]
+    (and (instance? Fold that)
+         (= variable (.-variable ^Fold that))))
+
+  clojure.lang.IHashEq
+  (hasheq [this]
+    (hash variable))
+
+  IBindVariable
+  (-bind-variable [this value bindings]
+    (if (contains? bindings this)
+      ;; The fold is in use.
+      (if-some [entry (find bindings variable)]
+        (assoc bindings variable (fold-fn (val entry) value))
+        (assoc bindings variable (fold-fn initial-value value)))
+      ;; This is the first time the fold has been used.
+      (let [value* (if-some [entry (find bindings variable)]
+                     (fold-fn (fold-fn initial-value (val entry)) value)
+                     (fold-fn initial-value value))]
+        (assoc bindings this nil, variable value*))))
+
+  IGenerate
+  (-generate [this bindings]
+    (let [result (if-some [entry (find bindings variable)]
+                   (unfold-fn (val entry))
+                   (unfold-fn initial-value))]
+      (if (fail? result)
+        [(fail) bindings (fail)]
+        (let [val* (nth result 0)
+              next (nth result 1)
+              bindings* (-bind-variable this next bindings)]
+          [val* bindings* (fail)]))))
+
+  IHeight
+  (-height [this]
+    0)
+
+  ISearch
+  (-search [this target bindings]
+    (succeed (-bind-variable this target bindings)))
+
+  IStable
+  (-stable [this]
+    false))
+
+(defmethod print-method Fold [^Fold v writer]
+  (.write writer "#meander.runtime.zeta/fold [")
+  (print-method (.-variable v) writer)
   (.write writer " ")
-  (.write writer (str (.-initial-value v)))
+  (print-method (.-initial-value v) writer)
   (.write writer " ")
-  (.write writer (str (.-fold-fn v)))
+  (print-method (.-fold-fn v) writer)
   (.write writer " ")
-  (.write writer (str (.-unfold-fn v)))
+  (print-method (.-unfold-fn v) writer)
   (.write writer "]"))
 
 (defmulti unfold-for
@@ -590,9 +645,9 @@
       x
       ::not-fn)))
 
-(defn fold-variable [symbol initial-value fold-fn]
+(defn fold [variable initial-value fold-fn]
   (let [unfold-fn (unfold-for fold-fn)]
-    (FoldVariable. symbol initial-value fold-fn unfold-fn)))
+    (Fold. variable initial-value fold-fn unfold-fn)))
 
 (defmethod unfold-for clj/+ [_]
   (fn [current]

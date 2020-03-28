@@ -71,6 +71,21 @@
      (`m.runtime/const ?result-sym)
      ?lv-sym))
 
+  (me/and (make-object {:tag :mutable-variable :symbol ?symbol}
+                       {?mv-sym ?symbol
+                        :state-symbol ?bindings-symbol}))
+  ?mv-sym
+
+  (make-object {:tag :mutable-variable :symbol ?symbol}
+               {:state-symbol ?bindings-symbol})
+  (`m.runtime/mutable-variable ('quote ?symbol))
+
+  (make-object {:tag :or, :left ?left, :right ?right} ?env)
+  (`m.runtime/choice (make-object ?left ?env) (make-object ?right ?env))
+
+  (make-object {:tag :meander.math.zeta/+, :left ?left, :right ?right} ?env)
+  (`m.runtime/addp (make-object ?left ?env) (make-object ?right ?env))
+
   (make-object ?x _)
   (throw (ex-info "Missing definition for make-object" ('quote ?x)))
 
@@ -191,16 +206,18 @@
   ;; :fold
   ;; -----
 
-  [([{:tag :fold,
-      :variable {:tag :mutable-variable, :symbol ?symbol},
-      :initial-value {:form ?initial-value}
-      :fold-function {:tag :host-expression, :form ?form}}
-     ?target] & ?rest)
-   {:state-symbol ?state :as ?env}]
-  (query ?state
-         (me/cata [?rest ?env])
-         (search (`m.runtime/fold-variable ('quote ?symbol) ?initial-value ?form) ?target ?state ?env)
-         ?env)
+  (me/and [([{:tag :fold,
+              :variable {:tag :mutable-variable, :symbol ?symbol :as ?variable-ast},
+              :initial-value {:form ?initial-value}
+              :fold-function {:tag :host-expression, :form ?form}}
+             ?target] & ?rest)
+           {:state-symbol ?state :as ?env}]
+          (me/let [?variable (gensym)]))
+  (let [?variable (make-object ?variable-ast ?env)]
+    (query ?state
+           (me/cata [?rest ?env])
+           (search (`m.runtime/fold ?variable ?initial-value ?form) ?target ?state ?env)
+           ?env))
 
   ;; :into
   ;; -----
@@ -276,23 +293,30 @@
   ;; :logic-variable
   ;; ---------------
 
+  ;; The variable has been previously bound (see below).
   (me/and [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
-           {?key ?symbol
+           {?lv-sym ?symbol
             :state-symbol ?state
             :as ?env}]
           (me/let [?value (gensym)]))
-  (let* [?value (clojure.core/get ?state ?key)]
+  (let* [?value (clojure.core/get ?state ?lv-sym)]
     (if (= ?value ?target)
       (me/cata [?rest ?env])
       (`m.runtime/fail)))
 
+  ;; The variable has not been bound.
   (me/and [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
            {:state-symbol ?state
             :as ?env}]
-          (me/let [?lv-sym (gensym "L__")]))
+          (me/let [;; Symbol of the variable object.
+                   ?lv-sym (gensym "L__")]))
   (let [?lv-sym (`m.runtime/logic-variable ('quote ?symbol))]
     (`m.runtime/if-result [?state (`m.runtime/bind-variable ?state ?lv-sym ?target)]
-     (me/cata [?rest {?lv-sym ?symbol :as ?env}])))
+     (me/cata [?rest {;; Update the environment with the symbol of the
+                      ;; variable object as the key and the actual
+                      ;; variable symbol as the val.
+                      ?lv-sym ?symbol
+                      :as ?env}])))
 
   ;; :map
   ;; ----
@@ -353,9 +377,20 @@
   ;; -----------------
 
   [([{:tag :mutable-variable :symbol ?symbol} ?target] & ?rest)
-   {:state-symbol ?state :as ?env}]
-  (`clj/let [?state (`m.runtime/bind-variable ?state (`m.runtime/fold-variable ('quote ?symbol) nil `m.runtime/second-argument) ?target)]
+   {?mv-sym ?symbol
+    :state-symbol ?state
+    :as ?env}]
+  (`clj/let [?state (`m.runtime/bind-variable ?state ?mv-sym ?target)]
    (me/cata [?rest ?env]))
+  
+  (me/and [([{:tag :mutable-variable :symbol ?symbol} ?target] & ?rest)
+           {:state-symbol ?state
+            :as ?env}]
+          (me/let [?mv-sym (gensym "M__")]))
+  (let [?mv-sym (`m.runtime/mutable-variable ('quote ?symbol))]
+    (`clj/let [?state (`m.runtime/bind-variable ?state ?mv-sym ?target)]
+     (me/cata [?rest {?mv-sym ?symbol
+                      & ?env}])))
 
   ;; :not
   ;; ----
@@ -475,8 +510,10 @@
 
   [([{:tag :root, :next ?next} ?target] & ?rest)
    {:state-symbol ?state
+    :max-length (me/or (me/and nil (me/let [?max-length 32]))
+                       ?max-length)
     :as ?env}]
-  (let* [?state {}]
+  (let* [?state {:max-length ?max-length}]
     (me/cata [([?next ?target] & ?rest) ?env]))
 
   ;; :seq
