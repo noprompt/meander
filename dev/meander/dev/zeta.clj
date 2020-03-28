@@ -17,8 +17,9 @@
 (defmacro solve [expression pattern]
   (let [env (m.syntax/make-parse-env *ns*)
         ast (m.syntax/parse pattern env)
+        env (merge env (meta &form))
         target (gensym "target__")
-        match-form (dev.match/match-compile [(list [ast target]) (merge env (meta &form))])]
+        match-form (dev.match/match-compile [(list [ast target]) env])]
     `(let [~target ~expression]
        ~match-form)))
 
