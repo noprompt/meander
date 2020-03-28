@@ -210,16 +210,26 @@
    right-bindings))
 
 (defn combine-binding-streams
-  [left-binding-stream right-binding-stream merge-bindings]
-  (mapcat
-   (fn [left-bindings]
-     (keep
-      (fn [right-bindings]
-        (if-result [result (merge-bindings left-bindings right-bindings)]
-          result
-          nil))
-      right-binding-stream))
-   left-binding-stream))
+  ([left-binding-stream right-binding-stream]
+   (mapcat
+    (fn [left-bindings]
+      (keep
+       (fn [right-bindings]
+         (if-result [result (merge-bindings left-bindings right-bindings)]
+           result
+           nil))
+       right-binding-stream))
+    left-binding-stream))
+  ([left-binding-stream right-binding-stream merge-bindings]
+   (mapcat
+    (fn [left-bindings]
+      (keep
+       (fn [right-bindings]
+         (if-result [result (merge-bindings left-bindings right-bindings)]
+           result
+           nil))
+       right-binding-stream))
+    left-binding-stream)))
 
 (defn ambiguous-pattern? [x]
   (and (satisfies? IAmbiguousPattern x)
