@@ -1270,14 +1270,6 @@
                       [(fail) bindings gen*])))
                 [(fail) bindings (addp (get-gen n-result) mp)]))))))))
 
-
-(let [?x (logic-variable '?x)]
-  (run-gen
-   (addp (choice (const 4) (const 5))
-         (choice (const 4) (const 5)))
-   {?x "foo"}
-   15))
-
 ;; Helpers
 ;; ---------------------------------------------------------------------
 
