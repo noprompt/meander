@@ -1252,15 +1252,16 @@
 
                 ;; Search pairs of numbers which sum to the target.
                 [true true]
-                (mapcat
-                 (fn [n m]
-                   (combine-binding-streams
-                    (-search np n bindings)
-                    (-search mp m bindings)
-                    merge-bindings))
-                 ;; These need to be controlled by a max-length
-                 (iterate inc 0)
-                 (iterate dec target))))
+                (let [max-length (get bindings :max-length 32)
+                      pair (pair np mp)]
+                  (take max-length
+                        (mapcat
+                         (fn [n]
+                           (let [m (- target n)]
+                             (concat
+                              (-search pair [n m] bindings)
+                              (-search pair [m n] bindings))))
+                         (range 1 (+ (/ max-length 2) 1)))))))
             (fail)))
 
         IGenerate
