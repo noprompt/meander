@@ -35,21 +35,34 @@
   [x]
   (= (get x :tag) :cat))
 
-(defn child-entries
-  [ast]
-  (cond
-    (cat? ast)
-    [(find ast :sequence)
-     (find ast :next)]
+(defn with?
+  [x]
+  (= (get x :tag) :with))
 
-    (ast? ast)
+(defmulti child-entries
+  {:arglists '([ast])}
+  (fn [ast] (get ast :tag))
+  :default ::default)
+
+(defmethod child-entries ::default
+  [ast]
+  (if (ast? ast)
     (into [] (keep (fn [e]
                      (if (ast? (val e))
                        e)))
-         ast)
-
-    :else
+          ast)
     []))
+
+(defmethod child-entries :cat [ast]
+  [(find ast :sequence)
+   (find ast :next)])
+
+(defmethod child-entries :with [ast]
+  [(find ast :bindings)
+   (find ast :body)])
+
+(defmethod child-entries :with-bindings [ast]
+  [(find ast :bindings)])
 
 (defn children
   [ast]
