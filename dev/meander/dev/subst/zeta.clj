@@ -34,6 +34,19 @@
   [{:tag :cata :pattern ?pattern} {:cata-symbol ?cata-symbol, :as ?env}]
   (`m.runtime/cata ?cata-symbol (me/cata [?pattern ?env]))
 
+  ;; :entry
+  ;; ------
+
+  [{:tag :entry, :key-pattern ?key-pattern, :val-pattern ?val-pattern, :next ?next}
+   ?env]
+  (`m.runtime/call
+   (`clj/fn [[m [k v]]] (assoc m k v))
+   (`m.runtime/pair
+    (me/cata [?next ?env])
+    (`m.runtime/pair
+     (me/cata [?key-pattern ?env])
+     (me/cata [?val-pattern ?env]))))
+
   ;; :empty
   ;; ------
 
@@ -51,9 +64,8 @@
   ;; -----
 
   [{:tag :into, :memory-variable {:symbol ?symbol}} ?env]
+  ;; Greedy star
   (`m.runtime/star (`m.runtime/call `clj/list (`m.runtime/memory-variable ('quote ?symbol))))
-  ;; (`m.runtime/drain (`m.runtime/star (`m.runtime/call `clj/list (`m.runtime/memory-variable ('quote ?symbol)))))
-
 
   ;; :join
   ;; -----
@@ -76,7 +88,10 @@
   ;; :logic-variable
   ;; ---------------
 
-  [{:tag :logic-variable :symbol ?symbol} _ ]
+  [{:tag :logic-variable :symbol ?symbol} {?lv-sym ?symbol}]
+  ?lv-sym
+
+  [{:tag :logic-variable :symbol ?symbol} _]
   (`m.runtime/logic-variable ('quote ?symbol))
 
   ;; :map
@@ -123,7 +138,6 @@
   [{:tag :or, :left ?left, :right ?right} ?env]
   (`m.runtime/choice (me/cata [?left ?env]) (me/cata [?right ?env]))
 
-
   ;; :plus
   ;; -----
 
@@ -137,6 +151,16 @@
 
   [{:tag :random-symbol, :symbol ?symbol} ?env]
   (`m.runtime/random-symbol ('quote ?symbol))
+
+  ;; :rest-map
+  ;; ---------
+
+  [{:tag :rest-map, :pattern ?pattern, :next ?next} ?env]
+  (`m.runtime/call
+   (`clj/fn [[x y]] (merge x y))
+   (`m.runtime/pair
+    (me/cata [?pattern ?env])
+    (me/cata [?next ?env])))
 
   ;; :root
   ;; -----
@@ -156,7 +180,6 @@
   [{:tag :some-map} ?env]
   (`m.runtime/const {})
 
-
   ;; :star
   ;; -----
 
@@ -164,7 +187,6 @@
   (`m.runtime/join
    (`m.runtime/star (me/cata [?pattern ?env]))
    (me/cata [?next ?env]))
-
 
   ;; symbol
   ;; ------
@@ -176,7 +198,6 @@
 
   [{:tag :symbol :name (me/some ?name)} ?env]
   (`m.runtime/call `clj/symbol (me/cata [?name ?env]))
-
 
   ;; :vector
   ;; -------

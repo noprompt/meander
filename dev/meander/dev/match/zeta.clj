@@ -293,16 +293,14 @@
   ;; :logic-variable
   ;; ---------------
 
-  ;; The variable has been previously bound (see below).
+  ;; The variable has been previously bound in code (see below).
   (me/and [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
            {?lv-sym ?symbol
-            :state-symbol ?state
+            :state-symbol ?bindings
             :as ?env}]
           (me/let [?value (gensym)]))
-  (let* [?value (clojure.core/get ?state ?lv-sym)]
-    (if (= ?value ?target)
-      (me/cata [?rest ?env])
-      (`m.runtime/fail)))
+  (`m.runtime/if-result [?bindings (`m.runtime/bind-variable ?bindings ?lv-sym ?target)]
+   (me/cata [?rest ?env]))
 
   ;; The variable has not been bound.
   (me/and [([{:tag :logic-variable :symbol ?symbol} ?target] & ?rest)
@@ -427,6 +425,16 @@
    (fn [?state ?input]
      (me/cata [([?next ?input] & ?rest) ?env])))
 
+  ;; :pred
+  ;; -----
+
+  (me/and [([{:tag :pred, :expression {:tag :host-expression :form ?form}} ?target] & ?rest) ?env]
+          (me/let [?pred (gensym)]))
+  (let [?pred ?form]
+    (if (?pred ?target)
+      (me/cata [?rest ?env])
+      (`m.runtime/fail)))
+
   ;; :reference
   ;; ----------
 
@@ -518,8 +526,7 @@
 
   ;; :seq
   ;; ----
-
-  [([{:tag :seq :next ?next} (& _ :as ?target) & ?rest]) ?env]
+  [([{:tag :seq, :next ?next} ?target] & ?rest) {?target ('quote & _) :as  ?env}]
   (me/cata [([?next ?target] & ?rest) ?env])
 
   [([{:tag :seq, :next ?next} ?target] & ?rest) ?env]
@@ -672,7 +679,7 @@
   ;; :vector
   ;; -------
 
-  [([{:tag :vector, :next ?next} [& _ :as ?target]] & ?rest) ?env]
+  [([{:tag :vector, :next ?next} ?target] & ?rest) {?target [& _] :as ?env}]
   (me/cata [([?next ?target] & ?rest) ?env])
 
   [([{:tag :vector, :next ?next} ?target] & ?rest) ?env]
