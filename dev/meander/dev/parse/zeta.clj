@@ -462,6 +462,14 @@
    :right (me/cata [?right ?env])
    :form ?form}
 
+  ;; (meander.zeta/pred _)
+  ;; ----------------------
+
+  (special "pred" (_ ?expression :as ?form) ?env)
+  {:tag :pred
+   :expression {:tag :host-expression
+                :form ?expression}
+   :form ?form}
 
   ;; (meander.zeta/re _)
   ;; ----------------------
