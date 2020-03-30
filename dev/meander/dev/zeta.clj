@@ -28,6 +28,7 @@
                                     :memory-variable
                                     `(m.runtime/memory-variable '~symbol))]
                        {:id id
+                        :tag tag
                         :object object
                         :symbol symbol}))))
         variables))
@@ -69,9 +70,12 @@
        (map
         (fn [~bindings]
           (let [~@(sequence
-                   (comp (map (juxt :symbol :id))
-                         (mapcat (fn [[symbol id]]
-                                   [symbol `(get ~bindings ~id)])))
+                   (mapcat (fn [{:keys [tag symbol id]}]
+                             (case tag
+                               :memory-variable
+                               [symbol `(get ~bindings ~id [])]
+                               ;; else
+                               [symbol `(get ~bindings ~id)])))
                    variable-db)]
             ~right-form))
         ~match-form))))
