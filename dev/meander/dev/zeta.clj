@@ -171,8 +171,8 @@
    `(report ~expr ~pattern ~pattern ~action))
   ([expr zeta-pattern epsilon-pattern action]
    (let [x (gensym)
-         zeta-form `(search ~expr ~zeta-pattern ~action)
-         epsilon-form `(me/search ~expr ~epsilon-pattern ~action)]
+         zeta-form `(search ~x ~zeta-pattern ~action)
+         epsilon-form `(me/search ~x ~epsilon-pattern ~action)]
      `(let [~x ~expr]
         [[:epsilon/pattern '~epsilon-pattern]
          [:zeta/pattern '~zeta-pattern]
