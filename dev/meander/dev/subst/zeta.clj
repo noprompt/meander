@@ -63,6 +63,10 @@
   ;; :into
   ;; -----
 
+  [{:tag :into, :memory-variable {:symbol ?symbol}} {?id ?symbol}]
+  ;; Greedy star
+  (`m.runtime/star (`m.runtime/call `clj/list ?id))
+
   [{:tag :into, :memory-variable {:symbol ?symbol}} ?env]
   ;; Greedy star
   (`m.runtime/star (`m.runtime/call `clj/list (`m.runtime/memory-variable ('quote ?symbol))))
@@ -88,8 +92,8 @@
   ;; :logic-variable
   ;; ---------------
 
-  [{:tag :logic-variable :symbol ?symbol} {?lv-sym ?symbol}]
-  ?lv-sym
+  [{:tag :logic-variable :symbol ?symbol} {?id ?symbol}]
+  ?id
 
   [{:tag :logic-variable :symbol ?symbol} _]
   (`m.runtime/logic-variable ('quote ?symbol))
@@ -123,14 +127,20 @@
   ;; :memory-variable
   ;; ----------------
 
+  [{:tag :memory-variable :symbol ?symbol} {?id ?symbol}]
+  ?id
+
   [{:tag :memory-variable :symbol ?symbol} _]
   (`m.runtime/memory-variable ('quote ?symbol))
 
   ;; :mutable-variable
   ;; -----------------
 
+  [{:tag :memory-variable :symbol ?symbol} {?id ?symbol}]
+  ?id
+
   [{:tag :mutable-variable :symbol ?symbol} _]
-  (`m.runtime/fold-variable ('quote ?symbol) nil `m.runtime/second-argument)
+  (`m.runtime/mutable-variable ('quote ?symbol))
 
   ;; :or
   ;; ---

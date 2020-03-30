@@ -224,10 +224,20 @@
 
   [([{:tag :into
       :memory-variable {:symbol ?symbol}} ?target] & ?rest)
-   {:state-symbol ?state
+   {?id ?symbol
+    :state-symbol ?state
     :as ?env}]
-  (`m.runtime/into-memory-variable [?state (`m.runtime/memory-variable ('quote ?symbol)) ?target]
+  (`m.runtime/into-memory-variable [?state ?id ?target]
     (me/cata [?rest ?env]))
+
+  (me/and [([{:tag :into
+              :memory-variable {:symbol ?symbol}} ?target] & ?rest)
+           {:state-symbol ?state
+            :as ?env}]
+          (me/let [?id (gensym)]))
+  (`clj/let [?id (`m.runtime/memory-variable ('quote ?symbol))]
+   (`m.runtime/into-memory-variable [?state ?id ?target]
+    (me/cata [?rest {?id ?symbol & ?env}])))
 
 
   ;; :join
@@ -354,22 +364,22 @@
   ;; :memory-variable
   ;; ----------------
 
-  ;; TODO: Come back to this once memory variable binding is sorted out.
-  ;; (me/and [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
-  ;;          {?key ?symbol
-  ;;           :state-symbol ?state
-  ;;           :as ?env}]
-  ;;         (me/let [?value (gensym)]))
-  ;; (let* [?value (clojure.core/get ?state (`m.runtime/memory-variable ?key))
-  ;;        ?value (clojure.core/conj ?value ?target)
-  ;;        ?state (clojure.core/assoc ?state (`m.runtime/memory-variable ?key) ?value)]
-  ;;   (me/cata [?rest ?env]))
+  (me/and [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
+           {?id ?symbol
+            :state-symbol ?bindings
+            :as ?env}]
+          (me/let [?new-bindings (gensym "B__")]))
+  (let [?new-bindings (`m.runtime/bind-variable ?bindings ?id [?target])]
+   (me/cata [?rest {:state-symbol ?new-bindings & ?env}]))
 
-  [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
-   {:state-symbol ?state
-    :as ?env}]
-  (let [?state (`m.runtime/bind-variable ?state (`m.runtime/memory-variable ('quote ?symbol)) [?target])]
-   (me/cata [?rest {('quote ?symbol) ?symbol & ?env}]))
+  (me/and [([{:tag :memory-variable :symbol ?symbol} ?target] & ?rest)
+           {:state-symbol ?bindings
+            :as ?env}]
+          (me/let [?id (gensym "M__")
+                   ?new-bindings (gensym "B__")]))
+  (let [?id (`m.runtime/memory-variable ('quote ?symbol))
+        ?new-bindings (`m.runtime/bind-variable ?bindings ?id [?target])]
+   (me/cata [?rest {?id ?symbol & ?env}]))
 
   ;; :mutable-variable
   ;; -----------------
