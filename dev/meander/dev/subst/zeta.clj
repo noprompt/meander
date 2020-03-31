@@ -54,11 +54,11 @@
   (`m.runtime/const [])
 
   [{:tag :fold
-    :variable {:symbol ?symbol}
+    :variable ?variable
     :initial-value {:form ?initial-value}
     :fold-function {:tag :host-expression
                     :form ?fold-function}} ?env]
-  (`m.runtime/fold ('quote ?symbol) (me/cata ?initial-value) ?fold-function)
+  (`m.runtime/fold (me/cata [?variable ?env]) (me/cata ?initial-value) ?fold-function)
 
   ;; :into
   ;; -----
