@@ -71,6 +71,15 @@
      (`m.runtime/const ?result-sym)
      ?lv-sym))
 
+  (me/and (make-object {:tag :memory-variable :symbol ?symbol}
+                       {?mv-sym ?symbol
+                        :state-symbol ?bindings-symbol}))
+  ?mv-sym
+
+  (make-object {:tag :memory-variable :symbol ?symbol}
+               {:state-symbol ?bindings-symbol})
+  (`m.runtime/memory-variable ('quote ?symbol))
+
   (me/and (make-object {:tag :mutable-variable :symbol ?symbol}
                        {?mv-sym ?symbol
                         :state-symbol ?bindings-symbol}))
