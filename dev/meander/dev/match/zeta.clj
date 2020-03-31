@@ -388,7 +388,7 @@
                    ?new-bindings (gensym "B__")]))
   (let [?id (`m.runtime/memory-variable ('quote ?symbol))
         ?new-bindings (`m.runtime/bind-variable ?bindings ?id [?target])]
-   (me/cata [?rest {?id ?symbol & ?env}]))
+   (me/cata [?rest {?id ?symbol :state-symbol ?new-bindings & ?env}]))
 
   ;; :mutable-variable
   ;; -----------------
