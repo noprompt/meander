@@ -183,16 +183,20 @@
 (defn variable? [x]
   (satisfies? IVariable x))
 
+(defn can-be-bound? [x]
+  (satisfies? IBindVariable x))
+
+;; TODO: Rename this
 (defn bind-variable [bindings variable value]
-  {:pre [(variable? variable)]
+  {:pre [(can-be-bound? variable)]
    :post [(or (map? %) (fail? %))]}
   (-bind-variable variable value bindings))
 
 (defn bound-variable? [bindings x]
-  (and (variable? x) (contains? bindings x)))
+  (and (can-be-bound? x) (contains? bindings x)))
 
 (defn resolve-variable [bindings variable]
-  {:pre [(variable? variable)]}
+  {:pre [(can-be-bound? variable)]}
   (if-some [e (find bindings variable)]
     (val e)
     (fail)))
