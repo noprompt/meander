@@ -228,6 +228,12 @@
            (search (`m.runtime/fold ?variable ?initial-value ?form) ?target ?state ?env)
            ?env))
 
+  ;; :group
+  ;; ------
+
+  [([{:tag :group, :pattern ?pattern} ?target] & ?rest) ?env]
+  (me/cata [([?pattern ?target]  & ?rest) ?env])
+
   ;; :into
   ;; -----
 
