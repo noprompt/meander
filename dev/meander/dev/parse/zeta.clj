@@ -206,9 +206,16 @@
                         ?env)
              ?env)
 
-  (make-cat [(me/and (me/not {:tag :star}) !xs) ... {:tag :star :as ?group} & ?rest] ?next ?env)
+  (make-cat [(me/and (me/not {:tag :star}) !xs) ... {:tag :star :as ?star} & ?rest] ?next ?env)
   (make-join (make-cat [!xs ...] {:tag :empty} ?env)
-             (make-join ?group
+             (make-join ?star
+                        (make-cat ?rest ?next ?env)
+                        ?env)
+             ?env)
+
+  (make-cat [(me/and (me/not {:tag :reference}) !xs) ... {:tag :reference :as ?reference} & ?rest] ?next ?env)
+  (make-join (make-cat [!xs ...] {:tag :empty} ?env)
+             (make-join ?reference
                         (make-cat ?rest ?next ?env)
                         ?env)
              ?env)
