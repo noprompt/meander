@@ -17,16 +17,16 @@
                   (distinct)
                   (map
                    (fn [[tag symbol]]
-                     (let [id (gensym "V__")
-                           object (case tag
-                                    :logic-variable
-                                    `(m.runtime/logic-variable '~symbol)
+                     (let [[id object]
+                           (case tag
+                             :logic-variable
+                             [(gensym "?__") `(m.runtime/logic-variable '~symbol)]
 
-                                    :mutable-variable
-                                    `(m.runtime/mutable-variable '~symbol)
+                             :mutable-variable
+                             [(gensym "*__") `(m.runtime/mutable-variable '~symbol)]
 
-                                    :memory-variable
-                                    `(m.runtime/memory-variable '~symbol))]
+                             :memory-variable
+                             [(gensym "!__") `(m.runtime/memory-variable '~symbol)])]
                        {:id id
                         :tag tag
                         :object object
