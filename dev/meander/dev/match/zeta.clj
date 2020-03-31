@@ -284,24 +284,26 @@
   ;; :logical-plus
   ;; -------------
 
-  (me/and [([{:tag :logical-plus, :n {:symbol ?symbol}, :pattern ?pattern, :next ?next} ?target]
+  (me/and [([{:tag :logical-plus, :n ?variable, :pattern ?pattern, :next ?next} ?target]
             & ?rest)
            {:state-symbol ?state :as ?env}]
           (me/let [?input (gensym)
                    ?state-1 (gensym)
                    ?state-2 (gensym)
+                   ?fold (gensym)
                    ?* (gensym "*__")
                    ?? (gensym "?__")
                    ?x (gensym)]))
   (`clj/let [;; Use a fold variable to keep track of number of match times.
-             ?* (`m.runtime/fold-variable (gensym) 0 `clj/+)
-             ?? (`m.runtime/logic-variable ('quote ?symbol))]
+             ?* (`m.runtime/mutable-variable ('quote ?*))
+             ?fold (`m.runtime/fold ?* 0 `clj/+)
+             ?? (make-object ?variable ?env)]
    (`m.runtime/run-star ?state ?target
     (fn [?state-1 ?input]
       (`clj/mapcat
        (fn [?state-1]
          ;; Increment fold variable by 1.
-         (succeed (`m.runtime/bind-variable ?state-1 ?* 1) ?env))
+         (succeed (`m.runtime/bind-variable ?state-1 ?fold 1) ?env))
        (me/cata [([?pattern ?input]) {:state-symbol ?state-1 & ?env}])))
     (fn [?state-2 ?input]
       (`clj/let [?x (`clj/get ?state-2 ?*)]
@@ -346,29 +348,31 @@
   ;; :memory-plus
   ;; ------------
 
-  (me/and [([{:tag :memory-plus, :n {:symbol ?symbol}, :pattern ?pattern, :next ?next} ?target]
+  (me/and [([{:tag :memory-plus, :n ?variable, :pattern ?pattern, :next ?next} ?target]
             & ?rest)
-           {:state-symbol ?state :as ?env}]
+           {:state-symbol ?bindings :as ?env}]
           (me/let [?input (gensym)
-                   ?state-1 (gensym)
-                   ?state-2 (gensym)
+                   ?bindings-1 (gensym "B__")
+                   ?bindings-2 (gensym "B__")
+                   ?fold (gensym "F__")
                    ?* (gensym "*__")
                    ?! (gensym "!__")
                    ?x (gensym)]))
   (`clj/let [;; Use a fold variable to keep track of number of match times.
-             ?* (`m.runtime/fold-variable (gensym) 0 `clj/+)
-             ?! (`m.runtime/memory-variable ('quote ?symbol))]
-   (`m.runtime/run-star ?state ?target
-    (fn [?state-1 ?input]
+             ?* (`m.runtime/mutable-variable ('quote ?*))
+             ?fold (`m.runtime/fold-variable ?* 0 `clj/+)
+             ?! (make-object ?variable ?env)]
+   (`m.runtime/run-star ?bindings ?target
+    (fn [?bindings-1 ?input]
       (`clj/mapcat
-       (fn [?state-1]
+       (fn [?bindings-1]
          ;; Increment fold variable by 1.
-         (succeed (`m.runtime/bind-variable ?state-1 ?* 1) ?env))
-       (me/cata [([?pattern ?input]) {:state-symbol ?state-1 & ?env}])))
-    (fn [?state-2 ?input]
-      (`clj/let [?x (`clj/get ?state-2 ?*)
-                 ?state-2 (`m.runtime/bind-variable ?state-2 ?! [?x])]
-       (me/cata [([?next ?input] & ?rest) {:state-symbol ?state-2 & ?env}])))))
+         (succeed (`m.runtime/bind-variable ?bindings-1 ?fold 1) ?env))
+       (me/cata [([?pattern ?input]) {:state-symbol ?bindings-1 & ?env}])))
+    (fn [?bindings-2 ?input]
+      (`clj/let [?x (`clj/get ?bindings-2 ?*)
+                 ?bindings-2 (`m.runtime/bind-variable ?bindings-2 ?! [?x])]
+       (me/cata [([?next ?input] & ?rest) {:state-symbol ?bindings-2 & ?env}])))))
 
   ;; :memory-variable
   ;; ----------------
