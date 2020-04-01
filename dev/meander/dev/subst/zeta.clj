@@ -218,4 +218,5 @@
   ;; Not implemented
   ;; ---------------
 
-  ?x ?x)
+  ?x
+  (throw (ex-info "No equation for" {:term ('quote ?x)})))
