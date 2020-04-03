@@ -234,6 +234,15 @@
   [([{:tag :group, :pattern ?pattern} ?target] & ?rest) ?env]
   (me/cata [([?pattern ?target]  & ?rest) ?env])
 
+  ;; :host-expression
+  ;; ----------------
+
+  (me/and [([{:tag :host-expression, :expression ?expression} ?target] & ?rest) ?env]
+          (me/let [?x (gensym)]))
+  (`clj/let [?x ?expression]
+   (if (= ?target ?expression)
+     (me/cata [?rest ?env])))
+
   ;; :into
   ;; -----
 
@@ -766,4 +775,5 @@
 
   ;; Probably not.
 
-  ?x ?x)
+  ?x
+  (throw (ex-info "No equation for" {:term ('quote ?x)})))

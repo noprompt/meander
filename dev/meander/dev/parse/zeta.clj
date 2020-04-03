@@ -49,6 +49,8 @@
 (dev.kernel/defconstructor make-cat [sequence next env])
 (dev.kernel/defconstructor make-star [pattern next env])
 (dev.kernel/defconstructor make-fold [var-ast init-ast fold-form form])
+(dev.kernel/defconstructor make-or [asts original-form])
+(dev.kernel/defconstructor make-and [asts original-form])
 
 (dev.kernel/defmodule parse
   ;; Meta Rules
@@ -372,6 +374,11 @@
    :next (parse-sequential ?sequence {:context :vector & ?env})
    :form ?form}
 
+  (special "clojure.core" "unquote" (_ ?x :as ?form) ?env)
+  {:tag :host-expression
+   :expression ?x
+   :form ?form}
+
   ;; (meander.zeta/* pattern ,,,)
 
   (special "*" (_ & ?patterns :as ?form) ?env)
@@ -413,15 +420,40 @@
   ;; (meander.zeta/and _ _)
   ;; ----------------------
 
-  (special "and" (_ ?left ?right :as ?form) ?env)
-  {:tag :and
-   :left (me/cata [?left ?env])
-   :right (me/cata [?right ?env])
+  (special "and" (_ . !forms ... :as ?form) ?env)
+  (make-and [(me/cata [!forms ?env]) ...] ?form)
+
+  (make-and [] ?form)
+  {:tag :error
+   :message "meander.zeta/and requires 1 or more arguments"
    :form ?form}
+
+  (make-and [?ast-a] nil)
+  ?ast-a
+
+  (make-and [?ast-a] ?form)
+  (make-and [?ast-a {:tag :pass}] ?form)
+
+  (make-and [?ast-a ?ast-b] ?form)
+  {:tag :and
+   :left ?ast-a
+   :right ?ast-b
+   :form ?form}
+
+  ;; Balance if possible.
+  (make-and [!asts-1 ..?n !asts-2 ..?n] ?form)
+  (make-and [(make-and [!asts-1 ...] nil)
+             (make-and [!asts-2 ...] nil)] ?form)
+
+  ;; Lean to the right (for no particular reason).
+  (make-and [!asts-1 ..?n ?ast . !asts-2 ..?n] ?form)
+  (make-and [(make-and [!asts-1 ... ?ast] nil)
+             (make-and [!asts-2 ...] nil)] ?form)
 
   ;; (meander.zeta/cata _)
   ;; ---------------------
 
+  ;; TODO: Rename this to recur if possible.
   (special "cata" (_ ?pattern :as ?form) ?env)
   {:tag :cata
    :pattern (me/cata [?pattern ?env])
@@ -444,7 +476,14 @@
   ;; (meander.zeta/let _ _ _)
   ;; ------------------------
 
-  (special "let" (?pattern ?expression ?next :as ?form) ?env)
+  (special "let" (_ ?pattern ?expression :as ?form) ?env)
+  {:tag :let
+   :pattern (me/cata [?pattern ?env])
+   :expression {:tag :host-expression
+                :form ?expression}
+   :next {:tag :pass}}
+
+  (special "let" (_ ?pattern ?expression ?next :as ?form) ?env)
   {:tag :let
    :pattern (me/cata [?pattern ?env])
    :expression {:tag :host-expression
@@ -459,15 +498,38 @@
    :pattern (me/cata [?pattern ?env])
    :form ?form}
 
-
   ;; (meander.zeta/or _ _)
   ;; ----------------------
 
-  (special "or" (_ ?left ?right :as ?form) ?env)
-  {:tag :or
-   :left (me/cata [?left ?env])
-   :right (me/cata [?right ?env])
+  (special "or" (_ . !forms ... :as ?form) ?env)
+  (make-or [(me/cata [!forms ?env]) ...] ?form)
+
+  (make-or [] ?form)
+  {:tag :error
+   :message "meander.zeta/or requires 1 or more arguments"
    :form ?form}
+
+  (make-or [?ast-a] nil)
+  ?ast-a
+
+  (make-or [?ast-a] ?form)
+  (make-or [?ast-a {:tag :pass}] ?form)
+
+  (make-or [?ast-a ?ast-b] ?form)
+  {:tag :or
+   :left ?ast-a
+   :right ?ast-b
+   :form ?form}
+
+  ;; Balance if possible.
+  (make-or [!asts-1 ..?n !asts-2 ..?n] ?form)
+  (make-or [(make-or [!asts-1 ...] nil)
+            (make-or [!asts-2 ...] nil)] ?form)
+
+  ;; Lean to the right (for no particular reason).
+  (make-or [!asts-1 ..?n ?ast . !asts-2 ..?n] ?form)
+  (make-or [(make-or [!asts-1 ... ?ast] nil)
+            (make-or [!asts-2 ...] nil)] ?form)
 
   ;; (meander.zeta/pred _)
   ;; ----------------------

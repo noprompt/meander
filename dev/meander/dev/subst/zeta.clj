@@ -53,12 +53,30 @@
   [{:tag :empty} _]
   (`m.runtime/const [])
 
+  ;; :fail
+  ;; -----
+
+  [{:tag :fail} _]
+  `m.runtime/FAIL
+
+  ;; :fold
+  ;; -----
+
   [{:tag :fold
     :variable ?variable
     :initial-value {:form ?initial-value}
     :fold-function {:tag :host-expression
-                    :form ?fold-function}} ?env]
+                    :form ?fold-function}}
+   ?env]
   (`m.runtime/fold (me/cata [?variable ?env]) (me/cata ?initial-value) ?fold-function)
+
+  ;; :host-expression
+  ;; ----------------
+
+  [{:tag :host-expression
+    :expression ?expression}
+   ?env]
+  (`m.runtime/const ?expression)
 
   ;; :into
   ;; -----
@@ -147,6 +165,12 @@
 
   [{:tag :or, :left ?left, :right ?right} ?env]
   (`m.runtime/choice (me/cata [?left ?env]) (me/cata [?right ?env]))
+
+  ;; :pass
+  ;; -----
+
+  [{:tag :pass} _]
+  `m.runtime/PASS
 
   ;; :plus
   ;; -----

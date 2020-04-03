@@ -161,6 +161,38 @@
   [expr]
   `(identical? ~expr FAIL))
 
+(def PASS
+  "Singleton object which always succeeds when matching and always
+  fails when generating."
+  (reify
+    IGenerate
+    (-generate [this env]
+      [(fail) env (fail)])
+
+    IHeight
+    (-height [this]
+      0)
+
+    ISearch
+    (-search [this target bindings]
+      (succeed bindings))
+
+    IStable
+    (-stable [this]
+      true)))
+
+(defmethod print-method (class PASS) [g writer]
+  (.write writer "#meander.runtime.zeta/pass[]"))
+
+(defmacro pass
+  "Code for the singleton value `PASS`."
+  [] `PASS)
+
+(defmacro pass?
+  "Code to ask if runtime value of `expr` is `PASS`."
+  [expr]
+  `(identical? ~expr PASS))
+
 (defmacro result-stream [seq-returning-expr]
   `(or (seq ~seq-returning-expr) (fail)))
 
@@ -648,6 +680,9 @@
     (if (fn? x)
       x
       ::not-fn)))
+
+(defmethod unfold-for :default [x]
+  nil)
 
 (defn fold [variable initial-value fold-fn]
   (let [unfold-fn (unfold-for fold-fn)]
@@ -1340,6 +1375,29 @@
                       [(fail) bindings gen*])))
                 [(fail) bindings (addp (get-gen n-result) mp)]))))))))
 
+(defn letp
+  {:style/indent 2}
+  [binding-obj x body-obj]
+  (reify
+    ISearch
+    (-search [this target bindings]
+      (result-stream
+       (mapcat
+        (fn [bindings]
+          (-search body-obj target bindings))
+        (-search binding-obj x bindings))))
+
+    IGenerate
+    (-generate [this bindings]
+      (let [stream (source (mapcat (fn [bindings]
+                                     (run-gen body-obj bindings))
+                                   (-search binding-obj x bindings)))]
+        (-generate stream bindings)))
+
+    IStable
+    (-stable [this]
+      false)))
+
 ;; Helpers
 ;; ---------------------------------------------------------------------
 
@@ -1625,46 +1683,6 @@
   Object
   (-constant-value [this bindings]
     (fail)))
-
-;; (defn mutable-variable [symbol]
-;;   (reify
-;;     IGenerate
-;;     (-generate [this env]
-;;       (if-some [entry (find env symbol)]
-;;         [(val entry) env (fail)]
-;;         [(fail) env (fail)]))
-
-;;     ISearch
-;;     (-search [this target env]
-;;       (bind-mutable-variable [env symbol target]
-;;         (succeed env)))
-
-;;     IStable
-;;     (-stable [this]
-;;       false)))
-
-;; (defn letp
-;;   {:style/indent 2}
-;;   [binding-obj x body-obj]
-;;   (reify
-;;     ISearch
-;;     (-search [this target env]
-;;       (concat (mapcat
-;;                (fn [env]
-;;                  (-search body-obj target env))
-;;                (-search binding-obj x env))
-;;               (fail)))
-
-;;     IGenerate
-;;     (-generate [this env]
-;;       (let [stream (source
-;;                     (mapcat (fn [env] (run-gen body-obj env))
-;;                             (-search binding-obj x env)))]
-;;         (-generate stream env)))
-
-;;     IStable
-;;     (-stable [this]
-;;       false)))
 
 ;; (defn state-stream [states]
 ;;   (reify
