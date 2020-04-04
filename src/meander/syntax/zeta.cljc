@@ -14,9 +14,11 @@
      :cljs {}))
 
 (defn make-parse-env [ns]
-  {:aliases (ns-aliases* ns)
+  {:id (gensym)
+   :aliases (ns-aliases* ns)
    :cata-symbol (gensym "C__")
    :state-symbol (gensym "S__")
+   :succeed-symbol `meander.runtime/succeed
    :expander-registry {}
    :parser-registry {}})
 

@@ -39,11 +39,11 @@
   (search ?obj ?target ?state _)
   (`m.runtime/-search ?obj ?target ?state)
 
-  (succeed ?state {:return :one})
-  ?state
+  (succeed ?bindings {:id ?id :return :one})
+  ?bindings
 
-  (succeed ?state _)
-  (`m.runtime/succeed ?state)
+  (succeed ?bindings {:succeed-symbol ?succeed-symbol :id ?id :as ?env})
+  (?succeed-symbol ?bindings)
 
   ;; make-object
   ;; -----------
@@ -555,11 +555,11 @@
   ;; -----
 
   [([{:tag :root, :next ?next} ?target] & ?rest)
-   {:state-symbol ?state
+   {:state-symbol ?bindings
     :max-length (me/or (me/and nil (me/let [?max-length 32]))
                        ?max-length)
     :as ?env}]
-  (let* [?state {:max-length ?max-length}]
+  (let* [?bindings {:max-length ?max-length}]
     (me/cata [([?next ?target] & ?rest) ?env]))
 
   ;; :seq
@@ -750,6 +750,7 @@
     (me/cata [?rest ?env]))
 
   ;; :meander.math.zeta/+
+  ;; --------------------
 
   (me/and [([{:tag :meander.math.zeta/+, :left ?left, :right ?right} ?target] & ?rest)
            {:state-symbol ?bindings

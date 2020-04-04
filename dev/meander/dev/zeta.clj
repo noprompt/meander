@@ -20,13 +20,20 @@
                      (let [[id object]
                            (case tag
                              :logic-variable
-                             [(gensym "?__") `(m.runtime/logic-variable '~symbol)]
+                             (let [id (gensym "?__")]
+                               [id `(m.runtime/logic-variable '~id)])
 
                              :mutable-variable
-                             [(gensym "*__") `(m.runtime/mutable-variable '~symbol)]
+                             (let [id (gensym "*__")]
+                               [id `(m.runtime/mutable-variable '~id)])
 
                              :memory-variable
-                             [(gensym "!__") `(m.runtime/memory-variable '~symbol)])]
+                             (let [id (gensym "!__")]
+                               [id `(m.runtime/memory-variable '~id)])
+
+                             :reference
+                             (let [id (gensym "%__")]
+                               [id `(m.runtime/reference '~id)]))]
                        {:id id
                         :tag tag
                         :object object
@@ -56,44 +63,64 @@
 (defn analyze-search-clause [[left-form right-form] env]
   (let [left-ast (m.syntax/parse left-form env)
         variable-db (make-variable-db left-ast)]
-    {:env env
+    {:id (gensym "I__")
+     :env env
      :left-ast left-ast
      :right-form right-form
      :variable-db variable-db}))
 
-(defn search-clause-code [target expression {:keys [left-ast right-form variable-db env]}]
-  (let [env (into env (map (juxt :id :symbol)) variable-db)
-        env (assoc env target expression)
-        match-form (dev.match/match-compile [(list [left-ast target]) env])
-        bindings (gensym "S__")]
-    `(let [~@(mapcat (juxt :id :object) variable-db)]
-       (map
-        (fn [~bindings]
-          (let [~@(sequence
-                   (mapcat (fn [{:keys [tag symbol id]}]
-                             (case tag
-                               :memory-variable
-                               [symbol `(get ~bindings ~id [])]
-                               ;; else
-                               [symbol `(get ~bindings ~id)])))
-                   variable-db)]
-            ~right-form))
-        ~match-form))))
+(defn analyze-search-clauses-args
+  ([search-clauses-args]
+   (analyze-search-clauses-args search-clauses-args (m.syntax/make-parse-env *ns*)))
+  ([search-clauses-args env]
+   (map (fn [clause] (analyze-search-clause clause env))
+        (partition-all 2 search-clauses-args))))
+
+(defn compile-search-args
+  [expression clauses]
+  (let [analyses (analyze-search-clauses-args clauses)
+        target (gensym "T__")
+        bindings (gensym "B__")]
+    `(let [~target ~expression
+           ;; Bind all 
+           ~@(sequence
+              (comp (mapcat :variable-db)
+                    (mapcat (juxt :id :object)))
+              analyses)]
+       (letfn [~@(map
+                   (fn [analysis]
+                     (let [variable-db (get analysis :variable-db)
+                           env (get analysis :env)
+                           right-form (get analysis :right-form)
+                           fn-name (get analysis :id)
+                           fn-body `(let [~@(mapcat (fn [{:keys [tag symbol id]}]
+                                                      (case tag
+                                                        :memory-variable
+                                                        [symbol `(get ~bindings ~id [])]
+                                                        ;; else
+                                                        [symbol `(get ~bindings ~id)]))
+                                                    variable-db)]
+                                      ~right-form)]
+                       `(~fn-name [~bindings]
+                         (m.runtime/succeed ~fn-body))))
+                   analyses)]
+         (concat
+          ~@(map
+             (fn [analysis]
+               (let [variable-db (get analysis :variable-db)
+                     env (get analysis :env)
+                     env (into env (map (juxt :id :symbol)) variable-db)
+                     env (assoc env target expression)
+                     env (assoc env :succeed-symbol (get analysis :id))
+                     left-ast (get analysis :left-ast)
+                     match-form (dev.match/match-compile [(list [left-ast target]) env])]
+                 match-form))
+             analyses))))))
 
 (defmacro search
   {:style/indent 1}
   [expression & clauses]
-  (let [env (m.syntax/make-parse-env *ns*)
-        target (gensym "target___")
-        analyses (map (fn [clause]
-                        (analyze-search-clause clause env))
-                      (partition-all 2 clauses))]
-    `(let [~target ~expression]
-       (concat
-        ~@(map
-           (fn [analysis]
-             (search-clause-code target expression analysis))
-           analyses)))))
+  (compile-search-args expression clauses))
 
 ;; Rewrites
 ;; --------
@@ -193,5 +220,4 @@
        (fn
          ([env#]
           (m.runtime/run-gen gen# env#))
-         ([env# n#]
-          (m.runtime/run-gen gen# env# n#))))))
+         ([env# n#] (m.runtime/run-gen gen# env# n#))))))
