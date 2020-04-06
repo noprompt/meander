@@ -95,6 +95,10 @@
   (make-object {:tag :meander.math.zeta/+, :left ?left, :right ?right} ?env)
   (`m.runtime/addp (make-object ?left ?env) (make-object ?right ?env))
 
+  (make-object {:tag :meander.math.zeta/-, :left ?left, :right ?right} ?env)
+  (`m.runtime/subp (make-object ?left ?env) (make-object ?right ?env))
+
+
   (make-object ?x _)
   (throw (ex-info "Missing definition for make-object" ('quote ?x)))
 
@@ -279,6 +283,16 @@
              (me/cata [([?left ?left-symbol] [?right ?right-symbol] & ?rest) ?env]))
            ?partitions-symbol
            ?env))
+
+  ;; :keyword
+  ;; --------
+
+  (me/and [([{:tag :keyword :name (me/some ?name)} ?target] & ?rest) ?env]
+          (me/let [?name-target (gensym)]))
+  (if (keyword? ?target)
+    (let [?name-target (name ?target)]
+      (me/cata [([?name ?name-target] & ?rest) ?env]))
+    (`m.runtime/fail))
 
   ;; :let
   ;; ----
@@ -465,6 +479,15 @@
 
   ;; :pred
   ;; -----
+
+  (me/and [([{:tag :pred
+              :pattern (me/some ?pattern)
+              :expression {:tag :host-expression :form ?form}} ?target] & ?rest) ?env]
+          (me/let [?pred (gensym)]))
+  (let [?pred ?form]
+    (if (?pred ?target)
+      (me/cata [([?pattern ?target] & ?rest) ?env])
+      (`m.runtime/fail)))
 
   (me/and [([{:tag :pred, :expression {:tag :host-expression :form ?form}} ?target] & ?rest) ?env]
           (me/let [?pred (gensym)]))
@@ -768,6 +791,24 @@
                   ?bindings
                   ?env)
           ?env))
+
+  (me/and [([{:tag :meander.math.zeta/-, :left ?left, :right ?right} ?target] & ?rest)
+           {:state-symbol ?bindings
+            :as ?env}]
+          (me/let [?np-symbol (gensym)
+                   ?mp-symbol (gensym)
+                   ?bindings-symbol (gensym)
+                   ?target-symbol (gensym)]))
+  (`clj/let [?np-symbol (make-object ?left ?env)
+             ?mp-symbol (make-object ?right ?env)]
+   (query ?bindings
+          (me/cata [?rest ?env])
+          (search (`m.runtime/subp ?np-symbol ?mp-symbol)
+                  ?target
+                  ?bindings
+                  ?env)
+          ?env))
+
 
   ;; Success!
 

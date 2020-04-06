@@ -215,9 +215,9 @@
                         ?env)
              ?env)
 
-  (make-cat [(me/and (me/not {:tag :reference}) !xs) ... {:tag :reference :as ?reference} & ?rest] ?next ?env)
+  (make-cat [(me/and (me/not {:tag :reference}) !xs) ..1 {:tag :reference :as ?reference} & ?rest] ?next ?env)
   (make-join (make-cat [!xs ...] {:tag :empty} ?env)
-             (make-join ?reference
+             (make-join (make-cat [?reference] {:tag :empty} ?env)
                         (make-cat ?rest ?next ?env)
                         ?env)
              ?env)
@@ -398,6 +398,13 @@
    :left (me/cata [?a ?env])
    :right (me/cata [?b ?env])}
 
+
+  (special "meander.math.zeta" "-" (_ ?a ?b :as ?form) ?env)
+  {:tag :meander.math.zeta/-
+   :left (me/cata [?a ?env])
+   :right (me/cata [?b ?env])}
+
+
   ;; (meander.zeta/with [,,,])
   ;; (meander.zeta/with [,,,] pattern)
 
@@ -473,6 +480,14 @@
                    :form ?fold-function}
    :form ?form}
 
+  ;; (meander.zeta/keyword _)
+  ;; ---------------------
+
+  (special "keyword" (_ ?name :as ?form) ?env)
+  {:tag :keyword
+   :name (me/cata [?name ?env])
+   :form ?form}
+
   ;; (meander.zeta/let _ _ _)
   ;; ------------------------
 
@@ -539,6 +554,17 @@
    :expression {:tag :host-expression
                 :form ?expression}
    :form ?form}
+
+  ;; (meander.zeta/pred _ _)
+  ;; ----------------------
+
+  (special "pred" (_ ?expression ?pattern :as ?form) ?env)
+  {:tag :pred
+   :expression {:tag :host-expression
+                :form ?expression}
+   :pattern (me/cata [?pattern ?env])
+   :form ?form}
+
 
   ;; (meander.zeta/re _)
   ;; ----------------------

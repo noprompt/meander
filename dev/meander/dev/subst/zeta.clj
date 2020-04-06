@@ -6,6 +6,13 @@
             [meander.runtime.zeta :as m.runtime]))
 
 (dev.kernel/defmodule generate-compile
+
+  ;; :apply
+  ;; ------
+
+  [{:tag :apply :fn ?fn :pattern ?pattern} ?env]
+  (`m.runtime/call ?fn (me/cata [?pattern ?env]))
+
   ;; :cat
   ;; ----
 

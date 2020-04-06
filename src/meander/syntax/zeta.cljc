@@ -18,7 +18,7 @@
    :aliases (ns-aliases* ns)
    :cata-symbol (gensym "C__")
    :state-symbol (gensym "S__")
-   :succeed-symbol `meander.runtime/succeed
+   :succeed-symbol `meander.runtime.zeta/succeed
    :expander-registry {}
    :parser-registry {}})
 
