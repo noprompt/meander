@@ -284,6 +284,16 @@
            ?partitions-symbol
            ?env))
 
+  ;; :keyword
+  ;; --------
+
+  (me/and [([{:tag :keyword :name (me/some ?name)} ?target] & ?rest) ?env]
+          (me/let [?name-target (gensym)]))
+  (if (keyword? ?target)
+    (let [?name-target (name ?target)]
+      (me/cata [([?name ?name-target] & ?rest) ?env]))
+    (`m.runtime/fail))
+
   ;; :let
   ;; ----
 

@@ -480,6 +480,14 @@
                    :form ?fold-function}
    :form ?form}
 
+  ;; (meander.zeta/keyword _)
+  ;; ---------------------
+
+  (special "keyword" (_ ?name :as ?form) ?env)
+  {:tag :keyword
+   :name (me/cata [?name ?env])
+   :form ?form}
+
   ;; (meander.zeta/let _ _ _)
   ;; ------------------------
 
