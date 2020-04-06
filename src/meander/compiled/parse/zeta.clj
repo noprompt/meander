@@ -1,39 +1,39 @@
 (ns meander.compiled.parse.zeta (:require [meander.runtime.zeta]))
 (clojure.core/defn
  parse
- [input__62968]
+ [input__125886]
  (let*
   [ret__14518__auto__
    (clojure.core/letfn
-    [(CATA__FN__63051
-      [input__62968]
+    [(CATA__FN__125969
+      [input__125886]
       (clojure.core/letfn
-       [(state__64557
+       [(state__127479
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 3)
+           (clojure.core/= (clojure.core/count input__125886) 3)
            (clojure.core/let
-            [input__62968_nth_0__
-             (clojure.core/nth input__62968 0)
-             input__62968_nth_1__
-             (clojure.core/nth input__62968 1)
-             input__62968_nth_2__
-             (clojure.core/nth input__62968 2)]
+            [input__125886_nth_0__
+             (clojure.core/nth input__125886 0)
+             input__125886_nth_1__
+             (clojure.core/nth input__125886 1)
+             input__125886_nth_2__
+             (clojure.core/nth input__125886 2)]
             (clojure.core/case
-             input__62968_nth_0__
+             input__125886_nth_0__
              (meander.dev.parse.zeta/parse-sequential)
              (if
-              (clojure.core/vector? input__62968_nth_1__)
+              (clojure.core/vector? input__125886_nth_1__)
               (clojure.core/letfn
-               [(state__64597
+               [(state__127519
                  []
                  (clojure.core/case
-                  input__62968_nth_1__
+                  input__125886_nth_1__
                   ([])
                   (clojure.core/let
-                   [?env input__62968_nth_2__]
+                   [?env input__125886_nth_2__]
                    (try
                     [{:tag :empty}]
                     (catch
@@ -43,45 +43,47 @@
                       (meander.runtime.zeta/fail? e__16581__auto__)
                       (meander.runtime.zeta/fail)
                       (throw e__16581__auto__)))))
-                  (state__64598)))
-                (state__64598
+                  (state__127520)))
+                (state__127520
                  []
                  (clojure.core/let
-                  [n__63060
-                   (clojure.core/count input__62968_nth_1__)
-                   m__63061
-                   (clojure.core/max 0 (clojure.core/- n__63060 2))
-                   input__62968_nth_1___l__
+                  [n__125978
+                   (clojure.core/count input__125886_nth_1__)
+                   m__125979
+                   (clojure.core/max 0 (clojure.core/- n__125978 2))
+                   input__125886_nth_1___l__
                    (clojure.core/subvec
-                    input__62968_nth_1__
+                    input__125886_nth_1__
                     0
                     (clojure.core/min
-                     (clojure.core/count input__62968_nth_1__)
-                     m__63061))
-                   input__62968_nth_1___r__
-                   (clojure.core/subvec input__62968_nth_1__ m__63061)]
+                     (clojure.core/count input__125886_nth_1__)
+                     m__125979))
+                   input__125886_nth_1___r__
+                   (clojure.core/subvec
+                    input__125886_nth_1__
+                    m__125979)]
                   (if
                    (clojure.core/=
-                    (clojure.core/count input__62968_nth_1___r__)
+                    (clojure.core/count input__125886_nth_1___r__)
                     2)
                    (clojure.core/let
-                    [!xs (clojure.core/vec input__62968_nth_1___l__)]
+                    [!xs (clojure.core/vec input__125886_nth_1___l__)]
                     (if
                      (clojure.core/=
-                      (clojure.core/count input__62968_nth_1___r__)
+                      (clojure.core/count input__125886_nth_1___r__)
                       2)
                      (clojure.core/let
-                      [input__62968_nth_1___r___nth_0__
-                       (clojure.core/nth input__62968_nth_1___r__ 0)
-                       input__62968_nth_1___r___nth_1__
-                       (clojure.core/nth input__62968_nth_1___r__ 1)]
+                      [input__125886_nth_1___r___nth_0__
+                       (clojure.core/nth input__125886_nth_1___r__ 0)
+                       input__125886_nth_1___r___nth_1__
+                       (clojure.core/nth input__125886_nth_1___r__ 1)]
                       (clojure.core/case
-                       input__62968_nth_1___r___nth_0__
+                       input__125886_nth_1___r___nth_0__
                        (:meander.zeta/as)
                        (clojure.core/let
-                        [?pattern input__62968_nth_1___r___nth_1__]
+                        [?pattern input__125886_nth_1___r___nth_1__]
                         (clojure.core/let
-                         [?env input__62968_nth_2__]
+                         [?env input__125886_nth_2__]
                          (try
                           [(clojure.core/let
                             [!xs__counter
@@ -90,7 +92,7 @@
                              :pattern
                              (clojure.core/let
                               [CATA_RESULT__15641__auto__
-                               (CATA__FN__63051 [?pattern ?env])]
+                               (CATA__FN__125969 [?pattern ?env])]
                               (if
                                (meander.runtime.zeta/fail?
                                 CATA_RESULT__15641__auto__)
@@ -101,7 +103,7 @@
                              :next
                              (clojure.core/let
                               [CATA_RESULT__15641__auto__
-                               (CATA__FN__63051
+                               (CATA__FN__125969
                                 ['meander.dev.parse.zeta/parse-sequential
                                  (clojure.core/into
                                   []
@@ -124,189 +126,195 @@
                              e__16581__auto__)
                             (meander.runtime.zeta/fail)
                             (throw e__16581__auto__))))))
-                       (state__64558)))
-                     (state__64558)))
-                   (state__64558))))]
-               (state__64597))
-              (state__64558))
-             (state__64558)))
-           (state__64558))
-          (state__64558)))
-        (state__64558
+                       (state__127480)))
+                     (state__127480)))
+                   (state__127480))))]
+               (state__127519))
+              (state__127480))
+             (state__127480)))
+           (state__127480))
+          (state__127480)))
+        (state__127480
          []
          (clojure.core/letfn
-          [(def__63066
-            [arg__63101 ?ns]
+          [(def__125984
+            [arg__126019 ?ns]
             (clojure.core/letfn
-             [(state__64599
+             [(state__127521
                []
                (clojure.core/let
-                [x__63102 "meander.zeta"]
+                [x__126020 "meander.zeta"]
                 (if
-                 (clojure.core/= ?ns x__63102)
-                 (clojure.core/let [?env arg__63101] [?env ?ns])
-                 (state__64600))))
-              (state__64600
+                 (clojure.core/= ?ns x__126020)
+                 (clojure.core/let [?env arg__126019] [?env ?ns])
+                 (state__127522))))
+              (state__127522
                []
                (if
-                (clojure.core/map? arg__63101)
+                (clojure.core/map? arg__126019)
                 (clojure.core/let
-                 [VAL__63103 (.valAt arg__63101 :aliases)]
+                 [VAL__126021 (.valAt arg__126019 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63103)
+                  (clojure.core/map? VAL__126021)
                   (clojure.core/let
-                   [X__63105 (clojure.core/set VAL__63103)]
+                   [X__126023 (clojure.core/set VAL__126021)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63105))
+                    (clojure.core/<= 1 (clojure.core/count X__126023))
                     (clojure.core/loop
-                     [search_space__64601 (clojure.core/seq X__63105)]
+                     [search_space__127523
+                      (clojure.core/seq X__126023)]
                      (if
-                      (clojure.core/seq search_space__64601)
+                      (clojure.core/seq search_space__127523)
                       (clojure.core/let
-                       [elem__63106
-                        (clojure.core/first search_space__64601)
-                        result__64602
+                       [elem__126024
+                        (clojure.core/first search_space__127523)
+                        result__127524
                         (clojure.core/let
-                         [elem__63106_nth_0__
-                          (clojure.core/nth elem__63106 0)
-                          elem__63106_nth_1__
-                          (clojure.core/nth elem__63106 1)]
+                         [elem__126024_nth_0__
+                          (clojure.core/nth elem__126024 0)
+                          elem__126024_nth_1__
+                          (clojure.core/nth elem__126024 1)]
                          (if
-                          (clojure.core/symbol? elem__63106_nth_0__)
+                          (clojure.core/symbol? elem__126024_nth_0__)
                           (clojure.core/let
-                           [X__63108
-                            (clojure.core/name elem__63106_nth_0__)]
+                           [X__126026
+                            (clojure.core/name elem__126024_nth_0__)]
                            (if
-                            (clojure.core/= ?ns X__63108)
+                            (clojure.core/= ?ns X__126026)
                             (if
-                             (clojure.core/symbol? elem__63106_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126024_nth_1__)
                              (clojure.core/let
-                              [X__63110
-                               (clojure.core/name elem__63106_nth_1__)]
+                              [X__126028
+                               (clojure.core/name
+                                elem__126024_nth_1__)]
                               (clojure.core/case
-                               X__63110
+                               X__126028
                                ("meander.zeta")
                                (clojure.core/let
-                                [?env arg__63101]
+                                [?env arg__126019]
                                 [?env ?ns])
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64602)
-                        (recur (clojure.core/next search_space__64601))
-                        result__64602))
+                        (meander.runtime.zeta/fail? result__127524)
+                        (recur
+                         (clojure.core/next search_space__127523))
+                        result__127524))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64599)))]
+             (state__127521)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 3)
+            (clojure.core/= (clojure.core/count input__125886) 3)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)
-              input__62968_nth_2__
-              (clojure.core/nth input__62968 2)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)
+              input__125886_nth_2__
+              (clojure.core/nth input__125886 2)]
              (clojure.core/case
-              input__62968_nth_0__
+              input__125886_nth_0__
               (meander.dev.parse.zeta/parse-sequential)
               (if
-               (clojure.core/vector? input__62968_nth_1__)
+               (clojure.core/vector? input__125886_nth_1__)
                (clojure.core/loop
-                [search_space__64604
+                [search_space__127526
                  (meander.runtime.zeta/epsilon-partitions
                   2
-                  input__62968_nth_1__)]
+                  input__125886_nth_1__)]
                 (if
-                 (clojure.core/seq search_space__64604)
+                 (clojure.core/seq search_space__127526)
                  (clojure.core/let
-                  [input__62968_nth_1___parts__
-                   (clojure.core/first search_space__64604)
-                   result__64605
+                  [input__125886_nth_1___parts__
+                   (clojure.core/first search_space__127526)
+                   result__127527
                    (clojure.core/let
-                    [input__62968_nth_1___l__
-                     (clojure.core/nth input__62968_nth_1___parts__ 0)
-                     input__62968_nth_1___r__
-                     (clojure.core/nth input__62968_nth_1___parts__ 1)]
+                    [input__125886_nth_1___l__
+                     (clojure.core/nth input__125886_nth_1___parts__ 0)
+                     input__125886_nth_1___r__
+                     (clojure.core/nth
+                      input__125886_nth_1___parts__
+                      1)]
                     (clojure.core/let
                      [!init
-                      (clojure.core/vec input__62968_nth_1___l__)]
+                      (clojure.core/vec input__125886_nth_1___l__)]
                      (clojure.core/let
-                      [input__62968_nth_1___r___l__
+                      [input__125886_nth_1___r___l__
                        (clojure.core/subvec
-                        input__62968_nth_1___r__
+                        input__125886_nth_1___r__
                         0
                         (clojure.core/min
-                         (clojure.core/count input__62968_nth_1___r__)
+                         (clojure.core/count input__125886_nth_1___r__)
                          2))]
                       (if
                        (clojure.core/=
                         (clojure.core/count
-                         input__62968_nth_1___r___l__)
+                         input__125886_nth_1___r___l__)
                         2)
                        (clojure.core/let
-                        [input__62968_nth_1___r___r__
+                        [input__125886_nth_1___r___r__
                          (clojure.core/subvec
-                          input__62968_nth_1___r__
+                          input__125886_nth_1___r__
                           2)]
                         (clojure.core/let
-                         [input__62968_nth_1___r___l___nth_0__
+                         [input__125886_nth_1___r___l___nth_0__
                           (clojure.core/nth
-                           input__62968_nth_1___r___l__
+                           input__125886_nth_1___r___l__
                            0)
-                          input__62968_nth_1___r___l___nth_1__
+                          input__125886_nth_1___r___l___nth_1__
                           (clojure.core/nth
-                           input__62968_nth_1___r___l__
+                           input__125886_nth_1___r___l__
                            1)]
                          (if
                           (clojure.core/symbol?
-                           input__62968_nth_1___r___l___nth_0__)
+                           input__125886_nth_1___r___l___nth_0__)
                           (clojure.core/let
-                           [X__63075
+                           [X__125993
                             (clojure.core/namespace
-                             input__62968_nth_1___r___l___nth_0__)]
+                             input__125886_nth_1___r___l___nth_0__)]
                            (clojure.core/let
-                            [?ns X__63075]
+                            [?ns X__125993]
                             (clojure.core/let
-                             [X__63077
+                             [X__125995
                               (clojure.core/name
-                               input__62968_nth_1___r___l___nth_0__)]
+                               input__125886_nth_1___r___l___nth_0__)]
                              (if
-                              (clojure.core/string? X__63077)
+                              (clojure.core/string? X__125995)
                               (clojure.core/let
-                               [ret__63078
+                               [ret__125996
                                 (clojure.core/re-matches
                                  #"&(\d+)"
-                                 X__63077)]
+                                 X__125995)]
                                (if
-                                (clojure.core/some? ret__63078)
+                                (clojure.core/some? ret__125996)
                                 (if
-                                 (clojure.core/vector? ret__63078)
+                                 (clojure.core/vector? ret__125996)
                                  (if
                                   (clojure.core/=
-                                   (clojure.core/count ret__63078)
+                                   (clojure.core/count ret__125996)
                                    2)
                                   (clojure.core/let
-                                   [ret__63078_nth_1__
-                                    (clojure.core/nth ret__63078 1)]
+                                   [ret__125996_nth_1__
+                                    (clojure.core/nth ret__125996 1)]
                                    (clojure.core/let
-                                    [?n ret__63078_nth_1__]
+                                    [?n ret__125996_nth_1__]
                                     (clojure.core/let
                                      [?pattern
-                                      input__62968_nth_1___r___l___nth_1__]
+                                      input__125886_nth_1___r___l___nth_1__]
                                      (clojure.core/let
                                       [?rest
-                                       input__62968_nth_1___r___r__]
+                                       input__125886_nth_1___r___r__]
                                       (clojure.core/let
                                        [x__14338__auto__
-                                        (def__63066
-                                         input__62968_nth_2__
+                                        (def__125984
+                                         input__125886_nth_2__
                                          ?ns)]
                                        (if
                                         (meander.runtime.zeta/fail?
@@ -321,11 +329,11 @@
                                               !init)]
                                             (clojure.core/let
                                              [CATA_RESULT__15641__auto__
-                                              (CATA__FN__63051
+                                              (CATA__FN__125969
                                                ['meander.dev.parse.zeta/make-join
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     (clojure.core/into
                                                      []
@@ -343,7 +351,7 @@
                                                    0)))
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/make-join
                                                     {:tag :slice,
                                                      :size
@@ -351,7 +359,7 @@
                                                      :pattern
                                                      (clojure.core/let
                                                       [CATA_RESULT__15641__auto__
-                                                       (CATA__FN__63051
+                                                       (CATA__FN__125969
                                                         [?pattern
                                                          ?env])]
                                                       (if
@@ -364,7 +372,7 @@
                                                         0)))}
                                                     (clojure.core/let
                                                      [CATA_RESULT__15641__auto__
-                                                      (CATA__FN__63051
+                                                      (CATA__FN__125969
                                                        ['meander.dev.parse.zeta/parse-sequential
                                                         (clojure.core/into
                                                          []
@@ -412,174 +420,180 @@
                           (meander.runtime.zeta/fail))))
                        (meander.runtime.zeta/fail)))))]
                   (if
-                   (meander.runtime.zeta/fail? result__64605)
-                   (recur (clojure.core/next search_space__64604))
-                   result__64605))
-                 (state__64559)))
-               (state__64559))
-              (state__64559)))
-            (state__64559))
-           (state__64559))))
-        (state__64559
+                   (meander.runtime.zeta/fail? result__127527)
+                   (recur (clojure.core/next search_space__127526))
+                   result__127527))
+                 (state__127481)))
+               (state__127481))
+              (state__127481)))
+            (state__127481))
+           (state__127481))))
+        (state__127481
          []
          (clojure.core/letfn
-          [(def__63123
-            [arg__63155 ?ns]
+          [(def__126041
+            [arg__126073 ?ns]
             (clojure.core/letfn
-             [(state__64607
+             [(state__127529
                []
                (clojure.core/let
-                [x__63156 "meander.zeta"]
+                [x__126074 "meander.zeta"]
                 (if
-                 (clojure.core/= ?ns x__63156)
-                 (clojure.core/let [?env arg__63155] [?env ?ns])
-                 (state__64608))))
-              (state__64608
+                 (clojure.core/= ?ns x__126074)
+                 (clojure.core/let [?env arg__126073] [?env ?ns])
+                 (state__127530))))
+              (state__127530
                []
                (if
-                (clojure.core/map? arg__63155)
+                (clojure.core/map? arg__126073)
                 (clojure.core/let
-                 [VAL__63157 (.valAt arg__63155 :aliases)]
+                 [VAL__126075 (.valAt arg__126073 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63157)
+                  (clojure.core/map? VAL__126075)
                   (clojure.core/let
-                   [X__63159 (clojure.core/set VAL__63157)]
+                   [X__126077 (clojure.core/set VAL__126075)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63159))
+                    (clojure.core/<= 1 (clojure.core/count X__126077))
                     (clojure.core/loop
-                     [search_space__64609 (clojure.core/seq X__63159)]
+                     [search_space__127531
+                      (clojure.core/seq X__126077)]
                      (if
-                      (clojure.core/seq search_space__64609)
+                      (clojure.core/seq search_space__127531)
                       (clojure.core/let
-                       [elem__63160
-                        (clojure.core/first search_space__64609)
-                        result__64610
+                       [elem__126078
+                        (clojure.core/first search_space__127531)
+                        result__127532
                         (clojure.core/let
-                         [elem__63160_nth_0__
-                          (clojure.core/nth elem__63160 0)
-                          elem__63160_nth_1__
-                          (clojure.core/nth elem__63160 1)]
+                         [elem__126078_nth_0__
+                          (clojure.core/nth elem__126078 0)
+                          elem__126078_nth_1__
+                          (clojure.core/nth elem__126078 1)]
                          (if
-                          (clojure.core/symbol? elem__63160_nth_0__)
+                          (clojure.core/symbol? elem__126078_nth_0__)
                           (clojure.core/let
-                           [X__63162
-                            (clojure.core/name elem__63160_nth_0__)]
+                           [X__126080
+                            (clojure.core/name elem__126078_nth_0__)]
                            (if
-                            (clojure.core/= ?ns X__63162)
+                            (clojure.core/= ?ns X__126080)
                             (if
-                             (clojure.core/symbol? elem__63160_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126078_nth_1__)
                              (clojure.core/let
-                              [X__63164
-                               (clojure.core/name elem__63160_nth_1__)]
+                              [X__126082
+                               (clojure.core/name
+                                elem__126078_nth_1__)]
                               (clojure.core/case
-                               X__63164
+                               X__126082
                                ("meander.zeta")
                                (clojure.core/let
-                                [?env arg__63155]
+                                [?env arg__126073]
                                 [?env ?ns])
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64610)
-                        (recur (clojure.core/next search_space__64609))
-                        result__64610))
+                        (meander.runtime.zeta/fail? result__127532)
+                        (recur
+                         (clojure.core/next search_space__127531))
+                        result__127532))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64607)))]
+             (state__127529)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 3)
+            (clojure.core/= (clojure.core/count input__125886) 3)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)
-              input__62968_nth_2__
-              (clojure.core/nth input__62968 2)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)
+              input__125886_nth_2__
+              (clojure.core/nth input__125886 2)]
              (clojure.core/case
-              input__62968_nth_0__
+              input__125886_nth_0__
               (meander.dev.parse.zeta/parse-sequential)
               (if
-               (clojure.core/vector? input__62968_nth_1__)
+               (clojure.core/vector? input__125886_nth_1__)
                (clojure.core/loop
-                [search_space__64612
+                [search_space__127534
                  (meander.runtime.zeta/epsilon-partitions
                   2
-                  input__62968_nth_1__)]
+                  input__125886_nth_1__)]
                 (if
-                 (clojure.core/seq search_space__64612)
+                 (clojure.core/seq search_space__127534)
                  (clojure.core/let
-                  [input__62968_nth_1___parts__
-                   (clojure.core/first search_space__64612)
-                   result__64613
+                  [input__125886_nth_1___parts__
+                   (clojure.core/first search_space__127534)
+                   result__127535
                    (clojure.core/let
-                    [input__62968_nth_1___l__
-                     (clojure.core/nth input__62968_nth_1___parts__ 0)
-                     input__62968_nth_1___r__
-                     (clojure.core/nth input__62968_nth_1___parts__ 1)]
+                    [input__125886_nth_1___l__
+                     (clojure.core/nth input__125886_nth_1___parts__ 0)
+                     input__125886_nth_1___r__
+                     (clojure.core/nth
+                      input__125886_nth_1___parts__
+                      1)]
                     (clojure.core/let
                      [!init
-                      (clojure.core/vec input__62968_nth_1___l__)]
+                      (clojure.core/vec input__125886_nth_1___l__)]
                      (clojure.core/let
-                      [input__62968_nth_1___r___l__
+                      [input__125886_nth_1___r___l__
                        (clojure.core/subvec
-                        input__62968_nth_1___r__
+                        input__125886_nth_1___r__
                         0
                         (clojure.core/min
-                         (clojure.core/count input__62968_nth_1___r__)
+                         (clojure.core/count input__125886_nth_1___r__)
                          2))]
                       (if
                        (clojure.core/=
                         (clojure.core/count
-                         input__62968_nth_1___r___l__)
+                         input__125886_nth_1___r___l__)
                         2)
                        (clojure.core/let
-                        [input__62968_nth_1___r___r__
+                        [input__125886_nth_1___r___r__
                          (clojure.core/subvec
-                          input__62968_nth_1___r__
+                          input__125886_nth_1___r__
                           2)]
                         (clojure.core/let
-                         [input__62968_nth_1___r___l___nth_0__
+                         [input__125886_nth_1___r___l___nth_0__
                           (clojure.core/nth
-                           input__62968_nth_1___r___l__
+                           input__125886_nth_1___r___l__
                            0)
-                          input__62968_nth_1___r___l___nth_1__
+                          input__125886_nth_1___r___l___nth_1__
                           (clojure.core/nth
-                           input__62968_nth_1___r___l__
+                           input__125886_nth_1___r___l__
                            1)]
                          (if
                           (clojure.core/symbol?
-                           input__62968_nth_1___r___l___nth_0__)
+                           input__125886_nth_1___r___l___nth_0__)
                           (clojure.core/let
-                           [X__63132
+                           [X__126050
                             (clojure.core/namespace
-                             input__62968_nth_1___r___l___nth_0__)]
+                             input__125886_nth_1___r___l___nth_0__)]
                            (clojure.core/let
-                            [?ns X__63132]
+                            [?ns X__126050]
                             (clojure.core/let
-                             [X__63134
+                             [X__126052
                               (clojure.core/name
-                               input__62968_nth_1___r___l___nth_0__)]
+                               input__125886_nth_1___r___l___nth_0__)]
                              (if
-                              (clojure.core/string? X__63134)
+                              (clojure.core/string? X__126052)
                               (if
                                (clojure.core/re-matches
                                 #"&.*"
-                                X__63134)
+                                X__126052)
                                (clojure.core/let
                                 [?pattern
-                                 input__62968_nth_1___r___l___nth_1__]
+                                 input__125886_nth_1___r___l___nth_1__]
                                 (clojure.core/let
-                                 [?rest input__62968_nth_1___r___r__]
+                                 [?rest input__125886_nth_1___r___r__]
                                  (clojure.core/let
                                   [x__14338__auto__
-                                   (def__63123
-                                    input__62968_nth_2__
+                                   (def__126041
+                                    input__125886_nth_2__
                                     ?ns)]
                                   (if
                                    (meander.runtime.zeta/fail?
@@ -594,11 +608,11 @@
                                          !init)]
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/make-join
                                            (clojure.core/let
                                             [CATA_RESULT__15641__auto__
-                                             (CATA__FN__63051
+                                             (CATA__FN__125969
                                               ['meander.dev.parse.zeta/parse-sequential
                                                (clojure.core/into
                                                 []
@@ -616,11 +630,11 @@
                                               0)))
                                            (clojure.core/let
                                             [CATA_RESULT__15641__auto__
-                                             (CATA__FN__63051
+                                             (CATA__FN__125969
                                               ['meander.dev.parse.zeta/make-join
                                                (clojure.core/let
                                                 [CATA_RESULT__15641__auto__
-                                                 (CATA__FN__63051
+                                                 (CATA__FN__125969
                                                   [?pattern ?env])]
                                                 (if
                                                  (meander.runtime.zeta/fail?
@@ -632,7 +646,7 @@
                                                   0)))
                                                (clojure.core/let
                                                 [CATA_RESULT__15641__auto__
-                                                 (CATA__FN__63051
+                                                 (CATA__FN__125969
                                                   ['meander.dev.parse.zeta/parse-sequential
                                                    (clojure.core/into
                                                     []
@@ -677,160 +691,162 @@
                           (meander.runtime.zeta/fail))))
                        (meander.runtime.zeta/fail)))))]
                   (if
-                   (meander.runtime.zeta/fail? result__64613)
-                   (recur (clojure.core/next search_space__64612))
-                   result__64613))
-                 (state__64560)))
-               (state__64560))
-              (state__64560)))
-            (state__64560))
-           (state__64560))))
-        (state__64560
+                   (meander.runtime.zeta/fail? result__127535)
+                   (recur (clojure.core/next search_space__127534))
+                   result__127535))
+                 (state__127482)))
+               (state__127482))
+              (state__127482)))
+            (state__127482))
+           (state__127482))))
+        (state__127482
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (clojure.core/letfn
-           [(state__64615
+           [(state__127537
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 3)
+              (clojure.core/= (clojure.core/count input__125886) 3)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/case
-                input__62968_nth_0__
+                input__125886_nth_0__
                 (meander.dev.parse.zeta/parse-sequential)
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/letfn
-                  [(state__64618
+                  [(state__127540
                     []
                     (clojure.core/let
-                     [n__63185
-                      (clojure.core/count input__62968_nth_1__)
-                      m__63186
-                      (clojure.core/max 0 (clojure.core/- n__63185 2))
-                      input__62968_nth_1___l__
+                     [n__126103
+                      (clojure.core/count input__125886_nth_1__)
+                      m__126104
+                      (clojure.core/max 0 (clojure.core/- n__126103 2))
+                      input__125886_nth_1___l__
                       (clojure.core/subvec
-                       input__62968_nth_1__
+                       input__125886_nth_1__
                        0
                        (clojure.core/min
-                        (clojure.core/count input__62968_nth_1__)
-                        m__63186))
-                      input__62968_nth_1___r__
+                        (clojure.core/count input__125886_nth_1__)
+                        m__126104))
+                      input__125886_nth_1___r__
                       (clojure.core/subvec
-                       input__62968_nth_1__
-                       m__63186)]
+                       input__125886_nth_1__
+                       m__126104)]
                      (if
                       (clojure.core/=
-                       (clojure.core/count input__62968_nth_1___r__)
+                       (clojure.core/count input__125886_nth_1___r__)
                        2)
                       (clojure.core/let
                        [!xs
-                        (clojure.core/vec input__62968_nth_1___l__)]
+                        (clojure.core/vec input__125886_nth_1___l__)]
                        (if
                         (clojure.core/=
-                         (clojure.core/count input__62968_nth_1___r__)
+                         (clojure.core/count input__125886_nth_1___r__)
                          2)
                         (clojure.core/let
-                         [input__62968_nth_1___r___nth_0__
-                          (clojure.core/nth input__62968_nth_1___r__ 0)
-                          input__62968_nth_1___r___nth_1__
+                         [input__125886_nth_1___r___nth_0__
                           (clojure.core/nth
-                           input__62968_nth_1___r__
+                           input__125886_nth_1___r__
+                           0)
+                          input__125886_nth_1___r___nth_1__
+                          (clojure.core/nth
+                           input__125886_nth_1___r__
                            1)]
                          (if
                           (clojure.core/symbol?
-                           input__62968_nth_1___r___nth_0__)
+                           input__125886_nth_1___r___nth_0__)
                           (clojure.core/let
-                           [X__63190
+                           [X__126108
                             (clojure.core/namespace
-                             input__62968_nth_1___r___nth_0__)]
+                             input__125886_nth_1___r___nth_0__)]
                            (clojure.core/let
-                            [?ns X__63190]
+                            [?ns X__126108]
                             (clojure.core/let
-                             [X__63192
+                             [X__126110
                               (clojure.core/name
-                               input__62968_nth_1___r___nth_0__)]
+                               input__125886_nth_1___r___nth_0__)]
                              (if
-                              (clojure.core/string? X__63192)
+                              (clojure.core/string? X__126110)
                               (clojure.core/let
-                               [ret__63193
+                               [ret__126111
                                 (clojure.core/re-matches
                                  #"&.*"
-                                 X__63192)]
+                                 X__126110)]
                                (if
-                                (clojure.core/some? ret__63193)
+                                (clojure.core/some? ret__126111)
                                 (clojure.core/let
-                                 [?name ret__63193]
+                                 [?name ret__126111]
                                  (clojure.core/let
                                   [?pattern
-                                   input__62968_nth_1___r___nth_1__]
+                                   input__125886_nth_1___r___nth_1__]
                                   (if
                                    (clojure.core/map?
-                                    input__62968_nth_2__)
+                                    input__125886_nth_2__)
                                    (clojure.core/let
-                                    [VAL__63177
+                                    [VAL__126095
                                      (.valAt
-                                      input__62968_nth_2__
+                                      input__125886_nth_2__
                                       :aliases)]
                                     (if
-                                     (clojure.core/map? VAL__63177)
+                                     (clojure.core/map? VAL__126095)
                                      (clojure.core/let
-                                      [X__63179
-                                       (clojure.core/set VAL__63177)]
+                                      [X__126097
+                                       (clojure.core/set VAL__126095)]
                                       (if
                                        (clojure.core/<=
                                         1
-                                        (clojure.core/count X__63179))
+                                        (clojure.core/count X__126097))
                                        (clojure.core/loop
-                                        [search_space__64622
-                                         (clojure.core/seq X__63179)]
+                                        [search_space__127544
+                                         (clojure.core/seq X__126097)]
                                         (if
                                          (clojure.core/seq
-                                          search_space__64622)
+                                          search_space__127544)
                                          (clojure.core/let
-                                          [elem__63180
+                                          [elem__126098
                                            (clojure.core/first
-                                            search_space__64622)
-                                           result__64623
+                                            search_space__127544)
+                                           result__127545
                                            (clojure.core/let
-                                            [elem__63180_nth_0__
+                                            [elem__126098_nth_0__
                                              (clojure.core/nth
-                                              elem__63180
+                                              elem__126098
                                               0)
-                                             elem__63180_nth_1__
+                                             elem__126098_nth_1__
                                              (clojure.core/nth
-                                              elem__63180
+                                              elem__126098
                                               1)]
                                             (if
                                              (clojure.core/symbol?
-                                              elem__63180_nth_0__)
+                                              elem__126098_nth_0__)
                                              (clojure.core/let
-                                              [X__63182
+                                              [X__126100
                                                (clojure.core/name
-                                                elem__63180_nth_0__)]
+                                                elem__126098_nth_0__)]
                                               (if
                                                (clojure.core/=
                                                 ?ns
-                                                X__63182)
+                                                X__126100)
                                                (if
                                                 (clojure.core/symbol?
-                                                 elem__63180_nth_1__)
+                                                 elem__126098_nth_1__)
                                                 (clojure.core/let
-                                                 [X__63184
+                                                 [X__126102
                                                   (clojure.core/name
-                                                   elem__63180_nth_1__)]
+                                                   elem__126098_nth_1__)]
                                                  (clojure.core/case
-                                                  X__63184
+                                                  X__126102
                                                   ("meander.zeta")
                                                   (clojure.core/let
                                                    [?env
-                                                    input__62968_nth_2__]
+                                                    input__125886_nth_2__]
                                                    (try
                                                     [(clojure.core/let
                                                       [!xs__counter
@@ -838,7 +854,7 @@
                                                         !xs)]
                                                       (clojure.core/let
                                                        [CATA_RESULT__15641__auto__
-                                                        (CATA__FN__63051
+                                                        (CATA__FN__125969
                                                          ['meander.dev.parse.zeta/parse-sequential
                                                           (clojure.core/into
                                                            []
@@ -877,72 +893,73 @@
                                              (meander.runtime.zeta/fail)))]
                                           (if
                                            (meander.runtime.zeta/fail?
-                                            result__64623)
+                                            result__127545)
                                            (recur
                                             (clojure.core/next
-                                             search_space__64622))
-                                           result__64623))
-                                         (state__64619)))
-                                       (state__64619)))
-                                     (state__64619)))
-                                   (state__64619))))
-                                (state__64619)))
-                              (state__64619)))))
-                          (state__64619)))
-                        (state__64619)))
-                      (state__64619))))
-                   (state__64619
+                                             search_space__127544))
+                                           result__127545))
+                                         (state__127541)))
+                                       (state__127541)))
+                                     (state__127541)))
+                                   (state__127541))))
+                                (state__127541)))
+                              (state__127541)))))
+                          (state__127541)))
+                        (state__127541)))
+                      (state__127541))))
+                   (state__127541
                     []
                     (clojure.core/loop
-                     [search_space__64625
+                     [search_space__127547
                       (meander.runtime.zeta/epsilon-partitions
                        2
-                       input__62968_nth_1__)]
+                       input__125886_nth_1__)]
                      (if
-                      (clojure.core/seq search_space__64625)
+                      (clojure.core/seq search_space__127547)
                       (clojure.core/let
-                       [input__62968_nth_1___parts__
-                        (clojure.core/first search_space__64625)
-                        result__64626
+                       [input__125886_nth_1___parts__
+                        (clojure.core/first search_space__127547)
+                        result__127548
                         (clojure.core/let
-                         [input__62968_nth_1___l__
+                         [input__125886_nth_1___l__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            0)
-                          input__62968_nth_1___r__
+                          input__125886_nth_1___r__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            1)]
                          (clojure.core/let
                           [!xs
-                           (clojure.core/vec input__62968_nth_1___l__)]
+                           (clojure.core/vec
+                            input__125886_nth_1___l__)]
                           (clojure.core/let
-                           [input__62968_nth_1___r___l__
+                           [input__125886_nth_1___r___l__
                             (clojure.core/subvec
-                             input__62968_nth_1___r__
+                             input__125886_nth_1___r__
                              0
                              (clojure.core/min
                               (clojure.core/count
-                               input__62968_nth_1___r__)
+                               input__125886_nth_1___r__)
                               1))]
                            (if
                             (clojure.core/=
                              (clojure.core/count
-                              input__62968_nth_1___r___l__)
+                              input__125886_nth_1___r___l__)
                              1)
                             (clojure.core/let
-                             [input__62968_nth_1___r___r__
+                             [input__125886_nth_1___r___r__
                               (clojure.core/subvec
-                               input__62968_nth_1___r__
+                               input__125886_nth_1___r__
                                1)]
                              (if
                               (clojure.core/=
-                               input__62968_nth_1___r___l__
+                               input__125886_nth_1___r___l__
                                ['.])
                               (clojure.core/let
-                               [?rest input__62968_nth_1___r___r__]
+                               [?rest input__125886_nth_1___r___r__]
                                (clojure.core/let
-                                [?env input__62968_nth_2__]
+                                [?env input__125886_nth_2__]
                                 (try
                                  [(clojure.core/let
                                    [!xs__counter
@@ -950,11 +967,11 @@
                                      !xs)]
                                    (clojure.core/let
                                     [CATA_RESULT__15641__auto__
-                                     (CATA__FN__63051
+                                     (CATA__FN__125969
                                       ['meander.dev.parse.zeta/make-join
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/parse-sequential
                                            (clojure.core/into
                                             []
@@ -972,7 +989,7 @@
                                           0)))
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/parse-sequential
                                            ?rest
                                            ?env])]
@@ -1004,39 +1021,40 @@
                               (meander.runtime.zeta/fail)))
                             (meander.runtime.zeta/fail)))))]
                        (if
-                        (meander.runtime.zeta/fail? result__64626)
-                        (recur (clojure.core/next search_space__64625))
-                        result__64626))
-                      (state__64620))))
-                   (state__64620
+                        (meander.runtime.zeta/fail? result__127548)
+                        (recur
+                         (clojure.core/next search_space__127547))
+                        result__127548))
+                      (state__127542))))
+                   (state__127542
                     []
                     (clojure.core/let
-                     [input__62968_nth_1___l__
+                     [input__125886_nth_1___l__
                       (clojure.core/subvec
-                       input__62968_nth_1__
+                       input__125886_nth_1__
                        0
                        (clojure.core/min
-                        (clojure.core/count input__62968_nth_1__)
+                        (clojure.core/count input__125886_nth_1__)
                         1))]
                      (if
                       (clojure.core/=
-                       (clojure.core/count input__62968_nth_1___l__)
+                       (clojure.core/count input__125886_nth_1___l__)
                        1)
                       (clojure.core/let
-                       [input__62968_nth_1___r__
-                        (clojure.core/subvec input__62968_nth_1__ 1)]
+                       [input__125886_nth_1___r__
+                        (clojure.core/subvec input__125886_nth_1__ 1)]
                        (if
                         (clojure.core/=
-                         input__62968_nth_1___l__
+                         input__125886_nth_1___l__
                          ['...])
                         (clojure.core/let
-                         [?rest input__62968_nth_1___r__]
+                         [?rest input__125886_nth_1___r__]
                          (clojure.core/let
-                          [?env input__62968_nth_2__]
+                          [?env input__125886_nth_2__]
                           (try
                            [(clojure.core/let
                              [CATA_RESULT__15641__auto__
-                              (CATA__FN__63051
+                              (CATA__FN__125969
                                ['meander.dev.parse.zeta/parse-sequential
                                 ?rest
                                 ?env])]
@@ -1055,108 +1073,109 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64621)))
-                      (state__64621))))
-                   (state__64621
+                        (state__127543)))
+                      (state__127543))))
+                   (state__127543
                     []
                     (clojure.core/loop
-                     [search_space__64628
+                     [search_space__127550
                       (meander.runtime.zeta/epsilon-partitions
                        2
-                       input__62968_nth_1__)]
+                       input__125886_nth_1__)]
                      (if
-                      (clojure.core/seq search_space__64628)
+                      (clojure.core/seq search_space__127550)
                       (clojure.core/let
-                       [input__62968_nth_1___parts__
-                        (clojure.core/first search_space__64628)
-                        result__64629
+                       [input__125886_nth_1___parts__
+                        (clojure.core/first search_space__127550)
+                        result__127551
                         (clojure.core/let
-                         [input__62968_nth_1___l__
+                         [input__125886_nth_1___l__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            0)
-                          input__62968_nth_1___r__
+                          input__125886_nth_1___r__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            1)]
                          (clojure.core/let
                           [!xs []]
                           (clojure.core/let
                            [ret__14502__auto__
                             (meander.runtime.zeta/epsilon-run-star-1
-                             input__62968_nth_1___l__
+                             input__125886_nth_1___l__
                              [!xs]
                              (clojure.core/fn
-                              [[!xs] input__63210]
+                              [[!xs] input__126128]
                               (clojure.core/let
-                               [input__63210_nth_0__
-                                (clojure.core/nth input__63210 0)]
+                               [input__126128_nth_0__
+                                (clojure.core/nth input__126128 0)]
                                (clojure.core/letfn
-                                [(save__63211
+                                [(save__126129
                                   []
                                   (meander.runtime.zeta/fail))
-                                 (f__64632
+                                 (f__127554
                                   []
                                   (clojure.core/let
                                    [!xs
                                     (clojure.core/conj
                                      !xs
-                                     input__63210_nth_0__)]
+                                     input__126128_nth_0__)]
                                    [!xs]))]
                                 (if
                                  (clojure.core/symbol?
-                                  input__63210_nth_0__)
+                                  input__126128_nth_0__)
                                  (clojure.core/let
-                                  [X__63213
+                                  [X__126131
                                    (clojure.core/namespace
-                                    input__63210_nth_0__)]
+                                    input__126128_nth_0__)]
                                   (clojure.core/case
-                                   X__63213
+                                   X__126131
                                    (nil)
                                    (clojure.core/let
-                                    [X__63215
+                                    [X__126133
                                      (clojure.core/name
-                                      input__63210_nth_0__)]
+                                      input__126128_nth_0__)]
                                     (if
-                                     (clojure.core/string? X__63215)
+                                     (clojure.core/string? X__126133)
                                      (if
                                       (clojure.core/re-matches
                                        #"\.\.(?:\.|\d+)"
-                                       X__63215)
-                                      (save__63211)
-                                      (f__64632))
-                                     (f__64632)))
-                                   (f__64632)))
-                                 (f__64632)))))
+                                       X__126133)
+                                      (save__126129)
+                                      (f__127554))
+                                     (f__127554)))
+                                   (f__127554)))
+                                 (f__127554)))))
                              (clojure.core/fn
                               [[!xs]]
                               (clojure.core/let
-                               [input__62968_nth_1___r___l__
+                               [input__125886_nth_1___r___l__
                                 (clojure.core/subvec
-                                 input__62968_nth_1___r__
+                                 input__125886_nth_1___r__
                                  0
                                  (clojure.core/min
                                   (clojure.core/count
-                                   input__62968_nth_1___r__)
+                                   input__125886_nth_1___r__)
                                   1))]
                                (if
                                 (clojure.core/=
                                  (clojure.core/count
-                                  input__62968_nth_1___r___l__)
+                                  input__125886_nth_1___r___l__)
                                  1)
                                 (clojure.core/let
-                                 [input__62968_nth_1___r___r__
+                                 [input__125886_nth_1___r___r__
                                   (clojure.core/subvec
-                                   input__62968_nth_1___r__
+                                   input__125886_nth_1___r__
                                    1)]
                                  (if
                                   (clojure.core/=
-                                   input__62968_nth_1___r___l__
+                                   input__125886_nth_1___r___l__
                                    ['...])
                                   (clojure.core/let
-                                   [?rest input__62968_nth_1___r___r__]
+                                   [?rest
+                                    input__125886_nth_1___r___r__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_2__]
+                                    [?env input__125886_nth_2__]
                                     (try
                                      [(clojure.core/let
                                        [!xs__counter
@@ -1164,11 +1183,11 @@
                                          !xs)]
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/make-star
                                            (clojure.core/let
                                             [CATA_RESULT__15641__auto__
-                                             (CATA__FN__63051
+                                             (CATA__FN__125969
                                               ['meander.dev.parse.zeta/parse-sequential
                                                (clojure.core/into
                                                 []
@@ -1186,7 +1205,7 @@
                                               0)))
                                            (clojure.core/let
                                             [CATA_RESULT__15641__auto__
-                                             (CATA__FN__63051
+                                             (CATA__FN__125969
                                               ['meander.dev.parse.zeta/parse-sequential
                                                ?rest
                                                ?env])]
@@ -1223,88 +1242,90 @@
                             (meander.runtime.zeta/fail)
                             ret__14502__auto__))))]
                        (if
-                        (meander.runtime.zeta/fail? result__64629)
-                        (recur (clojure.core/next search_space__64628))
-                        result__64629))
-                      (state__64616))))]
-                  (state__64618))
-                 (state__64616))
-                (state__64616)))
-              (state__64616)))
-            (state__64616
+                        (meander.runtime.zeta/fail? result__127551)
+                        (recur
+                         (clojure.core/next search_space__127550))
+                        result__127551))
+                      (state__127538))))]
+                  (state__127540))
+                 (state__127538))
+                (state__127538)))
+              (state__127538)))
+            (state__127538
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 4)
+              (clojure.core/= (clojure.core/count input__125886) 4)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/letfn
-                [(state__64633
+                [(state__127555
                   []
                   (clojure.core/let
-                   [input__62968_nth_3__
-                    (clojure.core/nth input__62968 3)]
+                   [input__125886_nth_3__
+                    (clojure.core/nth input__125886 3)]
                    (clojure.core/case
-                    input__62968_nth_0__
+                    input__125886_nth_0__
                     (meander.dev.parse.zeta/make-star)
                     (clojure.core/letfn
-                     [(state__64635
+                     [(state__127557
                        []
                        (if
-                        (clojure.core/map? input__62968_nth_1__)
+                        (clojure.core/map? input__125886_nth_1__)
                         (clojure.core/let
-                         [VAL__63219
-                          (.valAt input__62968_nth_1__ :tag)]
+                         [VAL__126137
+                          (.valAt input__125886_nth_1__ :tag)]
                          (clojure.core/case
-                          VAL__63219
+                          VAL__126137
                           (:cat)
                           (clojure.core/let
-                           [VAL__63220
-                            (.valAt input__62968_nth_1__ :sequence)]
+                           [VAL__126138
+                            (.valAt input__125886_nth_1__ :sequence)]
                            (if
-                            (clojure.core/vector? VAL__63220)
+                            (clojure.core/vector? VAL__126138)
                             (if
                              (clojure.core/=
-                              (clojure.core/count VAL__63220)
+                              (clojure.core/count VAL__126138)
                               1)
                              (clojure.core/let
-                              [VAL__63220_nth_0__
-                               (clojure.core/nth VAL__63220 0)]
+                              [VAL__126138_nth_0__
+                               (clojure.core/nth VAL__126138 0)]
                               (if
-                               (clojure.core/map? VAL__63220_nth_0__)
+                               (clojure.core/map? VAL__126138_nth_0__)
                                (clojure.core/let
-                                [VAL__63225
-                                 (.valAt VAL__63220_nth_0__ :tag)]
+                                [VAL__126143
+                                 (.valAt VAL__126138_nth_0__ :tag)]
                                 (clojure.core/case
-                                 VAL__63225
+                                 VAL__126143
                                  (:memory-variable)
                                  (clojure.core/let
-                                  [?memory-variable VAL__63220_nth_0__]
+                                  [?memory-variable
+                                   VAL__126138_nth_0__]
                                   (clojure.core/let
-                                   [VAL__63221
+                                   [VAL__126139
                                     (.valAt
-                                     input__62968_nth_1__
+                                     input__125886_nth_1__
                                      :next)]
                                    (if
-                                    (clojure.core/map? VAL__63221)
+                                    (clojure.core/map? VAL__126139)
                                     (clojure.core/let
-                                     [VAL__63222
-                                      (.valAt VAL__63221 :tag)]
+                                     [VAL__126140
+                                      (.valAt VAL__126139 :tag)]
                                      (clojure.core/case
-                                      VAL__63222
+                                      VAL__126140
                                       (:empty)
                                       (clojure.core/let
-                                       [?next input__62968_nth_2__]
+                                       [?next input__125886_nth_2__]
                                        (clojure.core/let
-                                        [?env input__62968_nth_3__]
+                                        [?env input__125886_nth_3__]
                                         (try
                                          [(clojure.core/let
                                            [CATA_RESULT__15641__auto__
-                                            (CATA__FN__63051
+                                            (CATA__FN__125969
                                              ['meander.dev.parse.zeta/make-join
                                               {:tag :into,
                                                :memory-variable
@@ -1328,27 +1349,27 @@
                                            (meander.runtime.zeta/fail)
                                            (throw
                                             e__16581__auto__))))))
-                                      (state__64636)))
-                                    (state__64636))))
-                                 (state__64636)))
-                               (state__64636)))
-                             (state__64636))
-                            (state__64636)))
-                          (state__64636)))
-                        (state__64636)))
-                      (state__64636
+                                      (state__127558)))
+                                    (state__127558))))
+                                 (state__127558)))
+                               (state__127558)))
+                             (state__127558))
+                            (state__127558)))
+                          (state__127558)))
+                        (state__127558)))
+                      (state__127558
                        []
                        (clojure.core/let
-                        [?pattern input__62968_nth_1__]
+                        [?pattern input__125886_nth_1__]
                         (clojure.core/let
-                         [?next input__62968_nth_2__]
+                         [?next input__125886_nth_2__]
                          (if
-                          (clojure.core/map? input__62968_nth_3__)
+                          (clojure.core/map? input__125886_nth_3__)
                           (clojure.core/let
-                           [VAL__63228
-                            (.valAt input__62968_nth_3__ :context)]
+                           [VAL__126146
+                            (.valAt input__125886_nth_3__ :context)]
                            (clojure.core/case
-                            VAL__63228
+                            VAL__126146
                             (:string)
                             (try
                              [{:tag :string-star,
@@ -1363,19 +1384,19 @@
                                 e__16581__auto__)
                                (meander.runtime.zeta/fail)
                                (throw e__16581__auto__))))
-                            (state__64634)))
-                          (state__64634)))))]
-                     (state__64635))
-                    (state__64634))))
-                 (state__64634
+                            (state__127556)))
+                          (state__127556)))))]
+                     (state__127557))
+                    (state__127556))))
+                 (state__127556
                   []
                   (clojure.core/case
-                   input__62968_nth_0__
+                   input__125886_nth_0__
                    (meander.dev.parse.zeta/make-star)
                    (clojure.core/let
-                    [?pattern input__62968_nth_1__]
+                    [?pattern input__125886_nth_1__]
                     (clojure.core/let
-                     [?next input__62968_nth_2__]
+                     [?next input__125886_nth_2__]
                      (try
                       [{:tag :star,
                         :greedy? false,
@@ -1388,84 +1409,84 @@
                         (meander.runtime.zeta/fail? e__16581__auto__)
                         (meander.runtime.zeta/fail)
                         (throw e__16581__auto__))))))
-                   (state__64617)))]
-                (state__64633)))
-              (state__64617)))
-            (state__64617
+                   (state__127539)))]
+                (state__127555)))
+              (state__127539)))
+            (state__127539
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 3)
+              (clojure.core/= (clojure.core/count input__125886) 3)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/case
-                input__62968_nth_0__
+                input__125886_nth_0__
                 (meander.dev.parse.zeta/parse-sequential)
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/let
-                  [input__62968_nth_1___l__
+                  [input__125886_nth_1___l__
                    (clojure.core/subvec
-                    input__62968_nth_1__
+                    input__125886_nth_1__
                     0
                     (clojure.core/min
-                     (clojure.core/count input__62968_nth_1__)
+                     (clojure.core/count input__125886_nth_1__)
                      1))]
                   (if
                    (clojure.core/=
-                    (clojure.core/count input__62968_nth_1___l__)
+                    (clojure.core/count input__125886_nth_1___l__)
                     1)
                    (clojure.core/let
-                    [input__62968_nth_1___r__
-                     (clojure.core/subvec input__62968_nth_1__ 1)]
+                    [input__125886_nth_1___r__
+                     (clojure.core/subvec input__125886_nth_1__ 1)]
                     (clojure.core/let
-                     [input__62968_nth_1___l___nth_0__
-                      (clojure.core/nth input__62968_nth_1___l__ 0)]
+                     [input__125886_nth_1___l___nth_0__
+                      (clojure.core/nth input__125886_nth_1___l__ 0)]
                      (if
                       (clojure.core/symbol?
-                       input__62968_nth_1___l___nth_0__)
+                       input__125886_nth_1___l___nth_0__)
                       (clojure.core/let
-                       [X__63236
+                       [X__126154
                         (clojure.core/namespace
-                         input__62968_nth_1___l___nth_0__)]
+                         input__125886_nth_1___l___nth_0__)]
                        (clojure.core/case
-                        X__63236
+                        X__126154
                         (nil)
                         (clojure.core/let
-                         [X__63238
+                         [X__126156
                           (clojure.core/name
-                           input__62968_nth_1___l___nth_0__)]
+                           input__125886_nth_1___l___nth_0__)]
                          (if
-                          (clojure.core/string? X__63238)
+                          (clojure.core/string? X__126156)
                           (clojure.core/let
-                           [ret__63239
+                           [ret__126157
                             (clojure.core/re-matches
                              #"\.\.(\d+)"
-                             X__63238)]
+                             X__126156)]
                            (if
-                            (clojure.core/some? ret__63239)
+                            (clojure.core/some? ret__126157)
                             (if
-                             (clojure.core/vector? ret__63239)
+                             (clojure.core/vector? ret__126157)
                              (if
                               (clojure.core/=
-                               (clojure.core/count ret__63239)
+                               (clojure.core/count ret__126157)
                                2)
                               (clojure.core/let
-                               [ret__63239_nth_1__
-                                (clojure.core/nth ret__63239 1)]
+                               [ret__126157_nth_1__
+                                (clojure.core/nth ret__126157 1)]
                                (clojure.core/let
-                                [?n ret__63239_nth_1__]
+                                [?n ret__126157_nth_1__]
                                 (clojure.core/let
                                  [?operator
-                                  input__62968_nth_1___l___nth_0__]
+                                  input__125886_nth_1___l___nth_0__]
                                  (clojure.core/let
-                                  [?rest input__62968_nth_1___r__]
+                                  [?rest input__125886_nth_1___r__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_2__]
+                                   [?env input__125886_nth_2__]
                                    (try
                                     [{:tag :syntax-error,
                                       :message
@@ -1478,197 +1499,200 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__)))))))))
-                              (state__64561))
-                             (state__64561))
-                            (state__64561)))
-                          (state__64561)))
-                        (state__64561)))
-                      (state__64561))))
-                   (state__64561)))
-                 (state__64561))
-                (state__64561)))
-              (state__64561)))]
-           (state__64615))
-          (state__64561)))
-        (state__64561
+                              (state__127483))
+                             (state__127483))
+                            (state__127483)))
+                          (state__127483)))
+                        (state__127483)))
+                      (state__127483))))
+                   (state__127483)))
+                 (state__127483))
+                (state__127483)))
+              (state__127483)))]
+           (state__127537))
+          (state__127483)))
+        (state__127483
          []
          (clojure.core/letfn
-          [(def__63242
-            [arg__63266]
+          [(def__126160
+            [arg__126184]
             (clojure.core/letfn
-             [(state__64637
+             [(state__127559
                []
                (clojure.core/let
-                [x__63267 :string-plus]
+                [x__126185 :string-plus]
                 (clojure.core/let
-                 [?tag x__63267]
+                 [?tag x__126185]
                  (if
-                  (clojure.core/map? arg__63266)
+                  (clojure.core/map? arg__126184)
                   (clojure.core/let
-                   [VAL__63268 (.valAt arg__63266 :context)]
+                   [VAL__126186 (.valAt arg__126184 :context)]
                    (clojure.core/case
-                    VAL__63268
+                    VAL__126186
                     (:string)
-                    (clojure.core/let [?env arg__63266] [?tag ?env])
-                    (state__64638)))
-                  (state__64638)))))
-              (state__64638
+                    (clojure.core/let [?env arg__126184] [?tag ?env])
+                    (state__127560)))
+                  (state__127560)))))
+              (state__127560
                []
                (clojure.core/let
-                [x__63269 :plus]
+                [x__126187 :plus]
                 (clojure.core/let
-                 [?tag x__63269]
-                 (clojure.core/let [?env arg__63266] [?tag ?env]))))]
-             (state__64637)))]
+                 [?tag x__126187]
+                 (clojure.core/let [?env arg__126184] [?tag ?env]))))]
+             (state__127559)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 3)
+            (clojure.core/= (clojure.core/count input__125886) 3)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)
-              input__62968_nth_2__
-              (clojure.core/nth input__62968 2)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)
+              input__125886_nth_2__
+              (clojure.core/nth input__125886 2)]
              (clojure.core/case
-              input__62968_nth_0__
+              input__125886_nth_0__
               (meander.dev.parse.zeta/parse-sequential)
               (if
-               (clojure.core/vector? input__62968_nth_1__)
+               (clojure.core/vector? input__125886_nth_1__)
                (clojure.core/loop
-                [search_space__64639
+                [search_space__127561
                  (meander.runtime.zeta/epsilon-partitions
                   2
-                  input__62968_nth_1__)]
+                  input__125886_nth_1__)]
                 (if
-                 (clojure.core/seq search_space__64639)
+                 (clojure.core/seq search_space__127561)
                  (clojure.core/let
-                  [input__62968_nth_1___parts__
-                   (clojure.core/first search_space__64639)
-                   result__64640
+                  [input__125886_nth_1___parts__
+                   (clojure.core/first search_space__127561)
+                   result__127562
                    (clojure.core/let
-                    [input__62968_nth_1___l__
-                     (clojure.core/nth input__62968_nth_1___parts__ 0)
-                     input__62968_nth_1___r__
-                     (clojure.core/nth input__62968_nth_1___parts__ 1)]
+                    [input__125886_nth_1___l__
+                     (clojure.core/nth input__125886_nth_1___parts__ 0)
+                     input__125886_nth_1___r__
+                     (clojure.core/nth
+                      input__125886_nth_1___parts__
+                      1)]
                     (clojure.core/let
                      [!xs []]
                      (clojure.core/let
                       [ret__14502__auto__
                        (meander.runtime.zeta/epsilon-run-star-1
-                        input__62968_nth_1___l__
+                        input__125886_nth_1___l__
                         [!xs]
                         (clojure.core/fn
-                         [[!xs] input__63259]
+                         [[!xs] input__126177]
                          (clojure.core/let
-                          [input__63259_nth_0__
-                           (clojure.core/nth input__63259 0)]
+                          [input__126177_nth_0__
+                           (clojure.core/nth input__126177 0)]
                           (clojure.core/letfn
-                           [(save__63260
+                           [(save__126178
                              []
                              (meander.runtime.zeta/fail))
-                            (f__64643
+                            (f__127565
                              []
                              (clojure.core/let
                               [!xs
                                (clojure.core/conj
                                 !xs
-                                input__63259_nth_0__)]
+                                input__126177_nth_0__)]
                               [!xs]))]
                            (if
-                            (clojure.core/symbol? input__63259_nth_0__)
+                            (clojure.core/symbol?
+                             input__126177_nth_0__)
                             (clojure.core/let
-                             [X__63262
+                             [X__126180
                               (clojure.core/namespace
-                               input__63259_nth_0__)]
+                               input__126177_nth_0__)]
                              (clojure.core/case
-                              X__63262
+                              X__126180
                               (nil)
                               (clojure.core/let
-                               [X__63264
+                               [X__126182
                                 (clojure.core/name
-                                 input__63259_nth_0__)]
+                                 input__126177_nth_0__)]
                                (if
-                                (clojure.core/string? X__63264)
+                                (clojure.core/string? X__126182)
                                 (if
                                  (clojure.core/re-matches
                                   #"\.\.(?:\.|\d+)"
-                                  X__63264)
-                                 (save__63260)
-                                 (f__64643))
-                                (f__64643)))
-                              (f__64643)))
-                            (f__64643)))))
+                                  X__126182)
+                                 (save__126178)
+                                 (f__127565))
+                                (f__127565)))
+                              (f__127565)))
+                            (f__127565)))))
                         (clojure.core/fn
                          [[!xs]]
                          (clojure.core/let
-                          [input__62968_nth_1___r___l__
+                          [input__125886_nth_1___r___l__
                            (clojure.core/subvec
-                            input__62968_nth_1___r__
+                            input__125886_nth_1___r__
                             0
                             (clojure.core/min
                              (clojure.core/count
-                              input__62968_nth_1___r__)
+                              input__125886_nth_1___r__)
                              1))]
                           (if
                            (clojure.core/=
                             (clojure.core/count
-                             input__62968_nth_1___r___l__)
+                             input__125886_nth_1___r___l__)
                             1)
                            (clojure.core/let
-                            [input__62968_nth_1___r___r__
+                            [input__125886_nth_1___r___r__
                              (clojure.core/subvec
-                              input__62968_nth_1___r__
+                              input__125886_nth_1___r__
                               1)]
                             (clojure.core/let
-                             [input__62968_nth_1___r___l___nth_0__
+                             [input__125886_nth_1___r___l___nth_0__
                               (clojure.core/nth
-                               input__62968_nth_1___r___l__
+                               input__125886_nth_1___r___l__
                                0)]
                              (if
                               (clojure.core/symbol?
-                               input__62968_nth_1___r___l___nth_0__)
+                               input__125886_nth_1___r___l___nth_0__)
                               (clojure.core/let
-                               [X__63253
+                               [X__126171
                                 (clojure.core/namespace
-                                 input__62968_nth_1___r___l___nth_0__)]
+                                 input__125886_nth_1___r___l___nth_0__)]
                                (clojure.core/case
-                                X__63253
+                                X__126171
                                 (nil)
                                 (clojure.core/let
-                                 [X__63255
+                                 [X__126173
                                   (clojure.core/name
-                                   input__62968_nth_1___r___l___nth_0__)]
+                                   input__125886_nth_1___r___l___nth_0__)]
                                  (if
-                                  (clojure.core/string? X__63255)
+                                  (clojure.core/string? X__126173)
                                   (clojure.core/let
-                                   [ret__63256
+                                   [ret__126174
                                     (clojure.core/re-matches
                                      #"\.\.(\d+)"
-                                     X__63255)]
+                                     X__126173)]
                                    (if
-                                    (clojure.core/some? ret__63256)
+                                    (clojure.core/some? ret__126174)
                                     (if
-                                     (clojure.core/vector? ret__63256)
+                                     (clojure.core/vector? ret__126174)
                                      (if
                                       (clojure.core/=
-                                       (clojure.core/count ret__63256)
+                                       (clojure.core/count ret__126174)
                                        2)
                                       (clojure.core/let
-                                       [ret__63256_nth_1__
+                                       [ret__126174_nth_1__
                                         (clojure.core/nth
-                                         ret__63256
+                                         ret__126174
                                          1)]
                                        (clojure.core/let
-                                        [?n ret__63256_nth_1__]
+                                        [?n ret__126174_nth_1__]
                                         (clojure.core/let
                                          [?rest
-                                          input__62968_nth_1___r___r__]
+                                          input__125886_nth_1___r___r__]
                                          (clojure.core/let
                                           [x__14338__auto__
-                                           (def__63242
-                                            input__62968_nth_2__)]
+                                           (def__126160
+                                            input__125886_nth_2__)]
                                           (if
                                            (meander.runtime.zeta/fail?
                                             x__14338__auto__)
@@ -1687,7 +1711,7 @@
                                                 :pattern
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     (clojure.core/into
                                                      []
@@ -1706,7 +1730,7 @@
                                                 :next
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     ?rest
                                                     ?env])]
@@ -1739,91 +1763,91 @@
                        (meander.runtime.zeta/fail)
                        ret__14502__auto__))))]
                   (if
-                   (meander.runtime.zeta/fail? result__64640)
-                   (recur (clojure.core/next search_space__64639))
-                   result__64640))
-                 (state__64562)))
-               (state__64562))
-              (state__64562)))
-            (state__64562))
-           (state__64562))))
-        (state__64562
+                   (meander.runtime.zeta/fail? result__127562)
+                   (recur (clojure.core/next search_space__127561))
+                   result__127562))
+                 (state__127484)))
+               (state__127484))
+              (state__127484)))
+            (state__127484))
+           (state__127484))))
+        (state__127484
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 3)
+           (clojure.core/= (clojure.core/count input__125886) 3)
            (clojure.core/let
-            [input__62968_nth_0__
-             (clojure.core/nth input__62968 0)
-             input__62968_nth_1__
-             (clojure.core/nth input__62968 1)
-             input__62968_nth_2__
-             (clojure.core/nth input__62968 2)]
+            [input__125886_nth_0__
+             (clojure.core/nth input__125886 0)
+             input__125886_nth_1__
+             (clojure.core/nth input__125886 1)
+             input__125886_nth_2__
+             (clojure.core/nth input__125886 2)]
             (clojure.core/case
-             input__62968_nth_0__
+             input__125886_nth_0__
              (meander.dev.parse.zeta/parse-sequential)
              (if
-              (clojure.core/vector? input__62968_nth_1__)
+              (clojure.core/vector? input__125886_nth_1__)
               (clojure.core/let
-               [input__62968_nth_1___l__
+               [input__125886_nth_1___l__
                 (clojure.core/subvec
-                 input__62968_nth_1__
+                 input__125886_nth_1__
                  0
                  (clojure.core/min
-                  (clojure.core/count input__62968_nth_1__)
+                  (clojure.core/count input__125886_nth_1__)
                   1))]
                (if
                 (clojure.core/=
-                 (clojure.core/count input__62968_nth_1___l__)
+                 (clojure.core/count input__125886_nth_1___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_1___r__
-                  (clojure.core/subvec input__62968_nth_1__ 1)]
+                 [input__125886_nth_1___r__
+                  (clojure.core/subvec input__125886_nth_1__ 1)]
                  (clojure.core/let
-                  [input__62968_nth_1___l___nth_0__
-                   (clojure.core/nth input__62968_nth_1___l__ 0)]
+                  [input__125886_nth_1___l___nth_0__
+                   (clojure.core/nth input__125886_nth_1___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_1___l___nth_0__)
+                    input__125886_nth_1___l___nth_0__)
                    (clojure.core/let
-                    [X__63287
+                    [X__126205
                      (clojure.core/namespace
-                      input__62968_nth_1___l___nth_0__)]
+                      input__125886_nth_1___l___nth_0__)]
                     (clojure.core/case
-                     X__63287
+                     X__126205
                      (nil)
                      (clojure.core/let
-                      [X__63289
+                      [X__126207
                        (clojure.core/name
-                        input__62968_nth_1___l___nth_0__)]
+                        input__125886_nth_1___l___nth_0__)]
                       (if
-                       (clojure.core/string? X__63289)
+                       (clojure.core/string? X__126207)
                        (clojure.core/let
-                        [ret__63290
+                        [ret__126208
                          (clojure.core/re-matches
                           #"\.\.(\?.+)"
-                          X__63289)]
+                          X__126207)]
                         (if
-                         (clojure.core/some? ret__63290)
+                         (clojure.core/some? ret__126208)
                          (if
-                          (clojure.core/vector? ret__63290)
+                          (clojure.core/vector? ret__126208)
                           (if
                            (clojure.core/=
-                            (clojure.core/count ret__63290)
+                            (clojure.core/count ret__126208)
                             2)
                            (clojure.core/let
-                            [ret__63290_nth_1__
-                             (clojure.core/nth ret__63290 1)]
+                            [ret__126208_nth_1__
+                             (clojure.core/nth ret__126208 1)]
                             (clojure.core/let
-                             [?n ret__63290_nth_1__]
+                             [?n ret__126208_nth_1__]
                              (clojure.core/let
                               [?operator
-                               input__62968_nth_1___l___nth_0__]
+                               input__125886_nth_1___l___nth_0__]
                               (clojure.core/let
-                               [?rest input__62968_nth_1___r__]
+                               [?rest input__125886_nth_1___r__]
                                (clojure.core/let
-                                [?env input__62968_nth_2__]
+                                [?env input__125886_nth_2__]
                                 (try
                                  [{:tag :syntax-error,
                                    :message
@@ -1836,196 +1860,199 @@
                                     e__16581__auto__)
                                    (meander.runtime.zeta/fail)
                                    (throw e__16581__auto__)))))))))
-                           (state__64563))
-                          (state__64563))
-                         (state__64563)))
-                       (state__64563)))
-                     (state__64563)))
-                   (state__64563))))
-                (state__64563)))
-              (state__64563))
-             (state__64563)))
-           (state__64563))
-          (state__64563)))
-        (state__64563
+                           (state__127485))
+                          (state__127485))
+                         (state__127485)))
+                       (state__127485)))
+                     (state__127485)))
+                   (state__127485))))
+                (state__127485)))
+              (state__127485))
+             (state__127485)))
+           (state__127485))
+          (state__127485)))
+        (state__127485
          []
          (clojure.core/letfn
-          [(def__63293
-            [arg__63317]
+          [(def__126211
+            [arg__126235]
             (clojure.core/letfn
-             [(state__64644
+             [(state__127566
                []
                (clojure.core/let
-                [x__63318 :string-logical-plus]
+                [x__126236 :string-logical-plus]
                 (clojure.core/let
-                 [?tag x__63318]
+                 [?tag x__126236]
                  (if
-                  (clojure.core/map? arg__63317)
+                  (clojure.core/map? arg__126235)
                   (clojure.core/let
-                   [VAL__63319 (.valAt arg__63317 :context)]
+                   [VAL__126237 (.valAt arg__126235 :context)]
                    (clojure.core/case
-                    VAL__63319
+                    VAL__126237
                     (:string)
-                    (clojure.core/let [?env arg__63317] [?tag ?env])
-                    (state__64645)))
-                  (state__64645)))))
-              (state__64645
+                    (clojure.core/let [?env arg__126235] [?tag ?env])
+                    (state__127567)))
+                  (state__127567)))))
+              (state__127567
                []
                (clojure.core/let
-                [x__63320 :logical-plus]
+                [x__126238 :logical-plus]
                 (clojure.core/let
-                 [?tag x__63320]
-                 (clojure.core/let [?env arg__63317] [?tag ?env]))))]
-             (state__64644)))]
+                 [?tag x__126238]
+                 (clojure.core/let [?env arg__126235] [?tag ?env]))))]
+             (state__127566)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 3)
+            (clojure.core/= (clojure.core/count input__125886) 3)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)
-              input__62968_nth_2__
-              (clojure.core/nth input__62968 2)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)
+              input__125886_nth_2__
+              (clojure.core/nth input__125886 2)]
              (clojure.core/case
-              input__62968_nth_0__
+              input__125886_nth_0__
               (meander.dev.parse.zeta/parse-sequential)
               (if
-               (clojure.core/vector? input__62968_nth_1__)
+               (clojure.core/vector? input__125886_nth_1__)
                (clojure.core/loop
-                [search_space__64646
+                [search_space__127568
                  (meander.runtime.zeta/epsilon-partitions
                   2
-                  input__62968_nth_1__)]
+                  input__125886_nth_1__)]
                 (if
-                 (clojure.core/seq search_space__64646)
+                 (clojure.core/seq search_space__127568)
                  (clojure.core/let
-                  [input__62968_nth_1___parts__
-                   (clojure.core/first search_space__64646)
-                   result__64647
+                  [input__125886_nth_1___parts__
+                   (clojure.core/first search_space__127568)
+                   result__127569
                    (clojure.core/let
-                    [input__62968_nth_1___l__
-                     (clojure.core/nth input__62968_nth_1___parts__ 0)
-                     input__62968_nth_1___r__
-                     (clojure.core/nth input__62968_nth_1___parts__ 1)]
+                    [input__125886_nth_1___l__
+                     (clojure.core/nth input__125886_nth_1___parts__ 0)
+                     input__125886_nth_1___r__
+                     (clojure.core/nth
+                      input__125886_nth_1___parts__
+                      1)]
                     (clojure.core/let
                      [!xs []]
                      (clojure.core/let
                       [ret__14502__auto__
                        (meander.runtime.zeta/epsilon-run-star-1
-                        input__62968_nth_1___l__
+                        input__125886_nth_1___l__
                         [!xs]
                         (clojure.core/fn
-                         [[!xs] input__63310]
+                         [[!xs] input__126228]
                          (clojure.core/let
-                          [input__63310_nth_0__
-                           (clojure.core/nth input__63310 0)]
+                          [input__126228_nth_0__
+                           (clojure.core/nth input__126228 0)]
                           (clojure.core/letfn
-                           [(save__63311
+                           [(save__126229
                              []
                              (meander.runtime.zeta/fail))
-                            (f__64650
+                            (f__127572
                              []
                              (clojure.core/let
                               [!xs
                                (clojure.core/conj
                                 !xs
-                                input__63310_nth_0__)]
+                                input__126228_nth_0__)]
                               [!xs]))]
                            (if
-                            (clojure.core/symbol? input__63310_nth_0__)
+                            (clojure.core/symbol?
+                             input__126228_nth_0__)
                             (clojure.core/let
-                             [X__63313
+                             [X__126231
                               (clojure.core/namespace
-                               input__63310_nth_0__)]
+                               input__126228_nth_0__)]
                              (clojure.core/case
-                              X__63313
+                              X__126231
                               (nil)
                               (clojure.core/let
-                               [X__63315
+                               [X__126233
                                 (clojure.core/name
-                                 input__63310_nth_0__)]
+                                 input__126228_nth_0__)]
                                (if
-                                (clojure.core/string? X__63315)
+                                (clojure.core/string? X__126233)
                                 (if
                                  (clojure.core/re-matches
                                   #"\.\.(?:\.|\d+)"
-                                  X__63315)
-                                 (save__63311)
-                                 (f__64650))
-                                (f__64650)))
-                              (f__64650)))
-                            (f__64650)))))
+                                  X__126233)
+                                 (save__126229)
+                                 (f__127572))
+                                (f__127572)))
+                              (f__127572)))
+                            (f__127572)))))
                         (clojure.core/fn
                          [[!xs]]
                          (clojure.core/let
-                          [input__62968_nth_1___r___l__
+                          [input__125886_nth_1___r___l__
                            (clojure.core/subvec
-                            input__62968_nth_1___r__
+                            input__125886_nth_1___r__
                             0
                             (clojure.core/min
                              (clojure.core/count
-                              input__62968_nth_1___r__)
+                              input__125886_nth_1___r__)
                              1))]
                           (if
                            (clojure.core/=
                             (clojure.core/count
-                             input__62968_nth_1___r___l__)
+                             input__125886_nth_1___r___l__)
                             1)
                            (clojure.core/let
-                            [input__62968_nth_1___r___r__
+                            [input__125886_nth_1___r___r__
                              (clojure.core/subvec
-                              input__62968_nth_1___r__
+                              input__125886_nth_1___r__
                               1)]
                             (clojure.core/let
-                             [input__62968_nth_1___r___l___nth_0__
+                             [input__125886_nth_1___r___l___nth_0__
                               (clojure.core/nth
-                               input__62968_nth_1___r___l__
+                               input__125886_nth_1___r___l__
                                0)]
                              (if
                               (clojure.core/symbol?
-                               input__62968_nth_1___r___l___nth_0__)
+                               input__125886_nth_1___r___l___nth_0__)
                               (clojure.core/let
-                               [X__63304
+                               [X__126222
                                 (clojure.core/namespace
-                                 input__62968_nth_1___r___l___nth_0__)]
+                                 input__125886_nth_1___r___l___nth_0__)]
                                (clojure.core/case
-                                X__63304
+                                X__126222
                                 (nil)
                                 (clojure.core/let
-                                 [X__63306
+                                 [X__126224
                                   (clojure.core/name
-                                   input__62968_nth_1___r___l___nth_0__)]
+                                   input__125886_nth_1___r___l___nth_0__)]
                                  (if
-                                  (clojure.core/string? X__63306)
+                                  (clojure.core/string? X__126224)
                                   (clojure.core/let
-                                   [ret__63307
+                                   [ret__126225
                                     (clojure.core/re-matches
                                      #"\.\.(\?.+)"
-                                     X__63306)]
+                                     X__126224)]
                                    (if
-                                    (clojure.core/some? ret__63307)
+                                    (clojure.core/some? ret__126225)
                                     (if
-                                     (clojure.core/vector? ret__63307)
+                                     (clojure.core/vector? ret__126225)
                                      (if
                                       (clojure.core/=
-                                       (clojure.core/count ret__63307)
+                                       (clojure.core/count ret__126225)
                                        2)
                                       (clojure.core/let
-                                       [ret__63307_nth_1__
+                                       [ret__126225_nth_1__
                                         (clojure.core/nth
-                                         ret__63307
+                                         ret__126225
                                          1)]
                                        (clojure.core/let
-                                        [?n ret__63307_nth_1__]
+                                        [?n ret__126225_nth_1__]
                                         (clojure.core/let
                                          [?rest
-                                          input__62968_nth_1___r___r__]
+                                          input__125886_nth_1___r___r__]
                                          (clojure.core/let
                                           [x__14338__auto__
-                                           (def__63293
-                                            input__62968_nth_2__)]
+                                           (def__126211
+                                            input__125886_nth_2__)]
                                           (if
                                            (meander.runtime.zeta/fail?
                                             x__14338__auto__)
@@ -2049,7 +2076,7 @@
                                                 :pattern
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     (clojure.core/into
                                                      []
@@ -2068,7 +2095,7 @@
                                                 :next
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     ?rest
                                                     ?env])]
@@ -2101,91 +2128,91 @@
                        (meander.runtime.zeta/fail)
                        ret__14502__auto__))))]
                   (if
-                   (meander.runtime.zeta/fail? result__64647)
-                   (recur (clojure.core/next search_space__64646))
-                   result__64647))
-                 (state__64564)))
-               (state__64564))
-              (state__64564)))
-            (state__64564))
-           (state__64564))))
-        (state__64564
+                   (meander.runtime.zeta/fail? result__127569)
+                   (recur (clojure.core/next search_space__127568))
+                   result__127569))
+                 (state__127486)))
+               (state__127486))
+              (state__127486)))
+            (state__127486))
+           (state__127486))))
+        (state__127486
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 3)
+           (clojure.core/= (clojure.core/count input__125886) 3)
            (clojure.core/let
-            [input__62968_nth_0__
-             (clojure.core/nth input__62968 0)
-             input__62968_nth_1__
-             (clojure.core/nth input__62968 1)
-             input__62968_nth_2__
-             (clojure.core/nth input__62968 2)]
+            [input__125886_nth_0__
+             (clojure.core/nth input__125886 0)
+             input__125886_nth_1__
+             (clojure.core/nth input__125886 1)
+             input__125886_nth_2__
+             (clojure.core/nth input__125886 2)]
             (clojure.core/case
-             input__62968_nth_0__
+             input__125886_nth_0__
              (meander.dev.parse.zeta/parse-sequential)
              (if
-              (clojure.core/vector? input__62968_nth_1__)
+              (clojure.core/vector? input__125886_nth_1__)
               (clojure.core/let
-               [input__62968_nth_1___l__
+               [input__125886_nth_1___l__
                 (clojure.core/subvec
-                 input__62968_nth_1__
+                 input__125886_nth_1__
                  0
                  (clojure.core/min
-                  (clojure.core/count input__62968_nth_1__)
+                  (clojure.core/count input__125886_nth_1__)
                   1))]
                (if
                 (clojure.core/=
-                 (clojure.core/count input__62968_nth_1___l__)
+                 (clojure.core/count input__125886_nth_1___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_1___r__
-                  (clojure.core/subvec input__62968_nth_1__ 1)]
+                 [input__125886_nth_1___r__
+                  (clojure.core/subvec input__125886_nth_1__ 1)]
                  (clojure.core/let
-                  [input__62968_nth_1___l___nth_0__
-                   (clojure.core/nth input__62968_nth_1___l__ 0)]
+                  [input__125886_nth_1___l___nth_0__
+                   (clojure.core/nth input__125886_nth_1___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_1___l___nth_0__)
+                    input__125886_nth_1___l___nth_0__)
                    (clojure.core/let
-                    [X__63338
+                    [X__126256
                      (clojure.core/namespace
-                      input__62968_nth_1___l___nth_0__)]
+                      input__125886_nth_1___l___nth_0__)]
                     (clojure.core/case
-                     X__63338
+                     X__126256
                      (nil)
                      (clojure.core/let
-                      [X__63340
+                      [X__126258
                        (clojure.core/name
-                        input__62968_nth_1___l___nth_0__)]
+                        input__125886_nth_1___l___nth_0__)]
                       (if
-                       (clojure.core/string? X__63340)
+                       (clojure.core/string? X__126258)
                        (clojure.core/let
-                        [ret__63341
+                        [ret__126259
                          (clojure.core/re-matches
                           #"\.\.(!.+)"
-                          X__63340)]
+                          X__126258)]
                         (if
-                         (clojure.core/some? ret__63341)
+                         (clojure.core/some? ret__126259)
                          (if
-                          (clojure.core/vector? ret__63341)
+                          (clojure.core/vector? ret__126259)
                           (if
                            (clojure.core/=
-                            (clojure.core/count ret__63341)
+                            (clojure.core/count ret__126259)
                             2)
                            (clojure.core/let
-                            [ret__63341_nth_1__
-                             (clojure.core/nth ret__63341 1)]
+                            [ret__126259_nth_1__
+                             (clojure.core/nth ret__126259 1)]
                             (clojure.core/let
-                             [?n ret__63341_nth_1__]
+                             [?n ret__126259_nth_1__]
                              (clojure.core/let
                               [?operator
-                               input__62968_nth_1___l___nth_0__]
+                               input__125886_nth_1___l___nth_0__]
                               (clojure.core/let
-                               [?rest input__62968_nth_1___r__]
+                               [?rest input__125886_nth_1___r__]
                                (clojure.core/let
-                                [?env input__62968_nth_2__]
+                                [?env input__125886_nth_2__]
                                 (try
                                  [{:tag :syntax-error,
                                    :message
@@ -2198,196 +2225,199 @@
                                     e__16581__auto__)
                                    (meander.runtime.zeta/fail)
                                    (throw e__16581__auto__)))))))))
-                           (state__64565))
-                          (state__64565))
-                         (state__64565)))
-                       (state__64565)))
-                     (state__64565)))
-                   (state__64565))))
-                (state__64565)))
-              (state__64565))
-             (state__64565)))
-           (state__64565))
-          (state__64565)))
-        (state__64565
+                           (state__127487))
+                          (state__127487))
+                         (state__127487)))
+                       (state__127487)))
+                     (state__127487)))
+                   (state__127487))))
+                (state__127487)))
+              (state__127487))
+             (state__127487)))
+           (state__127487))
+          (state__127487)))
+        (state__127487
          []
          (clojure.core/letfn
-          [(def__63344
-            [arg__63368]
+          [(def__126262
+            [arg__126286]
             (clojure.core/letfn
-             [(state__64651
+             [(state__127573
                []
                (clojure.core/let
-                [x__63369 :string-memory-plus]
+                [x__126287 :string-memory-plus]
                 (clojure.core/let
-                 [?tag x__63369]
+                 [?tag x__126287]
                  (if
-                  (clojure.core/map? arg__63368)
+                  (clojure.core/map? arg__126286)
                   (clojure.core/let
-                   [VAL__63370 (.valAt arg__63368 :context)]
+                   [VAL__126288 (.valAt arg__126286 :context)]
                    (clojure.core/case
-                    VAL__63370
+                    VAL__126288
                     (:string)
-                    (clojure.core/let [?env arg__63368] [?tag ?env])
-                    (state__64652)))
-                  (state__64652)))))
-              (state__64652
+                    (clojure.core/let [?env arg__126286] [?tag ?env])
+                    (state__127574)))
+                  (state__127574)))))
+              (state__127574
                []
                (clojure.core/let
-                [x__63371 :memory-plus]
+                [x__126289 :memory-plus]
                 (clojure.core/let
-                 [?tag x__63371]
-                 (clojure.core/let [?env arg__63368] [?tag ?env]))))]
-             (state__64651)))]
+                 [?tag x__126289]
+                 (clojure.core/let [?env arg__126286] [?tag ?env]))))]
+             (state__127573)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 3)
+            (clojure.core/= (clojure.core/count input__125886) 3)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)
-              input__62968_nth_2__
-              (clojure.core/nth input__62968 2)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)
+              input__125886_nth_2__
+              (clojure.core/nth input__125886 2)]
              (clojure.core/case
-              input__62968_nth_0__
+              input__125886_nth_0__
               (meander.dev.parse.zeta/parse-sequential)
               (if
-               (clojure.core/vector? input__62968_nth_1__)
+               (clojure.core/vector? input__125886_nth_1__)
                (clojure.core/loop
-                [search_space__64653
+                [search_space__127575
                  (meander.runtime.zeta/epsilon-partitions
                   2
-                  input__62968_nth_1__)]
+                  input__125886_nth_1__)]
                 (if
-                 (clojure.core/seq search_space__64653)
+                 (clojure.core/seq search_space__127575)
                  (clojure.core/let
-                  [input__62968_nth_1___parts__
-                   (clojure.core/first search_space__64653)
-                   result__64654
+                  [input__125886_nth_1___parts__
+                   (clojure.core/first search_space__127575)
+                   result__127576
                    (clojure.core/let
-                    [input__62968_nth_1___l__
-                     (clojure.core/nth input__62968_nth_1___parts__ 0)
-                     input__62968_nth_1___r__
-                     (clojure.core/nth input__62968_nth_1___parts__ 1)]
+                    [input__125886_nth_1___l__
+                     (clojure.core/nth input__125886_nth_1___parts__ 0)
+                     input__125886_nth_1___r__
+                     (clojure.core/nth
+                      input__125886_nth_1___parts__
+                      1)]
                     (clojure.core/let
                      [!xs []]
                      (clojure.core/let
                       [ret__14502__auto__
                        (meander.runtime.zeta/epsilon-run-star-1
-                        input__62968_nth_1___l__
+                        input__125886_nth_1___l__
                         [!xs]
                         (clojure.core/fn
-                         [[!xs] input__63361]
+                         [[!xs] input__126279]
                          (clojure.core/let
-                          [input__63361_nth_0__
-                           (clojure.core/nth input__63361 0)]
+                          [input__126279_nth_0__
+                           (clojure.core/nth input__126279 0)]
                           (clojure.core/letfn
-                           [(save__63362
+                           [(save__126280
                              []
                              (meander.runtime.zeta/fail))
-                            (f__64657
+                            (f__127579
                              []
                              (clojure.core/let
                               [!xs
                                (clojure.core/conj
                                 !xs
-                                input__63361_nth_0__)]
+                                input__126279_nth_0__)]
                               [!xs]))]
                            (if
-                            (clojure.core/symbol? input__63361_nth_0__)
+                            (clojure.core/symbol?
+                             input__126279_nth_0__)
                             (clojure.core/let
-                             [X__63364
+                             [X__126282
                               (clojure.core/namespace
-                               input__63361_nth_0__)]
+                               input__126279_nth_0__)]
                              (clojure.core/case
-                              X__63364
+                              X__126282
                               (nil)
                               (clojure.core/let
-                               [X__63366
+                               [X__126284
                                 (clojure.core/name
-                                 input__63361_nth_0__)]
+                                 input__126279_nth_0__)]
                                (if
-                                (clojure.core/string? X__63366)
+                                (clojure.core/string? X__126284)
                                 (if
                                  (clojure.core/re-matches
                                   #"\.\.(?:\.|\d+)"
-                                  X__63366)
-                                 (save__63362)
-                                 (f__64657))
-                                (f__64657)))
-                              (f__64657)))
-                            (f__64657)))))
+                                  X__126284)
+                                 (save__126280)
+                                 (f__127579))
+                                (f__127579)))
+                              (f__127579)))
+                            (f__127579)))))
                         (clojure.core/fn
                          [[!xs]]
                          (clojure.core/let
-                          [input__62968_nth_1___r___l__
+                          [input__125886_nth_1___r___l__
                            (clojure.core/subvec
-                            input__62968_nth_1___r__
+                            input__125886_nth_1___r__
                             0
                             (clojure.core/min
                              (clojure.core/count
-                              input__62968_nth_1___r__)
+                              input__125886_nth_1___r__)
                              1))]
                           (if
                            (clojure.core/=
                             (clojure.core/count
-                             input__62968_nth_1___r___l__)
+                             input__125886_nth_1___r___l__)
                             1)
                            (clojure.core/let
-                            [input__62968_nth_1___r___r__
+                            [input__125886_nth_1___r___r__
                              (clojure.core/subvec
-                              input__62968_nth_1___r__
+                              input__125886_nth_1___r__
                               1)]
                             (clojure.core/let
-                             [input__62968_nth_1___r___l___nth_0__
+                             [input__125886_nth_1___r___l___nth_0__
                               (clojure.core/nth
-                               input__62968_nth_1___r___l__
+                               input__125886_nth_1___r___l__
                                0)]
                              (if
                               (clojure.core/symbol?
-                               input__62968_nth_1___r___l___nth_0__)
+                               input__125886_nth_1___r___l___nth_0__)
                               (clojure.core/let
-                               [X__63355
+                               [X__126273
                                 (clojure.core/namespace
-                                 input__62968_nth_1___r___l___nth_0__)]
+                                 input__125886_nth_1___r___l___nth_0__)]
                                (clojure.core/case
-                                X__63355
+                                X__126273
                                 (nil)
                                 (clojure.core/let
-                                 [X__63357
+                                 [X__126275
                                   (clojure.core/name
-                                   input__62968_nth_1___r___l___nth_0__)]
+                                   input__125886_nth_1___r___l___nth_0__)]
                                  (if
-                                  (clojure.core/string? X__63357)
+                                  (clojure.core/string? X__126275)
                                   (clojure.core/let
-                                   [ret__63358
+                                   [ret__126276
                                     (clojure.core/re-matches
                                      #"\.\.(\!.+)"
-                                     X__63357)]
+                                     X__126275)]
                                    (if
-                                    (clojure.core/some? ret__63358)
+                                    (clojure.core/some? ret__126276)
                                     (if
-                                     (clojure.core/vector? ret__63358)
+                                     (clojure.core/vector? ret__126276)
                                      (if
                                       (clojure.core/=
-                                       (clojure.core/count ret__63358)
+                                       (clojure.core/count ret__126276)
                                        2)
                                       (clojure.core/let
-                                       [ret__63358_nth_1__
+                                       [ret__126276_nth_1__
                                         (clojure.core/nth
-                                         ret__63358
+                                         ret__126276
                                          1)]
                                        (clojure.core/let
-                                        [?n ret__63358_nth_1__]
+                                        [?n ret__126276_nth_1__]
                                         (clojure.core/let
                                          [?rest
-                                          input__62968_nth_1___r___r__]
+                                          input__125886_nth_1___r___r__]
                                          (clojure.core/let
                                           [x__14338__auto__
-                                           (def__63344
-                                            input__62968_nth_2__)]
+                                           (def__126262
+                                            input__125886_nth_2__)]
                                           (if
                                            (meander.runtime.zeta/fail?
                                             x__14338__auto__)
@@ -2411,7 +2441,7 @@
                                                 :pattern
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     (clojure.core/into
                                                      []
@@ -2430,7 +2460,7 @@
                                                 :next
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    ['meander.dev.parse.zeta/parse-sequential
                                                     ?rest
                                                     ?env])]
@@ -2463,59 +2493,60 @@
                        (meander.runtime.zeta/fail)
                        ret__14502__auto__))))]
                   (if
-                   (meander.runtime.zeta/fail? result__64654)
-                   (recur (clojure.core/next search_space__64653))
-                   result__64654))
-                 (state__64566)))
-               (state__64566))
-              (state__64566)))
-            (state__64566))
-           (state__64566))))
-        (state__64566
+                   (meander.runtime.zeta/fail? result__127576)
+                   (recur (clojure.core/next search_space__127575))
+                   result__127576))
+                 (state__127488)))
+               (state__127488))
+              (state__127488)))
+            (state__127488))
+           (state__127488))))
+        (state__127488
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (clojure.core/letfn
-           [(state__64658
+           [(state__127580
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 3)
+              (clojure.core/= (clojure.core/count input__125886) 3)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/case
-                input__62968_nth_0__
+                input__125886_nth_0__
                 (meander.dev.parse.zeta/parse-sequential)
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/let
-                  [!xs (clojure.core/vec input__62968_nth_1__)]
+                  [!xs (clojure.core/vec input__125886_nth_1__)]
                   (clojure.core/let
-                   [?env input__62968_nth_2__]
+                   [?env input__125886_nth_2__]
                    (try
                     [(clojure.core/let
                       [!xs__counter
                        (meander.runtime.zeta/iterator !xs)]
                       (clojure.core/let
                        [CATA_RESULT__15641__auto__
-                        (CATA__FN__63051
+                        (CATA__FN__125969
                          ['meander.dev.parse.zeta/make-cat
                           (clojure.core/into
                            []
                            (clojure.core/loop
-                            [return__63052 (clojure.core/transient [])]
+                            [return__125970
+                             (clojure.core/transient [])]
                             (if
                              (clojure.core/and (.hasNext !xs__counter))
                              (recur
                               (clojure.core/conj!
-                               return__63052
+                               return__125970
                                (clojure.core/let
                                 [CATA_RESULT__15641__auto__
-                                 (CATA__FN__63051
+                                 (CATA__FN__125969
                                   [(if
                                     (.hasNext !xs__counter)
                                     (.next !xs__counter))
@@ -2528,7 +2559,7 @@
                                   CATA_RESULT__15641__auto__
                                   0)))))
                              (clojure.core/persistent!
-                              return__63052))))
+                              return__125970))))
                           {:tag :empty}
                           ?env])]
                        (if
@@ -2545,41 +2576,41 @@
                       (meander.runtime.zeta/fail? e__16581__auto__)
                       (meander.runtime.zeta/fail)
                       (throw e__16581__auto__))))))
-                 (state__64659))
-                (state__64659)))
-              (state__64659)))
-            (state__64659
+                 (state__127581))
+                (state__127581)))
+              (state__127581)))
+            (state__127581
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 4)
+              (clojure.core/= (clojure.core/count input__125886) 4)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/letfn
-                [(state__64661
+                [(state__127583
                   []
                   (clojure.core/let
-                   [input__62968_nth_3__
-                    (clojure.core/nth input__62968 3)]
+                   [input__125886_nth_3__
+                    (clojure.core/nth input__125886 3)]
                    (clojure.core/case
-                    input__62968_nth_0__
+                    input__125886_nth_0__
                     (meander.dev.parse.zeta/make-cat)
                     (if
-                     (clojure.core/vector? input__62968_nth_1__)
+                     (clojure.core/vector? input__125886_nth_1__)
                      (clojure.core/letfn
-                      [(state__64668
+                      [(state__127590
                         []
                         (clojure.core/case
-                         input__62968_nth_1__
+                         input__125886_nth_1__
                          ([])
                          (clojure.core/let
-                          [?next input__62968_nth_2__]
+                          [?next input__125886_nth_2__]
                           (clojure.core/let
-                           [?env input__62968_nth_3__]
+                           [?env input__125886_nth_3__]
                            (try
                             [?next]
                             (catch
@@ -2590,121 +2621,121 @@
                                e__16581__auto__)
                               (meander.runtime.zeta/fail)
                               (throw e__16581__auto__))))))
-                         (state__64669)))
-                       (state__64669
+                         (state__127591)))
+                       (state__127591
                         []
                         (clojure.core/loop
-                         [search_space__64670
+                         [search_space__127592
                           (meander.runtime.zeta/epsilon-partitions
                            2
-                           input__62968_nth_1__)]
+                           input__125886_nth_1__)]
                          (if
-                          (clojure.core/seq search_space__64670)
+                          (clojure.core/seq search_space__127592)
                           (clojure.core/let
-                           [input__62968_nth_1___parts__
-                            (clojure.core/first search_space__64670)
-                            result__64671
+                           [input__125886_nth_1___parts__
+                            (clojure.core/first search_space__127592)
+                            result__127593
                             (clojure.core/let
-                             [input__62968_nth_1___l__
+                             [input__125886_nth_1___l__
                               (clojure.core/nth
-                               input__62968_nth_1___parts__
+                               input__125886_nth_1___parts__
                                0)
-                              input__62968_nth_1___r__
+                              input__125886_nth_1___r__
                               (clojure.core/nth
-                               input__62968_nth_1___parts__
+                               input__125886_nth_1___parts__
                                1)]
                              (clojure.core/letfn
-                              [(state__64673
+                              [(state__127595
                                 []
                                 (clojure.core/let
                                  [!xs []]
                                  (clojure.core/let
                                   [ret__14502__auto__
                                    (meander.runtime.zeta/epsilon-run-star-1
-                                    input__62968_nth_1___l__
+                                    input__125886_nth_1___l__
                                     [!xs]
                                     (clojure.core/fn
-                                     [[!xs] input__63397]
+                                     [[!xs] input__126315]
                                      (clojure.core/let
-                                      [input__63397_nth_0__
+                                      [input__126315_nth_0__
                                        (clojure.core/nth
-                                        input__63397
+                                        input__126315
                                         0)]
                                       (clojure.core/letfn
-                                       [(save__63398
+                                       [(save__126316
                                          []
                                          (meander.runtime.zeta/fail))
-                                        (f__64677
+                                        (f__127599
                                          []
                                          (clojure.core/let
                                           [!xs
                                            (clojure.core/conj
                                             !xs
-                                            input__63397_nth_0__)]
+                                            input__126315_nth_0__)]
                                           [!xs]))]
                                        (if
                                         (clojure.core/map?
-                                         input__63397_nth_0__)
+                                         input__126315_nth_0__)
                                         (clojure.core/let
-                                         [VAL__63399
+                                         [VAL__126317
                                           (.valAt
-                                           input__63397_nth_0__
+                                           input__126315_nth_0__
                                            :tag)]
                                          (clojure.core/case
-                                          VAL__63399
+                                          VAL__126317
                                           (:group)
-                                          (save__63398)
-                                          (f__64677)))
-                                        (f__64677)))))
+                                          (save__126316)
+                                          (f__127599)))
+                                        (f__127599)))))
                                     (clojure.core/fn
                                      [[!xs]]
                                      (clojure.core/let
-                                      [input__62968_nth_1___r___l__
+                                      [input__125886_nth_1___r___l__
                                        (clojure.core/subvec
-                                        input__62968_nth_1___r__
+                                        input__125886_nth_1___r__
                                         0
                                         (clojure.core/min
                                          (clojure.core/count
-                                          input__62968_nth_1___r__)
+                                          input__125886_nth_1___r__)
                                          1))]
                                       (if
                                        (clojure.core/=
                                         (clojure.core/count
-                                         input__62968_nth_1___r___l__)
+                                         input__125886_nth_1___r___l__)
                                         1)
                                        (clojure.core/let
-                                        [input__62968_nth_1___r___r__
+                                        [input__125886_nth_1___r___r__
                                          (clojure.core/subvec
-                                          input__62968_nth_1___r__
+                                          input__125886_nth_1___r__
                                           1)]
                                         (clojure.core/let
-                                         [input__62968_nth_1___r___l___nth_0__
+                                         [input__125886_nth_1___r___l___nth_0__
                                           (clojure.core/nth
-                                           input__62968_nth_1___r___l__
+                                           input__125886_nth_1___r___l__
                                            0)]
                                          (if
                                           (clojure.core/map?
-                                           input__62968_nth_1___r___l___nth_0__)
+                                           input__125886_nth_1___r___l___nth_0__)
                                           (clojure.core/let
-                                           [VAL__63396
+                                           [VAL__126314
                                             (.valAt
-                                             input__62968_nth_1___r___l___nth_0__
+                                             input__125886_nth_1___r___l___nth_0__
                                              :tag)]
                                            (clojure.core/case
-                                            VAL__63396
+                                            VAL__126314
                                             (:group)
                                             (clojure.core/let
                                              [?group
-                                              input__62968_nth_1___r___l___nth_0__]
+                                              input__125886_nth_1___r___l___nth_0__]
                                              (clojure.core/let
                                               [?rest
-                                               input__62968_nth_1___r___r__]
+                                               input__125886_nth_1___r___r__]
                                               (clojure.core/let
                                                [?next
-                                                input__62968_nth_2__]
+                                                input__125886_nth_2__]
                                                (clojure.core/let
                                                 [?env
-                                                 input__62968_nth_3__]
+                                                 input__125886_nth_3__]
                                                 (try
                                                  [(clojure.core/let
                                                    [!xs__counter
@@ -2712,11 +2743,11 @@
                                                      !xs)]
                                                    (clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-join
                                                        (clojure.core/let
                                                         [CATA_RESULT__15641__auto__
-                                                         (CATA__FN__63051
+                                                         (CATA__FN__125969
                                                           ['meander.dev.parse.zeta/make-cat
                                                            (clojure.core/into
                                                             []
@@ -2736,12 +2767,12 @@
                                                           0)))
                                                        (clojure.core/let
                                                         [CATA_RESULT__15641__auto__
-                                                         (CATA__FN__63051
+                                                         (CATA__FN__125969
                                                           ['meander.dev.parse.zeta/make-join
                                                            ?group
                                                            (clojure.core/let
                                                             [CATA_RESULT__15641__auto__
-                                                             (CATA__FN__63051
+                                                             (CATA__FN__125969
                                                               ['meander.dev.parse.zeta/make-cat
                                                                ?rest
                                                                ?next
@@ -2781,105 +2812,105 @@
                                                    (meander.runtime.zeta/fail)
                                                    (throw
                                                     e__16581__auto__))))))))
-                                            (state__64674)))
-                                          (state__64674))))
-                                       (state__64674)))))]
+                                            (state__127596)))
+                                          (state__127596))))
+                                       (state__127596)))))]
                                   (if
                                    (meander.runtime.zeta/fail?
                                     ret__14502__auto__)
-                                   (state__64674)
+                                   (state__127596)
                                    ret__14502__auto__))))
-                               (state__64674
+                               (state__127596
                                 []
                                 (clojure.core/let
                                  [!xs []]
                                  (clojure.core/let
                                   [ret__14502__auto__
                                    (meander.runtime.zeta/epsilon-run-star-1
-                                    input__62968_nth_1___l__
+                                    input__125886_nth_1___l__
                                     [!xs]
                                     (clojure.core/fn
-                                     [[!xs] input__63408]
+                                     [[!xs] input__126326]
                                      (clojure.core/let
-                                      [input__63408_nth_0__
+                                      [input__126326_nth_0__
                                        (clojure.core/nth
-                                        input__63408
+                                        input__126326
                                         0)]
                                       (clojure.core/letfn
-                                       [(save__63409
+                                       [(save__126327
                                          []
                                          (meander.runtime.zeta/fail))
-                                        (f__64679
+                                        (f__127601
                                          []
                                          (clojure.core/let
                                           [!xs
                                            (clojure.core/conj
                                             !xs
-                                            input__63408_nth_0__)]
+                                            input__126326_nth_0__)]
                                           [!xs]))]
                                        (if
                                         (clojure.core/map?
-                                         input__63408_nth_0__)
+                                         input__126326_nth_0__)
                                         (clojure.core/let
-                                         [VAL__63410
+                                         [VAL__126328
                                           (.valAt
-                                           input__63408_nth_0__
+                                           input__126326_nth_0__
                                            :tag)]
                                          (clojure.core/case
-                                          VAL__63410
+                                          VAL__126328
                                           (:star)
-                                          (save__63409)
-                                          (f__64679)))
-                                        (f__64679)))))
+                                          (save__126327)
+                                          (f__127601)))
+                                        (f__127601)))))
                                     (clojure.core/fn
                                      [[!xs]]
                                      (clojure.core/let
-                                      [input__62968_nth_1___r___l__
+                                      [input__125886_nth_1___r___l__
                                        (clojure.core/subvec
-                                        input__62968_nth_1___r__
+                                        input__125886_nth_1___r__
                                         0
                                         (clojure.core/min
                                          (clojure.core/count
-                                          input__62968_nth_1___r__)
+                                          input__125886_nth_1___r__)
                                          1))]
                                       (if
                                        (clojure.core/=
                                         (clojure.core/count
-                                         input__62968_nth_1___r___l__)
+                                         input__125886_nth_1___r___l__)
                                         1)
                                        (clojure.core/let
-                                        [input__62968_nth_1___r___r__
+                                        [input__125886_nth_1___r___r__
                                          (clojure.core/subvec
-                                          input__62968_nth_1___r__
+                                          input__125886_nth_1___r__
                                           1)]
                                         (clojure.core/let
-                                         [input__62968_nth_1___r___l___nth_0__
+                                         [input__125886_nth_1___r___l___nth_0__
                                           (clojure.core/nth
-                                           input__62968_nth_1___r___l__
+                                           input__125886_nth_1___r___l__
                                            0)]
                                          (if
                                           (clojure.core/map?
-                                           input__62968_nth_1___r___l___nth_0__)
+                                           input__125886_nth_1___r___l___nth_0__)
                                           (clojure.core/let
-                                           [VAL__63407
+                                           [VAL__126325
                                             (.valAt
-                                             input__62968_nth_1___r___l___nth_0__
+                                             input__125886_nth_1___r___l___nth_0__
                                              :tag)]
                                            (clojure.core/case
-                                            VAL__63407
+                                            VAL__126325
                                             (:star)
                                             (clojure.core/let
                                              [?star
-                                              input__62968_nth_1___r___l___nth_0__]
+                                              input__125886_nth_1___r___l___nth_0__]
                                              (clojure.core/let
                                               [?rest
-                                               input__62968_nth_1___r___r__]
+                                               input__125886_nth_1___r___r__]
                                               (clojure.core/let
                                                [?next
-                                                input__62968_nth_2__]
+                                                input__125886_nth_2__]
                                                (clojure.core/let
                                                 [?env
-                                                 input__62968_nth_3__]
+                                                 input__125886_nth_3__]
                                                 (try
                                                  [(clojure.core/let
                                                    [!xs__counter
@@ -2887,11 +2918,11 @@
                                                      !xs)]
                                                    (clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-join
                                                        (clojure.core/let
                                                         [CATA_RESULT__15641__auto__
-                                                         (CATA__FN__63051
+                                                         (CATA__FN__125969
                                                           ['meander.dev.parse.zeta/make-cat
                                                            (clojure.core/into
                                                             []
@@ -2911,12 +2942,12 @@
                                                           0)))
                                                        (clojure.core/let
                                                         [CATA_RESULT__15641__auto__
-                                                         (CATA__FN__63051
+                                                         (CATA__FN__125969
                                                           ['meander.dev.parse.zeta/make-join
                                                            ?star
                                                            (clojure.core/let
                                                             [CATA_RESULT__15641__auto__
-                                                             (CATA__FN__63051
+                                                             (CATA__FN__125969
                                                               ['meander.dev.parse.zeta/make-cat
                                                                ?rest
                                                                ?next
@@ -2956,145 +2987,246 @@
                                                    (meander.runtime.zeta/fail)
                                                    (throw
                                                     e__16581__auto__))))))))
-                                            (state__64675)))
-                                          (state__64675))))
-                                       (state__64675)))))]
+                                            (state__127597)))
+                                          (state__127597))))
+                                       (state__127597)))))]
                                   (if
                                    (meander.runtime.zeta/fail?
                                     ret__14502__auto__)
-                                   (state__64675)
+                                   (state__127597)
                                    ret__14502__auto__))))
-                               (state__64675
+                               (state__127597
                                 []
                                 (clojure.core/let
-                                 [!xs []]
-                                 (clojure.core/let
-                                  [ret__14502__auto__
-                                   (meander.runtime.zeta/epsilon-run-star-1
-                                    input__62968_nth_1___l__
-                                    [!xs]
-                                    (clojure.core/fn
-                                     [[!xs] input__63419]
-                                     (clojure.core/let
-                                      [input__63419_nth_0__
-                                       (clojure.core/nth
-                                        input__63419
-                                        0)]
-                                      (clojure.core/letfn
-                                       [(save__63420
-                                         []
-                                         (meander.runtime.zeta/fail))
-                                        (f__64681
-                                         []
-                                         (clojure.core/let
-                                          [!xs
-                                           (clojure.core/conj
-                                            !xs
-                                            input__63419_nth_0__)]
-                                          [!xs]))]
-                                       (if
-                                        (clojure.core/map?
-                                         input__63419_nth_0__)
-                                        (clojure.core/let
-                                         [VAL__63421
-                                          (.valAt
-                                           input__63419_nth_0__
-                                           :tag)]
-                                         (clojure.core/case
-                                          VAL__63421
-                                          (:reference)
-                                          (save__63420)
-                                          (f__64681)))
-                                        (f__64681)))))
-                                    (clojure.core/fn
-                                     [[!xs]]
-                                     (clojure.core/let
-                                      [input__62968_nth_1___r___l__
-                                       (clojure.core/subvec
-                                        input__62968_nth_1___r__
-                                        0
-                                        (clojure.core/min
-                                         (clojure.core/count
-                                          input__62968_nth_1___r__)
-                                         1))]
-                                      (if
-                                       (clojure.core/=
-                                        (clojure.core/count
-                                         input__62968_nth_1___r___l__)
-                                        1)
+                                 [input__125886_nth_1___l___l__
+                                  (clojure.core/subvec
+                                   input__125886_nth_1___l__
+                                   0
+                                   (clojure.core/min
+                                    (clojure.core/count
+                                     input__125886_nth_1___l__)
+                                    1))]
+                                 (if
+                                  (clojure.core/=
+                                   (clojure.core/count
+                                    input__125886_nth_1___l___l__)
+                                   1)
+                                  (clojure.core/let
+                                   [input__125886_nth_1___l___r__
+                                    (clojure.core/subvec
+                                     input__125886_nth_1___l__
+                                     1)]
+                                   (clojure.core/let
+                                    [input__125886_nth_1___l___l___nth_0__
+                                     (clojure.core/nth
+                                      input__125886_nth_1___l___l__
+                                      0)]
+                                    (clojure.core/letfn
+                                     [(save__126336
+                                       []
+                                       (meander.runtime.zeta/fail))
+                                      (f__127602
+                                       []
                                        (clojure.core/let
-                                        [input__62968_nth_1___r___r__
-                                         (clojure.core/subvec
-                                          input__62968_nth_1___r__
-                                          1)]
+                                        [!xs []]
                                         (clojure.core/let
-                                         [input__62968_nth_1___r___l___nth_0__
-                                          (clojure.core/nth
-                                           input__62968_nth_1___r___l__
-                                           0)]
-                                         (if
-                                          (clojure.core/map?
-                                           input__62968_nth_1___r___l___nth_0__)
+                                         [!xs
+                                          (clojure.core/conj
+                                           !xs
+                                           input__125886_nth_1___l___l___nth_0__)]
+                                         (clojure.core/loop
+                                          [i__14475__auto__
+                                           0
+                                           coll__127603
+                                           input__125886_nth_1___l___r__
+                                           [!xs]
+                                           [!xs]]
                                           (clojure.core/let
-                                           [VAL__63418
-                                            (.valAt
-                                             input__62968_nth_1___r___l___nth_0__
-                                             :tag)]
-                                           (clojure.core/case
-                                            VAL__63418
-                                            (:reference)
+                                           [input__126341
+                                            (clojure.core/subvec
+                                             coll__127603
+                                             0
+                                             (clojure.core/min
+                                              (clojure.core/count
+                                               coll__127603)
+                                              1))]
+                                           (if
+                                            (clojure.core/=
+                                             (clojure.core/count
+                                              input__126341)
+                                             1)
                                             (clojure.core/let
-                                             [?reference
-                                              input__62968_nth_1___r___l___nth_0__]
-                                             (clojure.core/let
-                                              [?rest
-                                               input__62968_nth_1___r___r__]
+                                             [result__14476__auto__
                                               (clojure.core/let
-                                               [?next
-                                                input__62968_nth_2__]
+                                               [input__126341_nth_0__
+                                                (clojure.core/nth
+                                                 input__126341
+                                                 0)]
+                                               (clojure.core/letfn
+                                                [(save__126342
+                                                  []
+                                                  (meander.runtime.zeta/fail))
+                                                 (f__127604
+                                                  []
+                                                  (clojure.core/let
+                                                   [!xs
+                                                    (clojure.core/conj
+                                                     !xs
+                                                     input__126341_nth_0__)]
+                                                   [!xs]))]
+                                                (if
+                                                 (clojure.core/map?
+                                                  input__126341_nth_0__)
+                                                 (clojure.core/let
+                                                  [VAL__126343
+                                                   (.valAt
+                                                    input__126341_nth_0__
+                                                    :tag)]
+                                                  (clojure.core/case
+                                                   VAL__126343
+                                                   (:reference)
+                                                   (save__126342)
+                                                   (f__127604)))
+                                                 (f__127604))))]
+                                             (if
+                                              (meander.runtime.zeta/fail?
+                                               result__14476__auto__)
+                                              (meander.runtime.zeta/fail)
+                                              (recur
+                                               (clojure.core/inc
+                                                i__14475__auto__)
+                                               (clojure.core/subvec
+                                                coll__127603
+                                                1)
+                                               result__14476__auto__)))
+                                            (if
+                                             (clojure.core/or
+                                              (clojure.core/seq
+                                               coll__127603)
+                                              (clojure.core/<
+                                               i__14475__auto__
+                                               0))
+                                             (meander.runtime.zeta/fail)
+                                             (clojure.core/let
+                                              [input__125886_nth_1___r___l__
+                                               (clojure.core/subvec
+                                                input__125886_nth_1___r__
+                                                0
+                                                (clojure.core/min
+                                                 (clojure.core/count
+                                                  input__125886_nth_1___r__)
+                                                 1))]
+                                              (if
+                                               (clojure.core/=
+                                                (clojure.core/count
+                                                 input__125886_nth_1___r___l__)
+                                                1)
                                                (clojure.core/let
-                                                [?env
-                                                 input__62968_nth_3__]
-                                                (try
-                                                 [(clojure.core/let
-                                                   [!xs__counter
-                                                    (meander.runtime.zeta/iterator
-                                                     !xs)]
-                                                   (clojure.core/let
-                                                    [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
-                                                      ['meander.dev.parse.zeta/make-join
+                                                [input__125886_nth_1___r___r__
+                                                 (clojure.core/subvec
+                                                  input__125886_nth_1___r__
+                                                  1)]
+                                                (clojure.core/let
+                                                 [input__125886_nth_1___r___l___nth_0__
+                                                  (clojure.core/nth
+                                                   input__125886_nth_1___r___l__
+                                                   0)]
+                                                 (if
+                                                  (clojure.core/map?
+                                                   input__125886_nth_1___r___l___nth_0__)
+                                                  (clojure.core/let
+                                                   [VAL__126340
+                                                    (.valAt
+                                                     input__125886_nth_1___r___l___nth_0__
+                                                     :tag)]
+                                                   (clojure.core/case
+                                                    VAL__126340
+                                                    (:reference)
+                                                    (clojure.core/let
+                                                     [?reference
+                                                      input__125886_nth_1___r___l___nth_0__]
+                                                     (clojure.core/let
+                                                      [?rest
+                                                       input__125886_nth_1___r___r__]
+                                                      (clojure.core/let
+                                                       [?next
+                                                        input__125886_nth_2__]
                                                        (clojure.core/let
-                                                        [CATA_RESULT__15641__auto__
-                                                         (CATA__FN__63051
-                                                          ['meander.dev.parse.zeta/make-cat
-                                                           (clojure.core/into
-                                                            []
-                                                            (clojure.core/vec
-                                                             (clojure.core/iterator-seq
-                                                              !xs__counter)))
-                                                           {:tag
-                                                            :empty}
-                                                           ?env])]
-                                                        (if
-                                                         (meander.runtime.zeta/fail?
-                                                          CATA_RESULT__15641__auto__)
-                                                         (throw
-                                                          (meander.runtime.zeta/fail))
-                                                         (clojure.core/nth
-                                                          CATA_RESULT__15641__auto__
-                                                          0)))
-                                                       (clojure.core/let
-                                                        [CATA_RESULT__15641__auto__
-                                                         (CATA__FN__63051
-                                                          ['meander.dev.parse.zeta/make-join
-                                                           ?reference
+                                                        [?env
+                                                         input__125886_nth_3__]
+                                                        (try
+                                                         [(clojure.core/let
+                                                           [!xs__counter
+                                                            (meander.runtime.zeta/iterator
+                                                             !xs)]
                                                            (clojure.core/let
                                                             [CATA_RESULT__15641__auto__
-                                                             (CATA__FN__63051
-                                                              ['meander.dev.parse.zeta/make-cat
-                                                               ?rest
-                                                               ?next
+                                                             (CATA__FN__125969
+                                                              ['meander.dev.parse.zeta/make-join
+                                                               (clojure.core/let
+                                                                [CATA_RESULT__15641__auto__
+                                                                 (CATA__FN__125969
+                                                                  ['meander.dev.parse.zeta/make-cat
+                                                                   (clojure.core/into
+                                                                    []
+                                                                    (clojure.core/vec
+                                                                     (clojure.core/iterator-seq
+                                                                      !xs__counter)))
+                                                                   {:tag
+                                                                    :empty}
+                                                                   ?env])]
+                                                                (if
+                                                                 (meander.runtime.zeta/fail?
+                                                                  CATA_RESULT__15641__auto__)
+                                                                 (throw
+                                                                  (meander.runtime.zeta/fail))
+                                                                 (clojure.core/nth
+                                                                  CATA_RESULT__15641__auto__
+                                                                  0)))
+                                                               (clojure.core/let
+                                                                [CATA_RESULT__15641__auto__
+                                                                 (CATA__FN__125969
+                                                                  ['meander.dev.parse.zeta/make-join
+                                                                   (clojure.core/let
+                                                                    [CATA_RESULT__15641__auto__
+                                                                     (CATA__FN__125969
+                                                                      ['meander.dev.parse.zeta/make-cat
+                                                                       [?reference]
+                                                                       {:tag
+                                                                        :empty}
+                                                                       ?env])]
+                                                                    (if
+                                                                     (meander.runtime.zeta/fail?
+                                                                      CATA_RESULT__15641__auto__)
+                                                                     (throw
+                                                                      (meander.runtime.zeta/fail))
+                                                                     (clojure.core/nth
+                                                                      CATA_RESULT__15641__auto__
+                                                                      0)))
+                                                                   (clojure.core/let
+                                                                    [CATA_RESULT__15641__auto__
+                                                                     (CATA__FN__125969
+                                                                      ['meander.dev.parse.zeta/make-cat
+                                                                       ?rest
+                                                                       ?next
+                                                                       ?env])]
+                                                                    (if
+                                                                     (meander.runtime.zeta/fail?
+                                                                      CATA_RESULT__15641__auto__)
+                                                                     (throw
+                                                                      (meander.runtime.zeta/fail))
+                                                                     (clojure.core/nth
+                                                                      CATA_RESULT__15641__auto__
+                                                                      0)))
+                                                                   ?env])]
+                                                                (if
+                                                                 (meander.runtime.zeta/fail?
+                                                                  CATA_RESULT__15641__auto__)
+                                                                 (throw
+                                                                  (meander.runtime.zeta/fail))
+                                                                 (clojure.core/nth
+                                                                  CATA_RESULT__15641__auto__
+                                                                  0)))
                                                                ?env])]
                                                             (if
                                                              (meander.runtime.zeta/fail?
@@ -3103,172 +3235,168 @@
                                                               (meander.runtime.zeta/fail))
                                                              (clojure.core/nth
                                                               CATA_RESULT__15641__auto__
-                                                              0)))
-                                                           ?env])]
-                                                        (if
-                                                         (meander.runtime.zeta/fail?
-                                                          CATA_RESULT__15641__auto__)
-                                                         (throw
-                                                          (meander.runtime.zeta/fail))
-                                                         (clojure.core/nth
-                                                          CATA_RESULT__15641__auto__
-                                                          0)))
-                                                       ?env])]
-                                                    (if
-                                                     (meander.runtime.zeta/fail?
-                                                      CATA_RESULT__15641__auto__)
-                                                     (throw
-                                                      (meander.runtime.zeta/fail))
-                                                     (clojure.core/nth
-                                                      CATA_RESULT__15641__auto__
-                                                      0))))]
-                                                 (catch
-                                                  java.lang.Exception
-                                                  e__16581__auto__
-                                                  (if
-                                                   (meander.runtime.zeta/fail?
-                                                    e__16581__auto__)
-                                                   (meander.runtime.zeta/fail)
-                                                   (throw
-                                                    e__16581__auto__))))))))
-                                            (meander.runtime.zeta/fail)))
-                                          (meander.runtime.zeta/fail))))
-                                       (meander.runtime.zeta/fail)))))]
-                                  (if
-                                   (meander.runtime.zeta/fail?
-                                    ret__14502__auto__)
-                                   (meander.runtime.zeta/fail)
-                                   ret__14502__auto__))))]
-                              (state__64673)))]
+                                                              0))))]
+                                                         (catch
+                                                          java.lang.Exception
+                                                          e__16581__auto__
+                                                          (if
+                                                           (meander.runtime.zeta/fail?
+                                                            e__16581__auto__)
+                                                           (meander.runtime.zeta/fail)
+                                                           (throw
+                                                            e__16581__auto__))))))))
+                                                    (meander.runtime.zeta/fail)))
+                                                  (meander.runtime.zeta/fail))))
+                                               (meander.runtime.zeta/fail))))))))))]
+                                     (if
+                                      (clojure.core/map?
+                                       input__125886_nth_1___l___l___nth_0__)
+                                      (clojure.core/let
+                                       [VAL__126337
+                                        (.valAt
+                                         input__125886_nth_1___l___l___nth_0__
+                                         :tag)]
+                                       (clojure.core/case
+                                        VAL__126337
+                                        (:reference)
+                                        (save__126336)
+                                        (f__127602)))
+                                      (f__127602)))))
+                                  (meander.runtime.zeta/fail))))]
+                              (state__127595)))]
                            (if
-                            (meander.runtime.zeta/fail? result__64671)
+                            (meander.runtime.zeta/fail? result__127593)
                             (recur
-                             (clojure.core/next search_space__64670))
-                            result__64671))
-                          (state__64662))))]
-                      (state__64668))
-                     (state__64662))
-                    (state__64662))))
-                 (state__64662
+                             (clojure.core/next search_space__127592))
+                            result__127593))
+                          (state__127584))))]
+                      (state__127590))
+                     (state__127584))
+                    (state__127584))))
+                 (state__127584
                   []
                   (clojure.core/case
-                   input__62968_nth_0__
+                   input__125886_nth_0__
                    (meander.dev.parse.zeta/make-cat)
                    (if
-                    (clojure.core/vector? input__62968_nth_1__)
+                    (clojure.core/vector? input__125886_nth_1__)
                     (clojure.core/let
-                     [input__62968_nth_1___l__
+                     [input__125886_nth_1___l__
                       (clojure.core/subvec
-                       input__62968_nth_1__
+                       input__125886_nth_1__
                        0
                        (clojure.core/min
-                        (clojure.core/count input__62968_nth_1__)
+                        (clojure.core/count input__125886_nth_1__)
                         1))]
                      (if
                       (clojure.core/=
-                       (clojure.core/count input__62968_nth_1___l__)
+                       (clojure.core/count input__125886_nth_1___l__)
                        1)
                       (clojure.core/let
-                       [input__62968_nth_1___r__
-                        (clojure.core/subvec input__62968_nth_1__ 1)]
+                       [input__125886_nth_1___r__
+                        (clojure.core/subvec input__125886_nth_1__ 1)]
                        (clojure.core/let
-                        [input__62968_nth_1___l___nth_0__
-                         (clojure.core/nth input__62968_nth_1___l__ 0)]
+                        [input__125886_nth_1___l___nth_0__
+                         (clojure.core/nth
+                          input__125886_nth_1___l__
+                          0)]
                         (if
                          (clojure.core/map?
-                          input__62968_nth_1___l___nth_0__)
+                          input__125886_nth_1___l___nth_0__)
                          (clojure.core/let
-                          [VAL__63430
+                          [VAL__126352
                            (.valAt
-                            input__62968_nth_1___l___nth_0__
+                            input__125886_nth_1___l___nth_0__
                             :tag)]
                           (clojure.core/case
-                           VAL__63430
+                           VAL__126352
                            (:literal)
                            (clojure.core/let
-                            [VAL__63431
+                            [VAL__126353
                              (.valAt
-                              input__62968_nth_1___l___nth_0__
+                              input__125886_nth_1___l___nth_0__
                               :type)]
                             (if
                              (clojure.core/let
-                              [x__13398__auto__ VAL__63431]
+                              [x__13398__auto__ VAL__126353]
                               (clojure.core/case
                                x__13398__auto__
                                (:string :char)
                                true
                                false))
                              (clojure.core/let
-                              [VAL__63432
+                              [VAL__126354
                                (.valAt
-                                input__62968_nth_1___l___nth_0__
+                                input__125886_nth_1___l___nth_0__
                                 :form)]
                               (clojure.core/let
                                [!forms []]
                                (clojure.core/let
                                 [!forms
-                                 (clojure.core/conj !forms VAL__63432)]
+                                 (clojure.core/conj
+                                  !forms
+                                  VAL__126354)]
                                 (clojure.core/loop
                                  [i__14475__auto__
                                   0
-                                  coll__64682
-                                  input__62968_nth_1___r__
+                                  coll__127605
+                                  input__125886_nth_1___r__
                                   [!forms]
                                   [!forms]]
                                  (clojure.core/let
-                                  [input__63433
+                                  [input__126355
                                    (clojure.core/subvec
-                                    coll__64682
+                                    coll__127605
                                     0
                                     (clojure.core/min
-                                     (clojure.core/count coll__64682)
+                                     (clojure.core/count coll__127605)
                                      1))]
                                   (if
                                    (clojure.core/=
-                                    (clojure.core/count input__63433)
+                                    (clojure.core/count input__126355)
                                     1)
                                    (clojure.core/let
                                     [result__14476__auto__
                                      (clojure.core/let
-                                      [input__63433_nth_0__
+                                      [input__126355_nth_0__
                                        (clojure.core/nth
-                                        input__63433
+                                        input__126355
                                         0)]
                                       (if
                                        (clojure.core/map?
-                                        input__63433_nth_0__)
+                                        input__126355_nth_0__)
                                        (clojure.core/let
-                                        [VAL__63434
+                                        [VAL__126356
                                          (.valAt
-                                          input__63433_nth_0__
+                                          input__126355_nth_0__
                                           :tag)]
                                         (clojure.core/case
-                                         VAL__63434
+                                         VAL__126356
                                          (:literal)
                                          (clojure.core/let
-                                          [VAL__63435
+                                          [VAL__126357
                                            (.valAt
-                                            input__63433_nth_0__
+                                            input__126355_nth_0__
                                             :type)]
                                           (if
                                            (clojure.core/let
                                             [x__13398__auto__
-                                             VAL__63435]
+                                             VAL__126357]
                                             (clojure.core/case
                                              x__13398__auto__
                                              (:string :char)
                                              true
                                              false))
                                            (clojure.core/let
-                                            [VAL__63436
+                                            [VAL__126358
                                              (.valAt
-                                              input__63433_nth_0__
+                                              input__126355_nth_0__
                                               :form)]
                                             (clojure.core/let
                                              [!forms
                                               (clojure.core/conj
                                                !forms
-                                               VAL__63436)]
+                                               VAL__126358)]
                                              [!forms]))
                                            (meander.runtime.zeta/fail)))
                                          (meander.runtime.zeta/fail)))
@@ -3276,31 +3404,31 @@
                                     (if
                                      (meander.runtime.zeta/fail?
                                       result__14476__auto__)
-                                     (state__64663)
+                                     (state__127585)
                                      (recur
                                       (clojure.core/inc
                                        i__14475__auto__)
                                       (clojure.core/subvec
-                                       coll__64682
+                                       coll__127605
                                        1)
                                       result__14476__auto__)))
                                    (if
                                     (clojure.core/or
-                                     (clojure.core/seq coll__64682)
+                                     (clojure.core/seq coll__127605)
                                      (clojure.core/<
                                       i__14475__auto__
                                       0))
-                                    (state__64663)
+                                    (state__127585)
                                     (if
                                      (clojure.core/map?
-                                      input__62968_nth_2__)
+                                      input__125886_nth_2__)
                                      (clojure.core/let
-                                      [VAL__63425
+                                      [VAL__126347
                                        (.valAt
-                                        input__62968_nth_2__
+                                        input__125886_nth_2__
                                         :tag)]
                                       (clojure.core/case
-                                       VAL__63425
+                                       VAL__126347
                                        (:empty)
                                        (try
                                         [{:tag :literal,
@@ -3318,90 +3446,90 @@
                                            e__16581__auto__)
                                           (meander.runtime.zeta/fail)
                                           (throw e__16581__auto__))))
-                                       (state__64663)))
-                                     (state__64663)))))))))
-                             (state__64663)))
-                           (state__64663)))
-                         (state__64663))))
-                      (state__64663)))
-                    (state__64663))
-                   (state__64663)))
-                 (state__64663
+                                       (state__127585)))
+                                     (state__127585)))))))))
+                             (state__127585)))
+                           (state__127585)))
+                         (state__127585))))
+                      (state__127585)))
+                    (state__127585))
+                   (state__127585)))
+                 (state__127585
                   []
                   (clojure.core/let
-                   [input__62968_nth_3__
-                    (clojure.core/nth input__62968 3)]
+                   [input__125886_nth_3__
+                    (clojure.core/nth input__125886 3)]
                    (clojure.core/case
-                    input__62968_nth_0__
+                    input__125886_nth_0__
                     (meander.dev.parse.zeta/make-cat)
                     (clojure.core/letfn
-                     [(state__64683
+                     [(state__127606
                        []
                        (if
-                        (clojure.core/vector? input__62968_nth_1__)
+                        (clojure.core/vector? input__125886_nth_1__)
                         (clojure.core/let
-                         [input__62968_nth_1___l__
+                         [input__125886_nth_1___l__
                           (clojure.core/subvec
-                           input__62968_nth_1__
+                           input__125886_nth_1__
                            0
                            (clojure.core/min
-                            (clojure.core/count input__62968_nth_1__)
+                            (clojure.core/count input__125886_nth_1__)
                             1))]
                          (if
                           (clojure.core/=
                            (clojure.core/count
-                            input__62968_nth_1___l__)
+                            input__125886_nth_1___l__)
                            1)
                           (clojure.core/let
-                           [input__62968_nth_1___r__
+                           [input__125886_nth_1___r__
                             (clojure.core/subvec
-                             input__62968_nth_1__
+                             input__125886_nth_1__
                              1)]
                            (clojure.core/let
-                            [input__62968_nth_1___l___nth_0__
+                            [input__125886_nth_1___l___nth_0__
                              (clojure.core/nth
-                              input__62968_nth_1___l__
+                              input__125886_nth_1___l__
                               0)]
                             (if
                              (clojure.core/map?
-                              input__62968_nth_1___l___nth_0__)
+                              input__125886_nth_1___l___nth_0__)
                              (clojure.core/let
-                              [VAL__64553
+                              [VAL__127475
                                (.valAt
-                                input__62968_nth_1___l___nth_0__
+                                input__125886_nth_1___l___nth_0__
                                 :tag)]
                               (clojure.core/case
-                               VAL__64553
+                               VAL__127475
                                (:literal)
                                (clojure.core/letfn
-                                [(state__64685
+                                [(state__127608
                                   []
                                   (clojure.core/let
-                                   [VAL__63443
+                                   [VAL__126365
                                     (.valAt
-                                     input__62968_nth_1___l___nth_0__
+                                     input__125886_nth_1___l___nth_0__
                                      :type)]
                                    (clojure.core/case
-                                    VAL__63443
+                                    VAL__126365
                                     (:string)
                                     (clojure.core/let
                                      [?ast
-                                      input__62968_nth_1___l___nth_0__]
+                                      input__125886_nth_1___l___nth_0__]
                                      (clojure.core/let
-                                      [?rest input__62968_nth_1___r__]
+                                      [?rest input__125886_nth_1___r__]
                                       (clojure.core/let
-                                       [?next input__62968_nth_2__]
+                                       [?next input__125886_nth_2__]
                                        (clojure.core/let
-                                        [?env input__62968_nth_3__]
+                                        [?env input__125886_nth_3__]
                                         (try
                                          [(clojure.core/let
                                            [CATA_RESULT__15641__auto__
-                                            (CATA__FN__63051
+                                            (CATA__FN__125969
                                              ['meander.dev.parse.zeta/make-join
                                               ?ast
                                               (clojure.core/let
                                                [CATA_RESULT__15641__auto__
-                                                (CATA__FN__63051
+                                                (CATA__FN__125969
                                                  ['meander.dev.parse.zeta/make-cat
                                                   ?rest
                                                   ?next
@@ -3432,13 +3560,13 @@
                                            (meander.runtime.zeta/fail)
                                            (throw
                                             e__16581__auto__))))))))
-                                    (state__64686))))
-                                 (state__64686
+                                    (state__127609))))
+                                 (state__127609
                                   []
                                   (clojure.core/let
-                                   [VAL__63453
+                                   [VAL__126375
                                     (.valAt
-                                     input__62968_nth_1___l___nth_0__
+                                     input__125886_nth_1___l___nth_0__
                                      :form)]
                                    (clojure.core/let
                                     [!forms []]
@@ -3446,102 +3574,102 @@
                                      [!forms
                                       (clojure.core/conj
                                        !forms
-                                       VAL__63453)]
+                                       VAL__126375)]
                                      (clojure.core/loop
                                       [i__14475__auto__
                                        0
-                                       coll__64687
-                                       input__62968_nth_1___r__
+                                       coll__127610
+                                       input__125886_nth_1___r__
                                        [!forms]
                                        [!forms]]
                                       (clojure.core/let
-                                       [input__63454
+                                       [input__126376
                                         (clojure.core/subvec
-                                         coll__64687
+                                         coll__127610
                                          0
                                          (clojure.core/min
                                           (clojure.core/count
-                                           coll__64687)
+                                           coll__127610)
                                           1))]
                                        (if
                                         (clojure.core/=
                                          (clojure.core/count
-                                          input__63454)
+                                          input__126376)
                                          1)
                                         (clojure.core/let
                                          [result__14476__auto__
                                           (clojure.core/let
-                                           [input__63454_nth_0__
+                                           [input__126376_nth_0__
                                             (clojure.core/nth
-                                             input__63454
+                                             input__126376
                                              0)]
                                            (if
                                             (clojure.core/map?
-                                             input__63454_nth_0__)
+                                             input__126376_nth_0__)
                                             (clojure.core/let
-                                             [VAL__63455
+                                             [VAL__126377
                                               (.valAt
-                                               input__63454_nth_0__
+                                               input__126376_nth_0__
                                                :tag)]
                                              (clojure.core/case
-                                              VAL__63455
+                                              VAL__126377
                                               (:literal)
                                               (clojure.core/let
-                                               [VAL__63456
+                                               [VAL__126378
                                                 (.valAt
-                                                 input__63454_nth_0__
+                                                 input__126376_nth_0__
                                                  :form)]
                                                (clojure.core/let
                                                 [!forms
                                                  (clojure.core/conj
                                                   !forms
-                                                  VAL__63456)]
+                                                  VAL__126378)]
                                                 [!forms]))
                                               (meander.runtime.zeta/fail)))
                                             (meander.runtime.zeta/fail)))]
                                          (if
                                           (meander.runtime.zeta/fail?
                                            result__14476__auto__)
-                                          (state__64684)
+                                          (state__127607)
                                           (recur
                                            (clojure.core/inc
                                             i__14475__auto__)
                                            (clojure.core/subvec
-                                            coll__64687
+                                            coll__127610
                                             1)
                                            result__14476__auto__)))
                                         (if
                                          (clojure.core/or
                                           (clojure.core/seq
-                                           coll__64687)
+                                           coll__127610)
                                           (clojure.core/<
                                            i__14475__auto__
                                            0))
-                                         (state__64684)
+                                         (state__127607)
                                          (if
                                           (clojure.core/map?
-                                           input__62968_nth_2__)
+                                           input__125886_nth_2__)
                                           (clojure.core/let
-                                           [VAL__63446
+                                           [VAL__126368
                                             (.valAt
-                                             input__62968_nth_2__
+                                             input__125886_nth_2__
                                              :tag)]
                                            (clojure.core/case
-                                            VAL__63446
+                                            VAL__126368
                                             (:empty)
                                             (if
                                              (clojure.core/map?
-                                              input__62968_nth_3__)
+                                              input__125886_nth_3__)
                                              (clojure.core/let
-                                              [VAL__63447
+                                              [VAL__126369
                                                (.valAt
-                                                input__62968_nth_3__
+                                                input__125886_nth_3__
                                                 :context)]
                                               (clojure.core/let
-                                               [?context VAL__63447]
+                                               [?context VAL__126369]
                                                (clojure.core/let
                                                 [?env
-                                                 input__62968_nth_3__]
+                                                 input__125886_nth_3__]
                                                 (try
                                                  [{:tag :literal,
                                                    :type ?context,
@@ -3558,27 +3686,27 @@
                                                    (meander.runtime.zeta/fail)
                                                    (throw
                                                     e__16581__auto__)))))))
-                                             (state__64684))
-                                            (state__64684)))
-                                          (state__64684))))))))))]
-                                (state__64685))
-                               (state__64684)))
-                             (state__64684))))
-                          (state__64684)))
-                        (state__64684)))
-                      (state__64684
+                                             (state__127607))
+                                            (state__127607)))
+                                          (state__127607))))))))))]
+                                (state__127608))
+                               (state__127607)))
+                             (state__127607))))
+                          (state__127607)))
+                        (state__127607)))
+                      (state__127607
                        []
                        (clojure.core/let
-                        [?sequence input__62968_nth_1__]
+                        [?sequence input__125886_nth_1__]
                         (clojure.core/let
-                         [?next input__62968_nth_2__]
+                         [?next input__125886_nth_2__]
                          (if
-                          (clojure.core/map? input__62968_nth_3__)
+                          (clojure.core/map? input__125886_nth_3__)
                           (clojure.core/let
-                           [VAL__63460
-                            (.valAt input__62968_nth_3__ :context)]
+                           [VAL__126382
+                            (.valAt input__125886_nth_3__ :context)]
                            (clojure.core/case
-                            VAL__63460
+                            VAL__126382
                             (:string)
                             (try
                              [{:tag :string-cat,
@@ -3592,19 +3720,19 @@
                                 e__16581__auto__)
                                (meander.runtime.zeta/fail)
                                (throw e__16581__auto__))))
-                            (state__64664)))
-                          (state__64664)))))]
-                     (state__64683))
-                    (state__64664))))
-                 (state__64664
+                            (state__127586)))
+                          (state__127586)))))]
+                     (state__127606))
+                    (state__127586))))
+                 (state__127586
                   []
                   (clojure.core/case
-                   input__62968_nth_0__
+                   input__125886_nth_0__
                    (meander.dev.parse.zeta/make-cat)
                    (clojure.core/let
-                    [?sequence input__62968_nth_1__]
+                    [?sequence input__125886_nth_1__]
                     (clojure.core/let
-                     [?next input__62968_nth_2__]
+                     [?next input__125886_nth_2__]
                      (try
                       [{:tag :cat, :sequence ?sequence, :next ?next}]
                       (catch
@@ -3614,45 +3742,45 @@
                         (meander.runtime.zeta/fail? e__16581__auto__)
                         (meander.runtime.zeta/fail)
                         (throw e__16581__auto__))))))
-                   (state__64665)))
-                 (state__64665
+                   (state__127587)))
+                 (state__127587
                   []
                   (clojure.core/let
-                   [input__62968_nth_3__
-                    (clojure.core/nth input__62968 3)]
+                   [input__125886_nth_3__
+                    (clojure.core/nth input__125886 3)]
                    (clojure.core/case
-                    input__62968_nth_0__
+                    input__125886_nth_0__
                     (meander.dev.parse.zeta/make-join)
                     (if
-                     (clojure.core/map? input__62968_nth_1__)
+                     (clojure.core/map? input__125886_nth_1__)
                      (clojure.core/let
-                      [VAL__64551 (.valAt input__62968_nth_1__ :tag)]
+                      [VAL__127473 (.valAt input__125886_nth_1__ :tag)]
                       (clojure.core/case
-                       VAL__64551
+                       VAL__127473
                        (:cat)
                        (clojure.core/let
-                        [VAL__63466
-                         (.valAt input__62968_nth_1__ :sequence)]
+                        [VAL__126388
+                         (.valAt input__125886_nth_1__ :sequence)]
                         (clojure.core/let
-                         [?sequence VAL__63466]
+                         [?sequence VAL__126388]
                          (clojure.core/let
-                          [VAL__63467
-                           (.valAt input__62968_nth_1__ :next)]
+                          [VAL__126389
+                           (.valAt input__125886_nth_1__ :next)]
                           (if
-                           (clojure.core/map? VAL__63467)
+                           (clojure.core/map? VAL__126389)
                            (clojure.core/let
-                            [VAL__63468 (.valAt VAL__63467 :tag)]
+                            [VAL__126390 (.valAt VAL__126389 :tag)]
                             (clojure.core/case
-                             VAL__63468
+                             VAL__126390
                              (:empty)
                              (clojure.core/let
-                              [?right input__62968_nth_2__]
+                              [?right input__125886_nth_2__]
                               (clojure.core/let
-                               [?env input__62968_nth_3__]
+                               [?env input__125886_nth_3__]
                                (try
                                 [(clojure.core/let
                                   [CATA_RESULT__15641__auto__
-                                   (CATA__FN__63051
+                                   (CATA__FN__125969
                                     ['meander.dev.parse.zeta/make-cat
                                      ?sequence
                                      ?right
@@ -3672,73 +3800,75 @@
                                    e__16581__auto__)
                                   (meander.runtime.zeta/fail)
                                   (throw e__16581__auto__))))))
-                             (state__64666)))
-                           (state__64666)))))
+                             (state__127588)))
+                           (state__127588)))))
                        (:literal)
                        (clojure.core/let
-                        [VAL__63472
-                         (.valAt input__62968_nth_1__ :type)]
+                        [VAL__126394
+                         (.valAt input__125886_nth_1__ :type)]
                         (clojure.core/case
-                         VAL__63472
+                         VAL__126394
                          (:string)
                          (clojure.core/let
-                          [VAL__63473
-                           (.valAt input__62968_nth_1__ :form)]
+                          [VAL__126395
+                           (.valAt input__125886_nth_1__ :form)]
                           (clojure.core/let
-                           [?form-1 VAL__63473]
+                           [?form-1 VAL__126395]
                            (if
-                            (clojure.core/map? input__62968_nth_2__)
+                            (clojure.core/map? input__125886_nth_2__)
                             (clojure.core/let
-                             [VAL__63474
-                              (.valAt input__62968_nth_2__ :tag)]
+                             [VAL__126396
+                              (.valAt input__125886_nth_2__ :tag)]
                              (clojure.core/case
-                              VAL__63474
+                              VAL__126396
                               (:string-join)
                               (clojure.core/let
-                               [VAL__63475
-                                (.valAt input__62968_nth_2__ :left)]
+                               [VAL__126397
+                                (.valAt input__125886_nth_2__ :left)]
                                (if
-                                (clojure.core/map? VAL__63475)
+                                (clojure.core/map? VAL__126397)
                                 (clojure.core/let
-                                 [VAL__63476 (.valAt VAL__63475 :tag)]
+                                 [VAL__126398
+                                  (.valAt VAL__126397 :tag)]
                                  (clojure.core/case
-                                  VAL__63476
+                                  VAL__126398
                                   (:literal)
                                   (clojure.core/let
-                                   [VAL__63477
-                                    (.valAt VAL__63475 :type)]
+                                   [VAL__126399
+                                    (.valAt VAL__126397 :type)]
                                    (clojure.core/case
-                                    VAL__63477
+                                    VAL__126399
                                     (:string)
                                     (clojure.core/let
-                                     [VAL__63478
-                                      (.valAt VAL__63475 :form)]
+                                     [VAL__126400
+                                      (.valAt VAL__126397 :form)]
                                      (clojure.core/let
-                                      [?form-2 VAL__63478]
+                                      [?form-2 VAL__126400]
                                       (clojure.core/let
-                                       [VAL__63479
+                                       [VAL__126401
                                         (.valAt
-                                         input__62968_nth_2__
+                                         input__125886_nth_2__
                                          :right)]
                                        (clojure.core/let
-                                        [?right VAL__63479]
+                                        [?right VAL__126401]
                                         (if
                                          (clojure.core/map?
-                                          input__62968_nth_3__)
+                                          input__125886_nth_3__)
                                          (clojure.core/let
-                                          [VAL__63480
+                                          [VAL__126402
                                            (.valAt
-                                            input__62968_nth_3__
+                                            input__125886_nth_3__
                                             :context)]
                                           (clojure.core/case
-                                           VAL__63480
+                                           VAL__126402
                                            (:string)
                                            (clojure.core/let
-                                            [?env input__62968_nth_3__]
+                                            [?env
+                                             input__125886_nth_3__]
                                             (try
                                              [(clojure.core/let
                                                [CATA_RESULT__15641__auto__
-                                                (CATA__FN__63051
+                                                (CATA__FN__125969
                                                  ['meander.dev.parse.zeta/make-join
                                                   {:tag :literal,
                                                    :type :string,
@@ -3766,49 +3896,49 @@
                                                (meander.runtime.zeta/fail)
                                                (throw
                                                 e__16581__auto__)))))
-                                           (state__64666)))
-                                         (state__64666))))))
-                                    (state__64666)))
-                                  (state__64666)))
-                                (state__64666)))
-                              (state__64666)))
-                            (state__64666))))
-                         (state__64666)))
-                       (state__64666)))
-                     (state__64666))
-                    (state__64666))))
-                 (state__64666
+                                           (state__127588)))
+                                         (state__127588))))))
+                                    (state__127588)))
+                                  (state__127588)))
+                                (state__127588)))
+                              (state__127588)))
+                            (state__127588))))
+                         (state__127588)))
+                       (state__127588)))
+                     (state__127588))
+                    (state__127588))))
+                 (state__127588
                   []
                   (clojure.core/case
-                   input__62968_nth_0__
+                   input__125886_nth_0__
                    (meander.dev.parse.zeta/make-join)
                    (if
-                    (clojure.core/map? input__62968_nth_1__)
+                    (clojure.core/map? input__125886_nth_1__)
                     (clojure.core/let
-                     [VAL__64552 (.valAt input__62968_nth_1__ :tag)]
+                     [VAL__127474 (.valAt input__125886_nth_1__ :tag)]
                      (clojure.core/case
-                      VAL__64552
+                      VAL__127474
                       (:cat)
                       (clojure.core/let
-                       [?ast input__62968_nth_1__]
+                       [?ast input__125886_nth_1__]
                        (if
-                        (clojure.core/map? input__62968_nth_2__)
+                        (clojure.core/map? input__125886_nth_2__)
                         (clojure.core/let
-                         [VAL__63484
-                          (.valAt input__62968_nth_2__ :tag)]
+                         [VAL__126406
+                          (.valAt input__125886_nth_2__ :tag)]
                          (clojure.core/case
-                          VAL__63484
+                          VAL__126406
                           (:cat)
                           (clojure.core/let
-                           [VAL__63485
-                            (.valAt input__62968_nth_2__ :sequence)]
+                           [VAL__126407
+                            (.valAt input__125886_nth_2__ :sequence)]
                            (clojure.core/let
-                            [?sequence VAL__63485]
+                            [?sequence VAL__126407]
                             (clojure.core/let
-                             [VAL__63486
-                              (.valAt input__62968_nth_2__ :next)]
+                             [VAL__126408
+                              (.valAt input__125886_nth_2__ :next)]
                              (clojure.core/let
-                              [?next VAL__63486]
+                              [?next VAL__126408]
                               (try
                                [{:tag :cat,
                                  :sequence
@@ -3826,29 +3956,29 @@
                                   e__16581__auto__)
                                  (meander.runtime.zeta/fail)
                                  (throw e__16581__auto__))))))))
-                          (state__64667)))
-                        (state__64667)))
+                          (state__127589)))
+                        (state__127589)))
                       (:string-cat)
                       (clojure.core/let
-                       [?ast input__62968_nth_1__]
+                       [?ast input__125886_nth_1__]
                        (if
-                        (clojure.core/map? input__62968_nth_2__)
+                        (clojure.core/map? input__125886_nth_2__)
                         (clojure.core/let
-                         [VAL__63490
-                          (.valAt input__62968_nth_2__ :tag)]
+                         [VAL__126412
+                          (.valAt input__125886_nth_2__ :tag)]
                          (clojure.core/case
-                          VAL__63490
+                          VAL__126412
                           (:string-cat)
                           (clojure.core/let
-                           [VAL__63491
-                            (.valAt input__62968_nth_2__ :sequence)]
+                           [VAL__126413
+                            (.valAt input__125886_nth_2__ :sequence)]
                            (clojure.core/let
-                            [?sequence VAL__63491]
+                            [?sequence VAL__126413]
                             (clojure.core/let
-                             [VAL__63492
-                              (.valAt input__62968_nth_2__ :next)]
+                             [VAL__126414
+                              (.valAt input__125886_nth_2__ :next)]
                              (clojure.core/let
-                              [?next VAL__63492]
+                              [?next VAL__126414]
                               (try
                                [{:tag :string-cat,
                                  :sequence
@@ -3866,52 +3996,52 @@
                                   e__16581__auto__)
                                  (meander.runtime.zeta/fail)
                                  (throw e__16581__auto__))))))))
-                          (state__64667)))
-                        (state__64667)))
-                      (state__64667)))
-                    (state__64667))
-                   (state__64667)))
-                 (state__64667
+                          (state__127589)))
+                        (state__127589)))
+                      (state__127589)))
+                    (state__127589))
+                   (state__127589)))
+                 (state__127589
                   []
                   (clojure.core/let
-                   [input__62968_nth_3__
-                    (clojure.core/nth input__62968 3)]
+                   [input__125886_nth_3__
+                    (clojure.core/nth input__125886 3)]
                    (clojure.core/case
-                    input__62968_nth_0__
+                    input__125886_nth_0__
                     (meander.dev.parse.zeta/make-join)
                     (clojure.core/letfn
-                     [(state__64688
+                     [(state__127611
                        []
                        (if
-                        (clojure.core/map? input__62968_nth_1__)
+                        (clojure.core/map? input__125886_nth_1__)
                         (clojure.core/let
-                         [VAL__64556
-                          (.valAt input__62968_nth_1__ :next)
-                          VAL__64555
-                          (.valAt input__62968_nth_1__ :tag)]
+                         [VAL__127478
+                          (.valAt input__125886_nth_1__ :next)
+                          VAL__127477
+                          (.valAt input__125886_nth_1__ :tag)]
                          (clojure.core/case
-                          VAL__64555
+                          VAL__127477
                           (:string-cat)
                           (clojure.core/let
-                           [VAL__63496
-                            (.valAt input__62968_nth_1__ :sequence)]
+                           [VAL__126418
+                            (.valAt input__125886_nth_1__ :sequence)]
                            (clojure.core/let
-                            [?sequence VAL__63496]
+                            [?sequence VAL__126418]
                             (if
-                             (clojure.core/map? VAL__64556)
+                             (clojure.core/map? VAL__127478)
                              (clojure.core/let
-                              [VAL__63498 (.valAt VAL__64556 :tag)]
+                              [VAL__126420 (.valAt VAL__127478 :tag)]
                               (clojure.core/case
-                               VAL__63498
+                               VAL__126420
                                (:empty)
                                (clojure.core/let
-                                [?right input__62968_nth_2__]
+                                [?right input__125886_nth_2__]
                                 (clojure.core/let
-                                 [?env input__62968_nth_3__]
+                                 [?env input__125886_nth_3__]
                                  (try
                                   [(clojure.core/let
                                     [CATA_RESULT__15641__auto__
-                                     (CATA__FN__63051
+                                     (CATA__FN__125969
                                       ['meander.dev.parse.zeta/make-join
                                        ?sequence
                                        ?right
@@ -3932,33 +4062,33 @@
                                      e__16581__auto__)
                                     (meander.runtime.zeta/fail)
                                     (throw e__16581__auto__))))))
-                               (state__64689)))
-                             (state__64689))))
+                               (state__127612)))
+                             (state__127612))))
                           (:string-star)
                           (clojure.core/let
-                           [VAL__63502
-                            (.valAt input__62968_nth_1__ :pattern)]
+                           [VAL__126424
+                            (.valAt input__125886_nth_1__ :pattern)]
                            (clojure.core/let
-                            [?pattern VAL__63502]
+                            [?pattern VAL__126424]
                             (if
-                             (clojure.core/map? VAL__64556)
+                             (clojure.core/map? VAL__127478)
                              (clojure.core/let
-                              [VAL__63504 (.valAt VAL__64556 :tag)]
+                              [VAL__126426 (.valAt VAL__127478 :tag)]
                               (clojure.core/case
-                               VAL__63504
+                               VAL__126426
                                (:empty)
                                (clojure.core/let
-                                [?right input__62968_nth_2__]
+                                [?right input__125886_nth_2__]
                                 (if
                                  (clojure.core/map?
-                                  input__62968_nth_3__)
+                                  input__125886_nth_3__)
                                  (clojure.core/let
-                                  [VAL__63505
+                                  [VAL__126427
                                    (.valAt
-                                    input__62968_nth_3__
+                                    input__125886_nth_3__
                                     :context)]
                                   (clojure.core/case
-                                   VAL__63505
+                                   VAL__126427
                                    (:string)
                                    (try
                                     [{:tag :string-star,
@@ -3972,43 +4102,43 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))
-                                   (state__64689)))
-                                 (state__64689)))
-                               (state__64689)))
-                             (state__64689))))
+                                   (state__127612)))
+                                 (state__127612)))
+                               (state__127612)))
+                             (state__127612))))
                           (:string-join)
                           (clojure.core/let
-                           [VAL__63509
-                            (.valAt input__62968_nth_1__ :left)]
+                           [VAL__126431
+                            (.valAt input__125886_nth_1__ :left)]
                            (clojure.core/let
-                            [?left VAL__63509]
+                            [?left VAL__126431]
                             (clojure.core/let
-                             [VAL__63510
-                              (.valAt input__62968_nth_1__ :right)]
+                             [VAL__126432
+                              (.valAt input__125886_nth_1__ :right)]
                              (clojure.core/let
-                              [?right-1 VAL__63510]
+                              [?right-1 VAL__126432]
                               (clojure.core/let
-                               [?right-2 input__62968_nth_2__]
+                               [?right-2 input__125886_nth_2__]
                                (if
                                 (clojure.core/map?
-                                 input__62968_nth_3__)
+                                 input__125886_nth_3__)
                                 (clojure.core/let
-                                 [VAL__63511
+                                 [VAL__126433
                                   (.valAt
-                                   input__62968_nth_3__
+                                   input__125886_nth_3__
                                    :context)]
                                  (clojure.core/case
-                                  VAL__63511
+                                  VAL__126433
                                   (:string)
                                   (clojure.core/let
-                                   [?env input__62968_nth_3__]
+                                   [?env input__125886_nth_3__]
                                    (try
                                     [{:tag :string-join,
                                       :left ?left,
                                       :right
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051
+                                        (CATA__FN__125969
                                          ['meander.dev.parse.zeta/make-join
                                           ?right-1
                                           ?right-2
@@ -4029,24 +4159,24 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__)))))
-                                  (state__64689)))
-                                (state__64689)))))))
-                          (state__64689)))
-                        (state__64689)))
-                      (state__64689
+                                  (state__127612)))
+                                (state__127612)))))))
+                          (state__127612)))
+                        (state__127612)))
+                      (state__127612
                        []
                        (clojure.core/let
-                        [?left input__62968_nth_1__]
+                        [?left input__125886_nth_1__]
                         (if
-                         (clojure.core/map? input__62968_nth_2__)
+                         (clojure.core/map? input__125886_nth_2__)
                          (clojure.core/let
-                          [VAL__63514
-                           (.valAt input__62968_nth_2__ :tag)]
+                          [VAL__126436
+                           (.valAt input__125886_nth_2__ :tag)]
                           (clojure.core/case
-                           VAL__63514
+                           VAL__126436
                            (:empty)
                            (clojure.core/let
-                            [?env input__62968_nth_3__]
+                            [?env input__125886_nth_3__]
                             (try
                              [?left]
                              (catch
@@ -4057,22 +4187,22 @@
                                 e__16581__auto__)
                                (meander.runtime.zeta/fail)
                                (throw e__16581__auto__)))))
-                           (state__64690)))
-                         (state__64690))))
-                      (state__64690
+                           (state__127613)))
+                         (state__127613))))
+                      (state__127613
                        []
                        (if
-                        (clojure.core/map? input__62968_nth_1__)
+                        (clojure.core/map? input__125886_nth_1__)
                         (clojure.core/let
-                         [VAL__64554
-                          (.valAt input__62968_nth_1__ :tag)]
+                         [VAL__127476
+                          (.valAt input__125886_nth_1__ :tag)]
                          (clojure.core/case
-                          VAL__64554
+                          VAL__127476
                           (:empty)
                           (clojure.core/let
-                           [?right input__62968_nth_2__]
+                           [?right input__125886_nth_2__]
                            (clojure.core/let
-                            [?env input__62968_nth_3__]
+                            [?env input__125886_nth_3__]
                             (try
                              [?right]
                              (catch
@@ -4085,21 +4215,21 @@
                                (throw e__16581__auto__))))))
                           (:star)
                           (clojure.core/let
-                           [VAL__63521
-                            (.valAt input__62968_nth_1__ :next)]
+                           [VAL__126443
+                            (.valAt input__125886_nth_1__ :next)]
                            (if
-                            (clojure.core/map? VAL__63521)
+                            (clojure.core/map? VAL__126443)
                             (clojure.core/let
-                             [VAL__63522 (.valAt VAL__63521 :tag)]
+                             [VAL__126444 (.valAt VAL__126443 :tag)]
                              (clojure.core/case
-                              VAL__63522
+                              VAL__126444
                               (:empty)
                               (clojure.core/let
-                               [?left input__62968_nth_1__]
+                               [?left input__125886_nth_1__]
                                (clojure.core/let
-                                [?right input__62968_nth_2__]
+                                [?right input__125886_nth_2__]
                                 (clojure.core/let
-                                 [?env input__62968_nth_3__]
+                                 [?env input__125886_nth_3__]
                                  (try
                                   [(clojure.core/let
                                     [form__15740__auto__
@@ -4115,26 +4245,26 @@
                                      e__16581__auto__)
                                     (meander.runtime.zeta/fail)
                                     (throw e__16581__auto__)))))))
-                              (state__64691)))
-                            (state__64691)))
-                          (state__64691)))
-                        (state__64691)))
-                      (state__64691
+                              (state__127614)))
+                            (state__127614)))
+                          (state__127614)))
+                        (state__127614)))
+                      (state__127614
                        []
                        (clojure.core/let
-                        [?left input__62968_nth_1__]
+                        [?left input__125886_nth_1__]
                         (clojure.core/let
-                         [?right input__62968_nth_2__]
+                         [?right input__125886_nth_2__]
                          (clojure.core/letfn
-                          [(state__64692
+                          [(state__127615
                             []
                             (if
-                             (clojure.core/map? input__62968_nth_3__)
+                             (clojure.core/map? input__125886_nth_3__)
                              (clojure.core/let
-                              [VAL__63525
-                               (.valAt input__62968_nth_3__ :context)]
+                              [VAL__126447
+                               (.valAt input__125886_nth_3__ :context)]
                               (clojure.core/case
-                               VAL__63525
+                               VAL__126447
                                (:string)
                                (try
                                 [{:tag :string-join,
@@ -4148,12 +4278,12 @@
                                    e__16581__auto__)
                                   (meander.runtime.zeta/fail)
                                   (throw e__16581__auto__))))
-                               (state__64693)))
-                             (state__64693)))
-                           (state__64693
+                               (state__127616)))
+                             (state__127616)))
+                           (state__127616
                             []
                             (clojure.core/let
-                             [?env input__62968_nth_3__]
+                             [?env input__125886_nth_3__]
                              (try
                               [{:tag :join,
                                 :left ?left,
@@ -4166,54 +4296,54 @@
                                  e__16581__auto__)
                                 (meander.runtime.zeta/fail)
                                 (throw e__16581__auto__))))))]
-                          (state__64692)))))]
-                     (state__64688))
-                    (state__64660))))]
-                (state__64661)))
-              (state__64660)))
-            (state__64660
+                          (state__127615)))))]
+                     (state__127611))
+                    (state__127582))))]
+                (state__127583)))
+              (state__127582)))
+            (state__127582
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 3)
+              (clojure.core/= (clojure.core/count input__125886) 3)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/case
-                input__62968_nth_0__
+                input__125886_nth_0__
                 (meander.dev.parse.zeta/parse-entries)
                 (if
-                 (clojure.core/map? input__62968_nth_1__)
+                 (clojure.core/map? input__125886_nth_1__)
                  (clojure.core/let
-                  [VAL__63530
-                   (.valAt input__62968_nth_1__ :meander.zeta/as)]
+                  [VAL__126452
+                   (.valAt input__125886_nth_1__ :meander.zeta/as)]
                   (clojure.core/let
-                   [?pattern VAL__63530]
+                   [?pattern VAL__126452]
                    (clojure.core/let
-                    [X__63532
+                    [X__126454
                      ((clojure.core/fn
                        [m__13405__auto__]
                        (clojure.core/dissoc
                         m__13405__auto__
                         :meander.zeta/as))
-                      input__62968_nth_1__)]
+                      input__125886_nth_1__)]
                     (clojure.core/let
-                     [?rest X__63532]
+                     [?rest X__126454]
                      (clojure.core/letfn
-                      [(save__63533 [] (state__64567))
-                       (f__64694
+                      [(save__126455 [] (state__127489))
+                       (f__127617
                         []
                         (clojure.core/let
-                         [?env input__62968_nth_2__]
+                         [?env input__125886_nth_2__]
                          (try
                           [{:tag :as,
                             :pattern
                             (clojure.core/let
                              [CATA_RESULT__15641__auto__
-                              (CATA__FN__63051 [?pattern ?env])]
+                              (CATA__FN__125969 [?pattern ?env])]
                              (if
                               (meander.runtime.zeta/fail?
                                CATA_RESULT__15641__auto__)
@@ -4224,7 +4354,7 @@
                             :next
                             (clojure.core/let
                              [CATA_RESULT__15641__auto__
-                              (CATA__FN__63051 [?rest ?env])]
+                              (CATA__FN__125969 [?rest ?env])]
                              (if
                               (meander.runtime.zeta/fail?
                                CATA_RESULT__15641__auto__)
@@ -4241,149 +4371,154 @@
                             (meander.runtime.zeta/fail)
                             (throw e__16581__auto__))))))]
                       (if
-                       (clojure.core/= ?rest input__62968_nth_1__)
-                       (save__63533)
-                       (f__64694)))))))
-                 (state__64567))
-                (state__64567)))
-              (state__64567)))]
-           (state__64658))
-          (state__64567)))
-        (state__64567
+                       (clojure.core/= ?rest input__125886_nth_1__)
+                       (save__126455)
+                       (f__127617)))))))
+                 (state__127489))
+                (state__127489)))
+              (state__127489)))]
+           (state__127580))
+          (state__127489)))
+        (state__127489
          []
          (clojure.core/letfn
-          [(def__63536
-            [arg__63569 ?ns]
+          [(def__126458
+            [arg__126491 ?ns]
             (clojure.core/letfn
-             [(state__64695
+             [(state__127618
                []
                (clojure.core/let
-                [x__63570 "meander.zeta"]
+                [x__126492 "meander.zeta"]
                 (if
-                 (clojure.core/= ?ns x__63570)
-                 (clojure.core/let [?env arg__63569] [?env ?ns])
-                 (state__64696))))
-              (state__64696
+                 (clojure.core/= ?ns x__126492)
+                 (clojure.core/let [?env arg__126491] [?env ?ns])
+                 (state__127619))))
+              (state__127619
                []
                (if
-                (clojure.core/map? arg__63569)
+                (clojure.core/map? arg__126491)
                 (clojure.core/let
-                 [VAL__63571 (.valAt arg__63569 :aliases)]
+                 [VAL__126493 (.valAt arg__126491 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63571)
+                  (clojure.core/map? VAL__126493)
                   (clojure.core/let
-                   [X__63573 (clojure.core/set VAL__63571)]
+                   [X__126495 (clojure.core/set VAL__126493)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63573))
+                    (clojure.core/<= 1 (clojure.core/count X__126495))
                     (clojure.core/loop
-                     [search_space__64697 (clojure.core/seq X__63573)]
+                     [search_space__127620
+                      (clojure.core/seq X__126495)]
                      (if
-                      (clojure.core/seq search_space__64697)
+                      (clojure.core/seq search_space__127620)
                       (clojure.core/let
-                       [elem__63574
-                        (clojure.core/first search_space__64697)
-                        result__64698
+                       [elem__126496
+                        (clojure.core/first search_space__127620)
+                        result__127621
                         (clojure.core/let
-                         [elem__63574_nth_0__
-                          (clojure.core/nth elem__63574 0)
-                          elem__63574_nth_1__
-                          (clojure.core/nth elem__63574 1)]
+                         [elem__126496_nth_0__
+                          (clojure.core/nth elem__126496 0)
+                          elem__126496_nth_1__
+                          (clojure.core/nth elem__126496 1)]
                          (if
-                          (clojure.core/symbol? elem__63574_nth_0__)
+                          (clojure.core/symbol? elem__126496_nth_0__)
                           (clojure.core/let
-                           [X__63576
-                            (clojure.core/name elem__63574_nth_0__)]
+                           [X__126498
+                            (clojure.core/name elem__126496_nth_0__)]
                            (if
-                            (clojure.core/= ?ns X__63576)
+                            (clojure.core/= ?ns X__126498)
                             (if
-                             (clojure.core/symbol? elem__63574_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126496_nth_1__)
                              (clojure.core/let
-                              [X__63578
-                               (clojure.core/name elem__63574_nth_1__)]
+                              [X__126500
+                               (clojure.core/name
+                                elem__126496_nth_1__)]
                               (clojure.core/case
-                               X__63578
+                               X__126500
                                ("meander.zeta")
                                (clojure.core/let
-                                [?env arg__63569]
+                                [?env arg__126491]
                                 [?env ?ns])
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64698)
-                        (recur (clojure.core/next search_space__64697))
-                        result__64698))
+                        (meander.runtime.zeta/fail? result__127621)
+                        (recur
+                         (clojure.core/next search_space__127620))
+                        result__127621))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64695)))]
+             (state__127618)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 3)
+            (clojure.core/= (clojure.core/count input__125886) 3)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)
-              input__62968_nth_2__
-              (clojure.core/nth input__62968 2)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)
+              input__125886_nth_2__
+              (clojure.core/nth input__125886 2)]
              (clojure.core/case
-              input__62968_nth_0__
+              input__125886_nth_0__
               (meander.dev.parse.zeta/parse-entries)
               (if
-               (clojure.core/map? input__62968_nth_1__)
+               (clojure.core/map? input__125886_nth_1__)
                (clojure.core/let
-                [X__63541 (clojure.core/set input__62968_nth_1__)]
+                [X__126463 (clojure.core/set input__125886_nth_1__)]
                 (if
-                 (clojure.core/<= 1 (clojure.core/count X__63541))
+                 (clojure.core/<= 1 (clojure.core/count X__126463))
                  (clojure.core/loop
-                  [search_space__64700 (clojure.core/seq X__63541)]
+                  [search_space__127623 (clojure.core/seq X__126463)]
                   (if
-                   (clojure.core/seq search_space__64700)
+                   (clojure.core/seq search_space__127623)
                    (clojure.core/let
-                    [elem__63542
-                     (clojure.core/first search_space__64700)
-                     result__64701
+                    [elem__126464
+                     (clojure.core/first search_space__127623)
+                     result__127624
                      (clojure.core/let
-                      [elem__63542_nth_0__
-                       (clojure.core/nth elem__63542 0)
-                       elem__63542_nth_1__
-                       (clojure.core/nth elem__63542 1)]
+                      [elem__126464_nth_0__
+                       (clojure.core/nth elem__126464 0)
+                       elem__126464_nth_1__
+                       (clojure.core/nth elem__126464 1)]
                       (clojure.core/let
-                       [*m__63002 elem__63542_nth_0__]
+                       [*m__125920 elem__126464_nth_0__]
                        (if
-                        (clojure.core/symbol? elem__63542_nth_0__)
+                        (clojure.core/symbol? elem__126464_nth_0__)
                         (clojure.core/let
-                         [X__63544
-                          (clojure.core/namespace elem__63542_nth_0__)]
+                         [X__126466
+                          (clojure.core/namespace
+                           elem__126464_nth_0__)]
                          (clojure.core/let
-                          [?ns X__63544]
+                          [?ns X__126466]
                           (clojure.core/let
-                           [X__63546
-                            (clojure.core/name elem__63542_nth_0__)]
+                           [X__126468
+                            (clojure.core/name elem__126464_nth_0__)]
                            (if
-                            (clojure.core/string? X__63546)
+                            (clojure.core/string? X__126468)
                             (if
-                             (clojure.core/re-matches #"&.*" X__63546)
+                             (clojure.core/re-matches #"&.*" X__126468)
                              (clojure.core/let
-                              [?pattern elem__63542_nth_1__]
+                              [?pattern elem__126464_nth_1__]
                               (clojure.core/let
-                               [X__63548
+                               [X__126470
                                 ((clojure.core/fn
                                   [m__13405__auto__]
                                   (clojure.core/dissoc
                                    m__13405__auto__
-                                   *m__63002))
-                                 input__62968_nth_1__)]
+                                   *m__125920))
+                                 input__125886_nth_1__)]
                                (clojure.core/let
-                                [?rest X__63548]
+                                [?rest X__126470]
                                 (clojure.core/let
                                  [x__14338__auto__
-                                  (def__63536
-                                   input__62968_nth_2__
+                                  (def__126458
+                                   input__125886_nth_2__
                                    ?ns)]
                                  (if
                                   (meander.runtime.zeta/fail?
@@ -4396,7 +4531,7 @@
                                       :pattern
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051
+                                        (CATA__FN__125969
                                          [?pattern ?env])]
                                        (if
                                         (meander.runtime.zeta/fail?
@@ -4409,7 +4544,7 @@
                                       :next
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051
+                                        (CATA__FN__125969
                                          ['meander.dev.parse.zeta/parse-entries
                                           ?rest
                                           ?env])]
@@ -4433,79 +4568,82 @@
                             (meander.runtime.zeta/fail)))))
                         (meander.runtime.zeta/fail))))]
                     (if
-                     (meander.runtime.zeta/fail? result__64701)
-                     (recur (clojure.core/next search_space__64700))
-                     result__64701))
-                   (state__64568)))
-                 (state__64568)))
-               (state__64568))
-              (state__64568)))
-            (state__64568))
-           (state__64568))))
-        (state__64568
+                     (meander.runtime.zeta/fail? result__127624)
+                     (recur (clojure.core/next search_space__127623))
+                     result__127624))
+                   (state__127490)))
+                 (state__127490)))
+               (state__127490))
+              (state__127490)))
+            (state__127490))
+           (state__127490))))
+        (state__127490
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (clojure.core/letfn
-           [(state__64703
+           [(state__127626
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 3)
+              (clojure.core/= (clojure.core/count input__125886) 3)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)
-                input__62968_nth_2__
-                (clojure.core/nth input__62968 2)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)
+                input__125886_nth_2__
+                (clojure.core/nth input__125886 2)]
                (clojure.core/case
-                input__62968_nth_0__
+                input__125886_nth_0__
                 (meander.dev.parse.zeta/parse-entries)
                 (clojure.core/letfn
-                 [(state__64705
+                 [(state__127628
                    []
                    (if
-                    (clojure.core/map? input__62968_nth_1__)
+                    (clojure.core/map? input__125886_nth_1__)
                     (clojure.core/let
-                     [X__63592 (clojure.core/set input__62968_nth_1__)]
+                     [X__126514
+                      (clojure.core/set input__125886_nth_1__)]
                      (if
-                      (clojure.core/<= 1 (clojure.core/count X__63592))
+                      (clojure.core/<=
+                       1
+                       (clojure.core/count X__126514))
                       (clojure.core/loop
-                       [search_space__64707
-                        (clojure.core/seq X__63592)]
+                       [search_space__127630
+                        (clojure.core/seq X__126514)]
                        (if
-                        (clojure.core/seq search_space__64707)
+                        (clojure.core/seq search_space__127630)
                         (clojure.core/let
-                         [elem__63593
-                          (clojure.core/first search_space__64707)
-                          result__64708
+                         [elem__126515
+                          (clojure.core/first search_space__127630)
+                          result__127631
                           (clojure.core/let
-                           [elem__63593_nth_0__
-                            (clojure.core/nth elem__63593 0)
-                            elem__63593_nth_1__
-                            (clojure.core/nth elem__63593 1)]
+                           [elem__126515_nth_0__
+                            (clojure.core/nth elem__126515 0)
+                            elem__126515_nth_1__
+                            (clojure.core/nth elem__126515 1)]
                            (clojure.core/let
-                            [?key-pattern elem__63593_nth_0__]
+                            [?key-pattern elem__126515_nth_0__]
                             (clojure.core/let
-                             [?val-pattern elem__63593_nth_1__]
+                             [?val-pattern elem__126515_nth_1__]
                              (clojure.core/let
-                              [X__63595
+                              [X__126517
                                ((clojure.core/fn
                                  [m__13405__auto__]
                                  (clojure.core/dissoc
                                   m__13405__auto__
                                   ?key-pattern))
-                                input__62968_nth_1__)]
+                                input__125886_nth_1__)]
                               (clojure.core/let
-                               [?rest X__63595]
+                               [?rest X__126517]
                                (clojure.core/let
-                                [?env input__62968_nth_2__]
+                                [?env input__125886_nth_2__]
                                 (try
                                  [{:tag :entry,
                                    :key-pattern
                                    (clojure.core/let
                                     [CATA_RESULT__15641__auto__
-                                     (CATA__FN__63051
+                                     (CATA__FN__125969
                                       [?key-pattern ?env])]
                                     (if
                                      (meander.runtime.zeta/fail?
@@ -4518,7 +4656,7 @@
                                    :val-pattern
                                    (clojure.core/let
                                     [CATA_RESULT__15641__auto__
-                                     (CATA__FN__63051
+                                     (CATA__FN__125969
                                       [?val-pattern ?env])]
                                     (if
                                      (meander.runtime.zeta/fail?
@@ -4531,7 +4669,7 @@
                                    :next
                                    (clojure.core/let
                                     [CATA_RESULT__15641__auto__
-                                     (CATA__FN__63051
+                                     (CATA__FN__125969
                                       ['meander.dev.parse.zeta/parse-entries
                                        ?rest
                                        ?env])]
@@ -4552,19 +4690,19 @@
                                    (meander.runtime.zeta/fail)
                                    (throw e__16581__auto__))))))))))]
                          (if
-                          (meander.runtime.zeta/fail? result__64708)
+                          (meander.runtime.zeta/fail? result__127631)
                           (recur
-                           (clojure.core/next search_space__64707))
-                          result__64708))
-                        (state__64706)))
-                      (state__64706)))
-                    (state__64706)))
-                  (state__64706
+                           (clojure.core/next search_space__127630))
+                          result__127631))
+                        (state__127629)))
+                      (state__127629)))
+                    (state__127629)))
+                  (state__127629
                    []
                    (if
-                    (clojure.core/map? input__62968_nth_1__)
+                    (clojure.core/map? input__125886_nth_1__)
                     (clojure.core/let
-                     [?env input__62968_nth_2__]
+                     [?env input__125886_nth_2__]
                      (try
                       [{:tag :some-map}]
                       (catch
@@ -4574,19 +4712,19 @@
                         (meander.runtime.zeta/fail? e__16581__auto__)
                         (meander.runtime.zeta/fail)
                         (throw e__16581__auto__)))))
-                    (state__64704)))]
-                 (state__64705))
+                    (state__127627)))]
+                 (state__127628))
                 (meander.dev.parse.zeta/parse-with-bindings)
                 (clojure.core/letfn
-                 [(state__64710
+                 [(state__127633
                    []
                    (if
-                    (clojure.core/vector? input__62968_nth_1__)
+                    (clojure.core/vector? input__125886_nth_1__)
                     (clojure.core/case
-                     input__62968_nth_1__
+                     input__125886_nth_1__
                      ([])
                      (clojure.core/let
-                      [?env input__62968_nth_2__]
+                      [?env input__125886_nth_2__]
                       (try
                        [[]]
                        (catch
@@ -4596,18 +4734,18 @@
                          (meander.runtime.zeta/fail? e__16581__auto__)
                          (meander.runtime.zeta/fail)
                          (throw e__16581__auto__)))))
-                     (state__64711))
-                    (state__64711)))
-                  (state__64711
+                     (state__127634))
+                    (state__127634)))
+                  (state__127634
                    []
                    (if
-                    (clojure.core/vector? input__62968_nth_1__)
+                    (clojure.core/vector? input__125886_nth_1__)
                     (if
                      (clojure.core/=
-                      (clojure.core/count input__62968_nth_1__)
+                      (clojure.core/count input__125886_nth_1__)
                       1)
                      (clojure.core/let
-                      [?env input__62968_nth_2__]
+                      [?env input__125886_nth_2__]
                       (try
                        [[{:tag :error,
                           :message
@@ -4619,57 +4757,59 @@
                          (meander.runtime.zeta/fail? e__16581__auto__)
                          (meander.runtime.zeta/fail)
                          (throw e__16581__auto__)))))
-                     (state__64712))
-                    (state__64712)))
-                  (state__64712
+                     (state__127635))
+                    (state__127635)))
+                  (state__127635
                    []
                    (if
-                    (clojure.core/vector? input__62968_nth_1__)
+                    (clojure.core/vector? input__125886_nth_1__)
                     (clojure.core/let
-                     [input__62968_nth_1___l__
+                     [input__125886_nth_1___l__
                       (clojure.core/subvec
-                       input__62968_nth_1__
+                       input__125886_nth_1__
                        0
                        (clojure.core/min
-                        (clojure.core/count input__62968_nth_1__)
+                        (clojure.core/count input__125886_nth_1__)
                         2))]
                      (if
                       (clojure.core/=
-                       (clojure.core/count input__62968_nth_1___l__)
+                       (clojure.core/count input__125886_nth_1___l__)
                        2)
                       (clojure.core/let
-                       [input__62968_nth_1___r__
-                        (clojure.core/subvec input__62968_nth_1__ 2)]
+                       [input__125886_nth_1___r__
+                        (clojure.core/subvec input__125886_nth_1__ 2)]
                        (clojure.core/let
-                        [input__62968_nth_1___l___nth_0__
-                         (clojure.core/nth input__62968_nth_1___l__ 0)
-                         input__62968_nth_1___l___nth_1__
-                         (clojure.core/nth input__62968_nth_1___l__ 1)]
+                        [input__125886_nth_1___l___nth_0__
+                         (clojure.core/nth input__125886_nth_1___l__ 0)
+                         input__125886_nth_1___l___nth_1__
+                         (clojure.core/nth
+                          input__125886_nth_1___l__
+                          1)]
                         (if
                          (clojure.core/symbol?
-                          input__62968_nth_1___l___nth_0__)
+                          input__125886_nth_1___l___nth_0__)
                          (clojure.core/let
-                          [X__63609
+                          [X__126531
                            (clojure.core/namespace
-                            input__62968_nth_1___l___nth_0__)]
+                            input__125886_nth_1___l___nth_0__)]
                           (clojure.core/let
-                           [X__63611
+                           [X__126533
                             (clojure.core/name
-                             input__62968_nth_1___l___nth_0__)]
+                             input__125886_nth_1___l___nth_0__)]
                            (if
-                            (clojure.core/string? X__63611)
+                            (clojure.core/string? X__126533)
                             (if
-                             (clojure.core/re-matches #"%.+" X__63611)
+                             (clojure.core/re-matches #"%.+" X__126533)
                              (clojure.core/let
                               [?symbol
-                               input__62968_nth_1___l___nth_0__]
+                               input__125886_nth_1___l___nth_0__]
                               (clojure.core/let
                                [?pattern
-                                input__62968_nth_1___l___nth_1__]
+                                input__125886_nth_1___l___nth_1__]
                                (clojure.core/let
-                                [?rest input__62968_nth_1___r__]
+                                [?rest input__125886_nth_1___r__]
                                 (clojure.core/let
-                                 [?env input__62968_nth_2__]
+                                 [?env input__125886_nth_2__]
                                  (try
                                   [(clojure.core/into
                                     []
@@ -4683,7 +4823,7 @@
                                        :pattern
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?pattern ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -4695,7 +4835,7 @@
                                           0)))})
                                      (clojure.core/let
                                       [CATA_RESULT__15641__auto__
-                                       (CATA__FN__63051
+                                       (CATA__FN__125969
                                         ['meander.dev.parse.zeta/parse-with-bindings
                                          ?rest
                                          ?env])]
@@ -4715,43 +4855,45 @@
                                      e__16581__auto__)
                                     (meander.runtime.zeta/fail)
                                     (throw e__16581__auto__))))))))
-                             (state__64713))
-                            (state__64713))))
-                         (state__64713))))
-                      (state__64713)))
-                    (state__64713)))
-                  (state__64713
+                             (state__127636))
+                            (state__127636))))
+                         (state__127636))))
+                      (state__127636)))
+                    (state__127636)))
+                  (state__127636
                    []
                    (if
-                    (clojure.core/vector? input__62968_nth_1__)
+                    (clojure.core/vector? input__125886_nth_1__)
                     (clojure.core/let
-                     [input__62968_nth_1___l__
+                     [input__125886_nth_1___l__
                       (clojure.core/subvec
-                       input__62968_nth_1__
+                       input__125886_nth_1__
                        0
                        (clojure.core/min
-                        (clojure.core/count input__62968_nth_1__)
+                        (clojure.core/count input__125886_nth_1__)
                         2))]
                      (if
                       (clojure.core/=
-                       (clojure.core/count input__62968_nth_1___l__)
+                       (clojure.core/count input__125886_nth_1___l__)
                        2)
                       (clojure.core/let
-                       [input__62968_nth_1___r__
-                        (clojure.core/subvec input__62968_nth_1__ 2)]
+                       [input__125886_nth_1___r__
+                        (clojure.core/subvec input__125886_nth_1__ 2)]
                        (clojure.core/let
-                        [input__62968_nth_1___l___nth_0__
-                         (clojure.core/nth input__62968_nth_1___l__ 0)
-                         input__62968_nth_1___l___nth_1__
-                         (clojure.core/nth input__62968_nth_1___l__ 1)]
+                        [input__125886_nth_1___l___nth_0__
+                         (clojure.core/nth input__125886_nth_1___l__ 0)
+                         input__125886_nth_1___l___nth_1__
+                         (clojure.core/nth
+                          input__125886_nth_1___l__
+                          1)]
                         (clojure.core/let
-                         [?x input__62968_nth_1___l___nth_0__]
+                         [?x input__125886_nth_1___l___nth_0__]
                          (clojure.core/let
-                          [?pattern input__62968_nth_1___l___nth_1__]
+                          [?pattern input__125886_nth_1___l___nth_1__]
                           (clojure.core/let
-                           [?rest input__62968_nth_1___r__]
+                           [?rest input__125886_nth_1___r__]
                            (clojure.core/let
-                            [?env input__62968_nth_2__]
+                            [?env input__125886_nth_2__]
                             (try
                              [[{:tag :error,
                                 :message
@@ -4764,34 +4906,34 @@
                                 e__16581__auto__)
                                (meander.runtime.zeta/fail)
                                (throw e__16581__auto__))))))))))
-                      (state__64704)))
-                    (state__64704)))]
-                 (state__64710))
-                (state__64704)))
-              (state__64704)))
-            (state__64704
+                      (state__127627)))
+                    (state__127627)))]
+                 (state__127633))
+                (state__127627)))
+              (state__127627)))
+            (state__127627
              []
              (if
-              (clojure.core/= (clojure.core/count input__62968) 2)
+              (clojure.core/= (clojure.core/count input__125886) 2)
               (clojure.core/let
-               [input__62968_nth_0__
-                (clojure.core/nth input__62968 0)
-                input__62968_nth_1__
-                (clojure.core/nth input__62968 1)]
+               [input__125886_nth_0__
+                (clojure.core/nth input__125886 0)
+                input__125886_nth_1__
+                (clojure.core/nth input__125886 1)]
                (if
-                (clojure.core/vector? input__62968_nth_0__)
+                (clojure.core/vector? input__125886_nth_0__)
                 (clojure.core/let
-                 [?sequence input__62968_nth_0__]
+                 [?sequence input__125886_nth_0__]
                  (clojure.core/let
-                  [?form input__62968_nth_0__]
+                  [?form input__125886_nth_0__]
                   (clojure.core/let
-                   [?env input__62968_nth_1__]
+                   [?env input__125886_nth_1__]
                    (try
                     [{:tag :vector,
                       :next
                       (clojure.core/let
                        [CATA_RESULT__15641__auto__
-                        (CATA__FN__63051
+                        (CATA__FN__125969
                          ['meander.dev.parse.zeta/parse-sequential
                           ?sequence
                           (clojure.core/let
@@ -4814,158 +4956,162 @@
                       (meander.runtime.zeta/fail? e__16581__auto__)
                       (meander.runtime.zeta/fail)
                       (throw e__16581__auto__)))))))
-                (state__64569)))
-              (state__64569)))]
-           (state__64703))
-          (state__64569)))
-        (state__64569
+                (state__127491)))
+              (state__127491)))]
+           (state__127626))
+          (state__127491)))
+        (state__127491
          []
          (clojure.core/letfn
-          [(def__63621
-            [arg__63644 ?__62969]
+          [(def__126543
+            [arg__126566 ?__125887]
             (clojure.core/letfn
-             [(state__64714
+             [(state__127637
                []
                (clojure.core/let
-                [x__63645 "clojure.core"]
+                [x__126567 "clojure.core"]
                 (if
-                 (clojure.core/= ?__62969 x__63645)
-                 [?__62969]
-                 (state__64715))))
-              (state__64715
+                 (clojure.core/= ?__125887 x__126567)
+                 [?__125887]
+                 (state__127638))))
+              (state__127638
                []
                (if
-                (clojure.core/map? arg__63644)
+                (clojure.core/map? arg__126566)
                 (clojure.core/let
-                 [VAL__63646 (.valAt arg__63644 :aliases)]
+                 [VAL__126568 (.valAt arg__126566 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63646)
+                  (clojure.core/map? VAL__126568)
                   (clojure.core/let
-                   [X__63648 (clojure.core/set VAL__63646)]
+                   [X__126570 (clojure.core/set VAL__126568)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63648))
+                    (clojure.core/<= 1 (clojure.core/count X__126570))
                     (clojure.core/loop
-                     [search_space__64716 (clojure.core/seq X__63648)]
+                     [search_space__127639
+                      (clojure.core/seq X__126570)]
                      (if
-                      (clojure.core/seq search_space__64716)
+                      (clojure.core/seq search_space__127639)
                       (clojure.core/let
-                       [elem__63649
-                        (clojure.core/first search_space__64716)
-                        result__64717
+                       [elem__126571
+                        (clojure.core/first search_space__127639)
+                        result__127640
                         (clojure.core/let
-                         [elem__63649_nth_0__
-                          (clojure.core/nth elem__63649 0)
-                          elem__63649_nth_1__
-                          (clojure.core/nth elem__63649 1)]
+                         [elem__126571_nth_0__
+                          (clojure.core/nth elem__126571 0)
+                          elem__126571_nth_1__
+                          (clojure.core/nth elem__126571 1)]
                          (if
-                          (clojure.core/symbol? elem__63649_nth_0__)
+                          (clojure.core/symbol? elem__126571_nth_0__)
                           (clojure.core/let
-                           [X__63651
-                            (clojure.core/name elem__63649_nth_0__)]
+                           [X__126573
+                            (clojure.core/name elem__126571_nth_0__)]
                            (if
-                            (clojure.core/= ?__62969 X__63651)
+                            (clojure.core/= ?__125887 X__126573)
                             (if
-                             (clojure.core/symbol? elem__63649_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126571_nth_1__)
                              (clojure.core/let
-                              [X__63653
-                               (clojure.core/name elem__63649_nth_1__)]
+                              [X__126575
+                               (clojure.core/name
+                                elem__126571_nth_1__)]
                               (clojure.core/case
-                               X__63653
+                               X__126575
                                ("clojure.core")
-                               [?__62969]
+                               [?__125887]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64717)
-                        (recur (clojure.core/next search_space__64716))
-                        result__64717))
+                        (meander.runtime.zeta/fail? result__127640)
+                        (recur
+                         (clojure.core/next search_space__127639))
+                        result__127640))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64714)))]
+             (state__127637)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63631
+                    [X__126553
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62969 X__63631]
+                     [?__125887 X__126553]
                      (clojure.core/let
-                      [X__63633
+                      [X__126555
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63633
+                       X__126555
                        ("unquote")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63621 input__62968_nth_1__ ?__62969)]
+                         (def__126543 input__125886_nth_1__ ?__125887)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64570)
+                         (state__127492)
                          (clojure.core/let
-                          [[?__62969] x__14338__auto__]
+                          [[?__125887] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
-                                 [?x input__62968_nth_0___nth_1__]
+                                 [?x input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :host-expression,
                                       :expression ?x,
@@ -4978,176 +5124,180 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64570))
-                              (state__64570)))
-                            (state__64570))
-                           (state__64570)))))
-                       (state__64570)))))
-                   (state__64570))))
-                (state__64570)))
-              (state__64570)))
-            (state__64570))
-           (state__64570))))
-        (state__64570
+                               (state__127492))
+                              (state__127492)))
+                            (state__127492))
+                           (state__127492)))))
+                       (state__127492)))))
+                   (state__127492))))
+                (state__127492)))
+              (state__127492)))
+            (state__127492))
+           (state__127492))))
+        (state__127492
          []
          (clojure.core/letfn
-          [(def__63655
-            [arg__63678 ?__62970]
+          [(def__126577
+            [arg__126600 ?__125888]
             (clojure.core/letfn
-             [(state__64719
+             [(state__127642
                []
                (clojure.core/let
-                [x__63679 "meander.zeta"]
+                [x__126601 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62970 x__63679)
-                 [?__62970]
-                 (state__64720))))
-              (state__64720
+                 (clojure.core/= ?__125888 x__126601)
+                 [?__125888]
+                 (state__127643))))
+              (state__127643
                []
                (if
-                (clojure.core/map? arg__63678)
+                (clojure.core/map? arg__126600)
                 (clojure.core/let
-                 [VAL__63680 (.valAt arg__63678 :aliases)]
+                 [VAL__126602 (.valAt arg__126600 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63680)
+                  (clojure.core/map? VAL__126602)
                   (clojure.core/let
-                   [X__63682 (clojure.core/set VAL__63680)]
+                   [X__126604 (clojure.core/set VAL__126602)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63682))
+                    (clojure.core/<= 1 (clojure.core/count X__126604))
                     (clojure.core/loop
-                     [search_space__64721 (clojure.core/seq X__63682)]
+                     [search_space__127644
+                      (clojure.core/seq X__126604)]
                      (if
-                      (clojure.core/seq search_space__64721)
+                      (clojure.core/seq search_space__127644)
                       (clojure.core/let
-                       [elem__63683
-                        (clojure.core/first search_space__64721)
-                        result__64722
+                       [elem__126605
+                        (clojure.core/first search_space__127644)
+                        result__127645
                         (clojure.core/let
-                         [elem__63683_nth_0__
-                          (clojure.core/nth elem__63683 0)
-                          elem__63683_nth_1__
-                          (clojure.core/nth elem__63683 1)]
+                         [elem__126605_nth_0__
+                          (clojure.core/nth elem__126605 0)
+                          elem__126605_nth_1__
+                          (clojure.core/nth elem__126605 1)]
                          (if
-                          (clojure.core/symbol? elem__63683_nth_0__)
+                          (clojure.core/symbol? elem__126605_nth_0__)
                           (clojure.core/let
-                           [X__63685
-                            (clojure.core/name elem__63683_nth_0__)]
+                           [X__126607
+                            (clojure.core/name elem__126605_nth_0__)]
                            (if
-                            (clojure.core/= ?__62970 X__63685)
+                            (clojure.core/= ?__125888 X__126607)
                             (if
-                             (clojure.core/symbol? elem__63683_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126605_nth_1__)
                              (clojure.core/let
-                              [X__63687
-                               (clojure.core/name elem__63683_nth_1__)]
+                              [X__126609
+                               (clojure.core/name
+                                elem__126605_nth_1__)]
                               (clojure.core/case
-                               X__63687
+                               X__126609
                                ("meander.zeta")
-                               [?__62970]
+                               [?__125888]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64722)
-                        (recur (clojure.core/next search_space__64721))
-                        result__64722))
+                        (meander.runtime.zeta/fail? result__127645)
+                        (recur
+                         (clojure.core/next search_space__127644))
+                        result__127645))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64719)))]
+             (state__127642)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63665
+                    [X__126587
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62970 X__63665]
+                     [?__125888 X__126587]
                      (clojure.core/let
-                      [X__63667
+                      [X__126589
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63667
+                       X__126589
                        ("*")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63655 input__62968_nth_1__ ?__62970)]
+                         (def__126577 input__125886_nth_1__ ?__125888)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64571)
+                         (state__127493)
                          (clojure.core/let
-                          [[?__62970] x__14338__auto__]
+                          [[?__125888] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (clojure.core/let
-                               [input__62968_nth_0___l__
+                               [input__125886_nth_0___l__
                                 (clojure.core/take
                                  1
-                                 input__62968_nth_0__)]
+                                 input__125886_nth_0__)]
                                (if
                                 (clojure.core/=
                                  (clojure.core/bounded-count
                                   (clojure.core/inc 1)
-                                  input__62968_nth_0___l__)
+                                  input__125886_nth_0___l__)
                                  1)
                                 (clojure.core/let
-                                 [input__62968_nth_0___r__
+                                 [input__125886_nth_0___r__
                                   (clojure.core/drop
                                    1
-                                   input__62968_nth_0__)]
+                                   input__125886_nth_0__)]
                                  (clojure.core/let
-                                  [?patterns input__62968_nth_0___r__]
+                                  [?patterns input__125886_nth_0___r__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :star,
                                        :greedy? true,
                                        :pattern
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/parse-sequential
                                            (clojure.core/into
                                             []
@@ -5170,175 +5320,179 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__))))))))
-                                (state__64571)))
-                              (state__64571)))
-                            (state__64571))
-                           (state__64571)))))
-                       (state__64571)))))
-                   (state__64571))))
-                (state__64571)))
-              (state__64571)))
-            (state__64571))
-           (state__64571))))
-        (state__64571
+                                (state__127493)))
+                              (state__127493)))
+                            (state__127493))
+                           (state__127493)))))
+                       (state__127493)))))
+                   (state__127493))))
+                (state__127493)))
+              (state__127493)))
+            (state__127493))
+           (state__127493))))
+        (state__127493
          []
          (clojure.core/letfn
-          [(def__63689
-            [arg__63712 ?__62971]
+          [(def__126611
+            [arg__126634 ?__125889]
             (clojure.core/letfn
-             [(state__64724
+             [(state__127647
                []
                (clojure.core/let
-                [x__63713 "meander.zeta"]
+                [x__126635 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62971 x__63713)
-                 [?__62971]
-                 (state__64725))))
-              (state__64725
+                 (clojure.core/= ?__125889 x__126635)
+                 [?__125889]
+                 (state__127648))))
+              (state__127648
                []
                (if
-                (clojure.core/map? arg__63712)
+                (clojure.core/map? arg__126634)
                 (clojure.core/let
-                 [VAL__63714 (.valAt arg__63712 :aliases)]
+                 [VAL__126636 (.valAt arg__126634 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63714)
+                  (clojure.core/map? VAL__126636)
                   (clojure.core/let
-                   [X__63716 (clojure.core/set VAL__63714)]
+                   [X__126638 (clojure.core/set VAL__126636)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63716))
+                    (clojure.core/<= 1 (clojure.core/count X__126638))
                     (clojure.core/loop
-                     [search_space__64726 (clojure.core/seq X__63716)]
+                     [search_space__127649
+                      (clojure.core/seq X__126638)]
                      (if
-                      (clojure.core/seq search_space__64726)
+                      (clojure.core/seq search_space__127649)
                       (clojure.core/let
-                       [elem__63717
-                        (clojure.core/first search_space__64726)
-                        result__64727
+                       [elem__126639
+                        (clojure.core/first search_space__127649)
+                        result__127650
                         (clojure.core/let
-                         [elem__63717_nth_0__
-                          (clojure.core/nth elem__63717 0)
-                          elem__63717_nth_1__
-                          (clojure.core/nth elem__63717 1)]
+                         [elem__126639_nth_0__
+                          (clojure.core/nth elem__126639 0)
+                          elem__126639_nth_1__
+                          (clojure.core/nth elem__126639 1)]
                          (if
-                          (clojure.core/symbol? elem__63717_nth_0__)
+                          (clojure.core/symbol? elem__126639_nth_0__)
                           (clojure.core/let
-                           [X__63719
-                            (clojure.core/name elem__63717_nth_0__)]
+                           [X__126641
+                            (clojure.core/name elem__126639_nth_0__)]
                            (if
-                            (clojure.core/= ?__62971 X__63719)
+                            (clojure.core/= ?__125889 X__126641)
                             (if
-                             (clojure.core/symbol? elem__63717_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126639_nth_1__)
                              (clojure.core/let
-                              [X__63721
-                               (clojure.core/name elem__63717_nth_1__)]
+                              [X__126643
+                               (clojure.core/name
+                                elem__126639_nth_1__)]
                               (clojure.core/case
-                               X__63721
+                               X__126643
                                ("meander.zeta")
-                               [?__62971]
+                               [?__125889]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64727)
-                        (recur (clojure.core/next search_space__64726))
-                        result__64727))
+                        (meander.runtime.zeta/fail? result__127650)
+                        (recur
+                         (clojure.core/next search_space__127649))
+                        result__127650))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64724)))]
+             (state__127647)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63699
+                    [X__126621
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62971 X__63699]
+                     [?__125889 X__126621]
                      (clojure.core/let
-                      [X__63701
+                      [X__126623
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63701
+                       X__126623
                        ("<>")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63689 input__62968_nth_1__ ?__62971)]
+                         (def__126611 input__125886_nth_1__ ?__125889)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64572)
+                         (state__127494)
                          (clojure.core/let
-                          [[?__62971] x__14338__auto__]
+                          [[?__125889] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (clojure.core/let
-                               [input__62968_nth_0___l__
+                               [input__125886_nth_0___l__
                                 (clojure.core/take
                                  1
-                                 input__62968_nth_0__)]
+                                 input__125886_nth_0__)]
                                (if
                                 (clojure.core/=
                                  (clojure.core/bounded-count
                                   (clojure.core/inc 1)
-                                  input__62968_nth_0___l__)
+                                  input__125886_nth_0___l__)
                                  1)
                                 (clojure.core/let
-                                 [input__62968_nth_0___r__
+                                 [input__125886_nth_0___r__
                                   (clojure.core/drop
                                    1
-                                   input__62968_nth_0__)]
+                                   input__125886_nth_0__)]
                                  (clojure.core/let
-                                  [?patterns input__62968_nth_0___r__]
+                                  [?patterns input__125886_nth_0___r__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :group,
                                        :pattern
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/parse-sequential
                                            (clojure.core/into
                                             []
@@ -5360,176 +5514,180 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__))))))))
-                                (state__64572)))
-                              (state__64572)))
-                            (state__64572))
-                           (state__64572)))))
-                       (state__64572)))))
-                   (state__64572))))
-                (state__64572)))
-              (state__64572)))
-            (state__64572))
-           (state__64572))))
-        (state__64572
+                                (state__127494)))
+                              (state__127494)))
+                            (state__127494))
+                           (state__127494)))))
+                       (state__127494)))))
+                   (state__127494))))
+                (state__127494)))
+              (state__127494)))
+            (state__127494))
+           (state__127494))))
+        (state__127494
          []
          (clojure.core/letfn
-          [(def__63723
-            [arg__63746 ?__62972]
+          [(def__126645
+            [arg__126668 ?__125890]
             (clojure.core/letfn
-             [(state__64729
+             [(state__127652
                []
                (clojure.core/let
-                [x__63747 "meander.math.zeta"]
+                [x__126669 "meander.math.zeta"]
                 (if
-                 (clojure.core/= ?__62972 x__63747)
-                 [?__62972]
-                 (state__64730))))
-              (state__64730
+                 (clojure.core/= ?__125890 x__126669)
+                 [?__125890]
+                 (state__127653))))
+              (state__127653
                []
                (if
-                (clojure.core/map? arg__63746)
+                (clojure.core/map? arg__126668)
                 (clojure.core/let
-                 [VAL__63748 (.valAt arg__63746 :aliases)]
+                 [VAL__126670 (.valAt arg__126668 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63748)
+                  (clojure.core/map? VAL__126670)
                   (clojure.core/let
-                   [X__63750 (clojure.core/set VAL__63748)]
+                   [X__126672 (clojure.core/set VAL__126670)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63750))
+                    (clojure.core/<= 1 (clojure.core/count X__126672))
                     (clojure.core/loop
-                     [search_space__64731 (clojure.core/seq X__63750)]
+                     [search_space__127654
+                      (clojure.core/seq X__126672)]
                      (if
-                      (clojure.core/seq search_space__64731)
+                      (clojure.core/seq search_space__127654)
                       (clojure.core/let
-                       [elem__63751
-                        (clojure.core/first search_space__64731)
-                        result__64732
+                       [elem__126673
+                        (clojure.core/first search_space__127654)
+                        result__127655
                         (clojure.core/let
-                         [elem__63751_nth_0__
-                          (clojure.core/nth elem__63751 0)
-                          elem__63751_nth_1__
-                          (clojure.core/nth elem__63751 1)]
+                         [elem__126673_nth_0__
+                          (clojure.core/nth elem__126673 0)
+                          elem__126673_nth_1__
+                          (clojure.core/nth elem__126673 1)]
                          (if
-                          (clojure.core/symbol? elem__63751_nth_0__)
+                          (clojure.core/symbol? elem__126673_nth_0__)
                           (clojure.core/let
-                           [X__63753
-                            (clojure.core/name elem__63751_nth_0__)]
+                           [X__126675
+                            (clojure.core/name elem__126673_nth_0__)]
                            (if
-                            (clojure.core/= ?__62972 X__63753)
+                            (clojure.core/= ?__125890 X__126675)
                             (if
-                             (clojure.core/symbol? elem__63751_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126673_nth_1__)
                              (clojure.core/let
-                              [X__63755
-                               (clojure.core/name elem__63751_nth_1__)]
+                              [X__126677
+                               (clojure.core/name
+                                elem__126673_nth_1__)]
                               (clojure.core/case
-                               X__63755
+                               X__126677
                                ("meander.math.zeta")
-                               [?__62972]
+                               [?__125890]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64732)
-                        (recur (clojure.core/next search_space__64731))
-                        result__64732))
+                        (meander.runtime.zeta/fail? result__127655)
+                        (recur
+                         (clojure.core/next search_space__127654))
+                        result__127655))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64729)))]
+             (state__127652)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63733
+                    [X__126655
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62972 X__63733]
+                     [?__125890 X__126655]
                      (clojure.core/let
-                      [X__63735
+                      [X__126657
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63735
+                       X__126657
                        ("+")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63723 input__62968_nth_1__ ?__62972)]
+                         (def__126645 input__125886_nth_1__ ?__125890)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64573)
+                         (state__127495)
                          (clojure.core/let
-                          [[?__62972] x__14338__auto__]
+                          [[?__125890] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
-                                 [?a input__62968_nth_0___nth_1__]
+                                 [?a input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?b input__62968_nth_0___nth_2__]
+                                  [?b input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :meander.math.zeta/+,
                                        :left
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051 [?a ?env])]
+                                         (CATA__FN__125969 [?a ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
                                           CATA_RESULT__15641__auto__)
@@ -5541,7 +5699,7 @@
                                        :right
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051 [?b ?env])]
+                                         (CATA__FN__125969 [?b ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
                                           CATA_RESULT__15641__auto__)
@@ -5558,176 +5716,180 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64573))
-                              (state__64573)))
-                            (state__64573))
-                           (state__64573)))))
-                       (state__64573)))))
-                   (state__64573))))
-                (state__64573)))
-              (state__64573)))
-            (state__64573))
-           (state__64573))))
-        (state__64573
+                               (state__127495))
+                              (state__127495)))
+                            (state__127495))
+                           (state__127495)))))
+                       (state__127495)))))
+                   (state__127495))))
+                (state__127495)))
+              (state__127495)))
+            (state__127495))
+           (state__127495))))
+        (state__127495
          []
          (clojure.core/letfn
-          [(def__63757
-            [arg__63780 ?__62973]
+          [(def__126679
+            [arg__126702 ?__125891]
             (clojure.core/letfn
-             [(state__64734
+             [(state__127657
                []
                (clojure.core/let
-                [x__63781 "meander.math.zeta"]
+                [x__126703 "meander.math.zeta"]
                 (if
-                 (clojure.core/= ?__62973 x__63781)
-                 [?__62973]
-                 (state__64735))))
-              (state__64735
+                 (clojure.core/= ?__125891 x__126703)
+                 [?__125891]
+                 (state__127658))))
+              (state__127658
                []
                (if
-                (clojure.core/map? arg__63780)
+                (clojure.core/map? arg__126702)
                 (clojure.core/let
-                 [VAL__63782 (.valAt arg__63780 :aliases)]
+                 [VAL__126704 (.valAt arg__126702 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63782)
+                  (clojure.core/map? VAL__126704)
                   (clojure.core/let
-                   [X__63784 (clojure.core/set VAL__63782)]
+                   [X__126706 (clojure.core/set VAL__126704)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63784))
+                    (clojure.core/<= 1 (clojure.core/count X__126706))
                     (clojure.core/loop
-                     [search_space__64736 (clojure.core/seq X__63784)]
+                     [search_space__127659
+                      (clojure.core/seq X__126706)]
                      (if
-                      (clojure.core/seq search_space__64736)
+                      (clojure.core/seq search_space__127659)
                       (clojure.core/let
-                       [elem__63785
-                        (clojure.core/first search_space__64736)
-                        result__64737
+                       [elem__126707
+                        (clojure.core/first search_space__127659)
+                        result__127660
                         (clojure.core/let
-                         [elem__63785_nth_0__
-                          (clojure.core/nth elem__63785 0)
-                          elem__63785_nth_1__
-                          (clojure.core/nth elem__63785 1)]
+                         [elem__126707_nth_0__
+                          (clojure.core/nth elem__126707 0)
+                          elem__126707_nth_1__
+                          (clojure.core/nth elem__126707 1)]
                          (if
-                          (clojure.core/symbol? elem__63785_nth_0__)
+                          (clojure.core/symbol? elem__126707_nth_0__)
                           (clojure.core/let
-                           [X__63787
-                            (clojure.core/name elem__63785_nth_0__)]
+                           [X__126709
+                            (clojure.core/name elem__126707_nth_0__)]
                            (if
-                            (clojure.core/= ?__62973 X__63787)
+                            (clojure.core/= ?__125891 X__126709)
                             (if
-                             (clojure.core/symbol? elem__63785_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126707_nth_1__)
                              (clojure.core/let
-                              [X__63789
-                               (clojure.core/name elem__63785_nth_1__)]
+                              [X__126711
+                               (clojure.core/name
+                                elem__126707_nth_1__)]
                               (clojure.core/case
-                               X__63789
+                               X__126711
                                ("meander.math.zeta")
-                               [?__62973]
+                               [?__125891]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64737)
-                        (recur (clojure.core/next search_space__64736))
-                        result__64737))
+                        (meander.runtime.zeta/fail? result__127660)
+                        (recur
+                         (clojure.core/next search_space__127659))
+                        result__127660))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64734)))]
+             (state__127657)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63767
+                    [X__126689
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62973 X__63767]
+                     [?__125891 X__126689]
                      (clojure.core/let
-                      [X__63769
+                      [X__126691
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63769
+                       X__126691
                        ("-")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63757 input__62968_nth_1__ ?__62973)]
+                         (def__126679 input__125886_nth_1__ ?__125891)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64574)
+                         (state__127496)
                          (clojure.core/let
-                          [[?__62973] x__14338__auto__]
+                          [[?__125891] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
-                                 [?a input__62968_nth_0___nth_1__]
+                                 [?a input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?b input__62968_nth_0___nth_2__]
+                                  [?b input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :meander.math.zeta/-,
                                        :left
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051 [?a ?env])]
+                                         (CATA__FN__125969 [?a ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
                                           CATA_RESULT__15641__auto__)
@@ -5739,7 +5901,7 @@
                                        :right
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051 [?b ?env])]
+                                         (CATA__FN__125969 [?b ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
                                           CATA_RESULT__15641__auto__)
@@ -5756,171 +5918,175 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64574))
-                              (state__64574)))
-                            (state__64574))
-                           (state__64574)))))
-                       (state__64574)))))
-                   (state__64574))))
-                (state__64574)))
-              (state__64574)))
-            (state__64574))
-           (state__64574))))
-        (state__64574
+                               (state__127496))
+                              (state__127496)))
+                            (state__127496))
+                           (state__127496)))))
+                       (state__127496)))))
+                   (state__127496))))
+                (state__127496)))
+              (state__127496)))
+            (state__127496))
+           (state__127496))))
+        (state__127496
          []
          (clojure.core/letfn
-          [(def__63791
-            [arg__63814 ?__62974]
+          [(def__126713
+            [arg__126736 ?__125892]
             (clojure.core/letfn
-             [(state__64739
+             [(state__127662
                []
                (clojure.core/let
-                [x__63815 "meander.zeta"]
+                [x__126737 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62974 x__63815)
-                 [?__62974]
-                 (state__64740))))
-              (state__64740
+                 (clojure.core/= ?__125892 x__126737)
+                 [?__125892]
+                 (state__127663))))
+              (state__127663
                []
                (if
-                (clojure.core/map? arg__63814)
+                (clojure.core/map? arg__126736)
                 (clojure.core/let
-                 [VAL__63816 (.valAt arg__63814 :aliases)]
+                 [VAL__126738 (.valAt arg__126736 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63816)
+                  (clojure.core/map? VAL__126738)
                   (clojure.core/let
-                   [X__63818 (clojure.core/set VAL__63816)]
+                   [X__126740 (clojure.core/set VAL__126738)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63818))
+                    (clojure.core/<= 1 (clojure.core/count X__126740))
                     (clojure.core/loop
-                     [search_space__64741 (clojure.core/seq X__63818)]
+                     [search_space__127664
+                      (clojure.core/seq X__126740)]
                      (if
-                      (clojure.core/seq search_space__64741)
+                      (clojure.core/seq search_space__127664)
                       (clojure.core/let
-                       [elem__63819
-                        (clojure.core/first search_space__64741)
-                        result__64742
+                       [elem__126741
+                        (clojure.core/first search_space__127664)
+                        result__127665
                         (clojure.core/let
-                         [elem__63819_nth_0__
-                          (clojure.core/nth elem__63819 0)
-                          elem__63819_nth_1__
-                          (clojure.core/nth elem__63819 1)]
+                         [elem__126741_nth_0__
+                          (clojure.core/nth elem__126741 0)
+                          elem__126741_nth_1__
+                          (clojure.core/nth elem__126741 1)]
                          (if
-                          (clojure.core/symbol? elem__63819_nth_0__)
+                          (clojure.core/symbol? elem__126741_nth_0__)
                           (clojure.core/let
-                           [X__63821
-                            (clojure.core/name elem__63819_nth_0__)]
+                           [X__126743
+                            (clojure.core/name elem__126741_nth_0__)]
                            (if
-                            (clojure.core/= ?__62974 X__63821)
+                            (clojure.core/= ?__125892 X__126743)
                             (if
-                             (clojure.core/symbol? elem__63819_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126741_nth_1__)
                              (clojure.core/let
-                              [X__63823
-                               (clojure.core/name elem__63819_nth_1__)]
+                              [X__126745
+                               (clojure.core/name
+                                elem__126741_nth_1__)]
                               (clojure.core/case
-                               X__63823
+                               X__126745
                                ("meander.zeta")
-                               [?__62974]
+                               [?__125892]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64742)
-                        (recur (clojure.core/next search_space__64741))
-                        result__64742))
+                        (meander.runtime.zeta/fail? result__127665)
+                        (recur
+                         (clojure.core/next search_space__127664))
+                        result__127665))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64739)))]
+             (state__127662)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63801
+                    [X__126723
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62974 X__63801]
+                     [?__125892 X__126723]
                      (clojure.core/let
-                      [X__63803
+                      [X__126725
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63803
+                       X__126725
                        ("with")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63791 input__62968_nth_1__ ?__62974)]
+                         (def__126713 input__125886_nth_1__ ?__125892)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64575)
+                         (state__127497)
                          (clojure.core/let
-                          [[?__62974] x__14338__auto__]
+                          [[?__125892] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
                                  [?bindings
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?body input__62968_nth_0___nth_2__]
+                                  [?body input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :with,
                                        :bindings
@@ -5928,7 +6094,7 @@
                                         :bindings
                                         (clojure.core/let
                                          [CATA_RESULT__15641__auto__
-                                          (CATA__FN__63051
+                                          (CATA__FN__125969
                                            ['meander.dev.parse.zeta/parse-with-bindings
                                             ?bindings
                                             ?env])]
@@ -5943,7 +6109,7 @@
                                        :body
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?body ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -5962,178 +6128,182 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64575))
-                              (state__64575)))
-                            (state__64575))
-                           (state__64575)))))
-                       (state__64575)))))
-                   (state__64575))))
-                (state__64575)))
-              (state__64575)))
-            (state__64575))
-           (state__64575))))
-        (state__64575
+                               (state__127497))
+                              (state__127497)))
+                            (state__127497))
+                           (state__127497)))))
+                       (state__127497)))))
+                   (state__127497))))
+                (state__127497)))
+              (state__127497)))
+            (state__127497))
+           (state__127497))))
+        (state__127497
          []
          (clojure.core/letfn
-          [(def__63825
-            [arg__63848 ?__62975]
+          [(def__126747
+            [arg__126770 ?__125893]
             (clojure.core/letfn
-             [(state__64744
+             [(state__127667
                []
                (clojure.core/let
-                [x__63849 "meander.zeta"]
+                [x__126771 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62975 x__63849)
-                 [?__62975]
-                 (state__64745))))
-              (state__64745
+                 (clojure.core/= ?__125893 x__126771)
+                 [?__125893]
+                 (state__127668))))
+              (state__127668
                []
                (if
-                (clojure.core/map? arg__63848)
+                (clojure.core/map? arg__126770)
                 (clojure.core/let
-                 [VAL__63850 (.valAt arg__63848 :aliases)]
+                 [VAL__126772 (.valAt arg__126770 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63850)
+                  (clojure.core/map? VAL__126772)
                   (clojure.core/let
-                   [X__63852 (clojure.core/set VAL__63850)]
+                   [X__126774 (clojure.core/set VAL__126772)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63852))
+                    (clojure.core/<= 1 (clojure.core/count X__126774))
                     (clojure.core/loop
-                     [search_space__64746 (clojure.core/seq X__63852)]
+                     [search_space__127669
+                      (clojure.core/seq X__126774)]
                      (if
-                      (clojure.core/seq search_space__64746)
+                      (clojure.core/seq search_space__127669)
                       (clojure.core/let
-                       [elem__63853
-                        (clojure.core/first search_space__64746)
-                        result__64747
+                       [elem__126775
+                        (clojure.core/first search_space__127669)
+                        result__127670
                         (clojure.core/let
-                         [elem__63853_nth_0__
-                          (clojure.core/nth elem__63853 0)
-                          elem__63853_nth_1__
-                          (clojure.core/nth elem__63853 1)]
+                         [elem__126775_nth_0__
+                          (clojure.core/nth elem__126775 0)
+                          elem__126775_nth_1__
+                          (clojure.core/nth elem__126775 1)]
                          (if
-                          (clojure.core/symbol? elem__63853_nth_0__)
+                          (clojure.core/symbol? elem__126775_nth_0__)
                           (clojure.core/let
-                           [X__63855
-                            (clojure.core/name elem__63853_nth_0__)]
+                           [X__126777
+                            (clojure.core/name elem__126775_nth_0__)]
                            (if
-                            (clojure.core/= ?__62975 X__63855)
+                            (clojure.core/= ?__125893 X__126777)
                             (if
-                             (clojure.core/symbol? elem__63853_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126775_nth_1__)
                              (clojure.core/let
-                              [X__63857
-                               (clojure.core/name elem__63853_nth_1__)]
+                              [X__126779
+                               (clojure.core/name
+                                elem__126775_nth_1__)]
                               (clojure.core/case
-                               X__63857
+                               X__126779
                                ("meander.zeta")
-                               [?__62975]
+                               [?__125893]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64747)
-                        (recur (clojure.core/next search_space__64746))
-                        result__64747))
+                        (meander.runtime.zeta/fail? result__127670)
+                        (recur
+                         (clojure.core/next search_space__127669))
+                        result__127670))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64744)))]
+             (state__127667)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63835
+                    [X__126757
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62975 X__63835]
+                     [?__125893 X__126757]
                      (clojure.core/let
-                      [X__63837
+                      [X__126759
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63837
+                       X__126759
                        ("apply")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63825 input__62968_nth_1__ ?__62975)]
+                         (def__126747 input__125886_nth_1__ ?__125893)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64576)
+                         (state__127498)
                          (clojure.core/let
-                          [[?__62975] x__14338__auto__]
+                          [[?__125893] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
-                                 [?fn input__62968_nth_0___nth_1__]
+                                 [?fn input__125886_nth_0___nth_1__]
                                  (clojure.core/let
                                   [?pattern
-                                   input__62968_nth_0___nth_2__]
+                                   input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :apply,
                                        :fn ?fn,
                                        :pattern
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?pattern ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -6152,171 +6322,175 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64576))
-                              (state__64576)))
-                            (state__64576))
-                           (state__64576)))))
-                       (state__64576)))))
-                   (state__64576))))
-                (state__64576)))
-              (state__64576)))
-            (state__64576))
-           (state__64576))))
-        (state__64576
+                               (state__127498))
+                              (state__127498)))
+                            (state__127498))
+                           (state__127498)))))
+                       (state__127498)))))
+                   (state__127498))))
+                (state__127498)))
+              (state__127498)))
+            (state__127498))
+           (state__127498))))
+        (state__127498
          []
          (clojure.core/letfn
-          [(def__63859
-            [arg__63884 ?__62976]
+          [(def__126781
+            [arg__126806 ?__125894]
             (clojure.core/letfn
-             [(state__64749
+             [(state__127672
                []
                (clojure.core/let
-                [x__63885 "meander.zeta"]
+                [x__126807 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62976 x__63885)
-                 [?__62976]
-                 (state__64750))))
-              (state__64750
+                 (clojure.core/= ?__125894 x__126807)
+                 [?__125894]
+                 (state__127673))))
+              (state__127673
                []
                (if
-                (clojure.core/map? arg__63884)
+                (clojure.core/map? arg__126806)
                 (clojure.core/let
-                 [VAL__63886 (.valAt arg__63884 :aliases)]
+                 [VAL__126808 (.valAt arg__126806 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63886)
+                  (clojure.core/map? VAL__126808)
                   (clojure.core/let
-                   [X__63888 (clojure.core/set VAL__63886)]
+                   [X__126810 (clojure.core/set VAL__126808)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63888))
+                    (clojure.core/<= 1 (clojure.core/count X__126810))
                     (clojure.core/loop
-                     [search_space__64751 (clojure.core/seq X__63888)]
+                     [search_space__127674
+                      (clojure.core/seq X__126810)]
                      (if
-                      (clojure.core/seq search_space__64751)
+                      (clojure.core/seq search_space__127674)
                       (clojure.core/let
-                       [elem__63889
-                        (clojure.core/first search_space__64751)
-                        result__64752
+                       [elem__126811
+                        (clojure.core/first search_space__127674)
+                        result__127675
                         (clojure.core/let
-                         [elem__63889_nth_0__
-                          (clojure.core/nth elem__63889 0)
-                          elem__63889_nth_1__
-                          (clojure.core/nth elem__63889 1)]
+                         [elem__126811_nth_0__
+                          (clojure.core/nth elem__126811 0)
+                          elem__126811_nth_1__
+                          (clojure.core/nth elem__126811 1)]
                          (if
-                          (clojure.core/symbol? elem__63889_nth_0__)
+                          (clojure.core/symbol? elem__126811_nth_0__)
                           (clojure.core/let
-                           [X__63891
-                            (clojure.core/name elem__63889_nth_0__)]
+                           [X__126813
+                            (clojure.core/name elem__126811_nth_0__)]
                            (if
-                            (clojure.core/= ?__62976 X__63891)
+                            (clojure.core/= ?__125894 X__126813)
                             (if
-                             (clojure.core/symbol? elem__63889_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126811_nth_1__)
                              (clojure.core/let
-                              [X__63893
-                               (clojure.core/name elem__63889_nth_1__)]
+                              [X__126815
+                               (clojure.core/name
+                                elem__126811_nth_1__)]
                               (clojure.core/case
-                               X__63893
+                               X__126815
                                ("meander.zeta")
-                               [?__62976]
+                               [?__125894]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64752)
-                        (recur (clojure.core/next search_space__64751))
-                        result__64752))
+                        (meander.runtime.zeta/fail? result__127675)
+                        (recur
+                         (clojure.core/next search_space__127674))
+                        result__127675))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64749)))]
+             (state__127672)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63871
+                    [X__126793
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62976 X__63871]
+                     [?__125894 X__126793]
                      (clojure.core/let
-                      [X__63873
+                      [X__126795
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63873
+                       X__126795
                        ("and")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63859 input__62968_nth_1__ ?__62976)]
+                         (def__126781 input__125886_nth_1__ ?__125894)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64577)
+                         (state__127499)
                          (clojure.core/let
-                          [[?__62976] x__14338__auto__]
+                          [[?__125894] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (clojure.core/let
-                               [input__62968_nth_0___l__
+                               [input__125886_nth_0___l__
                                 (clojure.core/take
                                  1
-                                 input__62968_nth_0__)]
+                                 input__125886_nth_0__)]
                                (if
                                 (clojure.core/=
                                  (clojure.core/bounded-count
                                   (clojure.core/inc 1)
-                                  input__62968_nth_0___l__)
+                                  input__125886_nth_0___l__)
                                  1)
                                 (clojure.core/let
-                                 [input__62968_nth_0___r__
+                                 [input__125886_nth_0___r__
                                   (clojure.core/drop
                                    1
-                                   input__62968_nth_0__)]
+                                   input__125886_nth_0__)]
                                  (clojure.core/let
                                   [!forms
                                    (clojure.core/vec
-                                    input__62968_nth_0___r__)]
+                                    input__125886_nth_0___r__)]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [(clojure.core/let
                                        [!forms__counter
@@ -6324,12 +6498,12 @@
                                          !forms)]
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/make-and
                                            (clojure.core/into
                                             []
                                             (clojure.core/loop
-                                             [return__63053
+                                             [return__125971
                                               (clojure.core/transient
                                                [])]
                                              (if
@@ -6338,10 +6512,10 @@
                                                 !forms__counter))
                                               (recur
                                                (clojure.core/conj!
-                                                return__63053
+                                                return__125971
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    [(if
                                                      (.hasNext
                                                       !forms__counter)
@@ -6357,7 +6531,7 @@
                                                    CATA_RESULT__15641__auto__
                                                    0)))))
                                               (clojure.core/persistent!
-                                               return__63053))))
+                                               return__125971))))
                                            ?form])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -6375,42 +6549,42 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__))))))))
-                                (state__64577)))
-                              (state__64577)))
-                            (state__64577))
-                           (state__64577)))))
-                       (state__64577)))))
-                   (state__64577))))
-                (state__64577)))
-              (state__64577)))
-            (state__64577))
-           (state__64577))))
-        (state__64577
+                                (state__127499)))
+                              (state__127499)))
+                            (state__127499))
+                           (state__127499)))))
+                       (state__127499)))))
+                   (state__127499))))
+                (state__127499)))
+              (state__127499)))
+            (state__127499))
+           (state__127499))))
+        (state__127499
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 3)
+           (clojure.core/= (clojure.core/count input__125886) 3)
            (clojure.core/let
-            [input__62968_nth_0__
-             (clojure.core/nth input__62968 0)
-             input__62968_nth_1__
-             (clojure.core/nth input__62968 1)
-             input__62968_nth_2__
-             (clojure.core/nth input__62968 2)]
+            [input__125886_nth_0__
+             (clojure.core/nth input__125886 0)
+             input__125886_nth_1__
+             (clojure.core/nth input__125886 1)
+             input__125886_nth_2__
+             (clojure.core/nth input__125886 2)]
             (clojure.core/case
-             input__62968_nth_0__
+             input__125886_nth_0__
              (meander.dev.parse.zeta/make-and)
              (clojure.core/letfn
-              [(state__64754
+              [(state__127677
                 []
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/case
-                  input__62968_nth_1__
+                  input__125886_nth_1__
                   ([])
                   (clojure.core/let
-                   [?form input__62968_nth_2__]
+                   [?form input__125886_nth_2__]
                    (try
                     [{:tag :error,
                       :message
@@ -6423,24 +6597,24 @@
                       (meander.runtime.zeta/fail? e__16581__auto__)
                       (meander.runtime.zeta/fail)
                       (throw e__16581__auto__)))))
-                  (state__64755))
-                 (state__64755)))
-               (state__64755
+                  (state__127678))
+                 (state__127678)))
+               (state__127678
                 []
                 (clojure.core/case
-                 input__62968_nth_2__
+                 input__125886_nth_2__
                  (nil)
                  (if
-                  (clojure.core/vector? input__62968_nth_1__)
+                  (clojure.core/vector? input__125886_nth_1__)
                   (if
                    (clojure.core/=
-                    (clojure.core/count input__62968_nth_1__)
+                    (clojure.core/count input__125886_nth_1__)
                     1)
                    (clojure.core/let
-                    [input__62968_nth_1___nth_0__
-                     (clojure.core/nth input__62968_nth_1__ 0)]
+                    [input__125886_nth_1___nth_0__
+                     (clojure.core/nth input__125886_nth_1__ 0)]
                     (clojure.core/let
-                     [?ast-a input__62968_nth_1___nth_0__]
+                     [?ast-a input__125886_nth_1___nth_0__]
                      (try
                       [?ast-a]
                       (catch
@@ -6450,31 +6624,31 @@
                         (meander.runtime.zeta/fail? e__16581__auto__)
                         (meander.runtime.zeta/fail)
                         (throw e__16581__auto__))))))
-                   (state__64756))
-                  (state__64756))
-                 (state__64756)))
-               (state__64756
+                   (state__127679))
+                  (state__127679))
+                 (state__127679)))
+               (state__127679
                 []
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/letfn
-                  [(state__64757
+                  [(state__127680
                     []
                     (if
                      (clojure.core/=
-                      (clojure.core/count input__62968_nth_1__)
+                      (clojure.core/count input__125886_nth_1__)
                       1)
                      (clojure.core/let
-                      [input__62968_nth_1___nth_0__
-                       (clojure.core/nth input__62968_nth_1__ 0)]
+                      [input__125886_nth_1___nth_0__
+                       (clojure.core/nth input__125886_nth_1__ 0)]
                       (clojure.core/let
-                       [?ast-a input__62968_nth_1___nth_0__]
+                       [?ast-a input__125886_nth_1___nth_0__]
                        (clojure.core/let
-                        [?form input__62968_nth_2__]
+                        [?form input__125886_nth_2__]
                         (try
                          [(clojure.core/let
                            [CATA_RESULT__15641__auto__
-                            (CATA__FN__63051
+                            (CATA__FN__125969
                              ['meander.dev.parse.zeta/make-and
                               [?ast-a {:tag :pass}]
                               ?form])]
@@ -6493,24 +6667,24 @@
                             e__16581__auto__)
                            (meander.runtime.zeta/fail)
                            (throw e__16581__auto__)))))))
-                     (state__64758)))
-                   (state__64758
+                     (state__127681)))
+                   (state__127681
                     []
                     (if
                      (clojure.core/=
-                      (clojure.core/count input__62968_nth_1__)
+                      (clojure.core/count input__125886_nth_1__)
                       2)
                      (clojure.core/let
-                      [input__62968_nth_1___nth_0__
-                       (clojure.core/nth input__62968_nth_1__ 0)
-                       input__62968_nth_1___nth_1__
-                       (clojure.core/nth input__62968_nth_1__ 1)]
+                      [input__125886_nth_1___nth_0__
+                       (clojure.core/nth input__125886_nth_1__ 0)
+                       input__125886_nth_1___nth_1__
+                       (clojure.core/nth input__125886_nth_1__ 1)]
                       (clojure.core/let
-                       [?ast-a input__62968_nth_1___nth_0__]
+                       [?ast-a input__125886_nth_1___nth_0__]
                        (clojure.core/let
-                        [?ast-b input__62968_nth_1___nth_1__]
+                        [?ast-b input__125886_nth_1___nth_1__]
                         (clojure.core/let
-                         [?form input__62968_nth_2__]
+                         [?form input__125886_nth_2__]
                          (try
                           [{:tag :and,
                             :left ?ast-a,
@@ -6524,89 +6698,90 @@
                              e__16581__auto__)
                             (meander.runtime.zeta/fail)
                             (throw e__16581__auto__))))))))
-                     (state__64759)))
-                   (state__64759
+                     (state__127682)))
+                   (state__127682
                     []
                     (clojure.core/loop
-                     [search_space__64760
+                     [search_space__127683
                       (meander.runtime.zeta/epsilon-partitions
                        2
-                       input__62968_nth_1__)]
+                       input__125886_nth_1__)]
                      (if
-                      (clojure.core/seq search_space__64760)
+                      (clojure.core/seq search_space__127683)
                       (clojure.core/let
-                       [input__62968_nth_1___parts__
-                        (clojure.core/first search_space__64760)
-                        result__64761
+                       [input__125886_nth_1___parts__
+                        (clojure.core/first search_space__127683)
+                        result__127684
                         (clojure.core/let
-                         [input__62968_nth_1___l__
+                         [input__125886_nth_1___l__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            0)
-                          input__62968_nth_1___r__
+                          input__125886_nth_1___r__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            1)]
                          (clojure.core/letfn
-                          [(state__64763
+                          [(state__127686
                             []
                             (clojure.core/let
                              [!asts-1 []]
                              (clojure.core/let
                               [ret__14502__auto__
                                (meander.runtime.zeta/epsilon-run-star-1
-                                input__62968_nth_1___l__
+                                input__125886_nth_1___l__
                                 [!asts-1]
                                 (clojure.core/fn
-                                 [[!asts-1] input__63920]
+                                 [[!asts-1] input__126842]
                                  (clojure.core/let
-                                  [input__63920_nth_0__
-                                   (clojure.core/nth input__63920 0)]
+                                  [input__126842_nth_0__
+                                   (clojure.core/nth input__126842 0)]
                                   (clojure.core/let
                                    [!asts-1
                                     (clojure.core/conj
                                      !asts-1
-                                     input__63920_nth_0__)]
+                                     input__126842_nth_0__)]
                                    [!asts-1])))
                                 (clojure.core/fn
                                  [[!asts-1]]
                                  (clojure.core/let
-                                  [X__63913
+                                  [X__126835
                                    (clojure.core/count
-                                    input__62968_nth_1___l__)]
+                                    input__125886_nth_1___l__)]
                                   (clojure.core/let
-                                   [?n X__63913]
+                                   [?n X__126835]
                                    (clojure.core/let
-                                    [X__63917
+                                    [X__126839
                                      (clojure.core/count
-                                      input__62968_nth_1___r__)]
+                                      input__125886_nth_1___r__)]
                                     (if
-                                     (clojure.core/= ?n X__63917)
+                                     (clojure.core/= ?n X__126839)
                                      (clojure.core/let
                                       [!asts-2 []]
                                       (clojure.core/let
                                        [ret__14502__auto__
                                         (meander.runtime.zeta/epsilon-run-star-1
-                                         input__62968_nth_1___r__
+                                         input__125886_nth_1___r__
                                          [!asts-2 !asts-1]
                                          (clojure.core/fn
                                           [[!asts-2 !asts-1]
-                                           input__63918]
+                                           input__126840]
                                           (clojure.core/let
-                                           [input__63918_nth_0__
+                                           [input__126840_nth_0__
                                             (clojure.core/nth
-                                             input__63918
+                                             input__126840
                                              0)]
                                            (clojure.core/let
                                             [!asts-2
                                              (clojure.core/conj
                                               !asts-2
-                                              input__63918_nth_0__)]
+                                              input__126840_nth_0__)]
                                             [!asts-2 !asts-1])))
                                          (clojure.core/fn
                                           [[!asts-2 !asts-1]]
                                           (clojure.core/let
-                                           [?form input__62968_nth_2__]
+                                           [?form
+                                            input__125886_nth_2__]
                                            (try
                                             [(clojure.core/let
                                               [!asts-1__counter
@@ -6617,11 +6792,11 @@
                                                 !asts-2)]
                                               (clojure.core/let
                                                [CATA_RESULT__15641__auto__
-                                                (CATA__FN__63051
+                                                (CATA__FN__125969
                                                  ['meander.dev.parse.zeta/make-and
                                                   [(clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-and
                                                        (clojure.core/into
                                                         []
@@ -6639,7 +6814,7 @@
                                                       0)))
                                                    (clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-and
                                                        (clojure.core/into
                                                         []
@@ -6676,101 +6851,101 @@
                                        (if
                                         (meander.runtime.zeta/fail?
                                          ret__14502__auto__)
-                                        (state__64764)
+                                        (state__127687)
                                         ret__14502__auto__)))
-                                     (state__64764)))))))]
+                                     (state__127687)))))))]
                               (if
                                (meander.runtime.zeta/fail?
                                 ret__14502__auto__)
-                               (state__64764)
+                               (state__127687)
                                ret__14502__auto__))))
-                           (state__64764
+                           (state__127687
                             []
                             (clojure.core/let
                              [!asts-1 []]
                              (clojure.core/let
                               [ret__14502__auto__
                                (meander.runtime.zeta/epsilon-run-star-1
-                                input__62968_nth_1___l__
+                                input__125886_nth_1___l__
                                 [!asts-1]
                                 (clojure.core/fn
-                                 [[!asts-1] input__63936]
+                                 [[!asts-1] input__126858]
                                  (clojure.core/let
-                                  [input__63936_nth_0__
-                                   (clojure.core/nth input__63936 0)]
+                                  [input__126858_nth_0__
+                                   (clojure.core/nth input__126858 0)]
                                   (clojure.core/let
                                    [!asts-1
                                     (clojure.core/conj
                                      !asts-1
-                                     input__63936_nth_0__)]
+                                     input__126858_nth_0__)]
                                    [!asts-1])))
                                 (clojure.core/fn
                                  [[!asts-1]]
                                  (clojure.core/let
-                                  [X__63927
+                                  [X__126849
                                    (clojure.core/count
-                                    input__62968_nth_1___l__)]
+                                    input__125886_nth_1___l__)]
                                   (clojure.core/let
-                                   [?n X__63927]
+                                   [?n X__126849]
                                    (clojure.core/let
-                                    [input__62968_nth_1___r___l__
+                                    [input__125886_nth_1___r___l__
                                      (clojure.core/subvec
-                                      input__62968_nth_1___r__
+                                      input__125886_nth_1___r__
                                       0
                                       (clojure.core/min
                                        (clojure.core/count
-                                        input__62968_nth_1___r__)
+                                        input__125886_nth_1___r__)
                                        1))]
                                     (if
                                      (clojure.core/=
                                       (clojure.core/count
-                                       input__62968_nth_1___r___l__)
+                                       input__125886_nth_1___r___l__)
                                       1)
                                      (clojure.core/let
-                                      [input__62968_nth_1___r___r__
+                                      [input__125886_nth_1___r___r__
                                        (clojure.core/subvec
-                                        input__62968_nth_1___r__
+                                        input__125886_nth_1___r__
                                         1)]
                                       (clojure.core/let
-                                       [input__62968_nth_1___r___l___nth_0__
+                                       [input__125886_nth_1___r___l___nth_0__
                                         (clojure.core/nth
-                                         input__62968_nth_1___r___l__
+                                         input__125886_nth_1___r___l__
                                          0)]
                                        (clojure.core/let
                                         [?ast
-                                         input__62968_nth_1___r___l___nth_0__]
+                                         input__125886_nth_1___r___l___nth_0__]
                                         (clojure.core/let
-                                         [X__63933
+                                         [X__126855
                                           (clojure.core/count
-                                           input__62968_nth_1___r___r__)]
+                                           input__125886_nth_1___r___r__)]
                                          (if
-                                          (clojure.core/= ?n X__63933)
+                                          (clojure.core/= ?n X__126855)
                                           (clojure.core/let
                                            [!asts-2 []]
                                            (clojure.core/let
                                             [ret__14502__auto__
                                              (meander.runtime.zeta/epsilon-run-star-1
-                                              input__62968_nth_1___r___r__
+                                              input__125886_nth_1___r___r__
                                               [!asts-2 !asts-1]
                                               (clojure.core/fn
                                                [[!asts-2 !asts-1]
-                                                input__63934]
+                                                input__126856]
                                                (clojure.core/let
-                                                [input__63934_nth_0__
+                                                [input__126856_nth_0__
                                                  (clojure.core/nth
-                                                  input__63934
+                                                  input__126856
                                                   0)]
                                                 (clojure.core/let
                                                  [!asts-2
                                                   (clojure.core/conj
                                                    !asts-2
-                                                   input__63934_nth_0__)]
+                                                   input__126856_nth_0__)]
                                                  [!asts-2 !asts-1])))
                                               (clojure.core/fn
                                                [[!asts-2 !asts-1]]
                                                (clojure.core/let
                                                 [?form
-                                                 input__62968_nth_2__]
+                                                 input__125886_nth_2__]
                                                 (try
                                                  [(clojure.core/let
                                                    [!asts-1__counter
@@ -6781,11 +6956,11 @@
                                                      !asts-2)]
                                                    (clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-and
                                                        [(clojure.core/let
                                                          [CATA_RESULT__15641__auto__
-                                                          (CATA__FN__63051
+                                                          (CATA__FN__125969
                                                            ['meander.dev.parse.zeta/make-and
                                                             (clojure.core/into
                                                              []
@@ -6806,7 +6981,7 @@
                                                            0)))
                                                         (clojure.core/let
                                                          [CATA_RESULT__15641__auto__
-                                                          (CATA__FN__63051
+                                                          (CATA__FN__125969
                                                            ['meander.dev.parse.zeta/make-and
                                                             (clojure.core/into
                                                              []
@@ -6852,173 +7027,178 @@
                                 ret__14502__auto__)
                                (meander.runtime.zeta/fail)
                                ret__14502__auto__))))]
-                          (state__64763)))]
+                          (state__127686)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64761)
-                        (recur (clojure.core/next search_space__64760))
-                        result__64761))
-                      (state__64578))))]
-                  (state__64757))
-                 (state__64578)))]
-              (state__64754))
-             (state__64578)))
-           (state__64578))
-          (state__64578)))
-        (state__64578
+                        (meander.runtime.zeta/fail? result__127684)
+                        (recur
+                         (clojure.core/next search_space__127683))
+                        result__127684))
+                      (state__127500))))]
+                  (state__127680))
+                 (state__127500)))]
+              (state__127677))
+             (state__127500)))
+           (state__127500))
+          (state__127500)))
+        (state__127500
          []
          (clojure.core/letfn
-          [(def__63939
-            [arg__63962 ?__62977]
+          [(def__126861
+            [arg__126884 ?__125895]
             (clojure.core/letfn
-             [(state__64769
+             [(state__127692
                []
                (clojure.core/let
-                [x__63963 "meander.zeta"]
+                [x__126885 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62977 x__63963)
-                 [?__62977]
-                 (state__64770))))
-              (state__64770
+                 (clojure.core/= ?__125895 x__126885)
+                 [?__125895]
+                 (state__127693))))
+              (state__127693
                []
                (if
-                (clojure.core/map? arg__63962)
+                (clojure.core/map? arg__126884)
                 (clojure.core/let
-                 [VAL__63964 (.valAt arg__63962 :aliases)]
+                 [VAL__126886 (.valAt arg__126884 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63964)
+                  (clojure.core/map? VAL__126886)
                   (clojure.core/let
-                   [X__63966 (clojure.core/set VAL__63964)]
+                   [X__126888 (clojure.core/set VAL__126886)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__63966))
+                    (clojure.core/<= 1 (clojure.core/count X__126888))
                     (clojure.core/loop
-                     [search_space__64771 (clojure.core/seq X__63966)]
+                     [search_space__127694
+                      (clojure.core/seq X__126888)]
                      (if
-                      (clojure.core/seq search_space__64771)
+                      (clojure.core/seq search_space__127694)
                       (clojure.core/let
-                       [elem__63967
-                        (clojure.core/first search_space__64771)
-                        result__64772
+                       [elem__126889
+                        (clojure.core/first search_space__127694)
+                        result__127695
                         (clojure.core/let
-                         [elem__63967_nth_0__
-                          (clojure.core/nth elem__63967 0)
-                          elem__63967_nth_1__
-                          (clojure.core/nth elem__63967 1)]
+                         [elem__126889_nth_0__
+                          (clojure.core/nth elem__126889 0)
+                          elem__126889_nth_1__
+                          (clojure.core/nth elem__126889 1)]
                          (if
-                          (clojure.core/symbol? elem__63967_nth_0__)
+                          (clojure.core/symbol? elem__126889_nth_0__)
                           (clojure.core/let
-                           [X__63969
-                            (clojure.core/name elem__63967_nth_0__)]
+                           [X__126891
+                            (clojure.core/name elem__126889_nth_0__)]
                            (if
-                            (clojure.core/= ?__62977 X__63969)
+                            (clojure.core/= ?__125895 X__126891)
                             (if
-                             (clojure.core/symbol? elem__63967_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126889_nth_1__)
                              (clojure.core/let
-                              [X__63971
-                               (clojure.core/name elem__63967_nth_1__)]
+                              [X__126893
+                               (clojure.core/name
+                                elem__126889_nth_1__)]
                               (clojure.core/case
-                               X__63971
+                               X__126893
                                ("meander.zeta")
-                               [?__62977]
+                               [?__125895]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64772)
-                        (recur (clojure.core/next search_space__64771))
-                        result__64772))
+                        (meander.runtime.zeta/fail? result__127695)
+                        (recur
+                         (clojure.core/next search_space__127694))
+                        result__127695))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64769)))]
+             (state__127692)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63949
+                    [X__126871
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62977 X__63949]
+                     [?__125895 X__126871]
                      (clojure.core/let
-                      [X__63951
+                      [X__126873
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63951
+                       X__126873
                        ("cata")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63939 input__62968_nth_1__ ?__62977)]
+                         (def__126861 input__125886_nth_1__ ?__125895)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64579)
+                         (state__127501)
                          (clojure.core/let
-                          [[?__62977] x__14338__auto__]
+                          [[?__125895] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
                                  [?pattern
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :cata,
                                       :pattern
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051
+                                        (CATA__FN__125969
                                          [?pattern ?env])]
                                        (if
                                         (meander.runtime.zeta/fail?
@@ -7037,187 +7217,191 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64579))
-                              (state__64579)))
-                            (state__64579))
-                           (state__64579)))))
-                       (state__64579)))))
-                   (state__64579))))
-                (state__64579)))
-              (state__64579)))
-            (state__64579))
-           (state__64579))))
-        (state__64579
+                               (state__127501))
+                              (state__127501)))
+                            (state__127501))
+                           (state__127501)))))
+                       (state__127501)))))
+                   (state__127501))))
+                (state__127501)))
+              (state__127501)))
+            (state__127501))
+           (state__127501))))
+        (state__127501
          []
          (clojure.core/letfn
-          [(def__63973
-            [arg__63996 ?__62978]
+          [(def__126895
+            [arg__126918 ?__125896]
             (clojure.core/letfn
-             [(state__64774
+             [(state__127697
                []
                (clojure.core/let
-                [x__63997 "meander.zeta"]
+                [x__126919 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62978 x__63997)
-                 [?__62978]
-                 (state__64775))))
-              (state__64775
+                 (clojure.core/= ?__125896 x__126919)
+                 [?__125896]
+                 (state__127698))))
+              (state__127698
                []
                (if
-                (clojure.core/map? arg__63996)
+                (clojure.core/map? arg__126918)
                 (clojure.core/let
-                 [VAL__63998 (.valAt arg__63996 :aliases)]
+                 [VAL__126920 (.valAt arg__126918 :aliases)]
                  (if
-                  (clojure.core/map? VAL__63998)
+                  (clojure.core/map? VAL__126920)
                   (clojure.core/let
-                   [X__64000 (clojure.core/set VAL__63998)]
+                   [X__126922 (clojure.core/set VAL__126920)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64000))
+                    (clojure.core/<= 1 (clojure.core/count X__126922))
                     (clojure.core/loop
-                     [search_space__64776 (clojure.core/seq X__64000)]
+                     [search_space__127699
+                      (clojure.core/seq X__126922)]
                      (if
-                      (clojure.core/seq search_space__64776)
+                      (clojure.core/seq search_space__127699)
                       (clojure.core/let
-                       [elem__64001
-                        (clojure.core/first search_space__64776)
-                        result__64777
+                       [elem__126923
+                        (clojure.core/first search_space__127699)
+                        result__127700
                         (clojure.core/let
-                         [elem__64001_nth_0__
-                          (clojure.core/nth elem__64001 0)
-                          elem__64001_nth_1__
-                          (clojure.core/nth elem__64001 1)]
+                         [elem__126923_nth_0__
+                          (clojure.core/nth elem__126923 0)
+                          elem__126923_nth_1__
+                          (clojure.core/nth elem__126923 1)]
                          (if
-                          (clojure.core/symbol? elem__64001_nth_0__)
+                          (clojure.core/symbol? elem__126923_nth_0__)
                           (clojure.core/let
-                           [X__64003
-                            (clojure.core/name elem__64001_nth_0__)]
+                           [X__126925
+                            (clojure.core/name elem__126923_nth_0__)]
                            (if
-                            (clojure.core/= ?__62978 X__64003)
+                            (clojure.core/= ?__125896 X__126925)
                             (if
-                             (clojure.core/symbol? elem__64001_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126923_nth_1__)
                              (clojure.core/let
-                              [X__64005
-                               (clojure.core/name elem__64001_nth_1__)]
+                              [X__126927
+                               (clojure.core/name
+                                elem__126923_nth_1__)]
                               (clojure.core/case
-                               X__64005
+                               X__126927
                                ("meander.zeta")
-                               [?__62978]
+                               [?__125896]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64777)
-                        (recur (clojure.core/next search_space__64776))
-                        result__64777))
+                        (meander.runtime.zeta/fail? result__127700)
+                        (recur
+                         (clojure.core/next search_space__127699))
+                        result__127700))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64774)))]
+             (state__127697)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__63983
+                    [X__126905
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62978 X__63983]
+                     [?__125896 X__126905]
                      (clojure.core/let
-                      [X__63985
+                      [X__126907
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__63985
+                       X__126907
                        ("fold")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__63973 input__62968_nth_1__ ?__62978)]
+                         (def__126895 input__125886_nth_1__ ?__125896)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64580)
+                         (state__127502)
                          (clojure.core/let
-                          [[?__62978] x__14338__auto__]
+                          [[?__125896] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 4)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 4)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)
-                                 input__62968_nth_0___nth_3__
+                                 input__125886_nth_0___nth_3__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   3)]
                                 (clojure.core/let
                                  [?mutable-variable
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
                                   [?initial-value
-                                   input__62968_nth_0___nth_2__]
+                                   input__125886_nth_0___nth_2__]
                                   (clojure.core/let
                                    [?fold-function
-                                    input__62968_nth_0___nth_3__]
+                                    input__125886_nth_0___nth_3__]
                                    (clojure.core/let
-                                    [?form input__62968_nth_0__]
+                                    [?form input__125886_nth_0__]
                                     (clojure.core/let
-                                     [?env input__62968_nth_1__]
+                                     [?env input__125886_nth_1__]
                                      (try
                                       [(clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/make-fold
                                            (clojure.core/let
                                             [CATA_RESULT__15641__auto__
-                                             (CATA__FN__63051
+                                             (CATA__FN__125969
                                               [?mutable-variable
                                                ?env])]
                                             (if
@@ -7230,7 +7414,7 @@
                                               0)))
                                            (clojure.core/let
                                             [CATA_RESULT__15641__auto__
-                                             (CATA__FN__63051
+                                             (CATA__FN__125969
                                               [?initial-value ?env])]
                                             (if
                                              (meander.runtime.zeta/fail?
@@ -7259,51 +7443,51 @@
                                         (meander.runtime.zeta/fail)
                                         (throw
                                          e__16581__auto__))))))))))
-                               (state__64580))
-                              (state__64580)))
-                            (state__64580))
-                           (state__64580)))))
-                       (state__64580)))))
-                   (state__64580))))
-                (state__64580)))
-              (state__64580)))
-            (state__64580))
-           (state__64580))))
-        (state__64580
+                               (state__127502))
+                              (state__127502)))
+                            (state__127502))
+                           (state__127502)))))
+                       (state__127502)))))
+                   (state__127502))))
+                (state__127502)))
+              (state__127502)))
+            (state__127502))
+           (state__127502))))
+        (state__127502
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 5)
+           (clojure.core/= (clojure.core/count input__125886) 5)
            (clojure.core/let
-            [input__62968_nth_0__
-             (clojure.core/nth input__62968 0)
-             input__62968_nth_1__
-             (clojure.core/nth input__62968 1)
-             input__62968_nth_2__
-             (clojure.core/nth input__62968 2)
-             input__62968_nth_3__
-             (clojure.core/nth input__62968 3)
-             input__62968_nth_4__
-             (clojure.core/nth input__62968 4)]
+            [input__125886_nth_0__
+             (clojure.core/nth input__125886 0)
+             input__125886_nth_1__
+             (clojure.core/nth input__125886 1)
+             input__125886_nth_2__
+             (clojure.core/nth input__125886 2)
+             input__125886_nth_3__
+             (clojure.core/nth input__125886 3)
+             input__125886_nth_4__
+             (clojure.core/nth input__125886 4)]
             (clojure.core/case
-             input__62968_nth_0__
+             input__125886_nth_0__
              (meander.dev.parse.zeta/make-fold)
              (if
-              (clojure.core/map? input__62968_nth_1__)
+              (clojure.core/map? input__125886_nth_1__)
               (clojure.core/let
-               [VAL__64008 (.valAt input__62968_nth_1__ :tag)]
+               [VAL__126930 (.valAt input__125886_nth_1__ :tag)]
                (clojure.core/case
-                VAL__64008
+                VAL__126930
                 (:mutable-variable)
                 (clojure.core/let
-                 [?variable-ast input__62968_nth_1__]
+                 [?variable-ast input__125886_nth_1__]
                  (clojure.core/let
-                  [?initial-value-ast input__62968_nth_2__]
+                  [?initial-value-ast input__125886_nth_2__]
                   (clojure.core/let
-                   [?fold-function input__62968_nth_3__]
+                   [?fold-function input__125886_nth_3__]
                    (clojure.core/let
-                    [?form input__62968_nth_4__]
+                    [?form input__125886_nth_4__]
                     (try
                      [{:tag :fold,
                        :variable ?variable-ast,
@@ -7318,165 +7502,170 @@
                        (meander.runtime.zeta/fail? e__16581__auto__)
                        (meander.runtime.zeta/fail)
                        (throw e__16581__auto__))))))))
-                (state__64581)))
-              (state__64581))
-             (state__64581)))
-           (state__64581))
-          (state__64581)))
-        (state__64581
+                (state__127503)))
+              (state__127503))
+             (state__127503)))
+           (state__127503))
+          (state__127503)))
+        (state__127503
          []
          (clojure.core/letfn
-          [(def__64010
-            [arg__64033 ?__62979]
+          [(def__126932
+            [arg__126955 ?__125897]
             (clojure.core/letfn
-             [(state__64779
+             [(state__127702
                []
                (clojure.core/let
-                [x__64034 "meander.zeta"]
+                [x__126956 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62979 x__64034)
-                 [?__62979]
-                 (state__64780))))
-              (state__64780
+                 (clojure.core/= ?__125897 x__126956)
+                 [?__125897]
+                 (state__127703))))
+              (state__127703
                []
                (if
-                (clojure.core/map? arg__64033)
+                (clojure.core/map? arg__126955)
                 (clojure.core/let
-                 [VAL__64035 (.valAt arg__64033 :aliases)]
+                 [VAL__126957 (.valAt arg__126955 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64035)
+                  (clojure.core/map? VAL__126957)
                   (clojure.core/let
-                   [X__64037 (clojure.core/set VAL__64035)]
+                   [X__126959 (clojure.core/set VAL__126957)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64037))
+                    (clojure.core/<= 1 (clojure.core/count X__126959))
                     (clojure.core/loop
-                     [search_space__64781 (clojure.core/seq X__64037)]
+                     [search_space__127704
+                      (clojure.core/seq X__126959)]
                      (if
-                      (clojure.core/seq search_space__64781)
+                      (clojure.core/seq search_space__127704)
                       (clojure.core/let
-                       [elem__64038
-                        (clojure.core/first search_space__64781)
-                        result__64782
+                       [elem__126960
+                        (clojure.core/first search_space__127704)
+                        result__127705
                         (clojure.core/let
-                         [elem__64038_nth_0__
-                          (clojure.core/nth elem__64038 0)
-                          elem__64038_nth_1__
-                          (clojure.core/nth elem__64038 1)]
+                         [elem__126960_nth_0__
+                          (clojure.core/nth elem__126960 0)
+                          elem__126960_nth_1__
+                          (clojure.core/nth elem__126960 1)]
                          (if
-                          (clojure.core/symbol? elem__64038_nth_0__)
+                          (clojure.core/symbol? elem__126960_nth_0__)
                           (clojure.core/let
-                           [X__64040
-                            (clojure.core/name elem__64038_nth_0__)]
+                           [X__126962
+                            (clojure.core/name elem__126960_nth_0__)]
                            (if
-                            (clojure.core/= ?__62979 X__64040)
+                            (clojure.core/= ?__125897 X__126962)
                             (if
-                             (clojure.core/symbol? elem__64038_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126960_nth_1__)
                              (clojure.core/let
-                              [X__64042
-                               (clojure.core/name elem__64038_nth_1__)]
+                              [X__126964
+                               (clojure.core/name
+                                elem__126960_nth_1__)]
                               (clojure.core/case
-                               X__64042
+                               X__126964
                                ("meander.zeta")
-                               [?__62979]
+                               [?__125897]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64782)
-                        (recur (clojure.core/next search_space__64781))
-                        result__64782))
+                        (meander.runtime.zeta/fail? result__127705)
+                        (recur
+                         (clojure.core/next search_space__127704))
+                        result__127705))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64779)))]
+             (state__127702)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64020
+                    [X__126942
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62979 X__64020]
+                     [?__125897 X__126942]
                      (clojure.core/let
-                      [X__64022
+                      [X__126944
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64022
+                       X__126944
                        ("keyword")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64010 input__62968_nth_1__ ?__62979)]
+                         (def__126932 input__125886_nth_1__ ?__125897)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64582)
+                         (state__127504)
                          (clojure.core/let
-                          [[?__62979] x__14338__auto__]
+                          [[?__125897] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
-                                 [?name input__62968_nth_0___nth_1__]
+                                 [?name input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :keyword,
                                       :name
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051 [?name ?env])]
+                                        (CATA__FN__125969
+                                         [?name ?env])]
                                        (if
                                         (meander.runtime.zeta/fail?
                                          CATA_RESULT__15641__auto__)
@@ -7494,178 +7683,182 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64582))
-                              (state__64582)))
-                            (state__64582))
-                           (state__64582)))))
-                       (state__64582)))))
-                   (state__64582))))
-                (state__64582)))
-              (state__64582)))
-            (state__64582))
-           (state__64582))))
-        (state__64582
+                               (state__127504))
+                              (state__127504)))
+                            (state__127504))
+                           (state__127504)))))
+                       (state__127504)))))
+                   (state__127504))))
+                (state__127504)))
+              (state__127504)))
+            (state__127504))
+           (state__127504))))
+        (state__127504
          []
          (clojure.core/letfn
-          [(def__64044
-            [arg__64067 ?__62980]
+          [(def__126966
+            [arg__126989 ?__125898]
             (clojure.core/letfn
-             [(state__64784
+             [(state__127707
                []
                (clojure.core/let
-                [x__64068 "meander.zeta"]
+                [x__126990 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62980 x__64068)
-                 [?__62980]
-                 (state__64785))))
-              (state__64785
+                 (clojure.core/= ?__125898 x__126990)
+                 [?__125898]
+                 (state__127708))))
+              (state__127708
                []
                (if
-                (clojure.core/map? arg__64067)
+                (clojure.core/map? arg__126989)
                 (clojure.core/let
-                 [VAL__64069 (.valAt arg__64067 :aliases)]
+                 [VAL__126991 (.valAt arg__126989 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64069)
+                  (clojure.core/map? VAL__126991)
                   (clojure.core/let
-                   [X__64071 (clojure.core/set VAL__64069)]
+                   [X__126993 (clojure.core/set VAL__126991)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64071))
+                    (clojure.core/<= 1 (clojure.core/count X__126993))
                     (clojure.core/loop
-                     [search_space__64786 (clojure.core/seq X__64071)]
+                     [search_space__127709
+                      (clojure.core/seq X__126993)]
                      (if
-                      (clojure.core/seq search_space__64786)
+                      (clojure.core/seq search_space__127709)
                       (clojure.core/let
-                       [elem__64072
-                        (clojure.core/first search_space__64786)
-                        result__64787
+                       [elem__126994
+                        (clojure.core/first search_space__127709)
+                        result__127710
                         (clojure.core/let
-                         [elem__64072_nth_0__
-                          (clojure.core/nth elem__64072 0)
-                          elem__64072_nth_1__
-                          (clojure.core/nth elem__64072 1)]
+                         [elem__126994_nth_0__
+                          (clojure.core/nth elem__126994 0)
+                          elem__126994_nth_1__
+                          (clojure.core/nth elem__126994 1)]
                          (if
-                          (clojure.core/symbol? elem__64072_nth_0__)
+                          (clojure.core/symbol? elem__126994_nth_0__)
                           (clojure.core/let
-                           [X__64074
-                            (clojure.core/name elem__64072_nth_0__)]
+                           [X__126996
+                            (clojure.core/name elem__126994_nth_0__)]
                            (if
-                            (clojure.core/= ?__62980 X__64074)
+                            (clojure.core/= ?__125898 X__126996)
                             (if
-                             (clojure.core/symbol? elem__64072_nth_1__)
+                             (clojure.core/symbol?
+                              elem__126994_nth_1__)
                              (clojure.core/let
-                              [X__64076
-                               (clojure.core/name elem__64072_nth_1__)]
+                              [X__126998
+                               (clojure.core/name
+                                elem__126994_nth_1__)]
                               (clojure.core/case
-                               X__64076
+                               X__126998
                                ("meander.zeta")
-                               [?__62980]
+                               [?__125898]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64787)
-                        (recur (clojure.core/next search_space__64786))
-                        result__64787))
+                        (meander.runtime.zeta/fail? result__127710)
+                        (recur
+                         (clojure.core/next search_space__127709))
+                        result__127710))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64784)))]
+             (state__127707)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64054
+                    [X__126976
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62980 X__64054]
+                     [?__125898 X__126976]
                      (clojure.core/let
-                      [X__64056
+                      [X__126978
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64056
+                       X__126978
                        ("let")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64044 input__62968_nth_1__ ?__62980)]
+                         (def__126966 input__125886_nth_1__ ?__125898)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64583)
+                         (state__127505)
                          (clojure.core/let
-                          [[?__62980] x__14338__auto__]
+                          [[?__125898] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
                                  [?pattern
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
                                   [?expression
-                                   input__62968_nth_0___nth_2__]
+                                   input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :let,
                                        :pattern
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?pattern ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -7687,184 +7880,189 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64583))
-                              (state__64583)))
-                            (state__64583))
-                           (state__64583)))))
-                       (state__64583)))))
-                   (state__64583))))
-                (state__64583)))
-              (state__64583)))
-            (state__64583))
-           (state__64583))))
-        (state__64583
+                               (state__127505))
+                              (state__127505)))
+                            (state__127505))
+                           (state__127505)))))
+                       (state__127505)))))
+                   (state__127505))))
+                (state__127505)))
+              (state__127505)))
+            (state__127505))
+           (state__127505))))
+        (state__127505
          []
          (clojure.core/letfn
-          [(def__64078
-            [arg__64101 ?__62981]
+          [(def__127000
+            [arg__127023 ?__125899]
             (clojure.core/letfn
-             [(state__64789
+             [(state__127712
                []
                (clojure.core/let
-                [x__64102 "meander.zeta"]
+                [x__127024 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62981 x__64102)
-                 [?__62981]
-                 (state__64790))))
-              (state__64790
+                 (clojure.core/= ?__125899 x__127024)
+                 [?__125899]
+                 (state__127713))))
+              (state__127713
                []
                (if
-                (clojure.core/map? arg__64101)
+                (clojure.core/map? arg__127023)
                 (clojure.core/let
-                 [VAL__64103 (.valAt arg__64101 :aliases)]
+                 [VAL__127025 (.valAt arg__127023 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64103)
+                  (clojure.core/map? VAL__127025)
                   (clojure.core/let
-                   [X__64105 (clojure.core/set VAL__64103)]
+                   [X__127027 (clojure.core/set VAL__127025)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64105))
+                    (clojure.core/<= 1 (clojure.core/count X__127027))
                     (clojure.core/loop
-                     [search_space__64791 (clojure.core/seq X__64105)]
+                     [search_space__127714
+                      (clojure.core/seq X__127027)]
                      (if
-                      (clojure.core/seq search_space__64791)
+                      (clojure.core/seq search_space__127714)
                       (clojure.core/let
-                       [elem__64106
-                        (clojure.core/first search_space__64791)
-                        result__64792
+                       [elem__127028
+                        (clojure.core/first search_space__127714)
+                        result__127715
                         (clojure.core/let
-                         [elem__64106_nth_0__
-                          (clojure.core/nth elem__64106 0)
-                          elem__64106_nth_1__
-                          (clojure.core/nth elem__64106 1)]
+                         [elem__127028_nth_0__
+                          (clojure.core/nth elem__127028 0)
+                          elem__127028_nth_1__
+                          (clojure.core/nth elem__127028 1)]
                          (if
-                          (clojure.core/symbol? elem__64106_nth_0__)
+                          (clojure.core/symbol? elem__127028_nth_0__)
                           (clojure.core/let
-                           [X__64108
-                            (clojure.core/name elem__64106_nth_0__)]
+                           [X__127030
+                            (clojure.core/name elem__127028_nth_0__)]
                            (if
-                            (clojure.core/= ?__62981 X__64108)
+                            (clojure.core/= ?__125899 X__127030)
                             (if
-                             (clojure.core/symbol? elem__64106_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127028_nth_1__)
                              (clojure.core/let
-                              [X__64110
-                               (clojure.core/name elem__64106_nth_1__)]
+                              [X__127032
+                               (clojure.core/name
+                                elem__127028_nth_1__)]
                               (clojure.core/case
-                               X__64110
+                               X__127032
                                ("meander.zeta")
-                               [?__62981]
+                               [?__125899]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64792)
-                        (recur (clojure.core/next search_space__64791))
-                        result__64792))
+                        (meander.runtime.zeta/fail? result__127715)
+                        (recur
+                         (clojure.core/next search_space__127714))
+                        result__127715))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64789)))]
+             (state__127712)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64088
+                    [X__127010
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62981 X__64088]
+                     [?__125899 X__127010]
                      (clojure.core/let
-                      [X__64090
+                      [X__127012
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64090
+                       X__127012
                        ("let")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64078 input__62968_nth_1__ ?__62981)]
+                         (def__127000 input__125886_nth_1__ ?__125899)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64584)
+                         (state__127506)
                          (clojure.core/let
-                          [[?__62981] x__14338__auto__]
+                          [[?__125899] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 4)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 4)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)
-                                 input__62968_nth_0___nth_3__
+                                 input__125886_nth_0___nth_3__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   3)]
                                 (clojure.core/let
                                  [?pattern
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
                                   [?expression
-                                   input__62968_nth_0___nth_2__]
+                                   input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?next input__62968_nth_0___nth_3__]
+                                   [?next
+                                    input__125886_nth_0___nth_3__]
                                    (clojure.core/let
-                                    [?form input__62968_nth_0__]
+                                    [?form input__125886_nth_0__]
                                     (clojure.core/let
-                                     [?env input__62968_nth_1__]
+                                     [?env input__125886_nth_1__]
                                      (try
                                       [{:tag :let,
                                         :pattern
                                         (clojure.core/let
                                          [CATA_RESULT__15641__auto__
-                                          (CATA__FN__63051
+                                          (CATA__FN__125969
                                            [?pattern ?env])]
                                          (if
                                           (meander.runtime.zeta/fail?
@@ -7880,7 +8078,7 @@
                                         :next
                                         (clojure.core/let
                                          [CATA_RESULT__15641__auto__
-                                          (CATA__FN__63051
+                                          (CATA__FN__125969
                                            [?next ?env])]
                                          (if
                                           (meander.runtime.zeta/fail?
@@ -7899,171 +8097,175 @@
                                         (meander.runtime.zeta/fail)
                                         (throw
                                          e__16581__auto__))))))))))
-                               (state__64584))
-                              (state__64584)))
-                            (state__64584))
-                           (state__64584)))))
-                       (state__64584)))))
-                   (state__64584))))
-                (state__64584)))
-              (state__64584)))
-            (state__64584))
-           (state__64584))))
-        (state__64584
+                               (state__127506))
+                              (state__127506)))
+                            (state__127506))
+                           (state__127506)))))
+                       (state__127506)))))
+                   (state__127506))))
+                (state__127506)))
+              (state__127506)))
+            (state__127506))
+           (state__127506))))
+        (state__127506
          []
          (clojure.core/letfn
-          [(def__64112
-            [arg__64135 ?__62982]
+          [(def__127034
+            [arg__127057 ?__125900]
             (clojure.core/letfn
-             [(state__64794
+             [(state__127717
                []
                (clojure.core/let
-                [x__64136 "meander.zeta"]
+                [x__127058 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62982 x__64136)
-                 [?__62982]
-                 (state__64795))))
-              (state__64795
+                 (clojure.core/= ?__125900 x__127058)
+                 [?__125900]
+                 (state__127718))))
+              (state__127718
                []
                (if
-                (clojure.core/map? arg__64135)
+                (clojure.core/map? arg__127057)
                 (clojure.core/let
-                 [VAL__64137 (.valAt arg__64135 :aliases)]
+                 [VAL__127059 (.valAt arg__127057 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64137)
+                  (clojure.core/map? VAL__127059)
                   (clojure.core/let
-                   [X__64139 (clojure.core/set VAL__64137)]
+                   [X__127061 (clojure.core/set VAL__127059)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64139))
+                    (clojure.core/<= 1 (clojure.core/count X__127061))
                     (clojure.core/loop
-                     [search_space__64796 (clojure.core/seq X__64139)]
+                     [search_space__127719
+                      (clojure.core/seq X__127061)]
                      (if
-                      (clojure.core/seq search_space__64796)
+                      (clojure.core/seq search_space__127719)
                       (clojure.core/let
-                       [elem__64140
-                        (clojure.core/first search_space__64796)
-                        result__64797
+                       [elem__127062
+                        (clojure.core/first search_space__127719)
+                        result__127720
                         (clojure.core/let
-                         [elem__64140_nth_0__
-                          (clojure.core/nth elem__64140 0)
-                          elem__64140_nth_1__
-                          (clojure.core/nth elem__64140 1)]
+                         [elem__127062_nth_0__
+                          (clojure.core/nth elem__127062 0)
+                          elem__127062_nth_1__
+                          (clojure.core/nth elem__127062 1)]
                          (if
-                          (clojure.core/symbol? elem__64140_nth_0__)
+                          (clojure.core/symbol? elem__127062_nth_0__)
                           (clojure.core/let
-                           [X__64142
-                            (clojure.core/name elem__64140_nth_0__)]
+                           [X__127064
+                            (clojure.core/name elem__127062_nth_0__)]
                            (if
-                            (clojure.core/= ?__62982 X__64142)
+                            (clojure.core/= ?__125900 X__127064)
                             (if
-                             (clojure.core/symbol? elem__64140_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127062_nth_1__)
                              (clojure.core/let
-                              [X__64144
-                               (clojure.core/name elem__64140_nth_1__)]
+                              [X__127066
+                               (clojure.core/name
+                                elem__127062_nth_1__)]
                               (clojure.core/case
-                               X__64144
+                               X__127066
                                ("meander.zeta")
-                               [?__62982]
+                               [?__125900]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64797)
-                        (recur (clojure.core/next search_space__64796))
-                        result__64797))
+                        (meander.runtime.zeta/fail? result__127720)
+                        (recur
+                         (clojure.core/next search_space__127719))
+                        result__127720))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64794)))]
+             (state__127717)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64122
+                    [X__127044
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62982 X__64122]
+                     [?__125900 X__127044]
                      (clojure.core/let
-                      [X__64124
+                      [X__127046
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64124
+                       X__127046
                        ("not")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64112 input__62968_nth_1__ ?__62982)]
+                         (def__127034 input__125886_nth_1__ ?__125900)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64585)
+                         (state__127507)
                          (clojure.core/let
-                          [[?__62982] x__14338__auto__]
+                          [[?__125900] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
                                  [?pattern
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :not,
                                       :pattern
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051
+                                        (CATA__FN__125969
                                          [?pattern ?env])]
                                        (if
                                         (meander.runtime.zeta/fail?
@@ -8082,171 +8284,175 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64585))
-                              (state__64585)))
-                            (state__64585))
-                           (state__64585)))))
-                       (state__64585)))))
-                   (state__64585))))
-                (state__64585)))
-              (state__64585)))
-            (state__64585))
-           (state__64585))))
-        (state__64585
+                               (state__127507))
+                              (state__127507)))
+                            (state__127507))
+                           (state__127507)))))
+                       (state__127507)))))
+                   (state__127507))))
+                (state__127507)))
+              (state__127507)))
+            (state__127507))
+           (state__127507))))
+        (state__127507
          []
          (clojure.core/letfn
-          [(def__64146
-            [arg__64171 ?__62983]
+          [(def__127068
+            [arg__127093 ?__125901]
             (clojure.core/letfn
-             [(state__64799
+             [(state__127722
                []
                (clojure.core/let
-                [x__64172 "meander.zeta"]
+                [x__127094 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62983 x__64172)
-                 [?__62983]
-                 (state__64800))))
-              (state__64800
+                 (clojure.core/= ?__125901 x__127094)
+                 [?__125901]
+                 (state__127723))))
+              (state__127723
                []
                (if
-                (clojure.core/map? arg__64171)
+                (clojure.core/map? arg__127093)
                 (clojure.core/let
-                 [VAL__64173 (.valAt arg__64171 :aliases)]
+                 [VAL__127095 (.valAt arg__127093 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64173)
+                  (clojure.core/map? VAL__127095)
                   (clojure.core/let
-                   [X__64175 (clojure.core/set VAL__64173)]
+                   [X__127097 (clojure.core/set VAL__127095)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64175))
+                    (clojure.core/<= 1 (clojure.core/count X__127097))
                     (clojure.core/loop
-                     [search_space__64801 (clojure.core/seq X__64175)]
+                     [search_space__127724
+                      (clojure.core/seq X__127097)]
                      (if
-                      (clojure.core/seq search_space__64801)
+                      (clojure.core/seq search_space__127724)
                       (clojure.core/let
-                       [elem__64176
-                        (clojure.core/first search_space__64801)
-                        result__64802
+                       [elem__127098
+                        (clojure.core/first search_space__127724)
+                        result__127725
                         (clojure.core/let
-                         [elem__64176_nth_0__
-                          (clojure.core/nth elem__64176 0)
-                          elem__64176_nth_1__
-                          (clojure.core/nth elem__64176 1)]
+                         [elem__127098_nth_0__
+                          (clojure.core/nth elem__127098 0)
+                          elem__127098_nth_1__
+                          (clojure.core/nth elem__127098 1)]
                          (if
-                          (clojure.core/symbol? elem__64176_nth_0__)
+                          (clojure.core/symbol? elem__127098_nth_0__)
                           (clojure.core/let
-                           [X__64178
-                            (clojure.core/name elem__64176_nth_0__)]
+                           [X__127100
+                            (clojure.core/name elem__127098_nth_0__)]
                            (if
-                            (clojure.core/= ?__62983 X__64178)
+                            (clojure.core/= ?__125901 X__127100)
                             (if
-                             (clojure.core/symbol? elem__64176_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127098_nth_1__)
                              (clojure.core/let
-                              [X__64180
-                               (clojure.core/name elem__64176_nth_1__)]
+                              [X__127102
+                               (clojure.core/name
+                                elem__127098_nth_1__)]
                               (clojure.core/case
-                               X__64180
+                               X__127102
                                ("meander.zeta")
-                               [?__62983]
+                               [?__125901]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64802)
-                        (recur (clojure.core/next search_space__64801))
-                        result__64802))
+                        (meander.runtime.zeta/fail? result__127725)
+                        (recur
+                         (clojure.core/next search_space__127724))
+                        result__127725))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64799)))]
+             (state__127722)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64158
+                    [X__127080
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62983 X__64158]
+                     [?__125901 X__127080]
                      (clojure.core/let
-                      [X__64160
+                      [X__127082
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64160
+                       X__127082
                        ("or")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64146 input__62968_nth_1__ ?__62983)]
+                         (def__127068 input__125886_nth_1__ ?__125901)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64586)
+                         (state__127508)
                          (clojure.core/let
-                          [[?__62983] x__14338__auto__]
+                          [[?__125901] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (clojure.core/let
-                               [input__62968_nth_0___l__
+                               [input__125886_nth_0___l__
                                 (clojure.core/take
                                  1
-                                 input__62968_nth_0__)]
+                                 input__125886_nth_0__)]
                                (if
                                 (clojure.core/=
                                  (clojure.core/bounded-count
                                   (clojure.core/inc 1)
-                                  input__62968_nth_0___l__)
+                                  input__125886_nth_0___l__)
                                  1)
                                 (clojure.core/let
-                                 [input__62968_nth_0___r__
+                                 [input__125886_nth_0___r__
                                   (clojure.core/drop
                                    1
-                                   input__62968_nth_0__)]
+                                   input__125886_nth_0__)]
                                  (clojure.core/let
                                   [!forms
                                    (clojure.core/vec
-                                    input__62968_nth_0___r__)]
+                                    input__125886_nth_0___r__)]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [(clojure.core/let
                                        [!forms__counter
@@ -8254,12 +8460,12 @@
                                          !forms)]
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/make-or
                                            (clojure.core/into
                                             []
                                             (clojure.core/loop
-                                             [return__63054
+                                             [return__125972
                                               (clojure.core/transient
                                                [])]
                                              (if
@@ -8268,10 +8474,10 @@
                                                 !forms__counter))
                                               (recur
                                                (clojure.core/conj!
-                                                return__63054
+                                                return__125972
                                                 (clojure.core/let
                                                  [CATA_RESULT__15641__auto__
-                                                  (CATA__FN__63051
+                                                  (CATA__FN__125969
                                                    [(if
                                                      (.hasNext
                                                       !forms__counter)
@@ -8287,7 +8493,7 @@
                                                    CATA_RESULT__15641__auto__
                                                    0)))))
                                               (clojure.core/persistent!
-                                               return__63054))))
+                                               return__125972))))
                                            ?form])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -8305,42 +8511,42 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__))))))))
-                                (state__64586)))
-                              (state__64586)))
-                            (state__64586))
-                           (state__64586)))))
-                       (state__64586)))))
-                   (state__64586))))
-                (state__64586)))
-              (state__64586)))
-            (state__64586))
-           (state__64586))))
-        (state__64586
+                                (state__127508)))
+                              (state__127508)))
+                            (state__127508))
+                           (state__127508)))))
+                       (state__127508)))))
+                   (state__127508))))
+                (state__127508)))
+              (state__127508)))
+            (state__127508))
+           (state__127508))))
+        (state__127508
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 3)
+           (clojure.core/= (clojure.core/count input__125886) 3)
            (clojure.core/let
-            [input__62968_nth_0__
-             (clojure.core/nth input__62968 0)
-             input__62968_nth_1__
-             (clojure.core/nth input__62968 1)
-             input__62968_nth_2__
-             (clojure.core/nth input__62968 2)]
+            [input__125886_nth_0__
+             (clojure.core/nth input__125886 0)
+             input__125886_nth_1__
+             (clojure.core/nth input__125886 1)
+             input__125886_nth_2__
+             (clojure.core/nth input__125886 2)]
             (clojure.core/case
-             input__62968_nth_0__
+             input__125886_nth_0__
              (meander.dev.parse.zeta/make-or)
              (clojure.core/letfn
-              [(state__64804
+              [(state__127727
                 []
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/case
-                  input__62968_nth_1__
+                  input__125886_nth_1__
                   ([])
                   (clojure.core/let
-                   [?form input__62968_nth_2__]
+                   [?form input__125886_nth_2__]
                    (try
                     [{:tag :error,
                       :message
@@ -8353,24 +8559,24 @@
                       (meander.runtime.zeta/fail? e__16581__auto__)
                       (meander.runtime.zeta/fail)
                       (throw e__16581__auto__)))))
-                  (state__64805))
-                 (state__64805)))
-               (state__64805
+                  (state__127728))
+                 (state__127728)))
+               (state__127728
                 []
                 (clojure.core/case
-                 input__62968_nth_2__
+                 input__125886_nth_2__
                  (nil)
                  (if
-                  (clojure.core/vector? input__62968_nth_1__)
+                  (clojure.core/vector? input__125886_nth_1__)
                   (if
                    (clojure.core/=
-                    (clojure.core/count input__62968_nth_1__)
+                    (clojure.core/count input__125886_nth_1__)
                     1)
                    (clojure.core/let
-                    [input__62968_nth_1___nth_0__
-                     (clojure.core/nth input__62968_nth_1__ 0)]
+                    [input__125886_nth_1___nth_0__
+                     (clojure.core/nth input__125886_nth_1__ 0)]
                     (clojure.core/let
-                     [?ast-a input__62968_nth_1___nth_0__]
+                     [?ast-a input__125886_nth_1___nth_0__]
                      (try
                       [?ast-a]
                       (catch
@@ -8380,31 +8586,31 @@
                         (meander.runtime.zeta/fail? e__16581__auto__)
                         (meander.runtime.zeta/fail)
                         (throw e__16581__auto__))))))
-                   (state__64806))
-                  (state__64806))
-                 (state__64806)))
-               (state__64806
+                   (state__127729))
+                  (state__127729))
+                 (state__127729)))
+               (state__127729
                 []
                 (if
-                 (clojure.core/vector? input__62968_nth_1__)
+                 (clojure.core/vector? input__125886_nth_1__)
                  (clojure.core/letfn
-                  [(state__64807
+                  [(state__127730
                     []
                     (if
                      (clojure.core/=
-                      (clojure.core/count input__62968_nth_1__)
+                      (clojure.core/count input__125886_nth_1__)
                       1)
                      (clojure.core/let
-                      [input__62968_nth_1___nth_0__
-                       (clojure.core/nth input__62968_nth_1__ 0)]
+                      [input__125886_nth_1___nth_0__
+                       (clojure.core/nth input__125886_nth_1__ 0)]
                       (clojure.core/let
-                       [?ast-a input__62968_nth_1___nth_0__]
+                       [?ast-a input__125886_nth_1___nth_0__]
                        (clojure.core/let
-                        [?form input__62968_nth_2__]
+                        [?form input__125886_nth_2__]
                         (try
                          [(clojure.core/let
                            [CATA_RESULT__15641__auto__
-                            (CATA__FN__63051
+                            (CATA__FN__125969
                              ['meander.dev.parse.zeta/make-or
                               [?ast-a {:tag :pass}]
                               ?form])]
@@ -8423,24 +8629,24 @@
                             e__16581__auto__)
                            (meander.runtime.zeta/fail)
                            (throw e__16581__auto__)))))))
-                     (state__64808)))
-                   (state__64808
+                     (state__127731)))
+                   (state__127731
                     []
                     (if
                      (clojure.core/=
-                      (clojure.core/count input__62968_nth_1__)
+                      (clojure.core/count input__125886_nth_1__)
                       2)
                      (clojure.core/let
-                      [input__62968_nth_1___nth_0__
-                       (clojure.core/nth input__62968_nth_1__ 0)
-                       input__62968_nth_1___nth_1__
-                       (clojure.core/nth input__62968_nth_1__ 1)]
+                      [input__125886_nth_1___nth_0__
+                       (clojure.core/nth input__125886_nth_1__ 0)
+                       input__125886_nth_1___nth_1__
+                       (clojure.core/nth input__125886_nth_1__ 1)]
                       (clojure.core/let
-                       [?ast-a input__62968_nth_1___nth_0__]
+                       [?ast-a input__125886_nth_1___nth_0__]
                        (clojure.core/let
-                        [?ast-b input__62968_nth_1___nth_1__]
+                        [?ast-b input__125886_nth_1___nth_1__]
                         (clojure.core/let
-                         [?form input__62968_nth_2__]
+                         [?form input__125886_nth_2__]
                          (try
                           [{:tag :or,
                             :left ?ast-a,
@@ -8454,89 +8660,90 @@
                              e__16581__auto__)
                             (meander.runtime.zeta/fail)
                             (throw e__16581__auto__))))))))
-                     (state__64809)))
-                   (state__64809
+                     (state__127732)))
+                   (state__127732
                     []
                     (clojure.core/loop
-                     [search_space__64810
+                     [search_space__127733
                       (meander.runtime.zeta/epsilon-partitions
                        2
-                       input__62968_nth_1__)]
+                       input__125886_nth_1__)]
                      (if
-                      (clojure.core/seq search_space__64810)
+                      (clojure.core/seq search_space__127733)
                       (clojure.core/let
-                       [input__62968_nth_1___parts__
-                        (clojure.core/first search_space__64810)
-                        result__64811
+                       [input__125886_nth_1___parts__
+                        (clojure.core/first search_space__127733)
+                        result__127734
                         (clojure.core/let
-                         [input__62968_nth_1___l__
+                         [input__125886_nth_1___l__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            0)
-                          input__62968_nth_1___r__
+                          input__125886_nth_1___r__
                           (clojure.core/nth
-                           input__62968_nth_1___parts__
+                           input__125886_nth_1___parts__
                            1)]
                          (clojure.core/letfn
-                          [(state__64813
+                          [(state__127736
                             []
                             (clojure.core/let
                              [!asts-1 []]
                              (clojure.core/let
                               [ret__14502__auto__
                                (meander.runtime.zeta/epsilon-run-star-1
-                                input__62968_nth_1___l__
+                                input__125886_nth_1___l__
                                 [!asts-1]
                                 (clojure.core/fn
-                                 [[!asts-1] input__64207]
+                                 [[!asts-1] input__127129]
                                  (clojure.core/let
-                                  [input__64207_nth_0__
-                                   (clojure.core/nth input__64207 0)]
+                                  [input__127129_nth_0__
+                                   (clojure.core/nth input__127129 0)]
                                   (clojure.core/let
                                    [!asts-1
                                     (clojure.core/conj
                                      !asts-1
-                                     input__64207_nth_0__)]
+                                     input__127129_nth_0__)]
                                    [!asts-1])))
                                 (clojure.core/fn
                                  [[!asts-1]]
                                  (clojure.core/let
-                                  [X__64200
+                                  [X__127122
                                    (clojure.core/count
-                                    input__62968_nth_1___l__)]
+                                    input__125886_nth_1___l__)]
                                   (clojure.core/let
-                                   [?n X__64200]
+                                   [?n X__127122]
                                    (clojure.core/let
-                                    [X__64204
+                                    [X__127126
                                      (clojure.core/count
-                                      input__62968_nth_1___r__)]
+                                      input__125886_nth_1___r__)]
                                     (if
-                                     (clojure.core/= ?n X__64204)
+                                     (clojure.core/= ?n X__127126)
                                      (clojure.core/let
                                       [!asts-2 []]
                                       (clojure.core/let
                                        [ret__14502__auto__
                                         (meander.runtime.zeta/epsilon-run-star-1
-                                         input__62968_nth_1___r__
+                                         input__125886_nth_1___r__
                                          [!asts-2 !asts-1]
                                          (clojure.core/fn
                                           [[!asts-2 !asts-1]
-                                           input__64205]
+                                           input__127127]
                                           (clojure.core/let
-                                           [input__64205_nth_0__
+                                           [input__127127_nth_0__
                                             (clojure.core/nth
-                                             input__64205
+                                             input__127127
                                              0)]
                                            (clojure.core/let
                                             [!asts-2
                                              (clojure.core/conj
                                               !asts-2
-                                              input__64205_nth_0__)]
+                                              input__127127_nth_0__)]
                                             [!asts-2 !asts-1])))
                                          (clojure.core/fn
                                           [[!asts-2 !asts-1]]
                                           (clojure.core/let
-                                           [?form input__62968_nth_2__]
+                                           [?form
+                                            input__125886_nth_2__]
                                            (try
                                             [(clojure.core/let
                                               [!asts-1__counter
@@ -8547,11 +8754,11 @@
                                                 !asts-2)]
                                               (clojure.core/let
                                                [CATA_RESULT__15641__auto__
-                                                (CATA__FN__63051
+                                                (CATA__FN__125969
                                                  ['meander.dev.parse.zeta/make-or
                                                   [(clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-or
                                                        (clojure.core/into
                                                         []
@@ -8569,7 +8776,7 @@
                                                       0)))
                                                    (clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-or
                                                        (clojure.core/into
                                                         []
@@ -8606,101 +8813,101 @@
                                        (if
                                         (meander.runtime.zeta/fail?
                                          ret__14502__auto__)
-                                        (state__64814)
+                                        (state__127737)
                                         ret__14502__auto__)))
-                                     (state__64814)))))))]
+                                     (state__127737)))))))]
                               (if
                                (meander.runtime.zeta/fail?
                                 ret__14502__auto__)
-                               (state__64814)
+                               (state__127737)
                                ret__14502__auto__))))
-                           (state__64814
+                           (state__127737
                             []
                             (clojure.core/let
                              [!asts-1 []]
                              (clojure.core/let
                               [ret__14502__auto__
                                (meander.runtime.zeta/epsilon-run-star-1
-                                input__62968_nth_1___l__
+                                input__125886_nth_1___l__
                                 [!asts-1]
                                 (clojure.core/fn
-                                 [[!asts-1] input__64223]
+                                 [[!asts-1] input__127145]
                                  (clojure.core/let
-                                  [input__64223_nth_0__
-                                   (clojure.core/nth input__64223 0)]
+                                  [input__127145_nth_0__
+                                   (clojure.core/nth input__127145 0)]
                                   (clojure.core/let
                                    [!asts-1
                                     (clojure.core/conj
                                      !asts-1
-                                     input__64223_nth_0__)]
+                                     input__127145_nth_0__)]
                                    [!asts-1])))
                                 (clojure.core/fn
                                  [[!asts-1]]
                                  (clojure.core/let
-                                  [X__64214
+                                  [X__127136
                                    (clojure.core/count
-                                    input__62968_nth_1___l__)]
+                                    input__125886_nth_1___l__)]
                                   (clojure.core/let
-                                   [?n X__64214]
+                                   [?n X__127136]
                                    (clojure.core/let
-                                    [input__62968_nth_1___r___l__
+                                    [input__125886_nth_1___r___l__
                                      (clojure.core/subvec
-                                      input__62968_nth_1___r__
+                                      input__125886_nth_1___r__
                                       0
                                       (clojure.core/min
                                        (clojure.core/count
-                                        input__62968_nth_1___r__)
+                                        input__125886_nth_1___r__)
                                        1))]
                                     (if
                                      (clojure.core/=
                                       (clojure.core/count
-                                       input__62968_nth_1___r___l__)
+                                       input__125886_nth_1___r___l__)
                                       1)
                                      (clojure.core/let
-                                      [input__62968_nth_1___r___r__
+                                      [input__125886_nth_1___r___r__
                                        (clojure.core/subvec
-                                        input__62968_nth_1___r__
+                                        input__125886_nth_1___r__
                                         1)]
                                       (clojure.core/let
-                                       [input__62968_nth_1___r___l___nth_0__
+                                       [input__125886_nth_1___r___l___nth_0__
                                         (clojure.core/nth
-                                         input__62968_nth_1___r___l__
+                                         input__125886_nth_1___r___l__
                                          0)]
                                        (clojure.core/let
                                         [?ast
-                                         input__62968_nth_1___r___l___nth_0__]
+                                         input__125886_nth_1___r___l___nth_0__]
                                         (clojure.core/let
-                                         [X__64220
+                                         [X__127142
                                           (clojure.core/count
-                                           input__62968_nth_1___r___r__)]
+                                           input__125886_nth_1___r___r__)]
                                          (if
-                                          (clojure.core/= ?n X__64220)
+                                          (clojure.core/= ?n X__127142)
                                           (clojure.core/let
                                            [!asts-2 []]
                                            (clojure.core/let
                                             [ret__14502__auto__
                                              (meander.runtime.zeta/epsilon-run-star-1
-                                              input__62968_nth_1___r___r__
+                                              input__125886_nth_1___r___r__
                                               [!asts-2 !asts-1]
                                               (clojure.core/fn
                                                [[!asts-2 !asts-1]
-                                                input__64221]
+                                                input__127143]
                                                (clojure.core/let
-                                                [input__64221_nth_0__
+                                                [input__127143_nth_0__
                                                  (clojure.core/nth
-                                                  input__64221
+                                                  input__127143
                                                   0)]
                                                 (clojure.core/let
                                                  [!asts-2
                                                   (clojure.core/conj
                                                    !asts-2
-                                                   input__64221_nth_0__)]
+                                                   input__127143_nth_0__)]
                                                  [!asts-2 !asts-1])))
                                               (clojure.core/fn
                                                [[!asts-2 !asts-1]]
                                                (clojure.core/let
                                                 [?form
-                                                 input__62968_nth_2__]
+                                                 input__125886_nth_2__]
                                                 (try
                                                  [(clojure.core/let
                                                    [!asts-1__counter
@@ -8711,11 +8918,11 @@
                                                      !asts-2)]
                                                    (clojure.core/let
                                                     [CATA_RESULT__15641__auto__
-                                                     (CATA__FN__63051
+                                                     (CATA__FN__125969
                                                       ['meander.dev.parse.zeta/make-or
                                                        [(clojure.core/let
                                                          [CATA_RESULT__15641__auto__
-                                                          (CATA__FN__63051
+                                                          (CATA__FN__125969
                                                            ['meander.dev.parse.zeta/make-or
                                                             (clojure.core/into
                                                              []
@@ -8736,7 +8943,7 @@
                                                            0)))
                                                         (clojure.core/let
                                                          [CATA_RESULT__15641__auto__
-                                                          (CATA__FN__63051
+                                                          (CATA__FN__125969
                                                            ['meander.dev.parse.zeta/make-or
                                                             (clojure.core/into
                                                              []
@@ -8782,167 +8989,172 @@
                                 ret__14502__auto__)
                                (meander.runtime.zeta/fail)
                                ret__14502__auto__))))]
-                          (state__64813)))]
+                          (state__127736)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64811)
-                        (recur (clojure.core/next search_space__64810))
-                        result__64811))
-                      (state__64587))))]
-                  (state__64807))
-                 (state__64587)))]
-              (state__64804))
-             (state__64587)))
-           (state__64587))
-          (state__64587)))
-        (state__64587
+                        (meander.runtime.zeta/fail? result__127734)
+                        (recur
+                         (clojure.core/next search_space__127733))
+                        result__127734))
+                      (state__127509))))]
+                  (state__127730))
+                 (state__127509)))]
+              (state__127727))
+             (state__127509)))
+           (state__127509))
+          (state__127509)))
+        (state__127509
          []
          (clojure.core/letfn
-          [(def__64226
-            [arg__64249 ?__62984]
+          [(def__127148
+            [arg__127171 ?__125902]
             (clojure.core/letfn
-             [(state__64819
+             [(state__127742
                []
                (clojure.core/let
-                [x__64250 "meander.zeta"]
+                [x__127172 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62984 x__64250)
-                 [?__62984]
-                 (state__64820))))
-              (state__64820
+                 (clojure.core/= ?__125902 x__127172)
+                 [?__125902]
+                 (state__127743))))
+              (state__127743
                []
                (if
-                (clojure.core/map? arg__64249)
+                (clojure.core/map? arg__127171)
                 (clojure.core/let
-                 [VAL__64251 (.valAt arg__64249 :aliases)]
+                 [VAL__127173 (.valAt arg__127171 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64251)
+                  (clojure.core/map? VAL__127173)
                   (clojure.core/let
-                   [X__64253 (clojure.core/set VAL__64251)]
+                   [X__127175 (clojure.core/set VAL__127173)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64253))
+                    (clojure.core/<= 1 (clojure.core/count X__127175))
                     (clojure.core/loop
-                     [search_space__64821 (clojure.core/seq X__64253)]
+                     [search_space__127744
+                      (clojure.core/seq X__127175)]
                      (if
-                      (clojure.core/seq search_space__64821)
+                      (clojure.core/seq search_space__127744)
                       (clojure.core/let
-                       [elem__64254
-                        (clojure.core/first search_space__64821)
-                        result__64822
+                       [elem__127176
+                        (clojure.core/first search_space__127744)
+                        result__127745
                         (clojure.core/let
-                         [elem__64254_nth_0__
-                          (clojure.core/nth elem__64254 0)
-                          elem__64254_nth_1__
-                          (clojure.core/nth elem__64254 1)]
+                         [elem__127176_nth_0__
+                          (clojure.core/nth elem__127176 0)
+                          elem__127176_nth_1__
+                          (clojure.core/nth elem__127176 1)]
                          (if
-                          (clojure.core/symbol? elem__64254_nth_0__)
+                          (clojure.core/symbol? elem__127176_nth_0__)
                           (clojure.core/let
-                           [X__64256
-                            (clojure.core/name elem__64254_nth_0__)]
+                           [X__127178
+                            (clojure.core/name elem__127176_nth_0__)]
                            (if
-                            (clojure.core/= ?__62984 X__64256)
+                            (clojure.core/= ?__125902 X__127178)
                             (if
-                             (clojure.core/symbol? elem__64254_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127176_nth_1__)
                              (clojure.core/let
-                              [X__64258
-                               (clojure.core/name elem__64254_nth_1__)]
+                              [X__127180
+                               (clojure.core/name
+                                elem__127176_nth_1__)]
                               (clojure.core/case
-                               X__64258
+                               X__127180
                                ("meander.zeta")
-                               [?__62984]
+                               [?__125902]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64822)
-                        (recur (clojure.core/next search_space__64821))
-                        result__64822))
+                        (meander.runtime.zeta/fail? result__127745)
+                        (recur
+                         (clojure.core/next search_space__127744))
+                        result__127745))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64819)))]
+             (state__127742)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64236
+                    [X__127158
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62984 X__64236]
+                     [?__125902 X__127158]
                      (clojure.core/let
-                      [X__64238
+                      [X__127160
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64238
+                       X__127160
                        ("pred")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64226 input__62968_nth_1__ ?__62984)]
+                         (def__127148 input__125886_nth_1__ ?__125902)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64588)
+                         (state__127510)
                          (clojure.core/let
-                          [[?__62984] x__14338__auto__]
+                          [[?__125902] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
                                  [?expression
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :pred,
                                       :expression
@@ -8957,172 +9169,176 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64588))
-                              (state__64588)))
-                            (state__64588))
-                           (state__64588)))))
-                       (state__64588)))))
-                   (state__64588))))
-                (state__64588)))
-              (state__64588)))
-            (state__64588))
-           (state__64588))))
-        (state__64588
+                               (state__127510))
+                              (state__127510)))
+                            (state__127510))
+                           (state__127510)))))
+                       (state__127510)))))
+                   (state__127510))))
+                (state__127510)))
+              (state__127510)))
+            (state__127510))
+           (state__127510))))
+        (state__127510
          []
          (clojure.core/letfn
-          [(def__64260
-            [arg__64283 ?__62985]
+          [(def__127182
+            [arg__127205 ?__125903]
             (clojure.core/letfn
-             [(state__64824
+             [(state__127747
                []
                (clojure.core/let
-                [x__64284 "meander.zeta"]
+                [x__127206 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62985 x__64284)
-                 [?__62985]
-                 (state__64825))))
-              (state__64825
+                 (clojure.core/= ?__125903 x__127206)
+                 [?__125903]
+                 (state__127748))))
+              (state__127748
                []
                (if
-                (clojure.core/map? arg__64283)
+                (clojure.core/map? arg__127205)
                 (clojure.core/let
-                 [VAL__64285 (.valAt arg__64283 :aliases)]
+                 [VAL__127207 (.valAt arg__127205 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64285)
+                  (clojure.core/map? VAL__127207)
                   (clojure.core/let
-                   [X__64287 (clojure.core/set VAL__64285)]
+                   [X__127209 (clojure.core/set VAL__127207)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64287))
+                    (clojure.core/<= 1 (clojure.core/count X__127209))
                     (clojure.core/loop
-                     [search_space__64826 (clojure.core/seq X__64287)]
+                     [search_space__127749
+                      (clojure.core/seq X__127209)]
                      (if
-                      (clojure.core/seq search_space__64826)
+                      (clojure.core/seq search_space__127749)
                       (clojure.core/let
-                       [elem__64288
-                        (clojure.core/first search_space__64826)
-                        result__64827
+                       [elem__127210
+                        (clojure.core/first search_space__127749)
+                        result__127750
                         (clojure.core/let
-                         [elem__64288_nth_0__
-                          (clojure.core/nth elem__64288 0)
-                          elem__64288_nth_1__
-                          (clojure.core/nth elem__64288 1)]
+                         [elem__127210_nth_0__
+                          (clojure.core/nth elem__127210 0)
+                          elem__127210_nth_1__
+                          (clojure.core/nth elem__127210 1)]
                          (if
-                          (clojure.core/symbol? elem__64288_nth_0__)
+                          (clojure.core/symbol? elem__127210_nth_0__)
                           (clojure.core/let
-                           [X__64290
-                            (clojure.core/name elem__64288_nth_0__)]
+                           [X__127212
+                            (clojure.core/name elem__127210_nth_0__)]
                            (if
-                            (clojure.core/= ?__62985 X__64290)
+                            (clojure.core/= ?__125903 X__127212)
                             (if
-                             (clojure.core/symbol? elem__64288_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127210_nth_1__)
                              (clojure.core/let
-                              [X__64292
-                               (clojure.core/name elem__64288_nth_1__)]
+                              [X__127214
+                               (clojure.core/name
+                                elem__127210_nth_1__)]
                               (clojure.core/case
-                               X__64292
+                               X__127214
                                ("meander.zeta")
-                               [?__62985]
+                               [?__125903]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64827)
-                        (recur (clojure.core/next search_space__64826))
-                        result__64827))
+                        (meander.runtime.zeta/fail? result__127750)
+                        (recur
+                         (clojure.core/next search_space__127749))
+                        result__127750))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64824)))]
+             (state__127747)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64270
+                    [X__127192
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62985 X__64270]
+                     [?__125903 X__127192]
                      (clojure.core/let
-                      [X__64272
+                      [X__127194
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64272
+                       X__127194
                        ("pred")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64260 input__62968_nth_1__ ?__62985)]
+                         (def__127182 input__125886_nth_1__ ?__125903)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64589)
+                         (state__127511)
                          (clojure.core/let
-                          [[?__62985] x__14338__auto__]
+                          [[?__125903] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
                                  [?expression
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
                                   [?pattern
-                                   input__62968_nth_0___nth_2__]
+                                   input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :pred,
                                        :expression
@@ -9131,7 +9347,7 @@
                                        :pattern
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?pattern ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -9150,164 +9366,168 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64589))
-                              (state__64589)))
-                            (state__64589))
-                           (state__64589)))))
-                       (state__64589)))))
-                   (state__64589))))
-                (state__64589)))
-              (state__64589)))
-            (state__64589))
-           (state__64589))))
-        (state__64589
+                               (state__127511))
+                              (state__127511)))
+                            (state__127511))
+                           (state__127511)))))
+                       (state__127511)))))
+                   (state__127511))))
+                (state__127511)))
+              (state__127511)))
+            (state__127511))
+           (state__127511))))
+        (state__127511
          []
          (clojure.core/letfn
-          [(def__64294
-            [arg__64317 ?__62986]
+          [(def__127216
+            [arg__127239 ?__125904]
             (clojure.core/letfn
-             [(state__64829
+             [(state__127752
                []
                (clojure.core/let
-                [x__64318 "meander.zeta"]
+                [x__127240 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62986 x__64318)
-                 [?__62986]
-                 (state__64830))))
-              (state__64830
+                 (clojure.core/= ?__125904 x__127240)
+                 [?__125904]
+                 (state__127753))))
+              (state__127753
                []
                (if
-                (clojure.core/map? arg__64317)
+                (clojure.core/map? arg__127239)
                 (clojure.core/let
-                 [VAL__64319 (.valAt arg__64317 :aliases)]
+                 [VAL__127241 (.valAt arg__127239 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64319)
+                  (clojure.core/map? VAL__127241)
                   (clojure.core/let
-                   [X__64321 (clojure.core/set VAL__64319)]
+                   [X__127243 (clojure.core/set VAL__127241)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64321))
+                    (clojure.core/<= 1 (clojure.core/count X__127243))
                     (clojure.core/loop
-                     [search_space__64831 (clojure.core/seq X__64321)]
+                     [search_space__127754
+                      (clojure.core/seq X__127243)]
                      (if
-                      (clojure.core/seq search_space__64831)
+                      (clojure.core/seq search_space__127754)
                       (clojure.core/let
-                       [elem__64322
-                        (clojure.core/first search_space__64831)
-                        result__64832
+                       [elem__127244
+                        (clojure.core/first search_space__127754)
+                        result__127755
                         (clojure.core/let
-                         [elem__64322_nth_0__
-                          (clojure.core/nth elem__64322 0)
-                          elem__64322_nth_1__
-                          (clojure.core/nth elem__64322 1)]
+                         [elem__127244_nth_0__
+                          (clojure.core/nth elem__127244 0)
+                          elem__127244_nth_1__
+                          (clojure.core/nth elem__127244 1)]
                          (if
-                          (clojure.core/symbol? elem__64322_nth_0__)
+                          (clojure.core/symbol? elem__127244_nth_0__)
                           (clojure.core/let
-                           [X__64324
-                            (clojure.core/name elem__64322_nth_0__)]
+                           [X__127246
+                            (clojure.core/name elem__127244_nth_0__)]
                            (if
-                            (clojure.core/= ?__62986 X__64324)
+                            (clojure.core/= ?__125904 X__127246)
                             (if
-                             (clojure.core/symbol? elem__64322_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127244_nth_1__)
                              (clojure.core/let
-                              [X__64326
-                               (clojure.core/name elem__64322_nth_1__)]
+                              [X__127248
+                               (clojure.core/name
+                                elem__127244_nth_1__)]
                               (clojure.core/case
-                               X__64326
+                               X__127248
                                ("meander.zeta")
-                               [?__62986]
+                               [?__125904]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64832)
-                        (recur (clojure.core/next search_space__64831))
-                        result__64832))
+                        (meander.runtime.zeta/fail? result__127755)
+                        (recur
+                         (clojure.core/next search_space__127754))
+                        result__127755))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64829)))]
+             (state__127752)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64304
+                    [X__127226
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62986 X__64304]
+                     [?__125904 X__127226]
                      (clojure.core/let
-                      [X__64306
+                      [X__127228
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64306
+                       X__127228
                        ("re")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64294 input__62968_nth_1__ ?__62986)]
+                         (def__127216 input__125886_nth_1__ ?__125904)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64590)
+                         (state__127512)
                          (clojure.core/let
-                          [[?__62986] x__14338__auto__]
+                          [[?__125904] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
-                                 [?regex input__62968_nth_0___nth_1__]
+                                 [?regex input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :regex,
                                       :regex ?regex,
@@ -9320,178 +9540,182 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64590))
-                              (state__64590)))
-                            (state__64590))
-                           (state__64590)))))
-                       (state__64590)))))
-                   (state__64590))))
-                (state__64590)))
-              (state__64590)))
-            (state__64590))
-           (state__64590))))
-        (state__64590
+                               (state__127512))
+                              (state__127512)))
+                            (state__127512))
+                           (state__127512)))))
+                       (state__127512)))))
+                   (state__127512))))
+                (state__127512)))
+              (state__127512)))
+            (state__127512))
+           (state__127512))))
+        (state__127512
          []
          (clojure.core/letfn
-          [(def__64328
-            [arg__64351 ?__62987]
+          [(def__127250
+            [arg__127273 ?__125905]
             (clojure.core/letfn
-             [(state__64834
+             [(state__127757
                []
                (clojure.core/let
-                [x__64352 "meander.zeta"]
+                [x__127274 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62987 x__64352)
-                 [?__62987]
-                 (state__64835))))
-              (state__64835
+                 (clojure.core/= ?__125905 x__127274)
+                 [?__125905]
+                 (state__127758))))
+              (state__127758
                []
                (if
-                (clojure.core/map? arg__64351)
+                (clojure.core/map? arg__127273)
                 (clojure.core/let
-                 [VAL__64353 (.valAt arg__64351 :aliases)]
+                 [VAL__127275 (.valAt arg__127273 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64353)
+                  (clojure.core/map? VAL__127275)
                   (clojure.core/let
-                   [X__64355 (clojure.core/set VAL__64353)]
+                   [X__127277 (clojure.core/set VAL__127275)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64355))
+                    (clojure.core/<= 1 (clojure.core/count X__127277))
                     (clojure.core/loop
-                     [search_space__64836 (clojure.core/seq X__64355)]
+                     [search_space__127759
+                      (clojure.core/seq X__127277)]
                      (if
-                      (clojure.core/seq search_space__64836)
+                      (clojure.core/seq search_space__127759)
                       (clojure.core/let
-                       [elem__64356
-                        (clojure.core/first search_space__64836)
-                        result__64837
+                       [elem__127278
+                        (clojure.core/first search_space__127759)
+                        result__127760
                         (clojure.core/let
-                         [elem__64356_nth_0__
-                          (clojure.core/nth elem__64356 0)
-                          elem__64356_nth_1__
-                          (clojure.core/nth elem__64356 1)]
+                         [elem__127278_nth_0__
+                          (clojure.core/nth elem__127278 0)
+                          elem__127278_nth_1__
+                          (clojure.core/nth elem__127278 1)]
                          (if
-                          (clojure.core/symbol? elem__64356_nth_0__)
+                          (clojure.core/symbol? elem__127278_nth_0__)
                           (clojure.core/let
-                           [X__64358
-                            (clojure.core/name elem__64356_nth_0__)]
+                           [X__127280
+                            (clojure.core/name elem__127278_nth_0__)]
                            (if
-                            (clojure.core/= ?__62987 X__64358)
+                            (clojure.core/= ?__125905 X__127280)
                             (if
-                             (clojure.core/symbol? elem__64356_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127278_nth_1__)
                              (clojure.core/let
-                              [X__64360
-                               (clojure.core/name elem__64356_nth_1__)]
+                              [X__127282
+                               (clojure.core/name
+                                elem__127278_nth_1__)]
                               (clojure.core/case
-                               X__64360
+                               X__127282
                                ("meander.zeta")
-                               [?__62987]
+                               [?__125905]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64837)
-                        (recur (clojure.core/next search_space__64836))
-                        result__64837))
+                        (meander.runtime.zeta/fail? result__127760)
+                        (recur
+                         (clojure.core/next search_space__127759))
+                        result__127760))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64834)))]
+             (state__127757)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64338
+                    [X__127260
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62987 X__64338]
+                     [?__125905 X__127260]
                      (clojure.core/let
-                      [X__64340
+                      [X__127262
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64340
+                       X__127262
                        ("re")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64328 input__62968_nth_1__ ?__62987)]
+                         (def__127250 input__125886_nth_1__ ?__125905)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64591)
+                         (state__127513)
                          (clojure.core/let
-                          [[?__62987] x__14338__auto__]
+                          [[?__125905] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
-                                 [?regex input__62968_nth_0___nth_1__]
+                                 [?regex input__125886_nth_0___nth_1__]
                                  (clojure.core/let
                                   [?capture
-                                   input__62968_nth_0___nth_2__]
+                                   input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :regex,
                                        :regex ?regex,
                                        :capture
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?capture ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -9510,175 +9734,179 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64591))
-                              (state__64591)))
-                            (state__64591))
-                           (state__64591)))))
-                       (state__64591)))))
-                   (state__64591))))
-                (state__64591)))
-              (state__64591)))
-            (state__64591))
-           (state__64591))))
-        (state__64591
+                               (state__127513))
+                              (state__127513)))
+                            (state__127513))
+                           (state__127513)))))
+                       (state__127513)))))
+                   (state__127513))))
+                (state__127513)))
+              (state__127513)))
+            (state__127513))
+           (state__127513))))
+        (state__127513
          []
          (clojure.core/letfn
-          [(def__64362
-            [arg__64385 ?__62988]
+          [(def__127284
+            [arg__127307 ?__125906]
             (clojure.core/letfn
-             [(state__64839
+             [(state__127762
                []
                (clojure.core/let
-                [x__64386 "meander.zeta"]
+                [x__127308 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62988 x__64386)
-                 [?__62988]
-                 (state__64840))))
-              (state__64840
+                 (clojure.core/= ?__125906 x__127308)
+                 [?__125906]
+                 (state__127763))))
+              (state__127763
                []
                (if
-                (clojure.core/map? arg__64385)
+                (clojure.core/map? arg__127307)
                 (clojure.core/let
-                 [VAL__64387 (.valAt arg__64385 :aliases)]
+                 [VAL__127309 (.valAt arg__127307 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64387)
+                  (clojure.core/map? VAL__127309)
                   (clojure.core/let
-                   [X__64389 (clojure.core/set VAL__64387)]
+                   [X__127311 (clojure.core/set VAL__127309)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64389))
+                    (clojure.core/<= 1 (clojure.core/count X__127311))
                     (clojure.core/loop
-                     [search_space__64841 (clojure.core/seq X__64389)]
+                     [search_space__127764
+                      (clojure.core/seq X__127311)]
                      (if
-                      (clojure.core/seq search_space__64841)
+                      (clojure.core/seq search_space__127764)
                       (clojure.core/let
-                       [elem__64390
-                        (clojure.core/first search_space__64841)
-                        result__64842
+                       [elem__127312
+                        (clojure.core/first search_space__127764)
+                        result__127765
                         (clojure.core/let
-                         [elem__64390_nth_0__
-                          (clojure.core/nth elem__64390 0)
-                          elem__64390_nth_1__
-                          (clojure.core/nth elem__64390 1)]
+                         [elem__127312_nth_0__
+                          (clojure.core/nth elem__127312 0)
+                          elem__127312_nth_1__
+                          (clojure.core/nth elem__127312 1)]
                          (if
-                          (clojure.core/symbol? elem__64390_nth_0__)
+                          (clojure.core/symbol? elem__127312_nth_0__)
                           (clojure.core/let
-                           [X__64392
-                            (clojure.core/name elem__64390_nth_0__)]
+                           [X__127314
+                            (clojure.core/name elem__127312_nth_0__)]
                            (if
-                            (clojure.core/= ?__62988 X__64392)
+                            (clojure.core/= ?__125906 X__127314)
                             (if
-                             (clojure.core/symbol? elem__64390_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127312_nth_1__)
                              (clojure.core/let
-                              [X__64394
-                               (clojure.core/name elem__64390_nth_1__)]
+                              [X__127316
+                               (clojure.core/name
+                                elem__127312_nth_1__)]
                               (clojure.core/case
-                               X__64394
+                               X__127316
                                ("meander.zeta")
-                               [?__62988]
+                               [?__125906]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64842)
-                        (recur (clojure.core/next search_space__64841))
-                        result__64842))
+                        (meander.runtime.zeta/fail? result__127765)
+                        (recur
+                         (clojure.core/next search_space__127764))
+                        result__127765))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64839)))]
+             (state__127762)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64372
+                    [X__127294
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62988 X__64372]
+                     [?__125906 X__127294]
                      (clojure.core/let
-                      [X__64374
+                      [X__127296
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64374
+                       X__127296
                        ("string")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64362 input__62968_nth_1__ ?__62988)]
+                         (def__127284 input__125886_nth_1__ ?__125906)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64592)
+                         (state__127514)
                          (clojure.core/let
-                          [[?__62988] x__14338__auto__]
+                          [[?__125906] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (clojure.core/let
-                               [input__62968_nth_0___l__
+                               [input__125886_nth_0___l__
                                 (clojure.core/take
                                  1
-                                 input__62968_nth_0__)]
+                                 input__125886_nth_0__)]
                                (if
                                 (clojure.core/=
                                  (clojure.core/bounded-count
                                   (clojure.core/inc 1)
-                                  input__62968_nth_0___l__)
+                                  input__125886_nth_0___l__)
                                  1)
                                 (clojure.core/let
-                                 [input__62968_nth_0___r__
+                                 [input__125886_nth_0___r__
                                   (clojure.core/drop
                                    1
-                                   input__62968_nth_0__)]
+                                   input__125886_nth_0__)]
                                  (clojure.core/let
-                                  [?sequence input__62968_nth_0___r__]
+                                  [?sequence input__125886_nth_0___r__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :string,
                                        :next
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           ['meander.dev.parse.zeta/parse-sequential
                                            (clojure.core/into
                                             []
@@ -9708,170 +9936,175 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__))))))))
-                                (state__64592)))
-                              (state__64592)))
-                            (state__64592))
-                           (state__64592)))))
-                       (state__64592)))))
-                   (state__64592))))
-                (state__64592)))
-              (state__64592)))
-            (state__64592))
-           (state__64592))))
-        (state__64592
+                                (state__127514)))
+                              (state__127514)))
+                            (state__127514))
+                           (state__127514)))))
+                       (state__127514)))))
+                   (state__127514))))
+                (state__127514)))
+              (state__127514)))
+            (state__127514))
+           (state__127514))))
+        (state__127514
          []
          (clojure.core/letfn
-          [(def__64396
-            [arg__64419 ?__62989]
+          [(def__127318
+            [arg__127341 ?__125907]
             (clojure.core/letfn
-             [(state__64844
+             [(state__127767
                []
                (clojure.core/let
-                [x__64420 "meander.zeta"]
+                [x__127342 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62989 x__64420)
-                 [?__62989]
-                 (state__64845))))
-              (state__64845
+                 (clojure.core/= ?__125907 x__127342)
+                 [?__125907]
+                 (state__127768))))
+              (state__127768
                []
                (if
-                (clojure.core/map? arg__64419)
+                (clojure.core/map? arg__127341)
                 (clojure.core/let
-                 [VAL__64421 (.valAt arg__64419 :aliases)]
+                 [VAL__127343 (.valAt arg__127341 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64421)
+                  (clojure.core/map? VAL__127343)
                   (clojure.core/let
-                   [X__64423 (clojure.core/set VAL__64421)]
+                   [X__127345 (clojure.core/set VAL__127343)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64423))
+                    (clojure.core/<= 1 (clojure.core/count X__127345))
                     (clojure.core/loop
-                     [search_space__64846 (clojure.core/seq X__64423)]
+                     [search_space__127769
+                      (clojure.core/seq X__127345)]
                      (if
-                      (clojure.core/seq search_space__64846)
+                      (clojure.core/seq search_space__127769)
                       (clojure.core/let
-                       [elem__64424
-                        (clojure.core/first search_space__64846)
-                        result__64847
+                       [elem__127346
+                        (clojure.core/first search_space__127769)
+                        result__127770
                         (clojure.core/let
-                         [elem__64424_nth_0__
-                          (clojure.core/nth elem__64424 0)
-                          elem__64424_nth_1__
-                          (clojure.core/nth elem__64424 1)]
+                         [elem__127346_nth_0__
+                          (clojure.core/nth elem__127346 0)
+                          elem__127346_nth_1__
+                          (clojure.core/nth elem__127346 1)]
                          (if
-                          (clojure.core/symbol? elem__64424_nth_0__)
+                          (clojure.core/symbol? elem__127346_nth_0__)
                           (clojure.core/let
-                           [X__64426
-                            (clojure.core/name elem__64424_nth_0__)]
+                           [X__127348
+                            (clojure.core/name elem__127346_nth_0__)]
                            (if
-                            (clojure.core/= ?__62989 X__64426)
+                            (clojure.core/= ?__125907 X__127348)
                             (if
-                             (clojure.core/symbol? elem__64424_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127346_nth_1__)
                              (clojure.core/let
-                              [X__64428
-                               (clojure.core/name elem__64424_nth_1__)]
+                              [X__127350
+                               (clojure.core/name
+                                elem__127346_nth_1__)]
                               (clojure.core/case
-                               X__64428
+                               X__127350
                                ("meander.zeta")
-                               [?__62989]
+                               [?__125907]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64847)
-                        (recur (clojure.core/next search_space__64846))
-                        result__64847))
+                        (meander.runtime.zeta/fail? result__127770)
+                        (recur
+                         (clojure.core/next search_space__127769))
+                        result__127770))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64844)))]
+             (state__127767)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64406
+                    [X__127328
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62989 X__64406]
+                     [?__125907 X__127328]
                      (clojure.core/let
-                      [X__64408
+                      [X__127330
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64408
+                       X__127330
                        ("symbol")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64396 input__62968_nth_1__ ?__62989)]
+                         (def__127318 input__125886_nth_1__ ?__125907)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64593)
+                         (state__127515)
                          (clojure.core/let
-                          [[?__62989] x__14338__auto__]
+                          [[?__125907] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 2)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 2)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)]
                                 (clojure.core/let
-                                 [?name input__62968_nth_0___nth_1__]
+                                 [?name input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?form input__62968_nth_0__]
+                                  [?form input__125886_nth_0__]
                                   (clojure.core/let
-                                   [?env input__62968_nth_1__]
+                                   [?env input__125886_nth_1__]
                                    (try
                                     [{:tag :symbol,
                                       :name
                                       (clojure.core/let
                                        [CATA_RESULT__15641__auto__
-                                        (CATA__FN__63051 [?name ?env])]
+                                        (CATA__FN__125969
+                                         [?name ?env])]
                                        (if
                                         (meander.runtime.zeta/fail?
                                          CATA_RESULT__15641__auto__)
@@ -9889,177 +10122,181 @@
                                        e__16581__auto__)
                                       (meander.runtime.zeta/fail)
                                       (throw e__16581__auto__))))))))
-                               (state__64593))
-                              (state__64593)))
-                            (state__64593))
-                           (state__64593)))))
-                       (state__64593)))))
-                   (state__64593))))
-                (state__64593)))
-              (state__64593)))
-            (state__64593))
-           (state__64593))))
-        (state__64593
+                               (state__127515))
+                              (state__127515)))
+                            (state__127515))
+                           (state__127515)))))
+                       (state__127515)))))
+                   (state__127515))))
+                (state__127515)))
+              (state__127515)))
+            (state__127515))
+           (state__127515))))
+        (state__127515
          []
          (clojure.core/letfn
-          [(def__64430
-            [arg__64453 ?__62990]
+          [(def__127352
+            [arg__127375 ?__125908]
             (clojure.core/letfn
-             [(state__64849
+             [(state__127772
                []
                (clojure.core/let
-                [x__64454 "meander.zeta"]
+                [x__127376 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62990 x__64454)
-                 [?__62990]
-                 (state__64850))))
-              (state__64850
+                 (clojure.core/= ?__125908 x__127376)
+                 [?__125908]
+                 (state__127773))))
+              (state__127773
                []
                (if
-                (clojure.core/map? arg__64453)
+                (clojure.core/map? arg__127375)
                 (clojure.core/let
-                 [VAL__64455 (.valAt arg__64453 :aliases)]
+                 [VAL__127377 (.valAt arg__127375 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64455)
+                  (clojure.core/map? VAL__127377)
                   (clojure.core/let
-                   [X__64457 (clojure.core/set VAL__64455)]
+                   [X__127379 (clojure.core/set VAL__127377)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64457))
+                    (clojure.core/<= 1 (clojure.core/count X__127379))
                     (clojure.core/loop
-                     [search_space__64851 (clojure.core/seq X__64457)]
+                     [search_space__127774
+                      (clojure.core/seq X__127379)]
                      (if
-                      (clojure.core/seq search_space__64851)
+                      (clojure.core/seq search_space__127774)
                       (clojure.core/let
-                       [elem__64458
-                        (clojure.core/first search_space__64851)
-                        result__64852
+                       [elem__127380
+                        (clojure.core/first search_space__127774)
+                        result__127775
                         (clojure.core/let
-                         [elem__64458_nth_0__
-                          (clojure.core/nth elem__64458 0)
-                          elem__64458_nth_1__
-                          (clojure.core/nth elem__64458 1)]
+                         [elem__127380_nth_0__
+                          (clojure.core/nth elem__127380 0)
+                          elem__127380_nth_1__
+                          (clojure.core/nth elem__127380 1)]
                          (if
-                          (clojure.core/symbol? elem__64458_nth_0__)
+                          (clojure.core/symbol? elem__127380_nth_0__)
                           (clojure.core/let
-                           [X__64460
-                            (clojure.core/name elem__64458_nth_0__)]
+                           [X__127382
+                            (clojure.core/name elem__127380_nth_0__)]
                            (if
-                            (clojure.core/= ?__62990 X__64460)
+                            (clojure.core/= ?__125908 X__127382)
                             (if
-                             (clojure.core/symbol? elem__64458_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127380_nth_1__)
                              (clojure.core/let
-                              [X__64462
-                               (clojure.core/name elem__64458_nth_1__)]
+                              [X__127384
+                               (clojure.core/name
+                                elem__127380_nth_1__)]
                               (clojure.core/case
-                               X__64462
+                               X__127384
                                ("meander.zeta")
-                               [?__62990]
+                               [?__125908]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64852)
-                        (recur (clojure.core/next search_space__64851))
-                        result__64852))
+                        (meander.runtime.zeta/fail? result__127775)
+                        (recur
+                         (clojure.core/next search_space__127774))
+                        result__127775))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64849)))]
+             (state__127772)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64440
+                    [X__127362
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62990 X__64440]
+                     [?__125908 X__127362]
                      (clojure.core/let
-                      [X__64442
+                      [X__127364
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64442
+                       X__127364
                        ("symbol")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64430 input__62968_nth_1__ ?__62990)]
+                         (def__127352 input__125886_nth_1__ ?__125908)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64594)
+                         (state__127516)
                          (clojure.core/let
-                          [[?__62990] x__14338__auto__]
+                          [[?__125908] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 3)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 3)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)]
                                 (clojure.core/let
                                  [?namespace
-                                  input__62968_nth_0___nth_1__]
+                                  input__125886_nth_0___nth_1__]
                                  (clojure.core/let
-                                  [?name input__62968_nth_0___nth_2__]
+                                  [?name input__125886_nth_0___nth_2__]
                                   (clojure.core/let
-                                   [?form input__62968_nth_0__]
+                                   [?form input__125886_nth_0__]
                                    (clojure.core/let
-                                    [?env input__62968_nth_1__]
+                                    [?env input__125886_nth_1__]
                                     (try
                                      [{:tag :symbol,
                                        :name
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?name ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -10072,7 +10309,7 @@
                                        :namespace
                                        (clojure.core/let
                                         [CATA_RESULT__15641__auto__
-                                         (CATA__FN__63051
+                                         (CATA__FN__125969
                                           [?namespace ?env])]
                                         (if
                                          (meander.runtime.zeta/fail?
@@ -10091,191 +10328,196 @@
                                         e__16581__auto__)
                                        (meander.runtime.zeta/fail)
                                        (throw e__16581__auto__)))))))))
-                               (state__64594))
-                              (state__64594)))
-                            (state__64594))
-                           (state__64594)))))
-                       (state__64594)))))
-                   (state__64594))))
-                (state__64594)))
-              (state__64594)))
-            (state__64594))
-           (state__64594))))
-        (state__64594
+                               (state__127516))
+                              (state__127516)))
+                            (state__127516))
+                           (state__127516)))))
+                       (state__127516)))))
+                   (state__127516))))
+                (state__127516)))
+              (state__127516)))
+            (state__127516))
+           (state__127516))))
+        (state__127516
          []
          (clojure.core/letfn
-          [(def__64464
-            [arg__64487 ?__62991]
+          [(def__127386
+            [arg__127409 ?__125909]
             (clojure.core/letfn
-             [(state__64854
+             [(state__127777
                []
                (clojure.core/let
-                [x__64488 "meander.zeta"]
+                [x__127410 "meander.zeta"]
                 (if
-                 (clojure.core/= ?__62991 x__64488)
-                 [?__62991]
-                 (state__64855))))
-              (state__64855
+                 (clojure.core/= ?__125909 x__127410)
+                 [?__125909]
+                 (state__127778))))
+              (state__127778
                []
                (if
-                (clojure.core/map? arg__64487)
+                (clojure.core/map? arg__127409)
                 (clojure.core/let
-                 [VAL__64489 (.valAt arg__64487 :aliases)]
+                 [VAL__127411 (.valAt arg__127409 :aliases)]
                  (if
-                  (clojure.core/map? VAL__64489)
+                  (clojure.core/map? VAL__127411)
                   (clojure.core/let
-                   [X__64491 (clojure.core/set VAL__64489)]
+                   [X__127413 (clojure.core/set VAL__127411)]
                    (if
-                    (clojure.core/<= 1 (clojure.core/count X__64491))
+                    (clojure.core/<= 1 (clojure.core/count X__127413))
                     (clojure.core/loop
-                     [search_space__64856 (clojure.core/seq X__64491)]
+                     [search_space__127779
+                      (clojure.core/seq X__127413)]
                      (if
-                      (clojure.core/seq search_space__64856)
+                      (clojure.core/seq search_space__127779)
                       (clojure.core/let
-                       [elem__64492
-                        (clojure.core/first search_space__64856)
-                        result__64857
+                       [elem__127414
+                        (clojure.core/first search_space__127779)
+                        result__127780
                         (clojure.core/let
-                         [elem__64492_nth_0__
-                          (clojure.core/nth elem__64492 0)
-                          elem__64492_nth_1__
-                          (clojure.core/nth elem__64492 1)]
+                         [elem__127414_nth_0__
+                          (clojure.core/nth elem__127414 0)
+                          elem__127414_nth_1__
+                          (clojure.core/nth elem__127414 1)]
                          (if
-                          (clojure.core/symbol? elem__64492_nth_0__)
+                          (clojure.core/symbol? elem__127414_nth_0__)
                           (clojure.core/let
-                           [X__64494
-                            (clojure.core/name elem__64492_nth_0__)]
+                           [X__127416
+                            (clojure.core/name elem__127414_nth_0__)]
                            (if
-                            (clojure.core/= ?__62991 X__64494)
+                            (clojure.core/= ?__125909 X__127416)
                             (if
-                             (clojure.core/symbol? elem__64492_nth_1__)
+                             (clojure.core/symbol?
+                              elem__127414_nth_1__)
                              (clojure.core/let
-                              [X__64496
-                               (clojure.core/name elem__64492_nth_1__)]
+                              [X__127418
+                               (clojure.core/name
+                                elem__127414_nth_1__)]
                               (clojure.core/case
-                               X__64496
+                               X__127418
                                ("meander.zeta")
-                               [?__62991]
+                               [?__125909]
                                (meander.runtime.zeta/fail)))
                              (meander.runtime.zeta/fail))
                             (meander.runtime.zeta/fail)))
                           (meander.runtime.zeta/fail)))]
                        (if
-                        (meander.runtime.zeta/fail? result__64857)
-                        (recur (clojure.core/next search_space__64856))
-                        result__64857))
+                        (meander.runtime.zeta/fail? result__127780)
+                        (recur
+                         (clojure.core/next search_space__127779))
+                        result__127780))
                       (meander.runtime.zeta/fail)))
                     (meander.runtime.zeta/fail)))
                   (meander.runtime.zeta/fail)))
                 (meander.runtime.zeta/fail)))]
-             (state__64854)))]
+             (state__127777)))]
           (if
-           (clojure.core/vector? input__62968)
+           (clojure.core/vector? input__125886)
            (if
-            (clojure.core/= (clojure.core/count input__62968) 2)
+            (clojure.core/= (clojure.core/count input__125886) 2)
             (clojure.core/let
-             [input__62968_nth_0__
-              (clojure.core/nth input__62968 0)
-              input__62968_nth_1__
-              (clojure.core/nth input__62968 1)]
+             [input__125886_nth_0__
+              (clojure.core/nth input__125886 0)
+              input__125886_nth_1__
+              (clojure.core/nth input__125886 1)]
              (if
-              (clojure.core/seq? input__62968_nth_0__)
+              (clojure.core/seq? input__125886_nth_0__)
               (clojure.core/let
-               [input__62968_nth_0___l__
-                (clojure.core/take 1 input__62968_nth_0__)]
+               [input__125886_nth_0___l__
+                (clojure.core/take 1 input__125886_nth_0__)]
                (if
                 (clojure.core/=
                  (clojure.core/bounded-count
                   (clojure.core/inc 1)
-                  input__62968_nth_0___l__)
+                  input__125886_nth_0___l__)
                  1)
                 (clojure.core/let
-                 [input__62968_nth_0___r__
-                  (clojure.core/drop 1 input__62968_nth_0__)]
+                 [input__125886_nth_0___r__
+                  (clojure.core/drop 1 input__125886_nth_0__)]
                  (clojure.core/let
-                  [input__62968_nth_0___l___nth_0__
-                   (clojure.core/nth input__62968_nth_0___l__ 0)]
+                  [input__125886_nth_0___l___nth_0__
+                   (clojure.core/nth input__125886_nth_0___l__ 0)]
                   (if
                    (clojure.core/symbol?
-                    input__62968_nth_0___l___nth_0__)
+                    input__125886_nth_0___l___nth_0__)
                    (clojure.core/let
-                    [X__64474
+                    [X__127396
                      (clojure.core/namespace
-                      input__62968_nth_0___l___nth_0__)]
+                      input__125886_nth_0___l___nth_0__)]
                     (clojure.core/let
-                     [?__62991 X__64474]
+                     [?__125909 X__127396]
                      (clojure.core/let
-                      [X__64476
+                      [X__127398
                        (clojure.core/name
-                        input__62968_nth_0___l___nth_0__)]
+                        input__125886_nth_0___l___nth_0__)]
                       (clojure.core/case
-                       X__64476
+                       X__127398
                        ("symbol")
                        (clojure.core/let
                         [x__14338__auto__
-                         (def__64464 input__62968_nth_1__ ?__62991)]
+                         (def__127386 input__125886_nth_1__ ?__125909)]
                         (if
                          (meander.runtime.zeta/fail? x__14338__auto__)
-                         (state__64595)
+                         (state__127517)
                          (clojure.core/let
-                          [[?__62991] x__14338__auto__]
+                          [[?__125909] x__14338__auto__]
                           (if
-                           (clojure.core/vector? input__62968)
+                           (clojure.core/vector? input__125886)
                            (if
                             (clojure.core/=
-                             (clojure.core/count input__62968)
+                             (clojure.core/count input__125886)
                              2)
                             (clojure.core/let
-                             [input__62968_nth_0__
-                              (clojure.core/nth input__62968 0)
-                              input__62968_nth_1__
-                              (clojure.core/nth input__62968 1)]
+                             [input__125886_nth_0__
+                              (clojure.core/nth input__125886 0)
+                              input__125886_nth_1__
+                              (clojure.core/nth input__125886 1)]
                              (if
-                              (clojure.core/seq? input__62968_nth_0__)
+                              (clojure.core/seq? input__125886_nth_0__)
                               (if
                                (clojure.core/=
                                 (clojure.core/bounded-count
                                  (clojure.core/inc 5)
-                                 input__62968_nth_0__)
+                                 input__125886_nth_0__)
                                 5)
                                (clojure.core/let
-                                [input__62968_nth_0___nth_1__
+                                [input__125886_nth_0___nth_1__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   1)
-                                 input__62968_nth_0___nth_2__
+                                 input__125886_nth_0___nth_2__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   2)
-                                 input__62968_nth_0___nth_3__
+                                 input__125886_nth_0___nth_3__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   3)
-                                 input__62968_nth_0___nth_4__
+                                 input__125886_nth_0___nth_4__
                                  (clojure.core/nth
-                                  input__62968_nth_0__
+                                  input__125886_nth_0__
                                   4)]
                                 (clojure.core/case
-                                 input__62968_nth_0___nth_3__
+                                 input__125886_nth_0___nth_3__
                                  (:meander.zeta/as)
                                  (clojure.core/let
                                   [?namespace
-                                   input__62968_nth_0___nth_1__]
+                                   input__125886_nth_0___nth_1__]
                                   (clojure.core/let
-                                   [?name input__62968_nth_0___nth_2__]
+                                   [?name
+                                    input__125886_nth_0___nth_2__]
                                    (clojure.core/let
                                     [?pattern
-                                     input__62968_nth_0___nth_4__]
+                                     input__125886_nth_0___nth_4__]
                                     (clojure.core/let
-                                     [?form input__62968_nth_0__]
+                                     [?form input__125886_nth_0__]
                                      (clojure.core/let
-                                      [?env input__62968_nth_1__]
+                                      [?env input__125886_nth_1__]
                                       (try
                                        [{:tag :symbol,
                                          :name
                                          (clojure.core/let
                                           [CATA_RESULT__15641__auto__
-                                           (CATA__FN__63051
+                                           (CATA__FN__125969
                                             [?name ?env])]
                                           (if
                                            (meander.runtime.zeta/fail?
@@ -10288,7 +10530,7 @@
                                          :namespace
                                          (clojure.core/let
                                           [CATA_RESULT__15641__auto__
-                                           (CATA__FN__63051
+                                           (CATA__FN__125969
                                             [?namespace ?env])]
                                           (if
                                            (meander.runtime.zeta/fail?
@@ -10301,7 +10543,7 @@
                                          :as-pattern
                                          (clojure.core/let
                                           [CATA_RESULT__15641__auto__
-                                           (CATA__FN__63051
+                                           (CATA__FN__125969
                                             [?pattern ?env])]
                                           (if
                                            (meander.runtime.zeta/fail?
@@ -10321,46 +10563,46 @@
                                          (meander.runtime.zeta/fail)
                                          (throw
                                           e__16581__auto__)))))))))
-                                 (state__64595)))
-                               (state__64595))
-                              (state__64595)))
-                            (state__64595))
-                           (state__64595)))))
-                       (state__64595)))))
-                   (state__64595))))
-                (state__64595)))
-              (state__64595)))
-            (state__64595))
-           (state__64595))))
-        (state__64595
+                                 (state__127517)))
+                               (state__127517))
+                              (state__127517)))
+                            (state__127517))
+                           (state__127517)))))
+                       (state__127517)))))
+                   (state__127517))))
+                (state__127517)))
+              (state__127517)))
+            (state__127517))
+           (state__127517))))
+        (state__127517
          []
          (if
-          (clojure.core/vector? input__62968)
+          (clojure.core/vector? input__125886)
           (if
-           (clojure.core/= (clojure.core/count input__62968) 2)
+           (clojure.core/= (clojure.core/count input__125886) 2)
            (clojure.core/let
-            [input__62968_nth_0__ (clojure.core/nth input__62968 0)]
+            [input__125886_nth_0__ (clojure.core/nth input__125886 0)]
             (clojure.core/letfn
-             [(state__64859
+             [(state__127782
                []
                (clojure.core/let
-                [input__62968_nth_1__
-                 (clojure.core/nth input__62968 1)]
+                [input__125886_nth_1__
+                 (clojure.core/nth input__125886 1)]
                 (clojure.core/letfn
-                 [(state__64864
+                 [(state__127787
                    []
                    (if
-                    (clojure.core/seq? input__62968_nth_0__)
+                    (clojure.core/seq? input__125886_nth_0__)
                     (clojure.core/let
-                     [?sequence input__62968_nth_0__]
+                     [?sequence input__125886_nth_0__]
                      (clojure.core/let
-                      [?env input__62968_nth_1__]
+                      [?env input__125886_nth_1__]
                       (try
                        [{:tag :seq,
                          :next
                          (clojure.core/let
                           [CATA_RESULT__15641__auto__
-                           (CATA__FN__63051
+                           (CATA__FN__125969
                             ['meander.dev.parse.zeta/parse-sequential
                              (clojure.core/into [] ?sequence)
                              (clojure.core/let
@@ -10383,21 +10625,21 @@
                          (meander.runtime.zeta/fail? e__16581__auto__)
                          (meander.runtime.zeta/fail)
                          (throw e__16581__auto__))))))
-                    (state__64865)))
-                  (state__64865
+                    (state__127788)))
+                  (state__127788
                    []
                    (if
-                    (clojure.core/map? input__62968_nth_0__)
+                    (clojure.core/map? input__125886_nth_0__)
                     (clojure.core/let
-                     [?map input__62968_nth_0__]
+                     [?map input__125886_nth_0__]
                      (clojure.core/let
-                      [?env input__62968_nth_1__]
+                      [?env input__125886_nth_1__]
                       (try
                        [{:tag :map,
                          :next
                          (clojure.core/let
                           [CATA_RESULT__15641__auto__
-                           (CATA__FN__63051
+                           (CATA__FN__125969
                             ['meander.dev.parse.zeta/parse-entries
                              ?map
                              ?env])]
@@ -10416,31 +10658,31 @@
                          (meander.runtime.zeta/fail? e__16581__auto__)
                          (meander.runtime.zeta/fail)
                          (throw e__16581__auto__))))))
-                    (state__64860)))]
-                 (state__64864))))
-              (state__64860
+                    (state__127783)))]
+                 (state__127787))))
+              (state__127783
                []
                (if
-                (clojure.core/symbol? input__62968_nth_0__)
+                (clojure.core/symbol? input__125886_nth_0__)
                 (clojure.core/let
-                 [X__64506
-                  (clojure.core/namespace input__62968_nth_0__)]
+                 [X__127428
+                  (clojure.core/namespace input__125886_nth_0__)]
                  (clojure.core/let
-                  [X__64508 (clojure.core/name input__62968_nth_0__)]
+                  [X__127430 (clojure.core/name input__125886_nth_0__)]
                   (if
-                   (clojure.core/string? X__64508)
+                   (clojure.core/string? X__127430)
                    (clojure.core/letfn
-                    [(state__64866
+                    [(state__127789
                       []
                       (clojure.core/let
-                       [ret__64509
-                        (clojure.core/re-matches #"_.*" X__64508)]
+                       [ret__127431
+                        (clojure.core/re-matches #"_.*" X__127430)]
                        (if
-                        (clojure.core/some? ret__64509)
+                        (clojure.core/some? ret__127431)
                         (clojure.core/let
-                         [?name ret__64509]
+                         [?name ret__127431]
                          (clojure.core/let
-                          [?symbol input__62968_nth_0__]
+                          [?symbol input__125886_nth_0__]
                           (try
                            [{:tag :wildcard,
                              :name ?name,
@@ -10454,18 +10696,18 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64867))))
-                     (state__64867
+                        (state__127790))))
+                     (state__127790
                       []
                       (clojure.core/let
-                       [ret__64516
-                        (clojure.core/re-matches #".+#" X__64508)]
+                       [ret__127438
+                        (clojure.core/re-matches #".+#" X__127430)]
                        (if
-                        (clojure.core/some? ret__64516)
+                        (clojure.core/some? ret__127438)
                         (clojure.core/let
-                         [?name ret__64516]
+                         [?name ret__127438]
                          (clojure.core/let
-                          [?symbol input__62968_nth_0__]
+                          [?symbol input__125886_nth_0__]
                           (try
                            [{:tag :random-symbol,
                              :name ?name,
@@ -10479,18 +10721,18 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64868))))
-                     (state__64868
+                        (state__127791))))
+                     (state__127791
                       []
                       (clojure.core/let
-                       [ret__64523
-                        (clojure.core/re-matches #"%.+" X__64508)]
+                       [ret__127445
+                        (clojure.core/re-matches #"%.+" X__127430)]
                        (if
-                        (clojure.core/some? ret__64523)
+                        (clojure.core/some? ret__127445)
                         (clojure.core/let
-                         [?name ret__64523]
+                         [?name ret__127445]
                          (clojure.core/let
-                          [?symbol input__62968_nth_0__]
+                          [?symbol input__125886_nth_0__]
                           (try
                            [{:tag :reference,
                              :name ?name,
@@ -10503,18 +10745,18 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64869))))
-                     (state__64869
+                        (state__127792))))
+                     (state__127792
                       []
                       (clojure.core/let
-                       [ret__64530
-                        (clojure.core/re-matches #"\*.+" X__64508)]
+                       [ret__127452
+                        (clojure.core/re-matches #"\*.+" X__127430)]
                        (if
-                        (clojure.core/some? ret__64530)
+                        (clojure.core/some? ret__127452)
                         (clojure.core/let
-                         [?name ret__64530]
+                         [?name ret__127452]
                          (clojure.core/let
-                          [?symbol input__62968_nth_0__]
+                          [?symbol input__125886_nth_0__]
                           (try
                            [{:tag :mutable-variable,
                              :name ?name,
@@ -10527,18 +10769,18 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64870))))
-                     (state__64870
+                        (state__127793))))
+                     (state__127793
                       []
                       (clojure.core/let
-                       [ret__64537
-                        (clojure.core/re-matches #"\!.+" X__64508)]
+                       [ret__127459
+                        (clojure.core/re-matches #"\!.+" X__127430)]
                        (if
-                        (clojure.core/some? ret__64537)
+                        (clojure.core/some? ret__127459)
                         (clojure.core/let
-                         [?name ret__64537]
+                         [?name ret__127459]
                          (clojure.core/let
-                          [?symbol input__62968_nth_0__]
+                          [?symbol input__125886_nth_0__]
                           (try
                            [{:tag :memory-variable,
                              :name ?name,
@@ -10551,18 +10793,18 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64871))))
-                     (state__64871
+                        (state__127794))))
+                     (state__127794
                       []
                       (clojure.core/let
-                       [ret__64544
-                        (clojure.core/re-matches #"\?.+" X__64508)]
+                       [ret__127466
+                        (clojure.core/re-matches #"\?.+" X__127430)]
                        (if
-                        (clojure.core/some? ret__64544)
+                        (clojure.core/some? ret__127466)
                         (clojure.core/let
-                         [?name ret__64544]
+                         [?name ret__127466]
                          (clojure.core/let
-                          [?symbol input__62968_nth_0__]
+                          [?symbol input__125886_nth_0__]
                           (try
                            [{:tag :logic-variable,
                              :name ?name,
@@ -10575,16 +10817,16 @@
                               e__16581__auto__)
                              (meander.runtime.zeta/fail)
                              (throw e__16581__auto__))))))
-                        (state__64861))))]
-                    (state__64866))
-                   (state__64861))))
-                (state__64861)))
-              (state__64861
+                        (state__127784))))]
+                    (state__127789))
+                   (state__127784))))
+                (state__127784)))
+              (state__127784
                []
                (if
-                (string? input__62968_nth_0__)
+                (string? input__125886_nth_0__)
                 (clojure.core/let
-                 [?x input__62968_nth_0__]
+                 [?x input__125886_nth_0__]
                  (try
                   [{:tag :literal, :type :string, :form ?x}]
                   (catch
@@ -10594,13 +10836,13 @@
                     (meander.runtime.zeta/fail? e__16581__auto__)
                     (meander.runtime.zeta/fail)
                     (throw e__16581__auto__)))))
-                (state__64862)))
-              (state__64862
+                (state__127785)))
+              (state__127785
                []
                (if
-                (char? input__62968_nth_0__)
+                (char? input__125886_nth_0__)
                 (clojure.core/let
-                 [?x input__62968_nth_0__]
+                 [?x input__125886_nth_0__]
                  (try
                   [{:tag :literal, :type :char, :form ?x}]
                   (catch
@@ -10610,11 +10852,11 @@
                     (meander.runtime.zeta/fail? e__16581__auto__)
                     (meander.runtime.zeta/fail)
                     (throw e__16581__auto__)))))
-                (state__64863)))
-              (state__64863
+                (state__127786)))
+              (state__127786
                []
                (clojure.core/let
-                [?x input__62968_nth_0__]
+                [?x input__125886_nth_0__]
                 (try
                  [{:tag :literal, :form ?x}]
                  (catch
@@ -10624,13 +10866,13 @@
                    (meander.runtime.zeta/fail? e__16581__auto__)
                    (meander.runtime.zeta/fail)
                    (throw e__16581__auto__))))))]
-             (state__64859)))
-           (state__64596))
-          (state__64596)))
-        (state__64596
+             (state__127782)))
+           (state__127518))
+          (state__127518)))
+        (state__127518
          []
          (clojure.core/let
-          [?x input__62968]
+          [?x input__125886]
           (try
            [{:tag :mistake, :x ?x}]
            (catch
@@ -10640,15 +10882,15 @@
              (meander.runtime.zeta/fail? e__16581__auto__)
              (meander.runtime.zeta/fail)
              (throw e__16581__auto__))))))]
-       (state__64557)))]
+       (state__127479)))]
     (clojure.core/let
-     [x__14338__auto__ (CATA__FN__63051 input__62968)]
+     [x__14338__auto__ (CATA__FN__125969 input__125886)]
      (if
       (meander.runtime.zeta/fail? x__14338__auto__)
       (meander.runtime.zeta/fail)
       (clojure.core/let
-       [[CATA_RETURN__63055] x__14338__auto__]
-       CATA_RETURN__63055))))]
+       [[CATA_RETURN__125973] x__14338__auto__]
+       CATA_RETURN__125973))))]
   (if
    (meander.runtime.zeta/fail? ret__14518__auto__)
    nil

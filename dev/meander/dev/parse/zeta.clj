@@ -215,9 +215,9 @@
                         ?env)
              ?env)
 
-  (make-cat [(me/and (me/not {:tag :reference}) !xs) ... {:tag :reference :as ?reference} & ?rest] ?next ?env)
+  (make-cat [(me/and (me/not {:tag :reference}) !xs) ..1 {:tag :reference :as ?reference} & ?rest] ?next ?env)
   (make-join (make-cat [!xs ...] {:tag :empty} ?env)
-             (make-join ?reference
+             (make-join (make-cat [?reference] {:tag :empty} ?env)
                         (make-cat ?rest ?next ?env)
                         ?env)
              ?env)
