@@ -398,6 +398,13 @@
    :left (me/cata [?a ?env])
    :right (me/cata [?b ?env])}
 
+
+  (special "meander.math.zeta" "-" (_ ?a ?b :as ?form) ?env)
+  {:tag :meander.math.zeta/-
+   :left (me/cata [?a ?env])
+   :right (me/cata [?b ?env])}
+
+
   ;; (meander.zeta/with [,,,])
   ;; (meander.zeta/with [,,,] pattern)
 

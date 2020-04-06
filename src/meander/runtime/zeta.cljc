@@ -1304,6 +1304,87 @@
        (fail)
        (partitions target)))))
 
+
+(map (fn [[x y]] [x y (- x y)])
+     (map vals
+          (-search (subp (logic-variable '?y) (logic-variable '?x)) 3 {})))
+
+1 - 1
+-1 - 1
+
+
+
+(defn subp [np mp]
+  (if (or (fail? np) (fail? mp))
+    (fail)
+    (let [height (max (-height np) (-height mp))]
+      (reify
+        IConstantValue
+        (-constant-value [this bindings]
+          (let [n (-constant-value np bindings)
+                m (-constant-value mp bindings)]
+            (if (and (number? n) (number? m))
+              (- n m)
+              (fail))))
+
+        IHeight
+        (-height [this]
+          height)
+
+        ISearch
+        (-search [this target bindings]
+          (if (number? target)
+            (let [n (-constant-value np bindings)
+                  m (-constant-value mp bindings)]
+              (case [(fail? n) (fail? m)]
+                [false false]
+                (if (and (number? n)
+                         (number? m)
+                         (= target (- n m)))
+                  (succeed bindings)
+                  (fail))
+
+                [false true]
+                (if (number? n)
+                  (-search mp (- n target) bindings)
+                  (fail))
+
+                [true false]
+                (if (number? m)
+                  (-search np (+ target m) bindings)
+                  (fail))
+
+                [true true]
+                (let [max-length (get bindings :max-length 32)
+                      pair (pair np mp)]
+                  (take max-length
+                        (mapcat
+                         (fn [a]
+                           (let [m (- a target)
+                                 n (- target a)]
+                             (concat
+                              (-search pair [a m] bindings)
+                              (-search pair [n (- a)] bindings))))
+                         (range 1 (+ (/ max-length 2) 1)))))))
+            (fail)))
+
+        IGenerate
+        (-generate [this bindings]
+          (if-gen [n-result np bindings]
+            (let [n (get-val n-result)]
+              (if (number? n)
+                (if-gen [m-result mp (get-bindings n-result)]
+                  (let [m (get-val m-result)
+                        n-gen* (get-gen n-result)
+                        m-gen* (get-gen m-result)
+                        gen* (choice (subp n-gen* m-gen*)
+                                     (subp np m-gen*)
+                                     (subp n-gen* mp))]
+                    (if (number? m)
+                      [(- n m) (get-bindings m-result) gen*]
+                      [(fail) bindings gen*])))
+                [(fail) bindings (subp (get-gen n-result) mp)]))))))))
+
 (defn addp [np mp]
   (if (or (fail? np) (fail? mp))
     (fail)

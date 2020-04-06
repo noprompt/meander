@@ -95,6 +95,10 @@
   (make-object {:tag :meander.math.zeta/+, :left ?left, :right ?right} ?env)
   (`m.runtime/addp (make-object ?left ?env) (make-object ?right ?env))
 
+  (make-object {:tag :meander.math.zeta/-, :left ?left, :right ?right} ?env)
+  (`m.runtime/subp (make-object ?left ?env) (make-object ?right ?env))
+
+
   (make-object ?x _)
   (throw (ex-info "Missing definition for make-object" ('quote ?x)))
 
@@ -768,6 +772,24 @@
                   ?bindings
                   ?env)
           ?env))
+
+  (me/and [([{:tag :meander.math.zeta/-, :left ?left, :right ?right} ?target] & ?rest)
+           {:state-symbol ?bindings
+            :as ?env}]
+          (me/let [?np-symbol (gensym)
+                   ?mp-symbol (gensym)
+                   ?bindings-symbol (gensym)
+                   ?target-symbol (gensym)]))
+  (`clj/let [?np-symbol (make-object ?left ?env)
+             ?mp-symbol (make-object ?right ?env)]
+   (query ?bindings
+          (me/cata [?rest ?env])
+          (search (`m.runtime/subp ?np-symbol ?mp-symbol)
+                  ?target
+                  ?bindings
+                  ?env)
+          ?env))
+
 
   ;; Success!
 
