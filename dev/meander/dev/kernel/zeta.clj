@@ -103,7 +103,8 @@
         rewrite-form (replace-$-variables rewrite-form)
         defn-form `(defn ~module-name [~input-symbol] ~rewrite-form)
         ns (symbol (str "meander.compiled." module-name ".zeta"))
-        ns-form (list 'ns ns '(:require [meander.runtime.zeta]))
+        ns-form (list 'ns ns '(:require [meander.runtime.zeta]
+                                        [meander.util.zeta]))
         file (io/file "src/meander/compiled" (munge (name module-name))  "zeta.clj")
         parent (io/file (.getParent file))]
     (.mkdirs parent)
@@ -113,6 +114,7 @@
         (pprint/pprint ns-form)
         (pprint/pprint defn-form)))
     (require ns :reload)
-    `(def ~(with-meta module-name '{:arglists '([input])})
+    `(def ~(with-meta module-name {:arglists (or (:arglists (meta module-name))
+                                                 ''([input]))})
        (var ~(symbol (str ns) (str module-name))))))
 

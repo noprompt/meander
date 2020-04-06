@@ -819,3 +819,180 @@
 
   ?x
   (throw (ex-info "No equation for" {:term ('quote ?x)})))
+
+;; Search compilation
+;; ------------------
+
+(me/defsyntax indexed [& patterns]
+  `(me/and (me/pred seqable?)
+           (me/app meander.util.zeta/indexed (~@patterns))))
+
+(dev.kernel/defconstructor ^{:arglists '([[p ...]])}
+  flat-concat [xs])
+
+(dev.kernel/defconstructor
+  bind-variable [?bindings ?symbol ?variable-db ?target])
+
+(dev.kernel/defconstructor
+  specialized [tag ])
+
+(dev.kernel/defconstructor
+  ^{:style/indent 1}
+  flat-let [bindings body])
+
+(dev.kernel/defmodule
+  ^{:arglists '([[matrix targets bindings]])}
+  search-compile
+  ;; Support rules
+  ;; =============
+
+  (bind-variable ?bindings ?symbol #{{:id ?id :symbol ?symbol}} ?target)
+  (`m.runtime/bind-variable ?bindings ?id ?target)
+
+  (flat-concat [!xs ... (me/or (`concat . !ys ...) (`list) () nil) . !zs ...])
+  (flat-concat [!xs ... !ys ... !zs ...])
+
+  (flat-concat []) ()
+
+  (flat-concat [?x]) ?x
+
+  (flat-concat [?x & ?rest])
+  (`concat ?x & ?rest)
+
+  (flat-let [!bindings ...] (let* [!bindings ...] ?body))
+  (flat-let [!bindings ...] ?body)
+
+  (flat-let ?bindings ?body)
+  (let* ?bindings ?body)
+
+  ;; Primary rules
+  ;; =============
+
+  ;; The matrix and targets are empty.
+  [[{:cells [] :succeed-symbol !succeed} ...] [] ?bindings]
+  (`list . (!succeed ?bindings) ...)
+
+  [[] _ _]
+  ()
+
+  ;; :literal
+  ;; --------
+
+  (me/with [%row {:cells [{:tag :literal, :form ?form} & !rest-cells]
+                  :as !row}]
+    [[%row . (me/or %row !not-row) ...]
+     [?target & ?rest-targets :as ?targets]
+     ?bindings])
+  (flat-concat [(if (`= ?target ('quote ?form)) .
+                    (me/cata [[{:cells [& !rest-cells] :as !row} ...]
+                              ?rest-targets
+                              ?bindings]))
+                (me/cata [[!not-row  ...] ?targets ?bindings])])
+
+  ;; :empty
+  ;; ------
+
+  (me/with [%row {:cells [{:tag :empty} & !rest-cells]
+                  :as !row}]
+    [[%row . (me/or %row !not-row) ...]
+     [?target & ?rest-targets :as ?targets]
+     ?bindings])
+  (flat-concat
+   [(if (`seq ?target)
+      ()
+      (me/cata [[{:cells !rest-cells :as !row} ...]
+                ?rest-targets
+                ?bindings]))
+    (me/cata [[!not-row ...]
+              ?targets
+              ?bindings])])
+
+  ;; :logic-variable
+  ;; ---------------
+
+  (me/with [%row {:cells [{:tag :logic-variable, :symbol !symbol} & !rest-cells]
+                  :variable-db !variable-db
+                  :as !row}]
+    (me/and [[%row . (me/or %row !not-row) ...]
+             [?target & ?rest-targets :as ?targets]
+             ?bindings]
+            ;; Symbol for the updated bindings.
+            (me/let [?new-bindings (gensym)])))
+  (flat-concat 
+   [(`m.runtime/if-result [?new-bindings (bind-variable ?bindings !symbol !variable-db ?target)]
+     (me/cata [[{:cells !rest-cells :as !row}]
+               ?rest-targets
+               ?bindings]))
+    ...
+    (me/cata [[!not-row  ...] ?targets ?bindings])])
+
+  ;; :seq
+  ;; ----
+
+  (me/with [%row {:cells [{:tag :seq :next !next} & !rest-cells]
+                  :as !row}]
+    [[%row . (me/or %row !not-row) ...]
+     [?target & _ :as ?targets]
+     ?bindings])
+  (flat-concat [(if (`seq? ?target)
+                  (me/cata [[{:cells [!next & !rest-cells] :as !row} ...]
+                            ?targets
+                            ?bindings]))
+                (me/cata [[!not-row ...]
+                          ?targets
+                          ?bindings])])
+
+  ;; :vector
+  ;; -------
+
+  (me/with [%row {:cells [{:tag :vector :next !next} & !rest-cells]
+                  :as !row}]
+    [[%row . (me/or %row !not-row) ...]
+     [?target & _ :as ?targets]
+     ?bindings])
+  (flat-concat [(if (`vector? ?target)
+                  (me/cata [[{:cells [!next & !rest-cells] :as !row} ...]
+                            ?targets
+                            ?bindings]))
+                (me/cata [[!not-row ...]
+                          ?targets
+                          ?bindings])])
+
+  ;; :cat
+  ;; ----
+
+  (me/with [%row {:cells [{:tag :cat :sequence (indexed [!index !ast] ..?n) :next !next} & !rest-cells]
+                  :as !row}]
+    (me/and [[%row . (me/or %row !not-row) ...]
+             [?target & ?rest-targets]
+             ?bindings]
+            (me/let [?result (gensym "R__")
+                     ?left (gensym "L__")
+                     ?right (gensym "R__")])))
+  (`m.runtime/if-result [?result (`m.runtime/-split-at ?target ?n)]
+   (flat-let [?left (nth ?result 0)
+              ?right (nth ?result 1)]
+             (me/cata [[{:cells [{:tag :nth, :index !index, :pattern !ast} ..?n !next & !rest-cells]
+                         :as !row} ...]
+                       [?left ..?n ?right & ?rest-targets]
+                       ?bindings])))
+
+  ;; :nth
+  ;; ----
+
+  (me/with [%row {:cells [{:tag :nth :index ?i, :pattern !pattern} & !rest-cells]
+                  :as !row}]
+    (me/and [[%row . (me/or %row !not-row) ...]
+             [?target . !rest-targets ... :as ?targets]
+             ?bindings]
+            (me/let [?x (gensym "X__")])))
+  (flat-concat
+   [(flat-let [?x (`nth ?target ?i)]
+              (me/cata [[{:cells (me/app conj !rest-cells !pattern) :as !row} ...]
+                        [!rest-targets ... ?x]
+                        ?bindings]))
+    (me/cata [[!not-row ...] ?targets ?bindings])])
+
+
+  ?x
+  [NO-EQUATION ?x])

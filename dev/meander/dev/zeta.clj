@@ -221,3 +221,16 @@
          ([env#]
           (m.runtime/run-gen gen# env#))
          ([env# n#] (m.runtime/run-gen gen# env# n#))))))
+
+(comment
+  (let [target (gensym "T__")
+        bindings (gensym "B__")
+        matrix (mapv (fn [{:keys [id left-ast variable-db]}]
+                       {:cells [(:next left-ast)]
+                        :variable-db variable-db
+                        :id id
+                        :succeed-symbol id})
+                     (analyze-search-clauses-args
+                      '(1 "ONE" [?x] "TWO" 1 "THREE")))
+        targets [target]]
+    (dev.match/search-compile [matrix targets bindings])))
