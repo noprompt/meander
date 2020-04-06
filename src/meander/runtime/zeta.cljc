@@ -1304,16 +1304,6 @@
        (fail)
        (partitions target)))))
 
-
-(map (fn [[x y]] [x y (- x y)])
-     (map vals
-          (-search (subp (logic-variable '?y) (logic-variable '?x)) 3 {})))
-
-1 - 1
--1 - 1
-
-
-
 (defn subp [np mp]
   (if (or (fail? np) (fail? mp))
     (fail)
