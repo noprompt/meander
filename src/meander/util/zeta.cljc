@@ -398,3 +398,6 @@
                      (map first))
                colls)
      (lazy-seq (knit (keep next colls))))))
+
+(defn indexed [coll]
+  (map-indexed vector coll))
