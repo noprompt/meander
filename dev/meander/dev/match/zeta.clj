@@ -470,6 +470,15 @@
   ;; :pred
   ;; -----
 
+  (me/and [([{:tag :pred
+              :pattern (me/some ?pattern)
+              :expression {:tag :host-expression :form ?form}} ?target] & ?rest) ?env]
+          (me/let [?pred (gensym)]))
+  (let [?pred ?form]
+    (if (?pred ?target)
+      (me/cata [([?pattern ?target] & ?rest) ?env])
+      (`m.runtime/fail)))
+
   (me/and [([{:tag :pred, :expression {:tag :host-expression :form ?form}} ?target] & ?rest) ?env]
           (me/let [?pred (gensym)]))
   (let [?pred ?form]
