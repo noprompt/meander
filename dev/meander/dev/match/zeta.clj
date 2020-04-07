@@ -834,11 +834,11 @@
   bind-variable [?bindings ?symbol ?variable-db ?target])
 
 (dev.kernel/defconstructor
-  specialized [tag ])
-
-(dev.kernel/defconstructor
   ^{:style/indent 1}
   flat-let [bindings body])
+
+(dev.kernel/defconstructor
+  expand-nths [row n])
 
 (dev.kernel/defmodule
   ^{:arglists '([[matrix targets bindings]])}
@@ -875,6 +875,17 @@
   [[] _ _]
   ()
 
+  ;; :wildcard
+  ;; ---------
+
+  (me/with [%row {:cells [{:tag :wildcard} & ?rest-cells]
+                  :as ?row}]
+    [[%row & ?rest-rows]
+     [?target & ?rest-targets :as ?targets]
+     ?bindings])
+  (flat-concat [(me/cata [[{:cells ?rest-cells :as ?row}] ?rest-targets ?bindings])
+                (me/cata [?rest-rows ?targets ?bindings])])
+
   ;; :literal
   ;; --------
 
@@ -884,10 +895,23 @@
      [?target & ?rest-targets :as ?targets]
      ?bindings])
   (flat-concat [(if (`= ?target ('quote ?form)) .
-                    (me/cata [[{:cells [& !rest-cells] :as !row} ...]
+                    (me/cata [[{:cells [& !rest-cells]
+                                :as !row} ...]
                               ?rest-targets
                               ?bindings]))
                 (me/cata [[!not-row  ...] ?targets ?bindings])])
+
+  ;; :and
+  ;; ----
+
+  (me/with [%row {:cells [{:tag :and, :left !left, :right !right} & !rest-cells]
+                  :as !row}]
+    [[%row . (me/or %row !not-row) ...]
+     [?target & ?rest-targets :as ?targets]
+     ?bindings])
+  (me/cata [[{:cells [!left !right & !rest-cells] :as !row} ...]
+            [?target ?target & !rest-cells]
+            ?bindings])
 
   ;; :empty
   ;; ------
@@ -910,21 +934,20 @@
   ;; :logic-variable
   ;; ---------------
 
-  (me/with [%row {:cells [{:tag :logic-variable, :symbol !symbol} & !rest-cells]
-                  :variable-db !variable-db
-                  :as !row}]
-    (me/and [[%row . (me/or %row !not-row) ...]
+  (me/with [%row {:cells [{:tag :logic-variable, :symbol ?symbol} & ?rest-cells]
+                  :variable-db ?variable-db
+                  :as ?row}]
+    (me/and [[%row & ?rest-rows]
              [?target & ?rest-targets :as ?targets]
              ?bindings]
             ;; Symbol for the updated bindings.
             (me/let [?new-bindings (gensym)])))
   (flat-concat 
-   [(`m.runtime/if-result [?new-bindings (bind-variable ?bindings !symbol !variable-db ?target)]
-     (me/cata [[{:cells !rest-cells :as !row}]
+   [(`m.runtime/if-result [?new-bindings (bind-variable ?bindings ?symbol ?variable-db ?target)]
+     (me/cata [[{:cells ?rest-cells :as ?row}]
                ?rest-targets
                ?bindings]))
-    ...
-    (me/cata [[!not-row  ...] ?targets ?bindings])])
+    (me/cata [?rest-rows ?targets ?bindings])])
 
   ;; :seq
   ;; ----
@@ -961,28 +984,38 @@
   ;; :cat
   ;; ----
 
-  (me/with [%row {:cells [{:tag :cat :sequence (indexed [!index !ast] ..?n) :next !next} & !rest-cells]
-                  :as !row}]
-    (me/and [[%row . (me/or %row !not-row) ...]
-             [?target & ?rest-targets]
+  (expand-nths {:cells [{:tag :cat :sequence (indexed [!index !ast] ..?n) :next ?next} & ?rest-cells] :as ?row} ?n)
+  {:cells [{:tag :nth :index !index :pattern !ast} ..?n ?next & ?rest-cells] :as ?row}
+
+  (me/and (expand-nths {:cells [{:tag :wildcard} & ?rest-cells] :as ?row} ?n)
+          (me/let [(!index ..?n & _) (range)]))
+  {:cells [{:tag :nth :index !index :pattern {:tag :wildcard}} ..?n {:tag :wildcard} & ?rest-cells] :as ?row}
+
+  (me/with [%cat-row {:cells [{:tag :cat :sequence [_ ..?n]} & _] :as !row}
+            %wildcard-row {:cells [{:tag :wildcard} & _] :as !row}]
+    (me/and [[%cat-row . (me/or %cat-row wildcard-row !not-row) ...]
+             [?target & ?rest-targets :as ?targets]
              ?bindings]
             (me/let [?result (gensym "R__")
                      ?left (gensym "L__")
                      ?right (gensym "R__")])))
-  (`m.runtime/if-result [?result (`m.runtime/-split-at ?target ?n)]
-   (flat-let [?left (nth ?result 0)
-              ?right (nth ?result 1)]
-             (me/cata [[{:cells [{:tag :nth, :index !index, :pattern !ast} ..?n !next & !rest-cells]
-                         :as !row} ...]
-                       [?left ..?n ?right & ?rest-targets]
-                       ?bindings])))
+  (flat-concat
+   [(`m.runtime/if-result [?result (`m.runtime/-split-at ?target ?n)]
+     (flat-let [?left (nth ?result 0)
+                ?right (nth ?result 1)]
+       (me/cata [[(expand-nths !row ?n) ...]
+                 [?left ..?n ?right & ?rest-targets]
+                 ?bindings])))
+    (me/cata [[!not-row ...] ?targets ?bindings])])
 
   ;; :nth
   ;; ----
 
   (me/with [%row {:cells [{:tag :nth :index ?i, :pattern !pattern} & !rest-cells]
-                  :as !row}]
-    (me/and [[%row . (me/or %row !not-row) ...]
+                  :as !row}
+            %wildcard-row {:cells [{:tag :wildcard :as !pattern} & !rest-cells]
+                           :as !row}]
+    (me/and [[%row . (me/or %row %wildcard-row !not-row) ...]
              [?target . !rest-targets ... :as ?targets]
              ?bindings]
             (me/let [?x (gensym "X__")])))
