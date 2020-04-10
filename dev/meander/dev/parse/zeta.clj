@@ -51,6 +51,8 @@
 (dev.kernel/defconstructor make-fold [var-ast init-ast fold-form form])
 (dev.kernel/defconstructor make-or [asts original-form])
 (dev.kernel/defconstructor make-and [asts original-form])
+(dev.kernel/defconstructor make-keyword [asts form env])
+(dev.kernel/defconstructor make-symbol [asts form env])
 
 (dev.kernel/defmodule parse
   ;; Meta Rules
@@ -222,20 +224,20 @@
                         ?env)
              ?env)
 
-  (make-cat [{:tag :literal, :type (me/or :string :char) :form !forms} ..1] {:tag :empty} _)
-  {:tag :literal
-   :type :string
-   :form (me/app clojure.string/join [!forms ...])}
+  ;; (make-cat [{:tag :literal, :type (me/or :string :char) :form !forms} ..1] {:tag :empty} _)
+  ;; {:tag :literal
+  ;;  :type :string
+  ;;  :form (me/app clojure.string/join [!forms ...])}
 
   (make-cat [{:tag :literal, :type :string, :as ?ast} & ?rest] ?next ?env)
   (make-join ?ast
              (make-cat ?rest ?next ?env)
              ?env)
 
-  (make-cat [{:tag :literal, :form !forms} ..1] {:tag :empty} {:context ?context :as ?env})
-  {:tag :literal
-   :type ?context
-   :form [!forms ...]}
+  ;; (make-cat [{:tag :literal, :form !forms} ..1] {:tag :empty} {:context ?context :as ?env})
+  ;; {:tag :literal
+  ;;  :type ?context
+  ;;  :form [!forms ...]}
 
   (make-cat ?sequence ?next {:context :string})
   {:tag :string-cat
@@ -250,14 +252,14 @@
   (make-join {:tag :cat, :sequence ?sequence, :next {:tag :empty}} ?right ?env)
   (make-cat ?sequence ?right ?env)
 
-  (make-join {:tag :literal, :type :string, :form ?form-1}
-             {:tag :string-join
-              :left {:tag :literal :type :string :form ?form-2}
-              :right ?right}
-             {:context :string :as ?env})
-  (make-join {:tag :literal, :type :string, :form (me/app str ?form-1 ?form-2)}
-             ?right
-             ?env)
+  ;; (make-join {:tag :literal, :type :string, :form ?form-1}
+  ;;            {:tag :string-join
+  ;;             :left {:tag :literal :type :string :form ?form-2}
+  ;;             :right ?right}
+  ;;            {:context :string :as ?env})
+  ;; (make-join {:tag :literal, :type :string, :form (me/app str ?form-1 ?form-2)}
+  ;;            ?right
+  ;;            ?env)
 
   (make-join {:tag :cat :as ?ast}
              {:tag :cat :sequence ?sequence :next ?next}
@@ -480,11 +482,35 @@
                    :form ?fold-function}
    :form ?form}
 
+  ;; (meander.zeta/keyword)
   ;; (meander.zeta/keyword _)
-  ;; ---------------------
+  ;; (meander.zeta/keyword _ _)
+  ;; --------------------------
 
-  (special "keyword" (_ ?name :as ?form) ?env)
+  (special "keyword" (_ & ?keyword-args :as ?form) ?env)
+  (make-keyword [& ?keyword-args] ?form ?env)
+
+  ;; (make-keyword [!init-args ... :meander.zeta/as ?pattern] ?form ?env)
+  ;; {:tag :and
+  ;;  :left (me/cata [?pattern ?env])
+  ;;  :right (make-keyword [!init-args ...] ?form ?env)
+  ;;  :form ?form}
+
+  (make-keyword [] ?form _)
   {:tag :keyword
+   :namespace {:tag :wildcard}
+   :name {:tag :wildcard}
+   :form ?form}
+
+  (make-keyword [?name] ?form ?env)
+  {:tag :keyword
+   :namespace {:tag :wildcard}
+   :name (me/cata [?name ?env])
+   :form ?form}
+
+  (make-keyword [?namespace ?name] ?form ?env)
+  {:tag :keyword
+   :namespace (me/cata [?namespace ?env])
    :name (me/cata [?name ?env])
    :form ?form}
 
@@ -565,9 +591,8 @@
    :pattern (me/cata [?pattern ?env])
    :form ?form}
 
-
   ;; (meander.zeta/re _)
-  ;; ----------------------
+  ;; -------------------
 
   (special "re" (_ ?regex :as ?form) ?env)
   {:tag :regex
@@ -575,47 +600,52 @@
    :form ?form}
 
   ;; (meander.zeta/re _ _)
-  ;; ----------------------
+  ;; ---------------------
 
   (special "re" (_ ?regex ?capture :as ?form) ?env)
-  {:tag :regex
+  {:tag :regex-with-capture
    :regex ?regex
    :capture (me/cata [?capture ?env])
    :form ?form}
 
   ;; (meander.zeta/string _)
-  ;; ---------------------
+  ;; -----------------------
 
   (special "string" (_ & ?sequence :as ?form) ?env)
   {:tag :string
    :next (parse-sequential [& ?sequence] {:context :string & ?env})
    :form ?form}
 
+  ;; (meander.zeta/symbol)
   ;; (meander.zeta/symbol _)
-  ;; ---------------------
-
-  (special "symbol" (_ ?name :as ?form) ?env)
-  {:tag :symbol
-   :name (me/cata [?name ?env])
-   :form ?form}
-
   ;; (meander.zeta/symbol _ _)
-  ;; -------------------------
+  ;; --------------------------
 
-  (special "symbol" (_ ?namespace ?name :as ?form) ?env)
+  (special "symbol" (_ & ?symbol-args :as ?form) ?env)
+  (make-symbol [& ?symbol-args] ?form ?env)
+
+  ;; (make-symbol [!init-args ... :meander.zeta/as ?pattern] ?form ?env)
+  ;; {:tag :and
+  ;;  :left (me/cata [?pattern ?env])
+  ;;  :right (make-symbol [!init-args ...] ?form ?env)
+  ;;  :form ?form}
+
+  (make-symbol [] ?form _)
   {:tag :symbol
-   :name (me/cata [?name ?env])
-   :namespace (me/cata [?namespace ?env])
+   :namespace {:tag :wildcard}
+   :name {:tag :wildcard}
    :form ?form}
 
-  ;; (meander.zeta/symbol _ _ :meander.zeta/as _)
-  ;; --------------------------------------------
-
-  (special "symbol" (_ ?namespace ?name :meander.zeta/as ?pattern :as ?form) ?env)
+  (make-symbol [?name] ?form ?env)
   {:tag :symbol
+   :namespace {:tag :wildcard}
    :name (me/cata [?name ?env])
+   :form ?form}
+
+  (make-symbol [?namespace ?name] ?form ?env)
+  {:tag :symbol
    :namespace (me/cata [?namespace ?env])
-   :as-pattern (me/cata [?pattern ?env])
+   :name (me/cata [?name ?env])
    :form ?form}
 
   ;; Seq pattern

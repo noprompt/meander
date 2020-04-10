@@ -1556,24 +1556,24 @@
 
 (defmacro bind-logic-variable
   {:style/indent 1}
-  [[smap v x] body-expression]
-  `(let* [entry# (find ~smap ~v)]
+  [[bindings v x] body-expression]
+  `(let* [entry# (find ~bindings ~v)]
      (if entry#
        (let* [y# (val entry#)]
          (if (= ~x y#)
            ~body-expression
            (fail)))
-       (let* [~smap (assoc ~smap ~v ~x)]
+       (let* [~bindings (assoc ~bindings ~v ~x)]
          ~body-expression))))
 
 (defmacro bind-memory-variable
   {:style/indent 1}
-  [[smap v x] body-expression]
-  `(let [~smap (if-some [entry# (find ~smap ~v)]
-                 (let [old-val# (val entry#)
-                       new-val# (conj old-val# ~x)]
-                   (assoc ~smap ~v new-val#))
-                 (assoc ~smap ~v [~x]))]
+  [[bindings v x] body-expression]
+  `(let [~bindings (if-some [entry# (find ~bindings ~v)]
+                     (let [old-val# (val entry#)
+                           new-val# (conj old-val# ~x)]
+                       (assoc ~bindings ~v new-val#))
+                     (assoc ~bindings ~v [~x]))]
      ~body-expression))
 
 (defmacro into-memory-variable
@@ -1590,8 +1590,8 @@
 
 (defmacro bind-mutable-variable
   {:style/indent 1}
-  [[smap symbol target] body-expression]
-  `(let [~smap (assoc ~smap ~symbol ~target)]
+  [[bindings v x] body-expression]
+  `(let [~bindings (assoc ~bindings ~v ~x)]
      ~body-expression))
 
 ;; Extensions

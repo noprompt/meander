@@ -114,7 +114,8 @@
         (pprint/pprint ns-form)
         (pprint/pprint defn-form)))
     (require ns :reload)
-    `(def ~(with-meta module-name {:arglists (or (:arglists (meta module-name))
-                                                 ''([input]))})
-       (var ~(symbol (str ns) (str module-name))))))
+    (let [meta (meta module-name)
+          meta (assoc meta :arglists (get meta :arglists ''([input])))]
+      `(def ~(with-meta module-name meta)
+         (var ~(symbol (str ns) (str module-name)))))))
 
