@@ -838,7 +838,13 @@
   flat-let [bindings body])
 
 (dev.kernel/defconstructor
+  expand-n [row n])
+
+(dev.kernel/defconstructor
   expand-nths [row n])
+
+(dev.kernel/defconstructor
+  expand-or [row])
 
 (dev.kernel/defmodule
   ^{:arglists '([[matrix targets bindings]])}
@@ -878,6 +884,10 @@
   ;; :wildcard
   ;; ---------
 
+  (expand-n {:cells [{:tag :wildcard :as ?ast} & ?rest-cells] :as ?row}
+            ?n)
+  {:cells [?ast ..?n & ?rest-cells] :as ?row}
+
   (me/with [%row {:cells [{:tag :wildcard} & ?rest-cells]
                   :as ?row}]
     [[%row & ?rest-rows]
@@ -901,17 +911,64 @@
                               ?bindings]))
                 (me/cata [[!not-row  ...] ?targets ?bindings])])
 
+  ;; :as
+  ;; ---
+
+  (expand-n {:cells [{:tag :as, :pattern ?pattern, :next ?next} & ?rest-cells] :as ?row} 2)
+  {:cells [?pattern ?next & ?rest-cells] :as ?row}
+
+  (me/with [%as {:tag :as}
+            %wildcard {:tag :wildcard}
+            %head-row {:cells [%as & !rest-cells] :as !row}
+            %tail-row {:cells [(me/or %as %wildcard) & !rest-cells]
+                       :as !row}]
+    [[%head-row . (me/or %tail-row !not-row) ...]
+     [?target & ?rest-targets :as ?targets]
+     ?bindings])
+  (me/cata [[(expand-n !row 2) ...]
+            [?target ?target & !rest-cells]
+            ?bindings])
+
   ;; :and
   ;; ----
 
-  (me/with [%row {:cells [{:tag :and, :left !left, :right !right} & !rest-cells]
-                  :as !row}]
-    [[%row . (me/or %row !not-row) ...]
-     [?target & ?rest-targets :as ?targets]
+  (expand-n {:cells [{:tag :and, :left ?left, :right ?right} & ?rest-cells] :as ?row} 2)
+  {:cells [?left ?right & ?rest-cells] :as ?row}
+
+  (me/with [%and {:tag :and}
+            %wildcard {:tag :wildcard}
+            %head-row {:cells [%and & _] :as !row}
+            %tail-row {:cells [(me/or %and %wildcard) & _]
+                       :as !row}]
+    [[%head-row . (me/or %tail-row !not-row) ...]
+     [?target & ?rest-targets]
      ?bindings])
-  (me/cata [[{:cells [!left !right & !rest-cells] :as !row} ...]
-            [?target ?target & !rest-cells]
+  (me/cata [[(expand-n !row 2) ...]
+            [?target ?target & ?rest-targets]
             ?bindings])
+
+  ;; :or
+  ;; ----
+
+  (me/with [%or-row (me/and {:cells [{:tag :or, :left !ast, :right !ast}
+                                     & (me/and !rest-cells !rest-cells)]}
+                            !row
+                            !row)
+            %wildcard-row (me/and {:cells [(me/and {:tag :wild-card} !ast !ast)
+                                           & (me/and !rest-cells !rest-cells)]}
+                                  !row
+                                  !row)]
+    [[%or-row . (me/or %or-row %wildcard-row !not-row) ...]
+     [& _ :as ?targets]
+     ?bindings])
+  (flat-concat
+   [(me/cata [[{:cells [!ast & !rest-cells] :as !row} ...]
+              ?targets
+              ?bindings])
+    (me/cata [[!not-row ...]
+              ?targets
+              ?bindings])])
+
 
   ;; :empty
   ;; ------
@@ -952,13 +1009,15 @@
   ;; :seq
   ;; ----
 
-  (me/with [%row {:cells [{:tag :seq :next !next} & !rest-cells]
-                  :as !row}]
+  (expand-n {:cells [{:tag :seq :next ?next} & ?rest-cells] :as ?row} _)
+  {:cells [?next & ?rest-cells] :as ?row}
+
+  (me/with [%row {:cells [{:tag :seq} & _] :as !row}]
     [[%row . (me/or %row !not-row) ...]
      [?target & _ :as ?targets]
      ?bindings])
   (flat-concat [(if (`seq? ?target)
-                  (me/cata [[{:cells [!next & !rest-cells] :as !row} ...]
+                  (me/cata [[(expand-n !row 1) ...]
                             ?targets
                             ?bindings]))
                 (me/cata [[!not-row ...]
@@ -968,13 +1027,15 @@
   ;; :vector
   ;; -------
 
-  (me/with [%row {:cells [{:tag :vector :next !next} & !rest-cells]
-                  :as !row}]
+  (expand-n {:cells [{:tag :vector :next ?next} & ?rest-cells] :as ?row} _)
+  {:cells [?next & ?rest-cells] :as ?row}
+
+  (me/with [%row {:cells [{:tag :vector} & _] :as !row}]
     [[%row . (me/or %row !not-row) ...]
      [?target & _ :as ?targets]
      ?bindings])
   (flat-concat [(if (`vector? ?target)
-                  (me/cata [[{:cells [!next & !rest-cells] :as !row} ...]
+                  (me/cata [[(expand-n !row 1) ...]
                             ?targets
                             ?bindings]))
                 (me/cata [[!not-row ...]
@@ -1028,4 +1089,4 @@
 
 
   ?x
-  [NO-EQUATION ?x])
+  (throw (ex-info "No equation for" {:term ('quote ?x)})))
