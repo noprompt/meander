@@ -2,7 +2,11 @@
   (:require [clojure.walk :as walk]
             [clojure.pprint :as pprint]
             [clojure.java.io :as io]
+            [clojure.set :as set]
             [meander.epsilon :as me]
+            [meander.syntax.epsilon :as me.syntax]
+            [meander.match.syntax.epsilon :as me.match.syntax]
+            [meander.substitute.syntax.epsilon :as me.subst.syntax]
             [meander.runtime.zeta :as m.runtime]))
 
 (defn defconstructor-doc-string
@@ -81,6 +85,7 @@
        ?x ?x))
    form))
 
+;; This may not be needed any loger.
 (defn replace-$-variables [form]
   (let [replace (memoize (fn [s] (gensym (str s "__"))))]
     (walk/postwalk
@@ -92,7 +97,30 @@
          ?x ?x))
      form)))
 
+
+(defn check [left-form right-form]
+  (let [left-ast (me.match.syntax/parse left-form)
+        right-ast (me.subst.syntax/parse right-form)
+        left-vars (me.syntax/variables left-ast)
+        right-vars (me.syntax/variables right-ast)
+        vars-missing-on-left (set/difference right-vars left-vars)]
+    (if (seq vars-missing-on-left)
+      {:message "There are variables on the right which do not appear on the left."
+       :data {:vars-missing-on-left (into #{} (map :symbol) vars-missing-on-left)
+              :left-meta (meta left-form)
+              :right-meta (meta right-form)}})))
+
+;; This should probably be folded back into epsilon.
+(defmacro check-rules! [rules-list-expr]
+  `(doseq [[left-form# right-form#] (partition-all 2 ~rules-list-expr)]
+     (if-some [{message# :message data# :data} (check left-form# right-form#)]
+       ;; It would be awesome if we could modify the stack trace to
+       ;; point to the line number given by, for example, :right-meta
+       ;; (if one exists).
+       (throw (ex-info message# data#)))))
+
 (defmacro defmodule [module-name & rules]
+  (check-rules! rules)
   (let [input-symbol (gensym "input__")
         rewrite-form (macroexpand (case (:type (meta &form))
                                     :match
