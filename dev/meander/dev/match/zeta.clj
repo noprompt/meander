@@ -2,8 +2,7 @@
   (:require [clojure.core :as clj]
             [meander.dev.kernel.zeta :as dev.kernel]
             [meander.dev.parse.zeta :as dev.parse]
-            [meander.epsilon :as me]
-            [meander.runtime.zeta :as m.runtime]))
+            [meander.epsilon :as me] [meander.runtime.zeta :as m.runtime]))
 
 (me/defsyntax $inc [x]
   `(me/app inc ~x))
@@ -11,10 +10,10 @@
 (me/defsyntax $dec [x]
   `(me/app dec ~x))
 
-(dev.kernel/defconstructor query [bindings body search-space environment])
-(dev.kernel/defconstructor succeed [bindings environment])
-(dev.kernel/defconstructor search [object target bindings environment])
-(dev.kernel/defconstructor make-object [ast environment])
+(dev.kernel/defmetafn query [bindings body search-space environment])
+(dev.kernel/defmetafn succeed [bindings environment])
+(dev.kernel/defmetafn search [object target bindings environment])
+(dev.kernel/defmetafn make-object [ast environment])
 
 (dev.kernel/defmodule match-compile
   ;; Support rules
@@ -819,35 +818,35 @@
   `(me/and (me/pred seqable?)
            (me/app meander.util.zeta/indexed (~@patterns))))
 
-(dev.kernel/defconstructor ^{:arglists '([[p ...]])}
+(dev.kernel/defmetafn ^{:arglists '([[p ...]])}
   flat-concat [xs])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   bind-variable [?bindings ?symbol ?variable-db ?target])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   ^{:style/indent 1}
   flat-let [bindings body])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   expand-n [row n])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   expand-nths [row n])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   expand-or [row])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   with-fact [row fact])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   make-case [args])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   check [form facts])
 
-(dev.kernel/defconstructor
+(dev.kernel/defmetafn
   add-fact [form facts])
 
 (dev.kernel/defmodule

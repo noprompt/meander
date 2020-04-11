@@ -9,7 +9,7 @@
             [meander.substitute.syntax.epsilon :as me.subst.syntax]
             [meander.runtime.zeta :as m.runtime]))
 
-(defn defconstructor-doc-string
+(defn defmetafn-doc-string
   {:private true}
   [symbol args]
   (format "Pattern matching and substitution operator.
@@ -29,7 +29,7 @@
           (str symbol)
           (clojure.string/join " " args)))
 
-(defmacro defconstructor
+(defmacro defmetafn
   "Defines a pattern matching and substitution operator.
 
   When the defined operator is used as a pattern matching opeator,
@@ -44,7 +44,7 @@
      (meander.epsilon/cata ['ns/name ~@args])"
   [name args]
   (let [fq-sym (symbol (str (ns-name *ns*)) (str name))
-        name (vary-meta name assoc :doc (defconstructor-doc-string fq-sym args))]
+        name (vary-meta name assoc :doc (defmetafn-doc-string fq-sym args))]
     `(me/defsyntax ~name [~@args]
        (let [shape# ['~fq-sym ~@args]]
          (cond
@@ -107,7 +107,9 @@
     (if (seq vars-missing-on-left)
       {:message "There are variables on the right which do not appear on the left."
        :data {:vars-missing-on-left (into #{} (map :symbol) vars-missing-on-left)
+              :left-form left-form
               :left-meta (meta left-form)
+              :right-form right-form
               :right-meta (meta right-form)}})))
 
 ;; This should probably be folded back into epsilon.

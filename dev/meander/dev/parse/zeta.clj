@@ -42,17 +42,17 @@
           [?form ?env])))
      &form)))
 
-(dev.kernel/defconstructor parse-sequential [forms env])
-(dev.kernel/defconstructor parse-entries [map-form env])
-(dev.kernel/defconstructor parse-with-bindings [bindings env])
-(dev.kernel/defconstructor make-join [left right env])
-(dev.kernel/defconstructor make-cat [sequence next env])
-(dev.kernel/defconstructor make-star [pattern next env])
-(dev.kernel/defconstructor make-fold [var-ast init-ast fold-form form])
-(dev.kernel/defconstructor make-or [asts original-form])
-(dev.kernel/defconstructor make-and [asts original-form])
-(dev.kernel/defconstructor make-keyword [asts form env])
-(dev.kernel/defconstructor make-symbol [asts form env])
+(dev.kernel/defmetafn parse-sequential [forms env])
+(dev.kernel/defmetafn parse-entries [map-form env])
+(dev.kernel/defmetafn parse-with-bindings [bindings env])
+(dev.kernel/defmetafn make-join [left right env])
+(dev.kernel/defmetafn make-cat [sequence next env])
+(dev.kernel/defmetafn make-star [pattern next env])
+(dev.kernel/defmetafn make-fold [var-ast init-ast fold-form form])
+(dev.kernel/defmetafn make-or [asts original-form])
+(dev.kernel/defmetafn make-and [asts original-form])
+(dev.kernel/defmetafn make-keyword [asts form env])
+(dev.kernel/defmetafn make-symbol [asts form env])
 
 (dev.kernel/defmodule parse
   ;; Meta Rules
