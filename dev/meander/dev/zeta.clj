@@ -222,15 +222,22 @@
           (m.runtime/run-gen gen# env#))
          ([env# n#] (m.runtime/run-gen gen# env# n#))))))
 
+
 (comment
-  (let [target (gensym "T__")
+  (let [clauses '((mz/and [1 2] (1 2)) "ONE"
+                  )
+        target (gensym "T__")
         bindings (gensym "B__")
-        matrix (mapv (fn [{:keys [id left-ast variable-db]}]
+        matrix (mapv (fn [{:keys [env id left-ast variable-db]}]
                        {:cells [(:next left-ast)]
+                        :cata-symbol (get env :cata-symbol)
                         :variable-db variable-db
                         :id id
                         :succeed-symbol id})
-                     (analyze-search-clauses-args
-                      '(1 "ONE" [?x] "TWO" 1 "THREE")))
+                     (analyze-search-clauses-args clauses))
         targets [target]]
-    (dev.match/search-compile [matrix targets bindings])))
+    (dev.match/search-compile
+     {:matrix matrix
+      :targets targets
+      :bindings bindings
+      :facts #{}})))
