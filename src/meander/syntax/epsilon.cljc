@@ -1278,13 +1278,11 @@
 ;; :set
 
 (defmethod children :set [node]
-  (if-some [rest-node (:rest node)]
-    (concat (:elements node)
-            (if-some [rest-set (:rest node)]
-              [rest-set])
-            (if-some [as (:as node)]
-              [as]))
-    (:elements node)))
+  (concat (:elements node)
+          (if-some [rest-set (:rest node)]
+            [rest-set])
+          (if-some [as (:as node)]
+            [as])))
 
 (defmethod ground? :set [node]
   (every? ground? (:elements node)))
