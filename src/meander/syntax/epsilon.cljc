@@ -1303,14 +1303,20 @@
 ;; seq
 
 (defmethod children :seq [node]
-  [(:prt node)])
+  (let [prt (:prt node)]
+    (if-some [as (:as node)]
+      [prt as]
+      [prt])))
 
 (defmethod ground? :seq [node]
   (and (ground? (:prt node))
        (nil? (:as node))))
 
 (defmethod unparse :seq [node]
-  (seq (unparse (:prt node))))
+  (let [prt-forms (unparse (:prt node))]
+    (if-some [as (:as node)]
+      (concat prt-forms (list (unparse as)))
+      prt-forms)))
 
 (defmethod search? :seq [node]
   (search? (:prt node)))
@@ -1389,7 +1395,10 @@
 ;; :vec
 
 (defmethod children :vec [node]
-  [(:prt node)])
+  (let [prt (:prt node)]
+    (if-some [as (:as node)]
+      [prt as]
+      [prt])))
 
 (defmethod ground? :vec [node]
   (and (ground? (:prt node))
@@ -1402,9 +1411,10 @@
   (max-length (:prt node)))
 
 (defmethod unparse :vec [node]
-  (cond-> (vec (unparse (:prt node)))
-    (some? (:as node))
-    (conj :as (unparse (:as node)))))
+  (let [vec-form (vec (unparse (:prt node)))]
+    (if-some [as (:as node)]
+      (conj vec-form :as (unparse (:as node)))
+      vec-form)))
 
 (defmethod search? :vec [node]
   (search? (:prt node)))
