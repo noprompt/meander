@@ -579,6 +579,7 @@
   {:tag :pred
    :expression {:tag :host-expression
                 :form ?expression}
+   :pattern {:tag :wildcard}
    :form ?form}
 
   ;; (meander.zeta/pred _ _)
