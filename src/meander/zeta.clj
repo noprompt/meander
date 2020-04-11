@@ -1,5 +1,5 @@
 (ns meander.zeta
-  (:refer-clojure :exclude [or and])
+  (:refer-clojure :exclude [or and let])
   (:require [meander.syntax.zeta :as m.syntax]))
 
 (def
