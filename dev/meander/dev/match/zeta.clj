@@ -1306,11 +1306,11 @@
   ;; -----
 
   (me/and {:matrix [{:cells [{:tag :cata, :pattern ?pattern} & ?rest-cells]
-                     :cata-symbol ?cata-symbol
                      :as ?row}
                     & ?rest-rows]
            :targets [?target & ?rest-targets]
            :bindings ?bindings
+           :cata-symbol ?cata-symbol
            :as ?state}
           (me/let [?new-bindings (gensym "B__")]))
   (flat-concat [(`mapcat
