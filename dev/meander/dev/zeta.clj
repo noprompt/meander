@@ -80,42 +80,48 @@
   [expression clauses]
   (let [analyses (analyze-search-clauses-args clauses)
         target (gensym "T__")
-        bindings (gensym "B__")]
-    `(let [~target ~expression
-           ;; Bind all 
-           ~@(sequence
-              (comp (mapcat :variable-db)
-                    (mapcat (juxt :id :object)))
-              analyses)]
-       (letfn [~@(map
-                   (fn [analysis]
-                     (let [variable-db (get analysis :variable-db)
-                           env (get analysis :env)
-                           right-form (get analysis :right-form)
-                           fn-name (get analysis :id)
-                           fn-body `(let [~@(mapcat (fn [{:keys [tag symbol id]}]
-                                                      (case tag
-                                                        :memory-variable
-                                                        [symbol `(get ~bindings ~id [])]
-                                                        ;; else
-                                                        [symbol `(get ~bindings ~id)]))
-                                                    variable-db)]
-                                      ~right-form)]
-                       `(~fn-name [~bindings]
-                         (m.runtime/succeed ~fn-body))))
-                   analyses)]
-         (concat
-          ~@(map
-             (fn [analysis]
-               (let [variable-db (get analysis :variable-db)
-                     env (get analysis :env)
-                     env (into env (map (juxt :id :symbol)) variable-db)
-                     env (assoc env target expression)
-                     env (assoc env :succeed-symbol (get analysis :id))
-                     left-ast (get analysis :left-ast)
-                     match-form (dev.match/match-compile [(list [left-ast target]) env])]
-                 match-form))
-             analyses))))))
+        initial-bindings (gensym "B__")
+        final-bindings (gensym "B__")
+        cata-symbol (gensym "C__")
+        matrix (mapv (fn [{:keys [env id left-ast variable-db]}]
+                       {:cells [(:next left-ast)]
+                        :variable-db variable-db
+                        :id id
+                        ;; The function to call at runtime with the bindings.
+                        ;; This function must return a sequence.
+                        :succeed-symbol id})
+                     analyses)
+        state {:matrix matrix
+               :targets [target]
+               :bindings initial-bindings
+               :cata-symbol cata-symbol
+               :facts #{}}]
+    `((fn ~cata-symbol [~target]
+        (let [~initial-bindings {}
+              ;; Bind all 
+              ~@(sequence
+                 (comp (mapcat :variable-db)
+                       (mapcat (juxt :id :object)))
+                 analyses)]
+          (letfn [~@(map
+                      (fn [analysis]
+                        (let [variable-db (get analysis :variable-db)
+                              env (get analysis :env)
+                              right-form (get analysis :right-form)
+                              fn-name (get analysis :id)
+                              fn-body `(let [~@(mapcat (fn [{:keys [tag symbol id]}]
+                                                         (case tag
+                                                           :memory-variable
+                                                           [symbol `(get ~final-bindings ~id [])]
+                                                           ;; else
+                                                           [symbol `(get ~final-bindings ~id)]))
+                                                       variable-db)]
+                                         ~right-form)]
+                          `(~fn-name [~final-bindings]
+                            (m.runtime/succeed ~fn-body))))
+                      analyses)]
+            ~(dev.match/search-compile state))))
+      ~expression)))
 
 (defmacro search
   {:style/indent 1}
@@ -221,23 +227,3 @@
          ([env#]
           (m.runtime/run-gen gen# env#))
          ([env# n#] (m.runtime/run-gen gen# env# n#))))))
-
-
-(comment
-  (let [clauses '((mz/and [1 2] (1 2)) "ONE"
-                  )
-        target (gensym "T__")
-        bindings (gensym "B__")
-        matrix (mapv (fn [{:keys [env id left-ast variable-db]}]
-                       {:cells [(:next left-ast)]
-                        :cata-symbol (get env :cata-symbol)
-                        :variable-db variable-db
-                        :id id
-                        :succeed-symbol id})
-                     (analyze-search-clauses-args clauses))
-        targets [target]]
-    (dev.match/search-compile
-     {:matrix matrix
-      :targets targets
-      :bindings bindings
-      :facts #{}})))
