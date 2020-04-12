@@ -918,7 +918,7 @@
   {:cells [?ast ..?n & ?rest-cells] :as ?row}
 
   (me/with [%row {:cells [{:tag :wildcard} & !rest-cells] :as !row}]
-    {:matrix [%row . (me/or %row !not-row)]
+    {:matrix [%row . (me/or %row !not-row) ...]
      :targets [?target & ?rest-targets]
      :bindings ?bindings
      :as ?state})
