@@ -754,12 +754,13 @@
   ;; :with-bindings
   ;; --------------
 
-  [([{:tag :with-bindings,
-      :bindings [{:reference {:symbol !symbol} :pattern !pattern} ...]} ?target] & ?rest)
-   {:state-symbol ?state
-    :as ?env}]
-  (letfn [(!symbol [$input ?state]
-            (me/cata [([!pattern $input]) ?env]))
+  (me/and [([{:tag :with-bindings,
+              :bindings [{:reference {:symbol !symbol} :pattern !pattern} ...]} ?target] & ?rest)
+           {:state-symbol ?state
+            :as ?env}]
+          (me/let [?input (gensym "X__")]))
+  (letfn [(!symbol [?input ?state]
+            (me/cata [([!pattern ?input]) ?env]))
           ...]
     (me/cata [?rest ?env]))
 
@@ -855,8 +856,12 @@
   ;; Support rules
   ;; =============
 
+  ;;
+
   (bind-variable ?bindings ?symbol #{{:id ?id :symbol ?symbol}} ?target)
   (`m.runtime/bind-variable ?bindings ?id ?target)
+
+  ;;
 
   (flat-concat [!xs ... (me/or (`concat . !ys ...) (`list) () nil) . !zs ...])
   (flat-concat [!xs ... !ys ... !zs ...])
@@ -868,11 +873,15 @@
   (flat-concat [?x & ?rest])
   (`concat ?x & ?rest)
 
+  ;; let* compilation
+
   (flat-let [!bindings ...] (let* [!bindings ...] ?body))
   (flat-let [!bindings ...] ?body)
 
   (flat-let ?bindings ?body)
   (let* ?bindings ?body)
+
+  ;; Fact management
 
   (add-fact (`= ?target ?x) #{(`= ?target (me/not ?x)) ^:as ?facts})
   ?facts
@@ -897,7 +906,7 @@
   {:matrix [{:cells [] :succeed-symbol !succeed} ...]
    :targets []
    :bindings ?bindings}
-  (`list . (!succeed ?bindings) ...)
+  (flat-concat [(!succeed ?bindings) ...])
 
   {:matrix []}
   ()
@@ -1312,5 +1321,54 @@
                 (me/cata {:matrix ?rest-rows
                           :as ?state})])
 
+  ;; :with
+  ;; -----
+
+  (me/and {:matrix [{:cells [{:tag :with
+                              :bindings {:tag :with-bindings
+                                         :bindings [{:reference {:symbol !symbol}
+                                                     :pattern !pattern} ...]}
+                              :body ?body} & ?rest-cells]
+                     :as ?row}
+                    & ?rest-rows]
+           :targets [?target & _]
+           :as ?state}
+          (me/let [?input (gensym "X__")
+                   ?new-bindings (gensym "B__")]))
+  (flat-concat
+   [(`letfn [(!symbol [?input ?new-bindings]
+                      (me/cata {:matrix [{:cells [!pattern]
+                                          :succeed-symbol `m.runtime/succeed
+                                          :as ?row}]
+                                :targets [?input]
+                                :bindings ?new-bindings
+                                :as ?state}))
+             ...]
+     (me/cata {:matrix [{:cells [?body & ?rest-cells]
+                         :as ?row}]
+               :as ?state}))
+    (me/cata {:matrix ?rest-rows
+              :as ?state})])
+
+  ;; :reference
+  ;; ----------
+
+  (me/and {:matrix [{:cells [{:tag :reference, :symbol ?symbol} & ?rest-cells]
+                     :as ?row}
+                    & ?rest-rows]
+           :targets [?target & ?rest-targets]
+           :bindings ?bindings
+           :as ?state}
+          (me/let [?new-bindings (gensym "B__")]))
+  (flat-concat
+   [(`mapcat
+     (fn [?new-bindings]
+       (me/cata {:matrix [{:cells ?rest-cells :as ?row}]
+                 :targets ?rest-targets
+                 :bindings ?new-bindings
+                 :as ?state}))
+     (?symbol ?target ?bindings))
+    (me/cata {:matrix ?rest-rows
+              :as ?state})])
   ?x
   (throw (ex-info "No equation for" {:term ('quote ?x)})))
