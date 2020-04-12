@@ -430,7 +430,7 @@
     :as ?env}]
   (`clj/let [?state (`m.runtime/bind-variable ?state ?mv-sym ?target)]
    (me/cata [?rest ?env]))
-  
+
   (me/and [([{:tag :mutable-variable :symbol ?symbol} ?target] & ?rest)
            {:state-symbol ?state
             :as ?env}]
@@ -850,6 +850,15 @@
 (dev.kernel/defmetafn
   add-fact [form facts])
 
+(dev.kernel/defmetafn
+  dissoc-code [map-target key next-map-target])
+
+(dev.kernel/defmetafn
+  if-then-code [test then])
+
+(dev.kernel/defmetafn
+  if-then-else-code [test then else])
+
 (dev.kernel/defmodule
   ^{:arglists '([[matrix targets bindings]])}
   search-compile
@@ -873,6 +882,20 @@
   (flat-concat [?x & ?rest])
   (`concat ?x & ?rest)
 
+  ;; if compilation
+
+  (if-then-code ?test ?then)
+  (if-then-else-code ?test ?then (m.runtime/fail))
+
+  (if-then-else-code true ?then ?else)
+  ?then
+
+  (if-then-else-code false ?then ?else)
+  ?else
+
+  (if-then-else-code ?test ?then ?else)
+  (if ?test ?then ?else)
+
   ;; let* compilation
 
   (flat-let [!bindings ...] (let* [!bindings ...] ?body))
@@ -880,6 +903,13 @@
 
   (flat-let ?bindings ?body)
   (let* ?bindings ?body)
+
+  ;; dissoc compilation
+  (dissoc-code ?m ?k {:tag :some-map})
+  ?m
+
+  (dissoc-code ?m ?k _)
+  (`dissoc ?m ?k)
 
   ;; Fact management
 
@@ -889,13 +919,17 @@
   (add-fact (`= ?target ?x) #{^& ?facts})
   #{(`= ?target ?x) ^:as ?facts}
 
+  (add-fact ?fact #{^& ?facts})
+  #{?fact ^& ?facts}
+
   (check (`= ?target ?x) #{(`= ?target (me/not ?x))})
   false
 
   (check ?form #{?form})
   true
 
-  (check ?form _)
+  (check ?form ?facts)
+  ;; (do (comment ?form ?facts) ?form)
   ?form
 
   ;; Primary rules
@@ -938,7 +972,7 @@
      :targets [?target & ?rest-targets]
      :facts #{^& ?facts}
      :as ?state})
-  (flat-concat [(if (check (`= ?target ('quote ?form)) ?facts)
+  (flat-concat [(if-then-code (check (`= ?target ('quote ?form)) ?facts)
                   (me/cata {:matrix [{:cells [& !rest-cells] :as !row} ...]
                             :targets ?rest-targets
                             :facts (add-fact (`= ?target ('quote ?form)) ?facts)
@@ -963,7 +997,7 @@
             (me/let [?name (gensym "name__")
                      ?namespace (gensym "namespace__")])))
   (flat-concat
-   [(if (check (`clj/keyword? ?target) ?facts)
+   [(if-then-code (check (`clj/keyword? ?target) ?facts)
       (flat-let [?namespace (`clj/namespace ?target)
                  ?name (`clj/name ?target)]
         (me/cata {:matrix [(expand-n !row 2) ...]
@@ -971,8 +1005,7 @@
                   :facts #{(`clj/keyword? ?target)
                            (`clj/string? ?name)
                            ^& ?facts}
-                  :as ?state}))
-      (`m.runtime/fail))
+                  :as ?state})))
     (me/cata {:matrix [!not-row ...]
               :as ?state})])
 
@@ -993,7 +1026,7 @@
             (me/let [?name (gensym "name__")
                      ?namespace (gensym "namespace__")])))
   (flat-concat
-   [(if (check (`clj/symbol? ?target) ?facts)
+   [(if-then-code (check (`clj/symbol? ?target) ?facts)
       (flat-let [?namespace (`clj/namespace ?target)
                  ?name (`clj/name ?target)]
         (me/cata {:matrix [(expand-n !row 2) ...]
@@ -1001,8 +1034,7 @@
                   :facts #{(`clj/symbol? ?target)
                            (`clj/string? ?name)
                            ^& ?facts}
-                  :as ?state}))
-      (`m.runtime/fail))
+                  :as ?state})))
     (me/cata {:matrix [!not-row ...]
               :as ?state})])
 
@@ -1075,7 +1107,7 @@
      :as ?state})
   (flat-concat
    [(if (`seq ?target)
-      ()
+      (m.runtime/fail)
       (me/cata {:matrix [{:cells !rest-cells :as !row} ...]
                 :targets ?rest-targets
                 :as ?state}))
@@ -1156,7 +1188,7 @@
      :targets [?target & _ :as ?targets]
      :facts #{^& ?facts}
      :as ?state})
-  (flat-concat [(if (check (`seq? ?target) ?facts)
+  (flat-concat [(if-then-code (check (`seq? ?target) ?facts)
                   (me/cata {:matrix [(expand-n !row 1) ...]
                             :targets ?targets
                             :facts #{(`seq? target) ^& ?facts}
@@ -1176,7 +1208,7 @@
      :targets [?target & _ :as ?targets]
      :facts #{^& ?facts}
      :as ?state})
-  (flat-concat [(if (check (`vector? ?target) ?facts)
+  (flat-concat [(if-then-code (check (`vector? ?target) ?facts)
                   (me/cata {:matrix [(expand-n !row 1) ...]
                             :facts #{(`vector? ?target) ^& ?facts}
                             :as ?state}))
@@ -1258,6 +1290,136 @@
     (me/cata {:matrix [!not-row ...]
               :as ?state})])
 
+  ;; Map searching
+  ;; =============
+
+  ;; :map
+  ;; ----
+
+  (me/with [%row {:cells [{:tag :map :next !next} & !rest-cells]
+                      :as !row}]
+    {:matrix [%row . (me/or %row !not-row) ...]
+     :targets [?target & _]
+     :facts #{^& ?facts}
+     :as ?state})
+  (flat-concat
+   [(if-then-code (check (`map? ?target) ?facts)
+      (me/cata {:matrix [{:cells [!next & !rest-cells] :as !row} ...]
+                :facts (add-fact (`map? ?target) ?facts)
+                :as ?state}))
+    (me/cata {:matrix [!not-row ...]
+              :as ?state})])
+
+  (me/with [%row {:cells [{:tag :some-map} & !rest-cells]
+                  :as !row}]
+    {:matrix [%row . (me/or %row !not-row) ...]
+     :targets [?target & ?rest-targets]
+     :facts #{^& ?facts}
+     :as ?state})
+  (flat-concat
+   [(if-then-code (check (`map? ?target) ?facts)
+      (me/cata {:matrix [{:cells !rest-cells :as !row} ...]
+                :targets ?rest-targets
+                :facts (add-fact (`map? ?target) ?facts)
+                :as ?state}))
+    (me/cata {:matrix [!not-row ...]
+              :as ?state})])
+
+  ;; :entry
+  ;; ------
+
+  (me/and {:matrix [{:cells [{:tag :entry
+                              :key-pattern {:tag :literal :form ?key-form}
+                              :val-pattern ?val
+                              :next ?next} & ?rest-cells]
+                     :as ?row}
+                    & ?rest-rows]
+           :targets [?target & ?rest-targets]
+           :facts #{^& ?facts}
+           :as ?state}
+          (me/let [?e (gensym "E__")
+                   ?k (gensym "K__")
+                   ?v (gensym "V__")
+                   ?m (gensym "T__")]))
+  (flat-concat
+   [(flat-let [?k ('quote ?key-form)
+               ?v (`get ?target ?k)
+               ?m (dissoc-code ?target ?k ?next)]
+      (me/cata {:matrix [{:cells [?val ?next & ?rest-cells]
+                          :as ?row}]
+                :targets [?v ?m & ?rest-targets]
+                :facts #{(`map? ?m) ^& ?facts}
+                :as ?state}))
+    (me/cata {:matrix ?rest-rows
+              :as ?state})])
+
+  (me/and {:matrix [{:cells [{:tag :entry :key-pattern ?key :val-pattern ?val :next ?next} & ?rest-cells]
+                     :as ?row}
+                    & ?rest-rows]
+           :targets [?target & ?rest-targets]
+           :facts #{^& ?facts}
+           :as ?state}
+          (me/let [?e (gensym "E__")
+                   ?k (gensym "K__")
+                   ?v (gensym "V__")
+                   ?m (gensym "T__")]))
+  (flat-concat
+   [(`mapcat
+     (fn [?e]
+       (let [?k (`key ?e)
+             ?v (`val ?e)
+             ?m (dissoc-code ?target ?k ?next)]
+         (me/cata {:matrix [{:cells [?key ?val ?next & ?rest-cells]
+                             :as ?row}]
+                   :targets [?k ?v ?m & ?rest-targets]
+                   :facts (add-fact (`map? ?m) ?facts)
+                   :as ?state})))
+     ?target)
+    (me/cata {:matrix ?rest-rows
+              :as ?state})])
+
+  ;; :rest-map
+  ;; ---------
+  ;; TODO: Needs to handle {:next {:tag :rest-map} ,,,}
+
+  (me/with [%row {:cells [{:tag :rest-map
+                           :pattern !pattern
+                           :next {:tag :entry :next !next :as !entry}}
+                          & !rest-cells]
+                  :as !row}]
+    {:matrix [%row . (me/or %row !not-row) ...]
+     :as ?state})
+  (flat-concat
+   [(me/cata {:matrix [{:cells [{:tag :entry
+                                 :as !entry
+                                 :next {:tag :rest-map
+                                        :pattern !pattern
+                                        :next !next}}
+                                 & !rest-cells]
+                        :as !row}
+                       ...]
+              :as ?state})
+    (me/cata {:matrix [!not-row ...]
+              :as ?state})])
+
+  (me/with [%row {:cells [{:tag :rest-map :pattern !pattern :next {:tag :some-map}}
+                          & !rest-cells]
+                  :as !row}]
+    {:matrix [%row . (me/or %row !not-row) ...]
+     :as ?state})
+  (flat-concat
+   [(me/cata {:matrix [{:cells [!pattern & !rest-cells]
+                        :as !row}
+                       ...]
+              :as ?state})
+    (me/cata {:matrix [!not-row ...]
+              :as ?state})])
+
+
+
+  ;; Pattern operators
+  ;; =================
+
   ;; :apply
   ;; ------
 
@@ -1294,7 +1456,7 @@
             (me/let [?pred (gensym "pred__")])))
   (flat-concat
    [(let* [?pred ?form]
-      (if (check (?pred ?target) ?facts)
+      (if-then-code (check (?pred ?target) ?facts)
         (me/cata {:matrix [{:cells [!pattern & !rest-cells]
                             :facts #{(?form ?target) ^& ?facts}
                             :as !row}]
