@@ -1296,8 +1296,9 @@
    [(let* [?pred ?form]
       (if (check (?pred ?target) ?facts)
         (me/cata {:matrix [{:cells [!pattern & !rest-cells]
-                            :facts #{(?pred ?target) ^& ?facts}
-                            :as !row}]})))
+                            :facts #{(?form ?target) ^& ?facts}
+                            :as !row}]
+                  :as ?state})))
     (me/cata {:matrix [!not-row ...]
               :as ?state})])
 
