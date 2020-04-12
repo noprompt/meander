@@ -1473,12 +1473,12 @@
 
 (defn prewalk-replace
   "Same as clojure.walk/prewalk-replace but for AST nodes."
-  [smap form]
-  (prewalk (fn [x] (if (contains? smap x) (smap x) x)) form))
+  [smap node]
+  (prewalk (fn [x] (if (contains? smap x) (smap x) x)) node))
 
 (defn postwalk-replace
   "Same as clojure.walk/postwal-replace but for AST nodes."
-  [smap form] (postwalk (fn [x] (if (contains? smap x) (smap x) x)) form))
+  [smap node] (postwalk (fn [x] (if (contains? smap x) (smap x) x)) node))
 
 (defmethod walk :cat [inner outer node]
   (outer (assoc node :elements (mapv inner (:elements node)))))
