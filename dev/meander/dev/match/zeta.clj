@@ -1215,6 +1215,34 @@
                 (me/cata {:matrix [!not-row ...]
                           :as ?state})])
 
+  ;; not
+  ;; ---
+
+  (me/with [%row {:cells [{:tag :not, :pattern ?pattern :form ?form} & !rest-cells]
+                  :as !row}]
+    (me/and {:matrix (me/and ?row
+                             [%row . (me/or %row !not-row) ...])
+             :targets [?target & ?rest-targets]
+             :facts #{^& ?facts}
+             :bindings ?bindings
+             :as ?state}
+            (me/let [?x (gensym)])))
+  (flat-concat
+   [(flat-let [?x (me/cata
+                   {:matrix [{:cells [?pattern] :as ?row}]
+                    :targets [?target]
+                    :facts ?facts
+                    :as ?state})]
+
+      (if-then-code (check (`m.runtime/fail? ?x) ?facts)
+        (me/cata {:matrix [{:cells [& !rest-cells] :as !row} ...]
+                            :targets ?rest-targets
+                            :facts ?facts
+                            :as ?state})))
+    (me/cata {:matrix [!not-row  ...]
+              :as ?state})])
+
+
   ;; :cat
   ;; ----
 
