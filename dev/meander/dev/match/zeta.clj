@@ -1218,22 +1218,20 @@
   ;; not
   ;; ---
 
-  (me/with [%row {:cells [{:tag :not, :pattern ?pattern :form ?form} & !rest-cells]
+  (me/with [%row {:cells [{:tag :not, :pattern ?pattern} & !rest-cells]
                   :as !row}]
-    (me/and {:matrix (me/and ?row
-                             [%row . (me/or %row !not-row) ...])
+    (me/and {:matrix [(m/and %row ?row) . (me/or %row !not-row) ...]
              :targets [?target & ?rest-targets]
              :facts #{^& ?facts}
              :bindings ?bindings
              :as ?state}
-            (me/let [?x (gensym)])))
+            (me/let [?x (gensym "X__")])))
   (flat-concat
    [(flat-let [?x (me/cata
                    {:matrix [{:cells [?pattern] :as ?row}]
                     :targets [?target]
                     :facts ?facts
                     :as ?state})]
-
       (if-then-code (check (`m.runtime/fail? ?x) ?facts)
         (me/cata {:matrix [{:cells [& !rest-cells] :as !row} ...]
                             :targets ?rest-targets
