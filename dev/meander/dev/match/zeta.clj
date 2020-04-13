@@ -1086,7 +1086,7 @@
   (me/with [%or-row (me/and {:cells [{:tag :or, :left !ast, :right !ast} & (me/and !rest-cells !rest-cells)]}
                             !row
                             !row)
-            %wildcard-row (me/and {:cells [(me/and {:tag :wild-card} !ast !ast)
+            %wildcard-row (me/and {:cells [(me/and {:tag :wildcard} !ast !ast)
                                            & (me/and !rest-cells !rest-cells)]}
                                   !row
                                   !row)]
