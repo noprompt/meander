@@ -672,12 +672,14 @@
                     form*)
             form* (if (and (not (get env :match-cata?))
                            (get env :subst-cata?))
-                    `(try
-                       [~form*]
-                       (catch Exception e#
-                         (if (r.subst.runtime/fail? e#)
-                           r.match.runtime/FAIL
-                           (throw e#))))
+                    (if (r.subst.syntax/contains-cata-node? node)
+                      `(try
+                         [~form*]
+                         (catch Exception e#
+                           (if (r.subst.runtime/fail? e#)
+                             r.match.runtime/FAIL
+                             (throw e#))))
+                      [form*])
                     form*)]
         form*))))
 
