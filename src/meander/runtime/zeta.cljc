@@ -2079,3 +2079,117 @@
     (if (fail? rets*)
       FAIL
       (then-f rets*))))
+
+;; Z
+;; ---------------------------------------------------------------------
+
+(defn longest-prefix-at
+  [s i]
+  (let [max-k (. s length)]
+    (or (last (for [j (range 1 max-k)
+                    :let [k (+ i j)]
+                    :when (<= k max-k)
+                    :let [s1 (subs s 0 j)
+                          s2 (subs s i k)]
+                    :while (= s1 s2)]
+                s2))
+        "")))
+
+;; z-box = [z l r p]
+;;
+;; where
+;;   z is the length of the prefix
+;;   l is the left endpoint of z-box
+;;   r is the right endpoint of z-box
+;;   p is the prefix
+(defn z [s]
+  (let [length (. s length)]
+    (loop [i 1 ;; Our location in the string.
+           boxes []]
+      (if (< i length)
+        ;; Continue scanning.
+        (let [pᵢ (longest-prefix-at s i)
+              zᵢ (count pᵢ)]
+          (if (zero? zᵢ)
+            ;; ♢ No prefix, move foreward one character.
+            (recur (unchecked-inc i) boxes)
+            ;; ♥ Prefix found, compute l, r, i
+            (let [lᵢ i
+                  rᵢ (+ lᵢ zᵢ)]
+              ;; ♥ Since we know zᵢ > 0 we can infer that any previous
+              ;; box βⱼ with an right endpoint rⱼ, such that rⱼ < zᵢ,
+              ;; is a substring of pᵢ. Thus βⱼ can be collected into
+              ;; our results and avoid repeated work.
+              (let [box [zᵢ lᵢ rᵢ pᵢ]
+                    boxes′ (conj boxes box)
+                    boxes′ (into boxes′
+                                 (comp (take-while
+                                        (fn [[_ _ rⱼ _]]
+                                          (<= rⱼ zᵢ)))
+                                       (map
+                                        (fn [[zⱼ lⱼ rⱼ pⱼ]]
+                                          ;; Update βⱼ with new coordinates to make Βₖ.
+                                          [zⱼ (+ lᵢ lⱼ) (+ lᵢ rⱼ) pⱼ])))
+                                 boxes′)
+                    rⱼ (nth (peek boxes′) 2)
+                    no-previous-results? (= rⱼ rᵢ)]
+                (recur (if no-previous-results?
+                         (unchecked-inc i)
+                         rⱼ)
+                       boxes′)))))
+        boxes))))
+
+(defn lazy-z [s]
+  (let [length (. s length)]
+    ((fn f [i boxes]
+       (if (< i length)
+         (lazy-seq
+          (let [pi (longest-prefix-at s i)
+                zi (count pi)]
+            (if (zero? zi)
+              (f (unchecked-inc i) boxes)
+              (let [li i
+                    ri (+ li zi)
+                    box [zi li ri pi]
+                    inferred-boxes (into []
+                                         (comp (take-while
+                                                (fn [[_ _ rj _]]
+                                                  (<= rj zi)))
+                                               (map
+                                                (fn [[zj lj rj pj]]
+                                                  [zj (+ li lj) (+ li rj) pj])))
+                                         boxes)
+                    boxes* (into (conj boxes box) inferred-boxes)
+                    i* (if (seq inferred-boxes)
+                         (nth (peek inferred-boxes) 2)
+                         (unchecked-inc i))]
+                (cons box (concat inferred-boxes (f i* boxes*)))))))))
+     1 [])))
+
+(defn z-matches [s search]
+  (let [s-size (inc (. search length))]
+    (sequence
+     (keep
+      (fn [[z l r p]]
+        (when (= p search)
+          [z (- l s-size) (- r s-size) p])))
+     ;; Use lazy-z
+     (z (str search "$" s)))))
+
+
+
+(comment
+  (= (z "aabaabcaxaabaabcy")
+     ;; =>
+     [[1 1 2 "a"]
+      [3 3 6 "aab"]
+      [1 4 5 "a"]
+      [1 7 8 "a"]
+      [7 9 16 "aabaabc"]
+      [1 10 11 "a"]
+      [3 12 15 "aab"]
+      [1 13 14 "a"]])
+
+  (= (z-match "foo bar baz foo bar baz" "foo")
+     [[3 0 3 "foo"]
+      [3 12 15 "foo"]]))

@@ -76,6 +76,7 @@
    (map (fn [clause] (analyze-search-clause clause env))
         (partition-all 2 search-clauses-args))))
 
+
 (defn compile-search-args
   [expression clauses]
   (let [analyses (analyze-search-clauses-args clauses)
@@ -96,32 +97,33 @@
                :bindings initial-bindings
                :cata-symbol cata-symbol
                :facts #{}}]
-    `((fn ~cata-symbol [~target]
-        (let [~initial-bindings {}
-              ;; Bind all 
-              ~@(sequence
-                 (comp (mapcat :variable-db)
-                       (mapcat (juxt :id :object)))
-                 analyses)]
-          (letfn [~@(map
-                      (fn [analysis]
-                        (let [variable-db (get analysis :variable-db)
-                              env (get analysis :env)
-                              right-form (get analysis :right-form)
-                              fn-name (get analysis :id)
-                              fn-body `(let [~@(mapcat (fn [{:keys [tag symbol id]}]
-                                                         (case tag
-                                                           :memory-variable
-                                                           [symbol `(get ~final-bindings ~id [])]
-                                                           ;; else
-                                                           [symbol `(get ~final-bindings ~id)]))
-                                                       variable-db)]
-                                         ~right-form)]
-                          `(~fn-name [~final-bindings]
-                            (m.runtime/succeed ~fn-body))))
-                      analyses)]
-            ~(dev.match/search-compile state))))
-      ~expression)))
+    `(let [~initial-bindings {}
+           ;; Bind all
+           ~@(sequence
+              (comp (mapcat :variable-db)
+                    (mapcat (juxt :id :object)))
+              analyses)]
+       (letfn [~@(map
+                   (fn [analysis]
+                     (let [variable-db (get analysis :variable-db)
+                           env (get analysis :env)
+                           right-form (get analysis :right-form)
+                           fn-name (get analysis :id)
+                           fn-body `(let [~@(mapcat (fn [{:keys [tag symbol id]}]
+                                                      (case tag
+                                                        :memory-variable
+                                                        [symbol `(get ~final-bindings ~id [])]
+                                                        ;; else
+                                                        [symbol `(get ~final-bindings ~id)]))
+                                                    variable-db)]
+                                      ~right-form)]
+                       `(~fn-name [~final-bindings]
+                         (m.runtime/succeed ~fn-body))))
+                   analyses)
+               (~cata-symbol [~target]
+                ~(dev.match/search-compile state))]
+         (~cata-symbol ~expression)))))
+
 
 (defmacro search
   {:style/indent 1}

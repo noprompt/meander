@@ -1,5 +1,5 @@
 (ns meander.zeta
-  (:refer-clojure :exclude [or and let])
+  (:refer-clojure :exclude [and or let str])
   (:require [meander.syntax.zeta :as m.syntax]))
 
 (def
@@ -35,4 +35,4 @@
 
 (def
   ^{:arglists '([& patterns])}
-  string)
+  str)

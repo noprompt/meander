@@ -11,6 +11,8 @@
 (me/defsyntax not-dot-symbol [pattern]
   (me/and (me/not (dot-symbol)) pattern))
 
+
+
 (me/defsyntax special
   "Equivalent to form
 
@@ -200,6 +202,10 @@
   (parse-sequential [!xs ...] ?env)
   (make-cat [(me/cata [!xs ?env]) ...] {:tag :empty} ?env)
 
+
+  ;; make-cat
+  ;; --------
+
   (make-cat [] ?next ?env)
   ?next
 
@@ -224,42 +230,42 @@
                         ?env)
              ?env)
 
-  ;; (make-cat [{:tag :literal, :type (me/or :string :char) :form !forms} ..1] {:tag :empty} _)
-  ;; {:tag :literal
-  ;;  :type :string
-  ;;  :form (me/app clojure.string/join [!forms ...])}
+  (me/with [%literal {:tag :literal, :type :string, :form !forms}]
+    (make-cat [%literal ..2 & ?rest] ?next ?env))
+  (make-cat [{:tag :literal
+              :type :string
+              :form (me/app clojure.string/join [!forms ...])} & ?rest]
+            ?next ?env)
 
   (make-cat [{:tag :literal, :type :string, :as ?ast} & ?rest] ?next ?env)
   (make-join ?ast
              (make-cat ?rest ?next ?env)
              ?env)
 
-  ;; (make-cat [{:tag :literal, :form !forms} ..1] {:tag :empty} {:context ?context :as ?env})
-  ;; {:tag :literal
-  ;;  :type ?context
-  ;;  :form [!forms ...]}
-
-  (make-cat ?sequence ?next {:context :string})
-  {:tag :string-cat
-   :sequence ?sequence
-   :next ?next}
+  (make-cat [?x & ?sequence] ?next {:context :string :as ?env})
+  (make-join ?x (make-cat ?sequence ?next ?env) ?env)
 
   (make-cat ?sequence ?next _)
   {:tag :cat
    :sequence ?sequence
    :next ?next}
 
+  ;; :make-join
+  ;; ----------
+
+  (make-join {:tag :star, :next {:tag :empty} :as ?left}
+             ?right
+             ?env)
+  {:tag :star :next ?right & ?left}
+
+  (make-join ?left {:tag :empty} ?env)
+  ?left
+
+  (make-join {:tag :empty} ?right ?env)
+  ?right
+
   (make-join {:tag :cat, :sequence ?sequence, :next {:tag :empty}} ?right ?env)
   (make-cat ?sequence ?right ?env)
-
-  ;; (make-join {:tag :literal, :type :string, :form ?form-1}
-  ;;            {:tag :string-join
-  ;;             :left {:tag :literal :type :string :form ?form-2}
-  ;;             :right ?right}
-  ;;            {:context :string :as ?env})
-  ;; (make-join {:tag :literal, :type :string, :form (me/app str ?form-1 ?form-2)}
-  ;;            ?right
-  ;;            ?env)
 
   (make-join {:tag :cat :as ?ast}
              {:tag :cat :sequence ?sequence :next ?next}
@@ -268,43 +274,38 @@
    :sequence [?ast & ?sequence]
    :next ?next}
 
-  (make-join {:tag :string-cat
-              :as ?ast}
-             {:tag :string-cat :sequence ?sequence :next ?next}
-             _)
-  {:tag :string-cat
-   :sequence [?ast & ?sequence]
-   :next ?next}
+  (make-join {:tag :literal :type :string :form ?form} ?right _)
+  {:tag :string-prefix
+   :form ?form
+   :next ?right}
 
-  (make-join {:tag :string-cat :sequence ?sequence :next {:tag :empty}}
-             ?right
-             ?env)
-  (make-join ?sequence ?right ?env)
+  (make-join ?left {:tag :literal :type :string :form ?form} _)
+  {:tag :string-suffix
+   :form ?form
+   :next ?left}
 
   (make-join {:tag :string-star, :pattern ?pattern, :next {:tag :empty}}
              ?right
              {:context :string})
   {:tag :string-star, :pattern ?pattern, :next ?right}
 
+  (make-join ?left
+             {:tag :string-prefix
+              :form ?form
+              :next ?right}
+             {:context :string, :as ?env})
+  {:tag :string-infix
+   :form ?form
+   :left ?left
+   :right ?right}
+
   (make-join {:tag :string-join, :left ?left, :right ?right-1}
              ?right-2
              {:context :string, :as ?env})
   {:tag :string-join, :left ?left, :right (make-join ?right-1 ?right-2 ?env)}
 
-  (make-join ?left {:tag :empty} ?env)
-  ?left
-
-  (make-join {:tag :empty} ?right ?env)
-  ?right
-
-  (make-join {:tag :star, :next {:tag :empty} :as ?left}
-             ?right
-             ?env)
-  {:tag :star :next ?right & ?left}
-
   (make-join ?left ?right {:context :string})
   {:tag :string-join, :left ?left, :right ?right}
-
 
   (make-join ?left ?right ?env)
   {:tag :join, :left ?left, :right ?right}
@@ -609,10 +610,10 @@
    :capture (me/cata [?capture ?env])
    :form ?form}
 
-  ;; (meander.zeta/string _)
-  ;; -----------------------
+  ;; (meander.zeta/str ,,,)
+  ;; ----------------------
 
-  (special "string" (_ & ?sequence :as ?form) ?env)
+  (special "str" (_ & ?sequence :as ?form) ?env)
   {:tag :string
    :next (parse-sequential [& ?sequence] {:context :string & ?env})
    :form ?form}

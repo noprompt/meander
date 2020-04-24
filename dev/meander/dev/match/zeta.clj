@@ -1533,5 +1533,127 @@
      (?symbol ?target ?bindings))
     (me/cata {:matrix ?rest-rows
               :as ?state})])
+
+
+  ;; :string
+  ;; -------
+
+  (expand-n {:cells [{:tag :string :next ?next} & ?rest-cells] :as ?row} _)
+  {:cells [?next & ?rest-cells] :as ?row}
+
+  (me/with [%row {:cells [{:tag :string} & _] :as !row}]
+    {:matrix [%row . (me/or %row !not-row) ...]
+     :targets [?target & _ :as ?targets]
+     :facts #{^& ?facts}
+     :as ?state})
+  (flat-concat [(if-then-code (check (`string? ?target) ?facts)
+                  (me/cata {:matrix [(expand-n !row 1) ...]
+                            :facts #{(`string? ?target) ^& ?facts}
+                            :as ?state}))
+                (me/cata {:matrix [!not-row ...]
+                          :as ?state})])
+
+  ;; :string-prefix
+
+  (me/with [%row {:cells [{:tag :string-prefix, :form ?form, :next ?next} & ?rest-cells]
+                  :as ?row}]
+    (me/and {:matrix [%row . !not-row ...]
+             :targets [?target & ?rest-targets]
+             :facts #{^& ?facts}
+             :as ?state}
+            (me/let [?new-target (gensym "T__")])))
+  (me/with [%target (me/app clojure.core/with-meta ?target {:tag 'java.lang.String})]
+    (flat-concat
+     [(if-then-code (.startsWith %target ?form)
+        (let* [?new-target (.substring %target ~(count ?form))]
+          (me/cata {:matrix [{:cells [?next & ?rest-cells]
+                              :facts #{(`string? ?new-target) ^& ?facts}
+                              :as ?row}]
+                    :targets [?new-target & ?rest-targets]
+                    :as ?state})))
+      (me/cata {:matrix [!not-row ...]
+                :as ?state})]))
+
+  ;; :string-suffix
+
+  (me/with [%row {:cells [{:tag :string-suffix, :form ?form, :next ?next} & ?rest-cells]
+                  :as ?row}]
+    (me/and {:matrix [%row . !not-row ...]
+             :targets [?target & ?rest-targets]
+             :facts #{^& ?facts}
+             :as ?state}
+            (me/let [?new-target (gensym "T__")])))
+  (me/with [%target (me/app clojure.core/with-meta ?target {:tag 'java.lang.String})]
+    (flat-concat
+     [(if-then-code (.endsWith %target ?form)
+        (let* [?new-target (.substring %target 0 (- (.length %target) ~(count ?form)))]
+          (me/cata {:matrix [{:cells [?next & ?rest-cells]
+                              :facts #{(`string? ?new-target) ^& ?facts}
+                              :as ?row}]
+                    :targets [?new-target & ?rest-targets]
+                    :as ?state})))
+      (me/cata {:matrix [!not-row ...]
+                :as ?state})]))
+
+  ;; :string-infix
+
+  (me/with [%row {:cells [{:tag :string-infix, :form ?form, :left ?left, :right ?right} & ?rest-cells]
+                  :as ?row}]
+    (me/and {:matrix [%row . !not-row ...]
+             :targets [?target & ?rest-targets]
+             :facts #{^& ?facts}
+             :as ?state}
+            (me/let [?new-target (gensym "T__")
+                     ?match (gensym)
+                     ?start (gensym)
+                     ?left-string (gensym)
+                     ?right-string (gensym)
+                     ?end (gensym)])))
+  (flat-concat
+   [(`mapcat
+     (`fn [?match]
+      (flat-let [?start (`nth ?match 1)
+                 ?end (`nth ?match 2)
+                 ?left-string (`subs ?target 0 ?start)
+                 ?right-string (`subs ?target ?end)]
+        (me/cata {:matrix [{:cells [?left ?right & ?rest-cells]
+                            :as ?row}]
+                  :targets [?left-string ?right-string & ?rest-targets]
+                  :facts #{(`string? ?left-string) (`string? ?right-string) & ?facts}
+                  :as ?state})))
+     (`m.runtime/z-matches ?target ?form))
+    (me/cata {:matrix [!not-row ...]
+              :as ?state})])
+
+
+  ;; :string-cat
+
+  (expand-n {:cells [{:tag :string-join, :left ?left, :right ?right} & ?rest-cells] :as ?row}
+            2)
+  {:cells [?left ?right & ?rest-cells] :as ?row}
+
+  (me/with [%row {:cells [{:tag :string-join} & ?rest-cells] :as !row}]
+    (me/and {:matrix [%row . (me/or %row !not-row) ...]
+             :targets [?target & ?rest-targets :as ?targets]
+             :facts #{^& ?facts}
+             :as ?state}
+            (me/let [?partitions (gensym "partitions__")
+                     ?partition (gensym "partition__")
+                     ?left (gensym "left__")
+                     ?right (gensym "right__")])))
+  (flat-concat
+   [(let* [?partitions (`m.runtime/partitions ?target)]
+      (`mapcat
+       (fn [?partition]
+         (flat-let [?left (`clj/nth ?partition 0)
+                    ?right (`clj/nth ?partition 1)]
+           (me/cata {:matrix [(expand-n !row 2) ...]
+                     :targets [?left ?right & ?rest-targets]
+                     :facts #{(`string? ?left) (`string? ?right) ^& ?facts}
+                     :as ?state})))
+       ?partitions))
+    (me/cata {:matrix [!not-row ...]
+              :as ?state})])
+
   ?x
   (throw (ex-info "No equation for" {:term ('quote ?x)})))
