@@ -118,3 +118,47 @@ You can use `meander.strategy.epsilon/top-down` or `bottom-up` to find and repla
 (p [1 ["a" 2] "b" 3 "c"])
 ;; => [1 [:a 2] :b 3 :c]
 ```
+
+## Optional values
+
+Say you want to match a number that may be followed by a string, and then a keyword:
+
+```clojure
+[1 "this is fine" :foo]
+[1 :foo]
+```
+
+Zeta will include a regex style `?` operator.
+
+Prior to zeta there are 3 ways to handle optional values:
+
+a) Write separate patterns:
+```clojure
+(m/match [1 "this is fine" :foo]
+  [(m/pred number? ?n) (m/pred string? ?s) ?k]
+  "first case!"
+  [(m/pred number? ?n) (m/pred keyword? ?k)]
+  "second case!")
+;; => "first case!"
+```
+
+b) Use recursion:
+```clojure
+(m/match [1 "this is fine" :foo]
+  [(m/pred number? ?n) & (m/with [%tail [(m/pred keyword? ?k)]]
+                           (m/or [(m/pred string? ?s) & %tail]
+                                 (m/and (m/let [?s nil])
+                                        %tail)))]
+  [?n ?s ?k])
+;; => [1 "this is fine" :foo]
+```
+
+c) Constrain a memory variable to length <= 1:
+```clojure
+(m/match [1 "this is fine" :foo]
+  (m/and
+    [(m/pred number? ?n) . (m/pred string? !s) ..?sn (m/pred keyword? ?k)]
+    (m/guard (<= ?sn 1)))
+  [?n (first !s) ?k])
+;; => [1 "this is fine" :foo]
+```
