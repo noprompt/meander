@@ -2405,13 +2405,36 @@
        _
        false))))
 
+;; No "real" tests here. This "test" verifies that patterns which
+;; previously produced Clojure code which triggered
+;; `clojure.lang.Compiler$CompilerException`s due to symbols being
+;; unresolvable, no longer due. The patterns used in the test below
+;; are real examples (though not necessarily minimal) which triggered
+;; the exception.
 (t/deftest ir-def-test
-  ;; No test here. Just verifying this compiles.
   (fn [x]
     (r/match x
       (r/or {:type "save-snapshot"
              :arg {:description (r/or (r/pred string?) nil)}}
             {:type "suggest-snapshot"})
+      true
+
+      _
+      false)
+
+    (r/match x
+      (r/with [%e-entidade (r/or (= e (r/pred symbol? ?e))
+                                 (= (r/pred symbol? ?e) e))
+               %a-atributo (r/or (= a (r/pred keyword? ?a))
+                                 (= (r/pred keyword? ?a) a))
+               %v-valor (r/or (= v (r/pred symbol? ?v))
+                              (= (r/pred symbol? ?v) v))
+               %v-args (r/or v (r/pred symbol? ?v)) 
+               %v-teste-unario ((r/pred fn? !funcao-unaria) !param-function-unaria)
+               %operador-binario (r/pred #{'< '> '<= '>= 'not=} !funcao-binaria)
+               %v-teste-binario (%operador-binario %v-args !param-function-binaria)
+               %v-teste-funcao (r/or %v-teste-unario %v-teste-binario)]
+        [%e-entidade %a-atributo %v-valor . %v-teste-funcao ..1])
       true
 
       _
