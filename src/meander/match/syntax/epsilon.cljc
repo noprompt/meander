@@ -47,7 +47,8 @@
 
 (defn expand-or
   [node]
-  (let [arguments (:arguments (flatten-or node))]
+  (let [node (flatten-or node)
+        arguments (:arguments node)]
     (case (count arguments)
       1
       (first arguments)
