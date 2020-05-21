@@ -1000,11 +1000,10 @@ compilation decisions."
       (partial infer-collection-type env)) node)))
 
 (defn rewrite [node]
-  (loop [node (def-remove-unused node)]
-    (let [node* (rewrite-with-types (rewrite* node))]
-      (if (= node* node)
-        node
-        (recur node*)))))
+  (let [node* (def-remove-unused (rewrite-with-types (rewrite* node)))]
+    (if (= node* node)
+      node
+      (recur node*))))
 
 ;; ---------------------------------------------------------------------
 ;; Code generation
