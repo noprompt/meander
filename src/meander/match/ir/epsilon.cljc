@@ -972,7 +972,7 @@ compilation decisions."
 
     node))
 
-;; If something is a vector it is much fast to call it as a
+;; If something is a vector it is faster to call it as a
 ;; function. This will directly invoke its .nth method. We could also
 ;; call that ourselves with a type hint, but in the face of clj and
 ;; cljs this is easier and the speed difference is negligible.
