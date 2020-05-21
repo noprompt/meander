@@ -73,6 +73,9 @@ compilation decisions."
     :branch
     (:arms node)
 
+    :case
+    (map second (get node :clauses))
+
     ;; else
     (map node (child-keys node))))
 
@@ -102,6 +105,13 @@ compilation decisions."
     :branch
     (assoc node :arms new-children)
 
+    :case
+    (update node :clauses
+            (fn [clauses]
+              (map (fn [[test _] then]
+                     [test then])
+                   clauses
+                   new-children)))
     ;; else
     (into node (map vector (child-keys node) new-children))))
 
