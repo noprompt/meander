@@ -3,10 +3,12 @@
   transformations and queries."
   #?(:clj
      (:require [clojure.walk :as walk]
+               [meander.environment.epsilon :as r.environment]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util])
      :cljs
      (:require [clojure.walk :as walk]
+               [meander.environment.epsilon :as r.environment]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util])))
 
@@ -14,7 +16,8 @@
 ;; AST rewriting
 
 (defn expand-as
-  {:private true}
+  {:deprecated true
+   :private true}
   [node]
   (if-some [as (:as node)]
     {:tag ::and
@@ -45,7 +48,50 @@
     {:tag ::or
      :arguments arguments*}))
 
+(defn infer-case
+  {:private true}
+  [node]
+  (case (get node :tag)
+    ::or
+    (let [arguments (:arguments node)
+          [a b] (split-with r.syntax/literal? arguments)]
+      (case (count a)
+        0
+        node
+
+        1
+        {:tag ::or
+         :arguments [(first a)
+                     {:tag ::or
+                      :arguments b}]}
+
+        ;; else
+        (let [case-tests (sequence
+                          (comp (map r.syntax/lit-form)
+                                (distinct)
+                                (map r.util/case-test-form))
+                          a)
+              pred-form (vary-meta `(fn [x#]
+                                      (case x#
+                                        (~@case-tests)
+                                        true
+                                        false))
+                                   assoc
+                                   :meander.epsilon/beta-reduce true)
+              pred-node {:tag ::pred
+                         :form pred-form
+                         :arguments []}]
+
+          (if (seq b)
+            {:tag ::or
+             :arguments (vec (cons pred-node b))}
+            pred-node))))
+
+    ;; else
+    node))
+
 (defn expand-or
+  {:deprecated true}
   [node]
   (let [node (flatten-or node)
         arguments (:arguments node)]
@@ -54,38 +100,7 @@
       (first arguments)
 
       ;; else
-      (let [[a b] (split-with r.syntax/literal? arguments)]
-        (case (count a)
-          0
-          node
-
-          1
-          {:tag ::or
-           :arguments [(first a)
-                       {:tag ::or
-                        :arguments b}]}
-
-          ;; else
-          (let [case-tests (sequence
-                            (comp (map r.syntax/lit-form)
-                                  (distinct)
-                                  (map r.util/case-test-form))
-                            a)
-                pred-form (vary-meta `(fn [x#]
-                                        (case x#
-                                          (~@case-tests)
-                                          true
-                                          false))
-                                     assoc
-                                     :meander.epsilon/beta-reduce true)
-                pred-node {:tag ::pred
-                           :form pred-form
-                           :arguments []}]
-
-            (if (seq b)
-              {:tag ::or
-               :arguments (vec (cons pred-node b))}
-              pred-node)))))))
+      (infer-case node))))
 
 (defn expand-map-rest
   [node]
@@ -166,11 +181,16 @@
           node*))
       (expand-map-rest node*))))
 
-(defn expand-not [node]
+(defn eliminate-double-negation
+  {:private true}
+  [node]
   (let [argument (:argument node)]
     (if (= (r.syntax/tag argument) ::not)
       (:argument argument)
       node)))
+
+(defn expand-not [node]
+  (eliminate-double-negation node))
 
 (defn expand-prt [node]
   (let [left (get node :left)
@@ -252,8 +272,7 @@
 
       :else node)))
 
-(defn expand-set
-  [node]
+(defn expand-set [node]
   (let [node* (expand-set-elements node)]
     (if (= node node*)
       (let [node* (expand-as node)]
@@ -270,40 +289,77 @@
 
 (defn expand-ast-top-down
   {:private true}
-  [node]
-  (r.syntax/prewalk
-   (fn f [node]
-     (case (r.syntax/tag node)
-       ::and
-       (flatten-and node)
+  ([node]
+   (expand-ast-top-down node r.environment/default))
+  ([node env]
+   (let [eliminate-double-negation? (get env :meander.epsilon/eliminate-double-negation)
+         flatten-and? (get env :meander.epsilon/flatten-and)
+         flatten-or? (get env :meander.epsilon/flatten-or)
+         infer-case? (get env :meander.epsilon/infer-case)
+         infer-literal-seq? (get env :meander.epsilon/infer-literal-seq)
+         infer-literal-vector? (get env :meander.epsilon/infer-literal-vector)
+         rewrite-seq-as-to-and? (get env :meander.epsilon/rewrite-seq-as-to-and)
+         rewrite-vector-as-to-and? (get env :meander.epsilon/rewrite-vector-as-to-and)
+         substitute-acyclic-references? (get env :meander.epsilon/substitute-acyclic-references)]
+     (r.syntax/prewalk
+      (fn f [node]
+        (case (r.syntax/tag node)
+          ::and
+          (if flatten-and?
+            (flatten-and node)
+            node)
 
-       ::or
-       (expand-or node)
+          :map
+          (expand-map node)
 
-       :map
-       (expand-map node)
+          ::not
+          (if eliminate-double-negation?
+            (eliminate-double-negation node)
+            node)
 
-       ::not
-       (expand-not node)
+          ::or
+          (let [node (if flatten-or?
+                       (flatten-or node)
+                       node)
+                node (if infer-case?
+                       (infer-case node)
+                       node)]
+            node)
 
-       :prt
-       (expand-prt node)
+          ;; TODO: needs flags.
+          :prt
+          (expand-prt node)
 
-       :set
-       (expand-set node)
+          ;; TODO: needs flags.
+          :set
+          (expand-set node)
 
-       :seq
-       (expand-seq node)
+          :seq
+          (let [node (if rewrite-seq-as-to-and?
+                       (expand-as node)
+                       node)
+                node (if (and infer-literal-seq? (r.syntax/literal? node))
+                       {:tag :lit, :value (r.syntax/lit-form node)}
+                       node)]
+            node)
 
-       :vec
-       (expand-vec node)
+          :vec
+          (let [node (if rewrite-vector-as-to-and?
+                       (expand-as node)
+                       node)
+                node (if (and infer-literal-vector? (r.syntax/literal? node))
+                       {:tag :lit, :value (r.syntax/lit-form node)}
+                       node)]
+            node)
 
-       :wth
-       (r.syntax/substitute-acyclic-refs node)
+          :wth
+          (if substitute-acyclic-references?
+            (r.syntax/substitute-acyclic-refs node)
+            node)
 
-       ;; else
-       node))
-   node))
+          ;; else
+          node))
+      node))))
 
 (defn expand-ast-bottom-up
   {:private true}
@@ -333,11 +389,13 @@
   "Takes an AST node as returned by `meander.syntax.epsilon/parse` and
   expands it in such a way that it can either reduce compiled code
   size, improve compiled code efficiency, or both."
-  [node]
-  (r.syntax/consolidate-with
-   (r.syntax/rename-refs
-    (expand-ast-bottom-up
-     (expand-ast-top-down node)))))
+  ([node]
+   (expand-ast node r.environment/default))
+  ([node env]
+   (-> (expand-ast-top-down node env)
+       (expand-ast-bottom-up)
+       (r.syntax/rename-refs)
+       (r.syntax/consolidate-with))))
 
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis

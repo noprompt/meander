@@ -7,6 +7,7 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
+            [meander.environment.epsilon :as r.environment]
             [meander.match.check.epsilon :as r.match.check]
             [meander.match.ir.epsilon :as r.ir]
             [meander.matrix.epsilon :as r.matrix]
@@ -530,24 +531,19 @@
        (compile-pass targets [row])
 
        :jsa
-       (if (literal? node)
-         (r.ir/op-check-array-equals
-           (r.ir/op-eval target)
-           (r.ir/op-eval (compile-ground node))
-           (compile targets* [row]))
-         (r.ir/op-check-array (r.ir/op-eval target)
-           (let [;; prt needs to be compiled within a :js-array
-                 ;; collection-context separately from the targets*
-                 ;; to the right. The targets* on the right need to
-                 ;; be compiled in an environment including variables
-                 ;; bound by compiling prt.
-                 prt (:prt node)
-                 rhs*-env (into (get row :env) (r.syntax/variables prt))
-                 rhs*-row (assoc row :env rhs*-env)
-                 rhs* (compile targets* [rhs*-row])
-                 row* (assoc row :cols [prt] :rhs rhs*)]
-             (binding [*collection-context* :js-array]
-               (compile [target] [row*])))))))
+       (r.ir/op-check-array (r.ir/op-eval target)
+         (let [;; prt needs to be compiled within a :js-array
+               ;; collection-context separately from the targets*
+               ;; to the right. The targets* on the right need to
+               ;; be compiled in an environment including variables
+               ;; bound by compiling prt.
+               prt (:prt node)
+               rhs*-env (into (get row :env) (r.syntax/variables prt))
+               rhs*-row (assoc row :env rhs*-env)
+               rhs* (compile targets* [rhs*-row])
+               row* (assoc row :cols [prt] :rhs rhs*)]
+           (binding [*collection-context* :js-array]
+             (compile [target] [row*]))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
@@ -1305,23 +1301,25 @@
 
 
 (defmethod compile-specialized-matrix :seq
-  [_ [target & targets* :as targets] matrix]
-  (let [targets* (vec targets*)]
-    (mapv
-     (fn [node row]
-       (case (r.syntax/tag node)
-         :any
-         (compile-pass targets [row])
+  [_ [target & rest-targets :as targets] matrix]
+  (mapv (fn [node row]
+          (case (r.syntax/tag node)
+            :any
+            (compile-pass targets [row])
 
-         :seq
-         (r.ir/op-check-seq (r.ir/op-eval target)
-           (if (literal? node)
-             (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
-               (compile targets* [row]))
-             (binding [*collection-context* :seq]
-               (compile targets [(assoc row :cols `[~(:prt node) ~@(:cols row)])]))))))
-     (r.matrix/first-column matrix)
-     (r.matrix/drop-column matrix))))
+            :seq
+            (let [as-node (or (get node :as) {:tag :any})
+                  prt-node (get node :prt)
+                  head-variables (set/union (r.syntax/variables as-node)
+                                            (r.syntax/variables prt-node))
+                  tail-row (update row :env into head-variables)
+                  tail-ir (compile rest-targets [tail-row])
+                  head-row (merge row {:cols [as-node prt-node], :rhs tail-ir})]
+              (r.ir/op-check-seq (r.ir/op-eval target)
+                (binding [*collection-context* :seq]
+                  (compile [target target] [head-row]))))))
+        (r.matrix/first-column matrix)
+        (r.matrix/drop-column matrix)))
 
 
 (defmethod compile-specialized-matrix :tail
@@ -1355,34 +1353,27 @@
      (r.matrix/drop-column matrix))))
 
 
-(defmethod compile-specialized-matrix :vec
-  [_ [target & targets* :as targets] matrix]
-  (mapv
-   (fn [node row]
-     (case (r.syntax/tag node)
-       :any
-       (compile-pass targets [row])
 
-       :vec
-       (if (literal? node)
-         (r.ir/op-check-vector (r.ir/op-eval target)
-           (r.ir/op-check-lit (r.ir/op-eval target) (r.ir/op-eval (r.syntax/lit-form node))
-             (compile targets* [row])))
-         (r.ir/op-check-vector (r.ir/op-eval target)
-           (let [;; prt needs to be compiled within a :vector
-                 ;; collection-context separately from the targets*
-                 ;; to the right. The targets* on the right need to
-                 ;; be compiled in an environment including variables
-                 ;; bound by compiling prt.
-                 prt (:prt node)
-                 rhs*-env (into (get row :env) (r.syntax/variables prt))
-                 rhs*-row (assoc row :env rhs*-env)
-                 rhs* (compile targets* [rhs*-row])
-                 row* (assoc row :cols [prt] :rhs rhs*)]
-             (binding [*collection-context* :vector]
-               (compile [target] [row*])))))))
-   (r.matrix/first-column matrix)
-   (r.matrix/drop-column matrix)))
+(defmethod compile-specialized-matrix :vec
+  [_ [target & rest-targets :as targets] matrix]
+  (mapv (fn [node row]
+          (case (r.syntax/tag node)
+            :any
+            (compile-pass targets [row])
+
+            :vec
+            (let [as-node (or (get node :as) {:tag :any})
+                  prt-node (get node :prt)
+                  head-variables (set/union (r.syntax/variables as-node)
+                                            (r.syntax/variables prt-node))
+                  tail-row (update row :env into head-variables)
+                  tail-ir (compile rest-targets [tail-row])
+                  head-row (merge row {:cols [as-node prt-node], :rhs tail-ir})]
+              (r.ir/op-check-vector (r.ir/op-eval target)
+                (binding [*collection-context* :vector]
+                  (compile [target target] [head-row]))))))
+        (r.matrix/first-column matrix)
+        (r.matrix/drop-column matrix)))
 
 
 (defn compile-wth-matrix [targets matrix]
@@ -1591,7 +1582,8 @@
   ([match-args]
    (analyze-match-args match-args {}))
   ([match-args env]
-   (let [result (parse-match-args match-args env)]
+   (let [env (merge r.environment/default env)
+         result (parse-match-args match-args env)]
      (if-some [error (first (get result :errors))]
        (throw error)
        (let [clauses (get result :clauses)
@@ -1604,7 +1596,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(r.match.syntax/expand-ast (:pat clause))]
+                        [(r.match.syntax/expand-ast (:pat clause) env)]
                         (if contains-cata?
                           (r.ir/op-return [(:rhs clause)])
                           (r.ir/op-return (:rhs clause)))))
@@ -1768,7 +1760,8 @@
   ([match-args]
    (analyze-search-args match-args {}))
   ([match-args env]
-   (let [result (parse-match-args match-args env)]
+   (let [env (merge r.environment/default env)
+         result (parse-match-args match-args env)]
      (if-some [error (first (get result :errors))]
        (throw error)
        (let [clauses (get result :clauses)
@@ -1781,7 +1774,7 @@
                      (fn [clause]
                        (let [rhs (get clause :rhs)]
                          (r.matrix/make-row
-                          [(r.match.syntax/expand-ast (:pat clause))]
+                          [(r.match.syntax/expand-ast (:pat clause) env)]
                           (if contains-cata?
                             (r.ir/op-return [rhs])
                             (r.ir/op-return rhs)))))
@@ -1893,7 +1886,8 @@
   ([match-args]
    (analyze-find-args match-args {}))
   ([match-args env]
-   (let [result (parse-match-args match-args env)]
+   (let [env (merge r.environment/default env)
+         result (parse-match-args match-args env)]
      (if-some [error (first (get result :errors))]
        result
        (let [clauses (get result :clauses)
@@ -1905,7 +1899,7 @@
              matrix (mapv
                      (fn [clause]
                        (r.matrix/make-row
-                        [(r.match.syntax/expand-ast (:pat clause))]
+                        [(r.match.syntax/expand-ast (:pat clause) env)]
                         (if contains-cata?
                           (r.ir/op-return [(:rhs clause)])
                           (r.ir/op-return (:rhs clause)))))
