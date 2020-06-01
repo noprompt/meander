@@ -531,19 +531,25 @@
        (compile-pass targets [row])
 
        :jsa
-       (r.ir/op-check-array (r.ir/op-eval target)
-         (let [;; prt needs to be compiled within a :js-array
-               ;; collection-context separately from the targets*
-               ;; to the right. The targets* on the right need to
-               ;; be compiled in an environment including variables
-               ;; bound by compiling prt.
-               prt (:prt node)
-               rhs*-env (into (get row :env) (r.syntax/variables prt))
-               rhs*-row (assoc row :env rhs*-env)
-               rhs* (compile targets* [rhs*-row])
-               row* (assoc row :cols [prt] :rhs rhs*)]
-           (binding [*collection-context* :js-array]
-             (compile [target] [row*]))))))
+       (if (literal? node)
+         (let [target-ir (r.ir/op-eval target)
+               js-array-ir (r.ir/op-eval (compile-ground node))
+               body-ir (compile targets* [row])]
+           (r.ir/op-check-array-equals target-ir js-array-ir
+             body-ir))
+         (r.ir/op-check-array (r.ir/op-eval target)
+           (let [;; prt needs to be compiled within a :js-array
+                 ;; collection-context separately from the targets*
+                 ;; to the right. The targets* on the right need to
+                 ;; be compiled in an environment including variables
+                 ;; bound by compiling prt.
+                 prt (:prt node)
+                 rhs*-env (into (get row :env) (r.syntax/variables prt))
+                 rhs*-row (assoc row :env rhs*-env)
+                 rhs* (compile targets* [rhs*-row])
+                 row* (assoc row :cols [prt] :rhs rhs*)]
+             (binding [*collection-context* :js-array]
+               (compile [target] [row*])))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
