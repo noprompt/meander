@@ -663,9 +663,8 @@
 
          :lit
          (let [then (compile targets* [row])]
-           (r.ir/op-check-lit
-             (r.ir/op-eval target)
-             (r.ir/op-eval (r.syntax/unparse node))
+           (r.ir/op-check-lit (r.ir/op-eval target)
+             (r.ir/op-eval (r.syntax/lit-form node))
              then))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
