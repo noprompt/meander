@@ -2,7 +2,9 @@
   (:require
    [clojure.test :as t]
    [meander.match.epsilon :as m.match :include-macros true]
-   [meander.match.syntax.epsilon :as m.match.syntax :include-macros true]))
+   [meander.match.syntax.epsilon :as m.match.syntax :include-macros true])
+  #?(:cljs
+     (:require-macros [meander.match.epsilon-test :refer [match-compile]])))
 
 (defmacro match-compile
   {:style/indent 1}
