@@ -181,7 +181,7 @@
     (t/is (= '{:op :branch          
                :arms [{:op :branch
                        :arms [{:op :check-lit
-                               :value {:op :eval :form (clojure.core/list 1)}
+                               :value {:op :eval :form (1)}
                                :then {:value true :op :return}
                                :target {:op :eval :form TARGET}}
                               {:op :fail}]}
