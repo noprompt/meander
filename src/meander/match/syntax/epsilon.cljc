@@ -249,7 +249,9 @@
                           :argument rest-set}]})
     node))
 
-(defn expand-set-elements [node]
+(defn prioritize-literal-set-elements
+  {:private true}
+  [node]
   (let [literal-elements (r.syntax/literal-elements node)
         non-literal-elements (r.syntax/non-literal-elements node)]
     (cond
@@ -271,6 +273,11 @@
                      :rest (get node :rest)}})
 
       :else node)))
+
+(defn expand-set-elements
+  {:deprecated true}
+  [node]
+  (prioritize-literal-set-elements node))
 
 (defn expand-set [node]
   (let [node* (expand-set-elements node)]
@@ -298,7 +305,9 @@
          infer-case? (get env :meander.epsilon/infer-case)
          infer-literal-seq? (get env :meander.epsilon/infer-literal-seq)
          infer-literal-vector? (get env :meander.epsilon/infer-literal-vector)
+         prioritize-literal-set-elements? (get env :meander.epsilon/prioritize-literal-set-elements)
          rewrite-seq-as-to-and? (get env :meander.epsilon/rewrite-seq-as-to-and)
+         rewrite-set-as-to-and? (get env :meander.epsilon/rewrite-set-as-to-and)
          rewrite-vector-as-to-and? (get env :meander.epsilon/rewrite-vector-as-to-and)
          substitute-acyclic-references? (get env :meander.epsilon/substitute-acyclic-references)]
      (r.syntax/prewalk
@@ -330,9 +339,17 @@
           :prt
           (expand-prt node)
 
-          ;; TODO: needs flags.
           :set
-          (expand-set node)
+          (let [node* (if prioritize-literal-set-elements?
+                        (prioritize-literal-set-elements node)
+                        node)
+                node* (if (= node* node)
+                        (if rewrite-set-as-to-and?
+                          (expand-as node)
+                          node)
+                        node*)]
+            ;; TODO: `expand-set-rest` needs to flag.
+            (expand-set-rest node*))
 
           :seq
           (let [node (if rewrite-seq-as-to-and?
