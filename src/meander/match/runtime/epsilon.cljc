@@ -7,6 +7,8 @@
 
 (def permutations r.util/permutations)
 (def k-combinations r.util/k-combinations)
+(def ^{:arglists '([s k])} set-k-combinations-with-unselected
+  r.util/set-k-combinations-with-unselected)
 (def partitions r.util/partitions)
 (def coll-zip r.util/coll-zip)
 (def coll-seq r.util/coll-seq)

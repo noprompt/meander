@@ -7,6 +7,7 @@
    :meander.epsilon/infer-case true
    :meander.epsilon/infer-literal-seq true
    :meander.epsilon/infer-literal-vector true
+   :meander.epsilon/prioritize-map-entries true
    :meander.epsilon/prioritize-literal-set-elements true
    :meander.epsilon/rewrite-seq-as-to-and true
    :meander.epsilon/rewrite-set-as-to-and true

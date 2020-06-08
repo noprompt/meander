@@ -47,28 +47,118 @@
                   a)]
           (recur n* a*))))))
 
+(defn k-combination-indices
+  {:private true}
+  [n k]
+  (case k
+    0 ()
+
+    1 (map vector (range 0 n))
+
+    2 (mapcat
+       (fn [i]
+         (let [j (inc i)]
+           (map (fn [k] [i k])
+                (range j n))))
+       (range 0 n))
+
+    ;; else
+    (mapcat
+     (fn [is]
+       (let [i (peek is)
+             j (inc i)]
+         (map (fn [i] (conj is i))
+              (range j n))))
+     (k-combination-indices n (dec k)))))
+
+(defn set-k-combinations-with-unselected
+  [s k]
+  (case k
+    0 ()
+
+    1 (map (fn [x]
+             [[x] (disj s x)])
+           s)
+
+    2 (mapcat
+       (fn [x]
+         (let [s-x (disj s x)]
+           (map (fn [y]
+                  [[x y] (disj s-x y)])
+                s-x)))
+       s)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [xs (nth pair 0)
+             s-xs (nth pair 1)]
+         (map (fn [x]
+                [(conj xs x) (disj s-xs x)])
+              s-xs)))
+     (set-k-combinations-with-unselected s (dec k)))))
+
+(defn map-k-combinations-with-unselected
+  [m k]
+  (case k
+    0 ()
+
+    1 (map (fn [e]
+             [[e] (dissoc m (key e))])
+           m)
+
+    2 (mapcat
+       (fn [e1]
+         (map (fn [e2]
+                [[e1 e2] (dissoc m (key e2))])
+              (dissoc m (key e1))))
+       m)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [es (nth pair 0)
+             m-es (nth pair 1)]
+         (map (fn [e]
+                [(conj es e) (dissoc m-es (key e))])
+              m-es)))
+     (map-k-combinations-with-unselected m (dec k)))))
+
+
+(defn k-combinations-with-unselected
+  [coll k]
+  (let [coll (vec coll)
+        coll* (repeat coll)
+        n (count coll)]
+    (mapcat (fn [is]
+              (let [i-head (nth is 0)
+                    i-last (peek is)
+                    unselected (subvec coll 0 i-head)
+                    unselected (reduce
+                                (fn [v [a b]]
+                                  (into v (subvec coll (inc a) b)))
+                                unselected
+                                (partition 2 1 is))
+                    unselected (into unselected (subvec coll (inc i-last)))]
+                (map vector
+                     (permutations (map nth coll* is))
+                     (repeat unselected))))
+            (k-combination-indices n k))))
+
 
 (defn k-combinations
   "All the ways to choose k items from coll."
   [coll k]
-  (if (= k 1)
-    (sequence (map vector) coll)
-    (let [coll (vec coll)
-          n (count coll)]
-      (sequence
-       (comp
-        (reduce comp
-                (repeat (dec k)
-                        (mapcat
-                         (fn [v]
-                           (let [i (peek v)]
-                             (map conj (repeat v) (range i)))))))
-        (mapcat permutations)
-        (map
-         (fn [ptrs]
-           (mapv nth (repeat coll) ptrs))))
-       (map vector (range n))))))
+  (let [coll (vec coll)
+        n (count coll)]
+    (sequence
+     (comp
+      (map (fn [indices]
+             (mapv nth (repeat coll) indices)))
+      (mapcat permutations))
+     (k-combination-indices n k))))
 
+(k-combinations-with-unselected #{1 2 3 4 5} 3)
 
 (defn vsplit-at
   "Like `clojure.core/split-at` but for vectors."

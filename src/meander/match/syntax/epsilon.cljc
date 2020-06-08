@@ -143,7 +143,8 @@
                     :argument rest-map}]})
     node))
 
-(defn expand-map-keys
+(defn prioritize-map-entries
+  {:private true}
   [node]
   (let [literal-keys (r.syntax/literal-keys node)
         non-literal-keys (r.syntax/non-literal-keys node)
@@ -171,9 +172,15 @@
 
       :else node)))
 
-(defn expand-map
+(defn expand-map-keys
+  {:deprecated true}
   [node]
-  (let [node* (expand-map-keys node)]
+  (prioritize-map-entries node))
+
+(defn expand-map
+  {:deprecated true}
+  [node]
+  (let [node* (prioritize-map-entries node)]
     (if (= node node*)
       (let [node* (expand-as node)]
         (if (= node node*)
@@ -206,6 +213,10 @@
                        :right right-right})
           node))
       node)))
+
+(defn infer-subset
+  {:private true}
+  [node])
 
 (defn expand-set-rest [node]
   (if-some [rest-set (:rest node)]
@@ -305,6 +316,7 @@
          infer-case? (get env :meander.epsilon/infer-case)
          infer-literal-seq? (get env :meander.epsilon/infer-literal-seq)
          infer-literal-vector? (get env :meander.epsilon/infer-literal-vector)
+         prioritize-map-entries? (get env :meander.epsilon/prioritize-map-entries)
          prioritize-literal-set-elements? (get env :meander.epsilon/prioritize-literal-set-elements)
          rewrite-seq-as-to-and? (get env :meander.epsilon/rewrite-seq-as-to-and)
          rewrite-set-as-to-and? (get env :meander.epsilon/rewrite-set-as-to-and)
@@ -319,7 +331,14 @@
             node)
 
           :map
-          (expand-map node)
+          (let [node* (if prioritize-map-entries?
+                        (prioritize-map-entries node)
+                        node)
+                node* (if (= node node*)
+                        (expand-as node)
+                        node*)]
+            ;; TODO: `expand-set-rest` needs to flag.
+            (expand-map-rest node*))
 
           ::not
           (if eliminate-double-negation?
@@ -340,6 +359,7 @@
           (expand-prt node)
 
           :set
+          ;;
           (let [node* (if prioritize-literal-set-elements?
                         (prioritize-literal-set-elements node)
                         node)
