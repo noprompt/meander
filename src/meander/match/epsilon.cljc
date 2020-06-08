@@ -313,11 +313,12 @@
 
 
 (defmethod compile-specialized-matrix :any
-  [_ targets matrix]
-  (mapv (fn [node row]
-          (compile-pass targets [row]))
-        (r.matrix/first-column matrix)
-        (r.matrix/drop-column matrix)))
+  [_ [_ & rest-targets] matrix]
+  (let [rest-targets (vec rest-targets)]
+    (mapv (fn [node row]
+            (compile-pass rest-targets [row]))
+          (r.matrix/first-column matrix)
+          (r.matrix/drop-column matrix))))
 
 
 (defmethod compile-specialized-matrix ::r.match.syntax/apply
