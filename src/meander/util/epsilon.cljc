@@ -158,7 +158,6 @@
       (mapcat permutations))
      (k-combination-indices n k))))
 
-(k-combinations-with-unselected #{1 2 3 4 5} 3)
 
 (defn vsplit-at
   "Like `clojure.core/split-at` but for vectors."
