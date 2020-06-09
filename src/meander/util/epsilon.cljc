@@ -101,7 +101,7 @@
 (defn map-k-combinations-with-unselected
   [m k]
   (case k
-    0 ()
+    0 (list [[] m])
 
     1 (map (fn [e]
              [[e] (dissoc m (key e))])
