@@ -74,7 +74,7 @@
 (defn set-k-combinations-with-unselected
   [s k]
   (case k
-    0 ()
+    0 (list [[] s])
 
     1 (map (fn [x]
              [[x] (disj s x)])
