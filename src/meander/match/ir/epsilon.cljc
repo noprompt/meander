@@ -274,6 +274,8 @@ compilation decisions."
 
 (defop op-mvr-init :mvr-init [symbol then])
 
+(defop op-negate :negate [body-1 body-2])
+
 (defop op-nth :nth [target index])
 
 (defop op-pass :pass [then])
@@ -1467,6 +1469,17 @@ compilation decisions."
   `(let [~(:symbol ir) []]
      ~(compile* (:then ir) fail kind)))
 
+(defmethod compile* :negate [ir fail kind]
+  (let [body-1 (get ir :body-1)
+        body-2 (get ir :body-2)
+        body-1-code (compile* body-1 `r.match.runtime/FAIL :find)
+        body-2-code (compile* body-2 fail kind)
+        R__1 (gensym "R__")]
+    `(let [~R__1 ~body-1-code]
+       (if (r.match.runtime/fail? ~R__1)
+         ~body-2-code
+         r.match.runtime/FAIL))))
+
 (defmethod compile* :pass
   [ir fail kind]
   (compile* (:then ir) fail kind))
@@ -1608,11 +1621,13 @@ compilation decisions."
 
 (defn compile
   ([ir fail kind]
-   (let [form (compile* (rewrite ir) `r.match.runtime/FAIL kind)]
-     `(let [ret# ~form]
-        (if (r.match.runtime/fail? ret#)
+   (let [form (compile* (rewrite ir) `r.match.runtime/FAIL kind)
+         R__1 (gensym "R__")]
+     `(let [~R__1 ~form]
+        (if (r.match.runtime/fail? ~R__1)
           ~fail
-          ret#))))
+          ~R__1))))
   ([ir fail kind env]
    (binding [*env* env]
      (compile ir fail kind))))
+

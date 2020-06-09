@@ -866,11 +866,11 @@
          (compile-pass targets* [row])
 
          ::r.match.syntax/not
-         (let [save-id (gensym "save__")
-               not-matrix [(assoc row
-                                  :cols [(:argument node)]
-                                  :rhs (r.ir/op-load save-id))]]
-           (r.ir/op-save save-id
+         (let [not-columns [(get node :argument)]
+               not-row (merge row {:cols not-columns
+                                   :rhs (r.ir/op-return true)})
+               not-matrix [not-row]]
+           (r.ir/op-negate
              (binding [*negating* true]
                (compile [target] not-matrix))
              (compile targets* [row])))))
@@ -923,7 +923,7 @@
 
                :else
                (let [inner-ir (compile `[~lsym ~rsym ~@targets*]
-                                [(r.matrix/prepend-cells row [left right])])]
+                                       [(r.matrix/prepend-cells row [left right])])]
                  (r.ir/op-bind lsym (r.ir/op-take (r.ir/op-eval target) llen *collection-context*)
                    (r.ir/op-check-bounds (r.ir/op-eval lsym) llen *collection-context*
                      (r.ir/op-bind rsym (r.ir/op-drop (r.ir/op-eval target) llen *collection-context*)
@@ -1271,11 +1271,9 @@
          (compile-pass rest-targets [row])
 
          :set
+         ;; TODO: Put strategy based compilation behind a flags.
          (let [strategy (set-compilation-strategy node (get row :env))]
            (case strategy
-             ;; NOTE: We should be able to place this clause behind a
-             ;; flag but this breaks for set patterns under negation
-             ;; which means IT'S BROKEN.
              :solved
              (let [check `(set/subset? ~(compile-ground node) ~target)]
                (r.ir/op-check-set (r.ir/op-eval target)
