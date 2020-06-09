@@ -85,7 +85,7 @@
              (match-compile x (& ?1) true))))
 
   (t/testing "without literal seq inference"
-    (t/is (= '{:op :branch          
+    (t/is (= '{:op :branch
                :arms [{:op :branch
                        :arms [{:op :check-seq
                                :then {:op :branch
@@ -133,7 +133,7 @@
              (match-compile x (:as ?1) true))))
 
   (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch          
+    (t/is (= '{:op :branch
                :arms [{:op :branch
                        :arms [{:op :branch
                                :arms [{:op :check-lit
@@ -178,7 +178,7 @@
            (match-compile x (1) true)))
 
   (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch          
+    (t/is (= '{:op :branch
                :arms [{:op :branch
                        :arms [{:op :check-lit
                                :value {:op :eval :form (1)}
@@ -214,7 +214,7 @@
                                                                            :then {:op :branch
                                                                                   :arms [{:op :check-equal
                                                                                           :target-1 {:op :eval :form TARGET_l__}
-                                                                                          
+
                                                                                           :target-2 {:op :eval :form [1]}
                                                                                           :then {:op :branch
                                                                                                  :arms [{:op :return
@@ -340,7 +340,7 @@
              (match-compile x [& ?1] true))))
 
   (t/testing "without literal vector inference"
-    (t/is (= '{:op :branch          
+    (t/is (= '{:op :branch
                :arms [{:op :branch
                        :arms [{:op :check-vector
                                :then {:op :branch
@@ -388,7 +388,7 @@
              (match-compile x [:as ?1] true))))
 
   (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch          
+    (t/is (= '{:op :branch
                :arms [{:op :branch
                        :arms [{:op :branch
                                :arms [{:op :check-lit
@@ -431,7 +431,7 @@
            (match-compile x [1] true)))
 
   (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch          
+    (t/is (= '{:op :branch
                :arms [{:op :branch
                        :arms [{:op :check-lit
                                :value {:op :eval :form [1]}
@@ -467,7 +467,7 @@
                                                                            :then {:op :branch
                                                                                   :arms [{:op :check-equal
                                                                                           :target-1 {:op :eval :form TARGET_l__}
-                                                                                          
+
                                                                                           :target-2 {:op :eval :form [1]}
                                                                                           :then {:op :branch
                                                                                                  :arms [{:op :return
