@@ -10,6 +10,9 @@
    :meander.epsilon/prioritize-map-entries true
    :meander.epsilon/prioritize-literal-set-elements true
    :meander.epsilon/rewrite-seq-as-to-and true
+   ;; This is false because enabling it offers no significant
+   ;; improvement to generated code. This flag only exists for
+   ;; historical and testing purposes.
    :meander.epsilon/rewrite-set-as-to-and false
    ;; This is false because enabling it produces slower, larger
    ;; code. This flag only exists for historical and testing purposes.
