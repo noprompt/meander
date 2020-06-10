@@ -1323,8 +1323,8 @@
                                 ir-search-body))))
                      ir (case n
                           0 ir
-                          ;; else
 
+                          ;; else
                           (r.ir/op-check-bounds ir-target n :set
                             ir))]
                  ir))))))
