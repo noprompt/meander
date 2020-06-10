@@ -1325,8 +1325,8 @@
                           0 ir
                           ;; else
 
-                          (r.ir/op-check-bseounds ir-target n :set
-                                                  ir))]
+                          (r.ir/op-check-bounds ir-target n :set
+                            ir))]
                  ir))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))

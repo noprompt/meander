@@ -218,7 +218,9 @@
   {:private true}
   [node])
 
-(defn expand-set-rest [node]
+(defn rewrite-set-rest-to-disj
+  {:private true}
+  [node]
   (if-some [rest-set (:rest node)]
     (let [elements (:elements node)
           elem-map (into {}
@@ -260,6 +262,11 @@
                           :argument rest-set}]})
     node))
 
+(defn expand-set-rest
+  {:deprecated true}
+  [node]
+  (rewrite-set-rest-to-disj node))
+
 (defn prioritize-literal-set-elements
   {:private true}
   [node]
@@ -290,14 +297,16 @@
   [node]
   (prioritize-literal-set-elements node))
 
-(defn expand-set [node]
+(defn expand-set
+  {:depcrated true}
+  [node]
   (let [node* (expand-set-elements node)]
     (if (= node node*)
       (let [node* (expand-as node)]
         (if (= node* node)
-          (expand-set-rest node)
+          (rewrite-set-rest-to-disj node)
           node*))
-      (expand-set-rest node*))))
+      (rewrite-set-rest-to-disj node*))))
 
 (defn expand-seq [node]
   (expand-as node))
@@ -320,6 +329,7 @@
          prioritize-literal-set-elements? (get env :meander.epsilon/prioritize-literal-set-elements)
          rewrite-seq-as-to-and? (get env :meander.epsilon/rewrite-seq-as-to-and)
          rewrite-set-as-to-and? (get env :meander.epsilon/rewrite-set-as-to-and)
+         rewrite-set-rest-to-disj? (get env :meander.epsilon/rewrite-set-rest-to-disj)
          rewrite-vector-as-to-and? (get env :meander.epsilon/rewrite-vector-as-to-and)
          substitute-acyclic-references? (get env :meander.epsilon/substitute-acyclic-references)]
      (r.syntax/prewalk
@@ -337,7 +347,7 @@
                 node* (if (= node node*)
                         (expand-as node)
                         node*)]
-            ;; TODO: `expand-set-rest` needs to flag.
+            ;; TODO: needs to flag.
             (expand-map-rest node*))
 
           ::not
@@ -359,7 +369,6 @@
           (expand-prt node)
 
           :set
-          ;;
           (let [node* (if prioritize-literal-set-elements?
                         (prioritize-literal-set-elements node)
                         node)
@@ -368,8 +377,9 @@
                           (expand-as node)
                           node)
                         node*)]
-            ;; TODO: `expand-set-rest` needs to flag.
-            (expand-set-rest node*))
+            (if rewrite-set-rest-to-disj?
+              (rewrite-set-rest-to-disj node*)
+              node*))
 
           :seq
           (let [node (if rewrite-seq-as-to-and?
