@@ -70,31 +70,14 @@
                   a)]
           (recur n* a*))))))
 
-(defn k-combination-indices
-  {:private true}
-  [n k]
-  (case k
-    0 ()
-
-    1 (map vector (range 0 n))
-
-    2 (mapcat
-       (fn [i]
-         (let [j (inc i)]
-           (map (fn [k] [i k])
-                (range j n))))
-       (range 0 n))
-
-    ;; else
-    (mapcat
-     (fn [is]
-       (let [i (peek is)
-             j (inc i)]
-         (map (fn [i] (conj is i))
-              (range j n))))
-     (k-combination-indices n (dec k)))))
-
 (defn set-k-combinations-with-unselected
+  "Set specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] #{,,,}]
+
+  where the first element in the pair is a (permuted) selection of k
+  items from the set s, and the second element is s with those
+  elements removed."
   [s k]
   (case k
     0 (list [[] s])
@@ -122,6 +105,13 @@
      (set-k-combinations-with-unselected s (dec k)))))
 
 (defn map-k-combinations-with-unselected
+  "Map specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] {,,,}]
+
+  where the first element in the pair is a (permuted) selection of k
+  entries from the map m, and the second element is m with those
+  entries removed."
   [m k]
   (case k
     0 (list [[] m])
@@ -149,6 +139,13 @@
      (map-k-combinations-with-unselected m (dec k)))))
 
 (defn vector-k-combinations-with-unselected
+  "Vector specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] [,,,]]
+
+  where the first element in the pair is a (permuted) selection of k
+  items from the vector v, and the second element is v with the items
+  at their respective indicies removed."
   [v k]
   (case k
     0 (list [[] v])
@@ -172,6 +169,13 @@
      (vector-k-combinations-with-unselected v (dec k)))))
 
 (defn seq-k-combinations-with-unselected
+  "Seq specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] (,,,)]
+
+  where the first element in the pair is a (permuted) selection of k
+  items from the seq s, and the second element is s with the items
+  at their respective indicies removed."
   [s k]
   (case k
     0 (list [[] s])
