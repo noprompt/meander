@@ -1261,7 +1261,8 @@
 
 (defmethod compile-specialized-matrix :set
   [_ [target & rest-targets] matrix]
-  (let [rest-targets (vec rest-targets)]
+  (let [rest-targets (vec rest-targets)
+        ir-target (r.ir/op-eval target)]
     (mapv
      (fn [node row]
        (case (r.syntax/tag node)
@@ -1269,56 +1270,64 @@
          (compile-pass rest-targets [row])
 
          :set
-         ;; TODO: Put strategy based compilation behind a flags.
-         (let [strategy (set-compilation-strategy node (get row :env))]
-           (case strategy
-             :solved
-             (let [check `(set/subset? ~(compile-ground node) ~target)]
-               (r.ir/op-check-set (r.ir/op-eval target)
+         (r.ir/op-check-set ir-target
+           ;; TODO: Put strategy based compilation behind a flags.
+           (let [strategy (set-compilation-strategy node (get row :env))
+                 as-node (or (get node :as) {:tag :any})
+                 rest-node (or (get node :rest) {:tag :any})
+                 as_target target
+                 rest_target (gensym "X__")]
+             (case strategy
+               :solved
+               (let [ground-value (compile-ground node)
+                     check `(set/subset? ~ground-value ~target)
+                     targets* (into [as_target rest_target] rest-targets)
+                     head-cells [as-node rest-node]
+                     row* (r.matrix/prepend-cells row head-cells)
+                     matrix* [row*]]
                  (r.ir/op-check-boolean (r.ir/op-eval check)
-                   (compile rest-targets [row]))))
+                   (r.ir/op-bind rest_target (r.ir/op-eval `(set/difference ~target ~ground-value))
+                     (compile targets* matrix*))))
 
-             (:find :search)
-             (let [element-nodes (get node :elements)
-                   as-node (or (get node :as) {:tag :any})
-                   rest-node (or (get node :rest) {:tag :any})
-                   as_target target
-                   rest_target (gensym "X__")
-                   ir-target (r.ir/op-eval target)
-                   n (count element-nodes)]
-               (case n
-                 0
-                 (let [targets* (into [rest_target as_target] rest-targets)
-                       head-cells [rest-node as-node]
-                       row* (r.matrix/prepend-cells row head-cells)
-                       matrix* [row*]
-                       ir-body (compile targets* matrix*)]
-                   (r.ir/op-check-set ir-target
-                     (r.ir/op-bind rest_target ir-target
-                       ir-body)))
+               (:find :search)
+               (let [element-nodes (get node :elements)
+                     n (count element-nodes)
+                     ir (case n
+                          0
+                          (let [targets* (into [rest_target] rest-targets)
+                                head-cells [rest-node]
+                                row* (r.matrix/prepend-cells row head-cells)
+                                matrix* [row*]
+                                ir-body (compile targets* matrix*)]
+                            ir-body)
 
-                 ;; TODO: Case for n = 1
+                          ;; TODO: Case for n = 1
 
-                 ;; else
-                 (let [elements_target (gensym "X__")
-                       targets* (into [elements_target rest_target as_target] rest-targets)
-                       head-cells [{:tag :cat, :elements element-nodes} rest-node as-node]
-                       row* (r.matrix/prepend-cells row head-cells)
-                       matrix* [row*]
-                       ir-body (compile targets* matrix*)
-                       search-space `(r.match.runtime/set-k-permutations-with-unselected ~target ~n)
-                       search_space_element (gensym "X__")
-                       ir-search-space (r.ir/op-eval search-space)
-                       ir-search-body (r.ir/op-bind elements_target (r.ir/op-nth (r.ir/op-eval search_space_element) 0)
-                                        (r.ir/op-bind rest_target (r.ir/op-nth (r.ir/op-eval search_space_element) 1)
-                                          ir-body))]
-                   (r.ir/op-check-set ir-target
-                     (r.ir/op-check-bounds ir-target n :set
-                       (if (or (negating?) (= strategy :find))
-                         (r.ir/op-find search_space_element ir-search-space
-                           ir-search-body)
-                         (r.ir/op-search search_space_element ir-search-space
-                           ir-search-body)))))))))))
+                          ;; else
+                          (let [elements_target (gensym "X__")
+                                targets* (into [as_target elements_target rest_target] rest-targets)
+                                head-cells [as-node {:tag :cat, :elements element-nodes} rest-node]
+                                row* (r.matrix/prepend-cells row head-cells)
+                                matrix* [row*]
+                                ir-body (compile targets* matrix*)
+                                search-space `(r.match.runtime/set-k-permutations-with-unselected ~target ~n)
+                                search_space_element (symbol (str target "_X__"))
+                                ir-search-space (r.ir/op-eval search-space)
+                                ir-search-body (r.ir/op-bind elements_target (r.ir/op-nth (r.ir/op-eval search_space_element) 0)
+                                                 (r.ir/op-bind rest_target (r.ir/op-nth (r.ir/op-eval search_space_element) 1)
+                                                   ir-body))]
+                            (if (or (negating?) (= strategy :find))
+                              (r.ir/op-find search_space_element ir-search-space
+                                ir-search-body)
+                              (r.ir/op-search search_space_element ir-search-space
+                                ir-search-body))))
+                     ir (case n
+                          0 ir
+                          ;; else
+
+                          (r.ir/op-check-bseounds ir-target n :set
+                                                  ir))]
+                 ir))))))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
