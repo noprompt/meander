@@ -1239,6 +1239,8 @@
      (r.matrix/drop-column matrix))))
 
 (defn solved-set?
+  "true if all of the :elements of `set-node` have been solved, false
+  otherwise. Does not account for :as or :rest attributes."
   {:private true}
   [set-node env]
   (every? (fn [element] (solved?* element env))
