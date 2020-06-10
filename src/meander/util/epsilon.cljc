@@ -1,6 +1,8 @@
 (ns ^:no-doc meander.util.epsilon
   (:require [clojure.walk :as walk]
-            [clojure.zip :as zip]))
+            [clojure.zip :as zip])
+  #?(:cljs
+     (:require-macros [meander.util.epsilon :refer [__disj]])))
 
 
 (defn cljs-env?
@@ -17,6 +19,28 @@
   #?(:clj (Integer/parseInt s)
      :cljs (js/parseInt s)))
 
+(defmacro __disj
+  {:private true}
+  [s x]
+  (if (cljs-env? &env)
+    `(disj ~s ~x)
+    `(.disjoin ~(vary-meta s assoc :tag 'clojure.lang.IPersistentSet) ~x)))
+
+(defmacro __dissoc
+  {:private true}
+  ([m x]
+   (if (cljs-env? &env)
+     `(dissoc ~m ~x)
+     `(.without  ~(vary-meta m assoc :tag 'clojure.lang.IPersistentMap) ~x)))
+  ([m x & xs]
+   `(__dissoc (__dissoc ~m ~x) ~@xs)))
+
+(defmacro __nth
+  {:private true}
+  [v i]
+  (if (cljs-env? &env)
+    `(nth ~v ~i)
+    `(.nth ~(vary-meta v assoc :tag 'clojure.lang.IPersistentVector) ~i)))
 
 (defn swap
   "Swap the elements at positions `i` and `j` in `v`."
@@ -25,7 +49,6 @@
   (-> v
       (assoc i (nth v j))
       (assoc j (nth v i))))
-
 
 ;; SEE: https://en.wikipedia.org/wiki/Heap%27s_algorithm
 (defn permutations
@@ -77,24 +100,24 @@
     0 (list [[] s])
 
     1 (map (fn [x]
-             [[x] (disj s x)])
+             [[x] (__disj s x)])
            s)
 
     2 (mapcat
        (fn [x]
-         (let [s-x (disj s x)]
+         (let [s-x (__disj s x)]
            (map (fn [y]
-                  [[x y] (disj s-x y)])
+                  [[x y] (__disj s-x y)])
                 s-x)))
        s)
 
     ;; else
     (mapcat
      (fn [pair]
-       (let [xs (nth pair 0)
-             s-xs (nth pair 1)]
+       (let [xs (__nth pair 0)
+             s-xs (__nth pair 1)]
          (map (fn [x]
-                [(conj xs x) (disj s-xs x)])
+                [(conj xs x) (__disj s-xs x)])
               s-xs)))
      (set-k-combinations-with-unselected s (dec k)))))
 
@@ -104,60 +127,90 @@
     0 (list [[] m])
 
     1 (map (fn [e]
-             [[e] (dissoc m (key e))])
+             [[e] (__dissoc m (key e))])
            m)
 
     2 (mapcat
        (fn [e1]
-         (map (fn [e2]
-                [[e1 e2] (dissoc m (key e2))])
-              (dissoc m (key e1))))
+         (let [m-e1 (__dissoc m (key e1))]
+           (map (fn [e2]
+                  [[e1 e2] (__dissoc m-e1 (key e2))])
+                m-e1)))
        m)
 
     ;; else
     (mapcat
      (fn [pair]
-       (let [es (nth pair 0)
-             m-es (nth pair 1)]
+       (let [es (__nth pair 0)
+             m-es (__nth pair 1)]
          (map (fn [e]
-                [(conj es e) (dissoc m-es (key e))])
+                [(conj es e) (__dissoc m-es (key e))])
               m-es)))
      (map-k-combinations-with-unselected m (dec k)))))
 
+(defn vector-k-combinations-with-unselected
+  [v k]
+  (case k
+    0 (list [[] v])
 
-(defn k-combinations-with-unselected
-  [coll k]
-  (let [coll (vec coll)
-        coll* (repeat coll)
-        n (count coll)]
-    (mapcat (fn [is]
-              (let [i-head (nth is 0)
-                    i-last (peek is)
-                    unselected (subvec coll 0 i-head)
-                    unselected (reduce
-                                (fn [v [a b]]
-                                  (into v (subvec coll (inc a) b)))
-                                unselected
-                                (partition 2 1 is))
-                    unselected (into unselected (subvec coll (inc i-last)))]
-                (map vector
-                     (permutations (map nth coll* is))
-                     (repeat unselected))))
-            (k-combination-indices n k))))
+    1 (map-indexed
+       (fn [i x]
+         (let [j (inc i)]
+           [[x] (into (subvec v 0 i) (subvec v j))]))
+       v)
 
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [xs (__nth pair 0)
+             v-xs (__nth pair 1)]
+         (map-indexed
+          (fn [i x]
+            (let [j (inc i)]
+              [(conj xs x) (into (subvec v-xs 0 i) (subvec v-xs j))]))
+          v-xs)))
+     (vector-k-combinations-with-unselected v (dec k)))))
+
+(defn seq-k-combinations-with-unselected
+  [s k]
+  (case k
+    0 (list [[] s])
+
+    1 (map-indexed
+       (fn [i x]
+         (let [j (inc i)]
+           [[x] (concat (take i s) (drop j s))]))
+       s)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [xs (__nth pair 0)
+             s-xs (__nth pair 1)]
+         (map-indexed
+          (fn [i x]
+            (let [j (inc i)]
+              [(conj xs x) (concat (take i s-xs) (drop j s-xs))]))
+          s-xs)))
+     (seq-k-combinations-with-unselected s (dec k)))))
 
 (defn k-combinations
   "All the ways to choose k items from coll."
   [coll k]
-  (let [coll (vec coll)
-        n (count coll)]
-    (sequence
-     (comp
-      (map (fn [indices]
-             (mapv nth (repeat coll) indices)))
-      (mapcat permutations))
-     (k-combination-indices n k))))
+  (map (fn [pair]
+         (__nth pair 0))
+       (cond
+         (map? coll)
+         (map-k-combinations-with-unselected coll k)
 
+         (set? coll)
+         (set-k-combinations-with-unselected coll k)
+
+         (vector? coll)
+         (vector-k-combinations-with-unselected coll k)
+
+         :else
+         (seq-k-combinations-with-unselected coll k))))
 
 (defn vsplit-at
   "Like `clojure.core/split-at` but for vectors."
