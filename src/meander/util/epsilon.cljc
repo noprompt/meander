@@ -70,12 +70,12 @@
                   a)]
           (recur n* a*))))))
 
-(defn set-k-combinations-with-unselected
+(defn set-k-permutations-with-unselected
   "Set specific algorithm for returning a lazy sequence of pairs
 
      [[,,,] #{,,,}]
 
-  where the first element in the pair is a (permuted) selection of k
+  where the first element in the pair is a permuted selection of k
   items from the set s, and the second element is s with those
   elements removed."
   [s k]
@@ -102,14 +102,14 @@
          (map (fn [x]
                 [(conj xs x) (__disj s-xs x)])
               s-xs)))
-     (set-k-combinations-with-unselected s (dec k)))))
+     (set-k-permutations-with-unselected s (dec k)))))
 
-(defn map-k-combinations-with-unselected
+(defn map-k-permutations-with-unselected
   "Map specific algorithm for returning a lazy sequence of pairs
 
      [[,,,] {,,,}]
 
-  where the first element in the pair is a (permuted) selection of k
+  where the first element in the pair is a permuted selection of k
   entries from the map m, and the second element is m with those
   entries removed."
   [m k]
@@ -136,14 +136,14 @@
          (map (fn [e]
                 [(conj es e) (__dissoc m-es (key e))])
               m-es)))
-     (map-k-combinations-with-unselected m (dec k)))))
+     (map-k-permutations-with-unselected m (dec k)))))
 
-(defn vector-k-combinations-with-unselected
+(defn vector-k-permutations-with-unselected
   "Vector specific algorithm for returning a lazy sequence of pairs
 
      [[,,,] [,,,]]
 
-  where the first element in the pair is a (permuted) selection of k
+  where the first element in the pair is a permuted selection of k
   items from the vector v, and the second element is v with the items
   at their respective indicies removed."
   [v k]
@@ -166,14 +166,14 @@
             (let [j (inc i)]
               [(conj xs x) (into (subvec v-xs 0 i) (subvec v-xs j))]))
           v-xs)))
-     (vector-k-combinations-with-unselected v (dec k)))))
+     (vector-k-permutations-with-unselected v (dec k)))))
 
-(defn seq-k-combinations-with-unselected
+(defn seq-k-permutations-with-unselected
   "Seq specific algorithm for returning a lazy sequence of pairs
 
      [[,,,] (,,,)]
 
-  where the first element in the pair is a (permuted) selection of k
+  where the first element in the pair is a permuted selection of k
   items from the seq s, and the second element is s with the items
   at their respective indicies removed."
   [s k]
@@ -196,25 +196,33 @@
             (let [j (inc i)]
               [(conj xs x) (concat (take i s-xs) (drop j s-xs))]))
           s-xs)))
-     (seq-k-combinations-with-unselected s (dec k)))))
+     (seq-k-permutations-with-unselected s (dec k)))))
 
-(defn k-combinations
-  "All the ways to choose k items from coll."
+(defn k-permutations
+  "All the ways to choose k permuted items from coll."
   [coll k]
   (map (fn [pair]
          (__nth pair 0))
        (cond
          (map? coll)
-         (map-k-combinations-with-unselected coll k)
+         (map-k-permutations-with-unselected coll k)
 
          (set? coll)
-         (set-k-combinations-with-unselected coll k)
+         (set-k-permutations-with-unselected coll k)
 
          (vector? coll)
-         (vector-k-combinations-with-unselected coll k)
+         (vector-k-permutations-with-unselected coll k)
 
          :else
-         (seq-k-combinations-with-unselected coll k))))
+         (seq-k-permutations-with-unselected coll k))))
+
+(defn k-combinations
+  "All the ways to choose k items from coll."
+  [coll k]
+  (sequence
+   (comp (map set)
+         (distinct))
+   (k-permutations coll k)))
 
 (defn vsplit-at
   "Like `clojure.core/split-at` but for vectors."

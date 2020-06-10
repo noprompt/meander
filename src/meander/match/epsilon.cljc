@@ -101,19 +101,15 @@
                              :reqs []
                              :rets rets
                              :node node}]
-                           (comp
-                            (mapcat
-                             (fn [i]
-                               (r.util/k-combinations vars i)))
-                            (map set)
-                            (distinct)
-                            (map vec)
-                            (map (fn [reqs]
-                                   {:symbol (gensym* "def__")
-                                    :vars (set reqs)
-                                    :reqs reqs
-                                    :rets rets
-                                    :node node})))
+                           (comp (mapcat
+                                  (fn [i]
+                                    (r.util/k-combinations vars i)))
+                                 (map (fn [reqs]
+                                        {:symbol (gensym* "def__")
+                                         :vars reqs
+                                         :reqs (vec reqs)
+                                         :rets rets
+                                         :node node})))
                            (range 1 (inc (count vars))))])))
         ref-map))
 
@@ -1308,7 +1304,7 @@
                        row* (r.matrix/prepend-cells row head-cells)
                        matrix* [row*]
                        ir-body (compile targets* matrix*)
-                       search-space `(r.match.runtime/set-k-combinations-with-unselected ~target ~n)
+                       search-space `(r.match.runtime/set-k-permutations-with-unselected ~target ~n)
                        search_space_element (gensym "X__")
                        ir-search-space (r.ir/op-eval search-space)
                        ir-search-body (r.ir/op-bind elements_target (r.ir/op-nth (r.ir/op-eval search_space_element) 0)
