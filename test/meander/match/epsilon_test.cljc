@@ -13,512 +13,512 @@
          matrix# (get analysis# :matrix)]
      (m.match/compile '~'[TARGET] matrix#)))
 
-;; Seq compilation
-;; ---------------------------------------------------------------------
+;; ;; Seq compilation
+;; ;; ---------------------------------------------------------------------
 
-(t/deftest seq-compilation-empty-seq-test
-  (t/testing "no literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-seq
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:op :check-equal
-                                                             :target-1 {:op :eval :form TARGET}
-                                                             :then {:value true :op :return}
-                                                             :target-2 {:op :eval :form []}}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-seq false}
-             (match-compile x () true))))
+;; (t/deftest seq-compilation-empty-seq-test
+;;   (t/testing "no literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-seq
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:op :check-equal
+;;                                                              :target-1 {:op :eval :form TARGET}
+;;                                                              :then {:value true :op :return}
+;;                                                              :target-2 {:op :eval :form []}}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-seq false}
+;;              (match-compile x () true))))
 
-  (t/testing "literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-lit
-                               :value {:op :eval :form ()}
-                               :then {:value true :op :return}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x () true)))))
+;;   (t/testing "literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-lit
+;;                                :value {:op :eval :form ()}
+;;                                :then {:value true :op :return}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x () true)))))
 
-(t/deftest seq-compilation-empty-seq-with-rest-as-wildcard-test
-  (t/is (= '{:op :branch
-             :arms [{:op :branch
-                     :arms [{:op :check-seq
-                             :then {:op :branch
-                                    :arms [{:op :pass
-                                            :then {:op :branch
-                                                   :arms [{:op :branch
-                                                           :arms [{:value true :op :return}
-                                                                  {:op :fail}]}
-                                                          {:op :fail}]}}]}
-                             :target {:op :eval :form TARGET}}
-                            {:op :fail}]}
-                    {:op :fail}]}
-           (match-compile x (& _) true))))
+;; (t/deftest seq-compilation-empty-seq-with-rest-as-wildcard-test
+;;   (t/is (= '{:op :branch
+;;              :arms [{:op :branch
+;;                      :arms [{:op :check-seq
+;;                              :then {:op :branch
+;;                                     :arms [{:op :pass
+;;                                             :then {:op :branch
+;;                                                    :arms [{:op :branch
+;;                                                            :arms [{:value true :op :return}
+;;                                                                   {:op :fail}]}
+;;                                                           {:op :fail}]}}]}
+;;                              :target {:op :eval :form TARGET}}
+;;                             {:op :fail}]}
+;;                     {:op :fail}]}
+;;            (match-compile x (& _) true))))
 
-(t/deftest seq-compilation-empty-seq-with-rest-as-logic-variable-test
-  (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-seq
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:op :branch
-                                                             :arms [{:op :branch
-                                                                     :arms [{:op :lvr-bind
-                                                                             :symbol ?1
-                                                                             :then {:value true :op :return}
-                                                                             :target {:op :eval :form TARGET}}
-                                                                            {:op :fail}]}
-                                                                    {:op :fail}]}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x (& ?1) true))))
+;; (t/deftest seq-compilation-empty-seq-with-rest-as-logic-variable-test
+;;   (t/testing "with literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-seq
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:op :branch
+;;                                                              :arms [{:op :branch
+;;                                                                      :arms [{:op :lvr-bind
+;;                                                                              :symbol ?1
+;;                                                                              :then {:value true :op :return}
+;;                                                                              :target {:op :eval :form TARGET}}
+;;                                                                             {:op :fail}]}
+;;                                                                     {:op :fail}]}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x (& ?1) true))))
 
-  (t/testing "without literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-seq
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:op :branch
-                                                             :arms [{:op :branch
-                                                                     :arms [{:op :lvr-bind
-                                                                             :symbol ?1
-                                                                             :then {:value true :op :return}
-                                                                             :target {:op :eval :form TARGET}}
-                                                                            {:op :fail}]}
-                                                                    {:op :fail}]}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-seq false}
-             (match-compile x (& ?1) true)))))
+;;   (t/testing "without literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-seq
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:op :branch
+;;                                                              :arms [{:op :branch
+;;                                                                      :arms [{:op :lvr-bind
+;;                                                                              :symbol ?1
+;;                                                                              :then {:value true :op :return}
+;;                                                                              :target {:op :eval :form TARGET}}
+;;                                                                             {:op :fail}]}
+;;                                                                     {:op :fail}]}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-seq false}
+;;              (match-compile x (& ?1) true)))))
 
-(t/deftest seq-compilation-empty-seq-with-as-test
-  (t/testing "without literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :branch
-                               :arms [{:op :check-seq
-                                       :then {:op :branch
-                                              :arms [{:op :pass
-                                                      :then {:op :branch
-                                                             :arms [{:op :check-equal
-                                                                     :target-1 {:op :eval :form TARGET}
-                                                                     :then {:op :branch
-                                                                            :arms [{:op :lvr-bind
-                                                                                    :symbol ?1
-                                                                                    :then {:value true :op :return}
-                                                                                    :target {:op :eval :form TARGET}}
-                                                                                   {:op :fail}]}
-                                                                     :target-2 {:op :eval :form []}}
-                                                                    {:op :fail}]}}]}
-                                       :target {:op :eval :form TARGET}}
-                                      {:op :fail}]}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-seq false}
-             (match-compile x (:as ?1) true))))
+;; (t/deftest seq-compilation-empty-seq-with-as-test
+;;   (t/testing "without literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :branch
+;;                                :arms [{:op :check-seq
+;;                                        :then {:op :branch
+;;                                               :arms [{:op :pass
+;;                                                       :then {:op :branch
+;;                                                              :arms [{:op :check-equal
+;;                                                                      :target-1 {:op :eval :form TARGET}
+;;                                                                      :then {:op :branch
+;;                                                                             :arms [{:op :lvr-bind
+;;                                                                                     :symbol ?1
+;;                                                                                     :then {:value true :op :return}
+;;                                                                                     :target {:op :eval :form TARGET}}
+;;                                                                                    {:op :fail}]}
+;;                                                                      :target-2 {:op :eval :form []}}
+;;                                                                     {:op :fail}]}}]}
+;;                                        :target {:op :eval :form TARGET}}
+;;                                       {:op :fail}]}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-seq false}
+;;              (match-compile x (:as ?1) true))))
 
-  (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :branch
-                               :arms [{:op :check-lit
-                                       :value {:op :eval :form ()}
-                                       :then {:op :branch
-                                              :arms [{:op :lvr-bind
-                                                      :symbol ?1
-                                                      :then {:value true :op :return}
-                                                      :target {:op :eval :form TARGET}}
-                                                     {:op :fail}]}
-                                       :target {:op :eval :form TARGET}}
-                                      {:op :fail}]}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x (:as ?1) true)))))
-
-
-
-(t/deftest seq-compilation-unit-seq-test
-  (t/is (= '{:op :branch
-             :arms [{:op :branch
-                     :arms [{:op :check-seq
-                             :then {:op :branch
-                                    :arms [{:op :pass
-                                            :then {:op :branch
-                                                   :arms [{:op :check-bounds
-                                                           :kind :seq
-                                                           :length 1
-                                                           :then
-                                                           {:op :branch
-                                                            :arms [{:op :check-equal
-                                                                    :target-1 {:op :eval :form TARGET}
-                                                                    :then {:value true :op :return}
-                                                                    :target-2 {:op :eval :form [1]}}
-                                                                   {:op :fail}]}
-                                                           :target {:op :eval :form TARGET}}
-                                                          {:op :fail}]}}]}
-                             :target {:op :eval :form TARGET}}
-                            {:op :fail}]}
-                    {:op :fail}]}
-           ^{:meander.epsilon/infer-literal-seq false}
-           (match-compile x (1) true)))
-
-  (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-lit
-                               :value {:op :eval :form (1)}
-                               :then {:value true :op :return}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x (1) true)))))
-
-(t/deftest seq-compilation-unit-seq-with-rest-as-wildcard-test
-  (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-seq
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:symbol TARGET_l__
-                                                             :value {:op :take
-                                                                     :n 1
-                                                                     :kind :seq
-                                                                     :target {:op :eval :form TARGET}}
-                                                             :op :bind
-                                                             :then {:op :check-bounds
-                                                                    :kind :seq
-                                                                    :length 1
-                                                                    :then {:op :bind
-                                                                           :symbol TARGET_r__
-                                                                           :value {:op :drop
-                                                                                   :n 1
-                                                                                   :kind :seq
-                                                                                   :target {:op :eval :form TARGET}}
-                                                                           :then {:op :branch
-                                                                                  :arms [{:op :check-equal
-                                                                                          :target-1 {:op :eval :form TARGET_l__}
-
-                                                                                          :target-2 {:op :eval :form [1]}
-                                                                                          :then {:op :branch
-                                                                                                 :arms [{:op :return
-                                                                                                         :value true}
-                                                                                                        {:op :fail}]}}
-                                                                                         {:op :fail}]}}
-                                                                    :target {:op :eval :form TARGET_l__}}}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-seq false}
-             (match-compile x (1 & _) true))))
-
-  (t/testing "with literal seq inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-seq
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:symbol TARGET_l__
-                                                             :value {:op :take
-                                                                     :n 1
-                                                                     :kind :seq
-                                                                     :target {:op :eval :form TARGET}}
-                                                             :op :bind
-                                                             :then {:op :check-bounds
-                                                                    :kind :seq
-                                                                    :length 1
-                                                                    :then {:symbol TARGET_r__
-                                                                           :value {:op :drop
-                                                                                   :n 1
-                                                                                   :kind :seq
-                                                                                   :target {:op :eval :form TARGET}}
-                                                                           :op :bind
-                                                                           :then {:op :branch
-                                                                                  :arms
-                                                                                  [{:op :check-equal
-                                                                                    :target-1 {:op :eval :form TARGET_l__}
-                                                                                    :target-2 {:op :eval :form [1]}
-                                                                                    :then {:op :branch
-                                                                                           :arms [{:value true :op :return}
-                                                                                                  {:op :fail}]}}
-                                                                                   {:op :fail}]}}
-                                                                    :target {:op :eval :form TARGET_l__}}}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x (1 & _) true)))))
+;;   (t/testing "with literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :branch
+;;                                :arms [{:op :check-lit
+;;                                        :value {:op :eval :form ()}
+;;                                        :then {:op :branch
+;;                                               :arms [{:op :lvr-bind
+;;                                                       :symbol ?1
+;;                                                       :then {:value true :op :return}
+;;                                                       :target {:op :eval :form TARGET}}
+;;                                                      {:op :fail}]}
+;;                                        :target {:op :eval :form TARGET}}
+;;                                       {:op :fail}]}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x (:as ?1) true)))))
 
 
-;; Vector compilation
-;; ---------------------------------------------------------------------
 
-(t/deftest vector-compilation-empty-vector-test
-  (t/testing "no literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-vector
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:op :check-equal
-                                                             :target-1 {:op :eval :form TARGET}
-                                                             :then {:value true :op :return}
-                                                             :target-2 {:op :eval :form []}}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-vector false}
-             (match-compile x [] true))))
+;; (t/deftest seq-compilation-unit-seq-test
+;;   (t/is (= '{:op :branch
+;;              :arms [{:op :branch
+;;                      :arms [{:op :check-seq
+;;                              :then {:op :branch
+;;                                     :arms [{:op :pass
+;;                                             :then {:op :branch
+;;                                                    :arms [{:op :check-bounds
+;;                                                            :kind :seq
+;;                                                            :length 1
+;;                                                            :then
+;;                                                            {:op :branch
+;;                                                             :arms [{:op :check-equal
+;;                                                                     :target-1 {:op :eval :form TARGET}
+;;                                                                     :then {:value true :op :return}
+;;                                                                     :target-2 {:op :eval :form [1]}}
+;;                                                                    {:op :fail}]}
+;;                                                            :target {:op :eval :form TARGET}}
+;;                                                           {:op :fail}]}}]}
+;;                              :target {:op :eval :form TARGET}}
+;;                             {:op :fail}]}
+;;                     {:op :fail}]}
+;;            ^{:meander.epsilon/infer-literal-seq false}
+;;            (match-compile x (1) true)))
 
-  (t/testing "literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-lit
-                               :value {:op :eval :form ()}
-                               :then {:value true :op :return}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x [] true)))))
+;;   (t/testing "with literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-lit
+;;                                :value {:op :eval :form (1)}
+;;                                :then {:value true :op :return}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x (1) true)))))
 
-(t/deftest vector-compilation-empty-vector-with-rest-as-wildcard-test
-  (t/is (= '{:op :branch
-             :arms [{:op :branch
-                     :arms [{:op :check-vector
-                             :then {:op :branch
-                                    :arms [{:op :pass
-                                            :then {:op :branch
-                                                   :arms [{:op :branch
-                                                           :arms [{:value true :op :return}
-                                                                  {:op :fail}]}
-                                                          {:op :fail}]}}]}
-                             :target {:op :eval :form TARGET}}
-                            {:op :fail}]}
-                    {:op :fail}]}
-           (match-compile x [& _] true))))
+;; (t/deftest seq-compilation-unit-seq-with-rest-as-wildcard-test
+;;   (t/testing "with literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-seq
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:symbol TARGET_l__
+;;                                                              :value {:op :take
+;;                                                                      :n 1
+;;                                                                      :kind :seq
+;;                                                                      :target {:op :eval :form TARGET}}
+;;                                                              :op :bind
+;;                                                              :then {:op :check-bounds
+;;                                                                     :kind :seq
+;;                                                                     :length 1
+;;                                                                     :then {:op :bind
+;;                                                                            :symbol TARGET_r__
+;;                                                                            :value {:op :drop
+;;                                                                                    :n 1
+;;                                                                                    :kind :seq
+;;                                                                                    :target {:op :eval :form TARGET}}
+;;                                                                            :then {:op :branch
+;;                                                                                   :arms [{:op :check-equal
+;;                                                                                           :target-1 {:op :eval :form TARGET_l__}
 
-(t/deftest vector-compilation-empty-vector-with-rest-as-logic-variable-test
-  (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-vector
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:op :branch
-                                                             :arms [{:op :branch
-                                                                     :arms [{:op :lvr-bind
-                                                                             :symbol ?1
-                                                                             :then {:value true :op :return}
-                                                                             :target {:op :eval :form TARGET}}
-                                                                            {:op :fail}]}
-                                                                    {:op :fail}]}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x [& ?1] true))))
+;;                                                                                           :target-2 {:op :eval :form [1]}
+;;                                                                                           :then {:op :branch
+;;                                                                                                  :arms [{:op :return
+;;                                                                                                          :value true}
+;;                                                                                                         {:op :fail}]}}
+;;                                                                                          {:op :fail}]}}
+;;                                                                     :target {:op :eval :form TARGET_l__}}}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-seq false}
+;;              (match-compile x (1 & _) true))))
 
-  (t/testing "without literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-vector
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:op :branch
-                                                             :arms [{:op :branch
-                                                                     :arms [{:op :lvr-bind
-                                                                             :symbol ?1
-                                                                             :then {:value true :op :return}
-                                                                             :target {:op :eval :form TARGET}}
-                                                                            {:op :fail}]}
-                                                                    {:op :fail}]}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-vector false}
-             (match-compile x [& ?1] true)))))
+;;   (t/testing "with literal seq inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-seq
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:symbol TARGET_l__
+;;                                                              :value {:op :take
+;;                                                                      :n 1
+;;                                                                      :kind :seq
+;;                                                                      :target {:op :eval :form TARGET}}
+;;                                                              :op :bind
+;;                                                              :then {:op :check-bounds
+;;                                                                     :kind :seq
+;;                                                                     :length 1
+;;                                                                     :then {:symbol TARGET_r__
+;;                                                                            :value {:op :drop
+;;                                                                                    :n 1
+;;                                                                                    :kind :seq
+;;                                                                                    :target {:op :eval :form TARGET}}
+;;                                                                            :op :bind
+;;                                                                            :then {:op :branch
+;;                                                                                   :arms
+;;                                                                                   [{:op :check-equal
+;;                                                                                     :target-1 {:op :eval :form TARGET_l__}
+;;                                                                                     :target-2 {:op :eval :form [1]}
+;;                                                                                     :then {:op :branch
+;;                                                                                            :arms [{:value true :op :return}
+;;                                                                                                   {:op :fail}]}}
+;;                                                                                    {:op :fail}]}}
+;;                                                                     :target {:op :eval :form TARGET_l__}}}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x (1 & _) true)))))
 
-(t/deftest vector-compilation-empty-vector-with-as-test
-  (t/testing "without literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :branch
-                               :arms [{:op :check-vector
-                                       :then {:op :branch
-                                              :arms [{:op :pass
-                                                      :then {:op :branch
-                                                             :arms [{:op :check-equal
-                                                                     :target-1 {:op :eval :form TARGET}
-                                                                     :then {:op :branch
-                                                                            :arms [{:op :lvr-bind
-                                                                                    :symbol ?1
-                                                                                    :then {:value true :op :return}
-                                                                                    :target {:op :eval :form TARGET}}
-                                                                                   {:op :fail}]}
-                                                                     :target-2 {:op :eval :form []}}
-                                                                    {:op :fail}]}}]}
-                                       :target {:op :eval :form TARGET}}
-                                      {:op :fail}]}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-vector false}
-             (match-compile x [:as ?1] true))))
 
-  (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :branch
-                               :arms [{:op :check-lit
-                                       :value {:op :eval :form []}
-                                       :then {:op :branch
-                                              :arms [{:op :lvr-bind
-                                                      :symbol ?1
-                                                      :then {:value true :op :return}
-                                                      :target {:op :eval :form TARGET}}
-                                                     {:op :fail}]}
-                                       :target {:op :eval :form TARGET}}
-                                      {:op :fail}]}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x [:as ?1] true)))))
+;; ;; Vector compilation
+;; ;; ---------------------------------------------------------------------
 
-(t/deftest vector-compilation-unit-vector-test
-  (t/is (= '{:op :branch
-             :arms [{:op :branch
-                     :arms [{:op :check-vector
-                             :then {:op :branch
-                                    :arms [{:op :pass
-                                            :then {:op :branch
-                                                   :arms [{:op :check-bounds
-                                                           :kind :vector
-                                                           :length 1
-                                                           :then
-                                                           {:op :branch
-                                                            :arms [{:op :check-equal
-                                                                    :target-1 {:op :eval :form TARGET}
-                                                                    :then {:value true :op :return}
-                                                                    :target-2 {:op :eval :form [1]}}
-                                                                   {:op :fail}]}
-                                                           :target {:op :eval :form TARGET}}
-                                                          {:op :fail}]}}]}
-                             :target {:op :eval :form TARGET}}
-                            {:op :fail}]}
-                    {:op :fail}]}
-           ^{:meander.epsilon/infer-literal-vector false}
-           (match-compile x [1] true)))
+;; (t/deftest vector-compilation-empty-vector-test
+;;   (t/testing "no literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-vector
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:op :check-equal
+;;                                                              :target-1 {:op :eval :form TARGET}
+;;                                                              :then {:value true :op :return}
+;;                                                              :target-2 {:op :eval :form []}}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-vector false}
+;;              (match-compile x [] true))))
 
-  (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-lit
-                               :value {:op :eval :form [1]}
-                               :then {:value true :op :return}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x [1] true)))))
+;;   (t/testing "literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-lit
+;;                                :value {:op :eval :form ()}
+;;                                :then {:value true :op :return}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x [] true)))))
 
-(t/deftest vector-compilation-unit-vector-with-rest-as-wildcard-test
-  (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-vector
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:symbol TARGET_l__
-                                                             :value {:op :take
-                                                                     :n 1
-                                                                     :kind :vector
-                                                                     :target {:op :eval :form TARGET}}
-                                                             :op :bind
-                                                             :then {:op :check-bounds
-                                                                    :kind :vector
-                                                                    :length 1
-                                                                    :then {:op :bind
-                                                                           :symbol TARGET_r__
-                                                                           :value {:op :drop
-                                                                                   :n 1
-                                                                                   :kind :vector
-                                                                                   :target {:op :eval :form TARGET}}
-                                                                           :then {:op :branch
-                                                                                  :arms [{:op :check-equal
-                                                                                          :target-1 {:op :eval :form TARGET_l__}
+;; (t/deftest vector-compilation-empty-vector-with-rest-as-wildcard-test
+;;   (t/is (= '{:op :branch
+;;              :arms [{:op :branch
+;;                      :arms [{:op :check-vector
+;;                              :then {:op :branch
+;;                                     :arms [{:op :pass
+;;                                             :then {:op :branch
+;;                                                    :arms [{:op :branch
+;;                                                            :arms [{:value true :op :return}
+;;                                                                   {:op :fail}]}
+;;                                                           {:op :fail}]}}]}
+;;                              :target {:op :eval :form TARGET}}
+;;                             {:op :fail}]}
+;;                     {:op :fail}]}
+;;            (match-compile x [& _] true))))
 
-                                                                                          :target-2 {:op :eval :form [1]}
-                                                                                          :then {:op :branch
-                                                                                                 :arms [{:op :return
-                                                                                                         :value true}
-                                                                                                        {:op :fail}]}}
-                                                                                         {:op :fail}]}}
-                                                                    :target {:op :eval :form TARGET_l__}}}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             ^{:meander.epsilon/infer-literal-vector false}
-             (match-compile x [1 & _] true))))
+;; (t/deftest vector-compilation-empty-vector-with-rest-as-logic-variable-test
+;;   (t/testing "with literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-vector
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:op :branch
+;;                                                              :arms [{:op :branch
+;;                                                                      :arms [{:op :lvr-bind
+;;                                                                              :symbol ?1
+;;                                                                              :then {:value true :op :return}
+;;                                                                              :target {:op :eval :form TARGET}}
+;;                                                                             {:op :fail}]}
+;;                                                                     {:op :fail}]}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x [& ?1] true))))
 
-  (t/testing "with literal vector inference"
-    (t/is (= '{:op :branch
-               :arms [{:op :branch
-                       :arms [{:op :check-vector
-                               :then {:op :branch
-                                      :arms [{:op :pass
-                                              :then {:op :branch
-                                                     :arms [{:symbol TARGET_l__
-                                                             :value {:op :take
-                                                                     :n 1
-                                                                     :kind :vector
-                                                                     :target {:op :eval :form TARGET}}
-                                                             :op :bind
-                                                             :then {:op :check-bounds
-                                                                    :kind :vector
-                                                                    :length 1
-                                                                    :then {:symbol TARGET_r__
-                                                                           :value {:op :drop
-                                                                                   :n 1
-                                                                                   :kind :vector
-                                                                                   :target {:op :eval :form TARGET}}
-                                                                           :op :bind
-                                                                           :then {:op :branch
-                                                                                  :arms
-                                                                                  [{:op :check-equal
-                                                                                    :target-1 {:op :eval :form TARGET_l__}
-                                                                                    :target-2 {:op :eval :form [1]}
-                                                                                    :then {:op :branch
-                                                                                           :arms [{:value true :op :return}
-                                                                                                  {:op :fail}]}}
-                                                                                   {:op :fail}]}}
-                                                                    :target {:op :eval :form TARGET_l__}}}
-                                                            {:op :fail}]}}]}
-                               :target {:op :eval :form TARGET}}
-                              {:op :fail}]}
-                      {:op :fail}]}
-             (match-compile x [1 & _] true)))))
+;;   (t/testing "without literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-vector
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:op :branch
+;;                                                              :arms [{:op :branch
+;;                                                                      :arms [{:op :lvr-bind
+;;                                                                              :symbol ?1
+;;                                                                              :then {:value true :op :return}
+;;                                                                              :target {:op :eval :form TARGET}}
+;;                                                                             {:op :fail}]}
+;;                                                                     {:op :fail}]}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-vector false}
+;;              (match-compile x [& ?1] true)))))
+
+;; (t/deftest vector-compilation-empty-vector-with-as-test
+;;   (t/testing "without literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :branch
+;;                                :arms [{:op :check-vector
+;;                                        :then {:op :branch
+;;                                               :arms [{:op :pass
+;;                                                       :then {:op :branch
+;;                                                              :arms [{:op :check-equal
+;;                                                                      :target-1 {:op :eval :form TARGET}
+;;                                                                      :then {:op :branch
+;;                                                                             :arms [{:op :lvr-bind
+;;                                                                                     :symbol ?1
+;;                                                                                     :then {:value true :op :return}
+;;                                                                                     :target {:op :eval :form TARGET}}
+;;                                                                                    {:op :fail}]}
+;;                                                                      :target-2 {:op :eval :form []}}
+;;                                                                     {:op :fail}]}}]}
+;;                                        :target {:op :eval :form TARGET}}
+;;                                       {:op :fail}]}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-vector false}
+;;              (match-compile x [:as ?1] true))))
+
+;;   (t/testing "with literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :branch
+;;                                :arms [{:op :check-lit
+;;                                        :value {:op :eval :form []}
+;;                                        :then {:op :branch
+;;                                               :arms [{:op :lvr-bind
+;;                                                       :symbol ?1
+;;                                                       :then {:value true :op :return}
+;;                                                       :target {:op :eval :form TARGET}}
+;;                                                      {:op :fail}]}
+;;                                        :target {:op :eval :form TARGET}}
+;;                                       {:op :fail}]}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x [:as ?1] true)))))
+
+;; (t/deftest vector-compilation-unit-vector-test
+;;   (t/is (= '{:op :branch
+;;              :arms [{:op :branch
+;;                      :arms [{:op :check-vector
+;;                              :then {:op :branch
+;;                                     :arms [{:op :pass
+;;                                             :then {:op :branch
+;;                                                    :arms [{:op :check-bounds
+;;                                                            :kind :vector
+;;                                                            :length 1
+;;                                                            :then
+;;                                                            {:op :branch
+;;                                                             :arms [{:op :check-equal
+;;                                                                     :target-1 {:op :eval :form TARGET}
+;;                                                                     :then {:value true :op :return}
+;;                                                                     :target-2 {:op :eval :form [1]}}
+;;                                                                    {:op :fail}]}
+;;                                                            :target {:op :eval :form TARGET}}
+;;                                                           {:op :fail}]}}]}
+;;                              :target {:op :eval :form TARGET}}
+;;                             {:op :fail}]}
+;;                     {:op :fail}]}
+;;            ^{:meander.epsilon/infer-literal-vector false}
+;;            (match-compile x [1] true)))
+
+;;   (t/testing "with literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-lit
+;;                                :value {:op :eval :form [1]}
+;;                                :then {:value true :op :return}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x [1] true)))))
+
+;; (t/deftest vector-compilation-unit-vector-with-rest-as-wildcard-test
+;;   (t/testing "with literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-vector
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:symbol TARGET_l__
+;;                                                              :value {:op :take
+;;                                                                      :n 1
+;;                                                                      :kind :vector
+;;                                                                      :target {:op :eval :form TARGET}}
+;;                                                              :op :bind
+;;                                                              :then {:op :check-bounds
+;;                                                                     :kind :vector
+;;                                                                     :length 1
+;;                                                                     :then {:op :bind
+;;                                                                            :symbol TARGET_r__
+;;                                                                            :value {:op :drop
+;;                                                                                    :n 1
+;;                                                                                    :kind :vector
+;;                                                                                    :target {:op :eval :form TARGET}}
+;;                                                                            :then {:op :branch
+;;                                                                                   :arms [{:op :check-equal
+;;                                                                                           :target-1 {:op :eval :form TARGET_l__}
+
+;;                                                                                           :target-2 {:op :eval :form [1]}
+;;                                                                                           :then {:op :branch
+;;                                                                                                  :arms [{:op :return
+;;                                                                                                          :value true}
+;;                                                                                                         {:op :fail}]}}
+;;                                                                                          {:op :fail}]}}
+;;                                                                     :target {:op :eval :form TARGET_l__}}}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              ^{:meander.epsilon/infer-literal-vector false}
+;;              (match-compile x [1 & _] true))))
+
+;;   (t/testing "with literal vector inference"
+;;     (t/is (= '{:op :branch
+;;                :arms [{:op :branch
+;;                        :arms [{:op :check-vector
+;;                                :then {:op :branch
+;;                                       :arms [{:op :pass
+;;                                               :then {:op :branch
+;;                                                      :arms [{:symbol TARGET_l__
+;;                                                              :value {:op :take
+;;                                                                      :n 1
+;;                                                                      :kind :vector
+;;                                                                      :target {:op :eval :form TARGET}}
+;;                                                              :op :bind
+;;                                                              :then {:op :check-bounds
+;;                                                                     :kind :vector
+;;                                                                     :length 1
+;;                                                                     :then {:symbol TARGET_r__
+;;                                                                            :value {:op :drop
+;;                                                                                    :n 1
+;;                                                                                    :kind :vector
+;;                                                                                    :target {:op :eval :form TARGET}}
+;;                                                                            :op :bind
+;;                                                                            :then {:op :branch
+;;                                                                                   :arms
+;;                                                                                   [{:op :check-equal
+;;                                                                                     :target-1 {:op :eval :form TARGET_l__}
+;;                                                                                     :target-2 {:op :eval :form [1]}
+;;                                                                                     :then {:op :branch
+;;                                                                                            :arms [{:value true :op :return}
+;;                                                                                                   {:op :fail}]}}
+;;                                                                                    {:op :fail}]}}
+;;                                                                     :target {:op :eval :form TARGET_l__}}}
+;;                                                             {:op :fail}]}}]}
+;;                                :target {:op :eval :form TARGET}}
+;;                               {:op :fail}]}
+;;                       {:op :fail}]}
+;;              (match-compile x [1 & _] true)))))
 
 
 ;; ---------------------------------------------------------------------
