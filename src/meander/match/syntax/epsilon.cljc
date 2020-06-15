@@ -444,10 +444,14 @@
   ([node]
    (expand-ast node r.environment/default))
   ([node env]
-   (-> (expand-ast-top-down node env)
-       (expand-ast-bottom-up)
-       (r.syntax/rename-refs)
-       (r.syntax/consolidate-with))))
+   (let [node* (-> (expand-ast-top-down node env)
+                   (expand-ast-bottom-up)
+                   (r.syntax/rename-refs)
+                   (r.syntax/consolidate-with))
+         node* (if (seq (get node* :bindings))
+                 node*
+                 (get node* :body))]
+     node*)))
 
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis
