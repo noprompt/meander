@@ -9,6 +9,8 @@
    :meander.epsilon/infer-literal-vector true
    :meander.epsilon/prioritize-map-entries true
    :meander.epsilon/prioritize-literal-set-elements true
+   :meander.epsilon/rewrite-map-as-to-and false
+   :meander.epsilon/rewrite-map-rest-to-dissoc false
    :meander.epsilon/rewrite-seq-as-to-and true
    ;; This is false because enabling it offers no significant
    ;; improvement to generated code. This flag only exists for
