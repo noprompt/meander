@@ -1673,6 +1673,47 @@
                           :env any?))
   :ret :meander.match.epsilon.match/data)
 
+(defn compile-match-args [match-args env]
+  (let [match-data (analyze-match-args match-args env)]
+    (if-some [error (first (get match-data :errors))]
+      (throw error)
+      (let [expr (get match-data :expr)
+            matrix (get match-data :matrix)
+            final-clause (get match-data :final-clause)
+            final-clause? (some? final-clause)
+            target (gensym "T__")
+            fail `(throw (ex-info "non exhaustive pattern match" {}))]
+        (if (r.matrix/empty? matrix)
+          (if final-clause?
+            (let [ir (r.ir/op-bind target (r.ir/op-eval expr)
+                       (compile [expr] [final-clause]))]
+              (r.ir/compile ir nil :match env))
+            fail)
+          (let [matrix (if final-clause?
+                         (conj matrix final-clause)
+                         matrix)
+                contains-cata? (get match-data :contains-cata?)
+                ir (if contains-cata?
+                     (binding [*cata-symbol* (get match-data :cata-symbol)]
+                       (let [cata_target (gensym "T__")
+                             cata_return (gensym "R__")]
+                         {:op :def
+                          :symbol *cata-symbol*
+                          :target-arg cata_target
+                          :req-syms []
+                          :ret-syms []
+                          :body (compile [cata_target] matrix)
+                          :then {:op :call
+                                 :symbol *cata-symbol*
+                                 :target (r.ir/op-eval target)
+                                 :req-syms []
+                                 :ret-syms [cata_return]
+                                 :then (r.ir/op-return cata_return)}}))
+                     (compile [target] matrix))
+                ir (r.ir/op-bind target (r.ir/op-eval expr)
+                     ir)]
+            (r.ir/compile ir fail :match env)))))))
+
 (defmacro match
   "Traditional pattern matching operator.
 
@@ -1705,81 +1746,7 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [match-data (analyze-match-args match-args &env)]
-    (if-some [error (first (get match-data :errors))]
-      (throw error)
-      (let [expr (get match-data :expr)
-            matrix (get match-data :matrix)
-            final-clause (get match-data :final-clause)
-            final-clause? (some? final-clause)]
-        (if (r.matrix/empty? matrix)
-          (if final-clause?
-            (r.ir/compile (compile [expr] [final-clause]) nil :match &env)
-            `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form)))))
-          (let [contains-cata? (get match-data :contains-cata?)
-                symbol-target? (symbol? expr)
-                target (if symbol-target?
-                         expr
-                         (gensym "TARGET__"))
-                ir (if contains-cata?
-                     (let [matrix (if final-clause?
-                                    (conj matrix final-clause)
-                                    matrix)]
-                       (binding [*cata-symbol* (get match-data :cata-symbol)]
-                         (let [cata-return (gensym "CATA_RETURN__")]
-                           {:op :def
-                            :symbol *cata-symbol*
-                            :target-arg target
-                            :req-syms []
-                            :ret-syms []
-                            :body (compile [target] matrix)
-                            :then {:op :call
-                                   :symbol *cata-symbol*
-                                   :target (r.ir/op-eval target)
-                                   :req-syms []
-                                   :ret-syms [cata-return]
-                                   :then (r.ir/op-return cata-return)}})))
-                     (compile [target target] matrix))]
-            (case [final-clause? contains-cata?]
-              [false false]
-              (let [ir (if symbol-target?
-                         ir
-                         (r.ir/op-bind target (r.ir/op-eval expr)
-                           ir))
-                    fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))]
-                (r.ir/compile ir fail :match &env))
-
-              [false true]
-              (let [fail `(throw (ex-info "non exhaustive pattern match" '~(merge {} (meta &form))))
-                    code (r.ir/compile ir fail :match &env)]
-                (if symbol-target?
-                  code
-                  `(let [~target ~expr]
-                     ~code)))
-
-              [true false]
-              (let [fail (gensym "FAIL__")
-                    fail-fn `(fn []
-                               ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
-                    ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
-                           ir)
-                    ir (if symbol-target?
-                         ir
-                         (r.ir/op-bind target (r.ir/op-eval expr)
-                           ir))]
-                (r.ir/compile ir `(~fail) :match &env))
-
-              [true true]
-              (let [fail (gensym "FAIL__")
-                    fail-fn `(fn []
-                               ~(r.ir/compile (compile [target] [final-clause]) nil :match &env))
-                    ir (r.ir/op-bind fail (r.ir/op-eval fail-fn)
-                         ir)
-                    code (r.ir/compile ir `(~fail) :match &env)]
-                (if symbol-target?
-                  code
-                  `(let [~target ~expr]
-                     ~code))))))))))
+  (compile-match-args match-args (merge r.environment/default (meta &form) &env)))
 
 
 (s/fdef match
