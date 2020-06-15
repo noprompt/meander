@@ -1220,22 +1220,23 @@ compilation decisions."
 
 (defmethod compile* :call
   [ir fail kind]
-  (case kind
-    (:find :match)
-    `(let [x# (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))]
-       (if (r.match.runtime/fail? x#)
-         ~fail
-         (let [[~@(:ret-syms ir)] x#]
-           ~(compile* (:then ir) fail kind))))
+  (let [result_symbol (gensym "R__")]
+    (case kind
+      (:find :match)
+      `(let [~result_symbol (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))]
+         (if (r.match.runtime/fail? ~result_symbol)
+           ~fail
+           (let [[~@(:ret-syms ir)] ~result_symbol]
+             ~(compile* (:then ir) fail kind))))
 
-    :search
-    `(mapcat
-      (fn [x#]
-        (if (r.match.runtime/fail? x#)
-          ~fail
-          (let [[~@(:ret-syms ir)] x#]
-            ~(compile* (:then ir) fail kind))))
-      (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir)))))
+      :search
+      `(mapcat
+        (fn [~result_symbol]
+          (if (r.match.runtime/fail? ~result_symbol)
+            ~fail
+            (let [[~@(:ret-syms ir)] ~result_symbol]
+              ~(compile* (:then ir) fail kind))))
+        (~(:symbol ir) ~(compile* (:target ir) fail kind) ~@(:req-syms ir))))))
 
 (defmethod compile* :case
   [ir fail kind]
@@ -1254,7 +1255,7 @@ compilation decisions."
              (every? number? (sequence (comp (take-nth 2) cat) clauses)))
       ;; Prevents performance warnings from Clojure when
       ;; `*warn-on-reflection*` is on. Is this really neccessary?
-      (let [value (gensym "VALUE__")]
+      (let [value (gensym "X__")]
         `(let [~value ~expression]
            ;; Should we test `(number? ~value)`?
            (cond
@@ -1407,9 +1408,9 @@ compilation decisions."
 
 (defmethod compile* :find
   [ir fail kind]
-  (let [search-space (gensym "search_space__")
-        result-sym (gensym "result__")
-        fail-sym (gensym "fail__")]
+  (let [search-space (gensym "S__")
+        result-sym (gensym "R__")
+        fail-sym (gensym "F__")]
     `(loop [~search-space ~(compile* (:value ir) fail kind)]
        (if (seq ~search-space)
          (let [~(:symbol ir) (first ~search-space)

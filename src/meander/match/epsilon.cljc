@@ -639,7 +639,7 @@
              (let [node* {:tag :cat
                           :elements [key-node val-node]}
                    matrix* (r.matrix/prepend-column [row] [node*])
-                   search-target (gensym* "okv__")]
+                   search-target (gensym* "T__")]
                (r.ir/op-search search-target (r.ir/op-eval
                                                `(map (fn [k#]
                                                        [k# (gobj/get ~target k#)])
@@ -659,7 +659,7 @@
          (compile-pass targets [row])
 
          ::r.match.syntax/let
-         (let [xsym (gensym* "x__")
+         (let [xsym (gensym* "T__")
                targets* `[~xsym ~@targets*]
                matrix* (r.matrix/prepend-column [row] [(:pattern node)])]
            (r.ir/op-bind xsym (r.ir/op-eval (:expression node))
@@ -850,7 +850,7 @@
          :mvr
          (let [sym (:symbol node)]
            (if (r.matrix/get-var row node)
-             (let [save-id (gensym* "save__")]
+             (let [save-id (gensym* "S__")]
                ;; save/load is necessary here since it is possible
                ;; for the state of a memory variable to persist
                ;; even after a match failure.
@@ -899,17 +899,17 @@
          :prt
          (let [{:keys [left right]} node
                ;; Left tree symbol
-               lsym (symbol (str target "_l__"))
+               lsym (symbol (str target "_L__"))
                ;; Left min length
                llen (r.syntax/min-length left)
                ;; Right tree symbol
-               rsym (symbol (str target "_r__"))
+               rsym (symbol (str target "_R__"))
                ;; Right min length
                rlen (r.syntax/min-length right)
                ;; Target length symbol
-               nsym (gensym "n__")
+               nsym (gensym "N__")
                ;; Target length symbol minus either the left or right min length
-               msym (gensym "m__")
+               msym (gensym "N__")
                ;; The optional as node
                as-node (:as node)]
            (case [(r.syntax/variable-length? left) (r.syntax/variable-length? right)]
@@ -1056,7 +1056,7 @@
          (compile-pass targets* [row])
 
          ::r.match.syntax/rxc
-         (let [ret-sym (gensym* "ret__")
+         (let [ret-sym (gensym* "R__")
                cols* `[~(:capture node) ~@(:cols row)]
                row* (assoc row :cols cols*)]
            (r.ir/op-check-boolean (r.ir/op-eval `(string? ~target))
@@ -1289,7 +1289,7 @@
                  as-node (or (get node :as) {:tag :any})
                  rest-node (or (get node :rest) {:tag :any})
                  as_target target
-                 rest_target (gensym "X__")]
+                 rest_target (gensym "T__")]
              (case strategy
                :solved
                (let [ground-value (compile-ground node)
@@ -1317,14 +1317,14 @@
                           ;; TODO: Case for n = 1
 
                           ;; else
-                          (let [elements_target (gensym "X__")
+                          (let [elements_target (gensym "T__")
                                 targets* (into [as_target elements_target rest_target] rest-targets)
                                 head-cells [as-node {:tag :cat, :elements element-nodes} rest-node]
                                 row* (r.matrix/prepend-cells row head-cells)
                                 matrix* [row*]
                                 ir-body (compile targets* matrix*)
                                 search-space `(r.match.runtime/set-k-permutations-with-unselected ~target ~n)
-                                search_space_element (symbol (str target "_X__"))
+                                search_space_element (symbol (str target "_T__"))
                                 ir-search-space (r.ir/op-eval search-space)
                                 ir-search-body (r.ir/op-bind elements_target (r.ir/op-nth (r.ir/op-eval search_space_element) 0)
                                                  (r.ir/op-bind rest_target (r.ir/op-nth (r.ir/op-eval search_space_element) 1)
@@ -1460,7 +1460,7 @@
                   ;; Compile nodes for all possible defs.
                   (reduce
                    (fn [dt spec-map]
-                     (let [target-arg (gensym* "arg__")
+                     (let [target-arg (gensym* "T__")
                            ret-syms (mapv :symbol (:rets spec-map))]
                        {:op :def
                         :symbol (:symbol spec-map)
@@ -1659,7 +1659,7 @@
              matrix (if final-clause
                       (vec (take-while (partial not= final-clause) matrix))
                       matrix)]
-         {:cata-symbol (gensym "CATA__FN__")
+         {:cata-symbol (gensym "C__")
           :contains-cata? contains-cata?
           :errors errors
           :expr (get result :expr)
