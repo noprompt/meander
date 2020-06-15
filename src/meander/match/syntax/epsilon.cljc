@@ -327,6 +327,8 @@
          infer-literal-vector? (get env :meander.epsilon/infer-literal-vector)
          prioritize-map-entries? (get env :meander.epsilon/prioritize-map-entries)
          prioritize-literal-set-elements? (get env :meander.epsilon/prioritize-literal-set-elements)
+         rewrite-map-as-to-and? (get env :meander.epsilon/rewrite-map-as-to-and)
+         rewrite-map-rest-to-dissoc? (get env :meander.epsilon/rewrite-map-rest-to-dissoc)
          rewrite-seq-as-to-and? (get env :meander.epsilon/rewrite-seq-as-to-and)
          rewrite-set-as-to-and? (get env :meander.epsilon/rewrite-set-as-to-and)
          rewrite-set-rest-to-disj? (get env :meander.epsilon/rewrite-set-rest-to-disj)
@@ -340,15 +342,18 @@
             (flatten-and node)
             node)
 
-          :map
-          (let [node* (if prioritize-map-entries?
-                        (prioritize-map-entries node)
-                        node)
-                node* (if (= node node*)
-                        (expand-as node)
-                        node*)]
-            ;; TODO: needs to flag.
-            (expand-map-rest node*))
+          ;; :map
+          ;; (let [node* (if prioritize-map-entries?
+          ;;               (prioritize-map-entries node)
+          ;;               node)
+          ;;       node* (if (= node node*)
+          ;;               (if rewrite-map-as-to-and?
+          ;;                 (expand-as node)
+          ;;                 node*)
+          ;;               node*)]
+          ;;   (if rewrite-map-rest-to-dissoc? 
+          ;;     (expand-map-rest node*)
+          ;;     node*))
 
           ::not
           (if eliminate-double-negation?
