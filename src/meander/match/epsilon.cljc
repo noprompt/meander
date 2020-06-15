@@ -570,47 +570,50 @@
      (case (r.syntax/tag node)
        :jso
        (keys (:object node))
+
+       ;; else
        ()))
    (r.matrix/first-column matrix)))
 
-
 (defmethod compile-specialized-matrix :jso
-  [_ [target & targets*] matrix]
-  (let [ranked-keys (r.util/rank (jso-matrix-all-keys matrix))]
-    ;; Recompile with object keys aligned. For example if the pattern
-    ;; conditions were
-    ;;
-    ;;   #js {:x ?1, :y ?2, :z ?3}
-    ;;   #js {:x ?1}
-    ;;   #js {:w ?2, :z ?3}
-    ;;
-    ;; then we would organize the matrix as
-    ;;
-    ;;   [:x ?1] [:z ?3] [:y ?2] [:w __]
-    ;;   [:x ?1] [:z __] [:y __] [:w __]
-    ;;   [:x __] [:z ?3] [:y __] [:w ?2]
-    [(r.ir/op-check-boolean
-       (r.ir/op-eval `(some? ~target)) ;; This may be a bit liberal.
-       (compile `[~@(repeat (count ranked-keys) target) ~@targets*]
-                (mapv
-                 (fn [row]
-                   (let [[node & rest-nodes] (get row :cols)]
-                     (case (r.syntax/tag node)
-                       :jso
-                       (let [object (:object node)
-                             prefix (mapv
-                                     (fn [key-node]
-                                       (if-some [entry (clojure/find object key-node)]
-                                         {:tag :okv
-                                          :entry entry}
-                                         {:tag :okv
-                                          :entry [key-node {:tag :any
-                                                            :symbol '_}]}))
-                                     ranked-keys)]
-                         (assoc row :cols `[~@prefix ~@rest-nodes]))
-                       row)))
-                 matrix)))]))
+  [_ [target & rest_targets] matrix]
+  ;; Compile with object keys aligned. For example if the pattern
+  ;; conditions were
+  ;;
+  ;;   #js {:x ?1, :y ?2, :z ?3}
+  ;;   #js {:x ?1}
+  ;;   #js {:w ?2, :z ?3}
+  ;;
+  ;; then we would organize the matrix as
+  ;;
+  ;;   [:x ?1] [:z ?3] [:y ?2] [:w __]
+  ;;   [:x ?1] [:z __] [:y __] [:w __]
+  ;;   [:x __] [:z ?3] [:y __] [:w ?2]
+  (let [ranked-keys (r.util/rank (jso-matrix-all-keys matrix))
+        total-keys (count ranked-keys)
+        any-fill (repeat total-keys any-node)
+        key_targets (repeat total-keys target)
+        sub_targets `[~@key_targets ~@rest_targets]]
+    [(r.ir/op-check-boolean (r.ir/op-eval `(some? ~target)) ;; This may be a bit liberal.
+       (compile sub_targets
+                (process-matrix matrix
+                  (fn [node row]
+                    (case (r.syntax/tag node)
+                      :any
+                      (r.matrix/prepend-cells row any-fill)
 
+                      :jso
+                      (let [object (:object node)
+                            prefix (mapv
+                                    (fn [key-node]
+                                      (if-some [entry (clojure/find object key-node)]
+                                        {:tag :okv
+                                         :entry entry}
+                                        {:tag :okv
+                                         :entry [key-node {:tag :any
+                                                           :symbol '_}]}))
+                                    ranked-keys)]
+                        (r.matrix/prepend-cells row prefix)))))))]))
 
 (defmethod compile-specialized-matrix :okv
   [_ [target & targets* :as targets] matrix]
