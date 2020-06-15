@@ -380,7 +380,7 @@
        (compile-pass targets* [row])
 
        ::r.match.syntax/cata
-       (let [cata-return (gensym "CATA_RETURN__")]
+       (let [cata-return (gensym "R__")]
          {:op :call
           :symbol *cata-symbol*
           :target (r.ir/op-eval target)
