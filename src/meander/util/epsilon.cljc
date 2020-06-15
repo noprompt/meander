@@ -2,7 +2,10 @@
   (:require [clojure.walk :as walk]
             [clojure.zip :as zip])
   #?(:cljs
-     (:require-macros [meander.util.epsilon :refer [__disj]])))
+     (:require-macros [meander.util.epsilon
+                       :refer [__disj
+                               __dissoc
+                               __nth]])))
 
 
 (defn cljs-env?
