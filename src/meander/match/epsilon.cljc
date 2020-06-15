@@ -100,7 +100,7 @@
               (let [vars (r.syntax/variables (r.syntax/substitute-refs node ref-map))
                     rets (vec vars)
                     ret-syms (mapv :symbol rets)]
-                [ref (into [{:symbol (gensym* "def__")
+                [ref (into [{:symbol (gensym* "D__")
                              :vars #{}
                              :reqs []
                              :rets rets
@@ -109,7 +109,7 @@
                                   (fn [i]
                                     (r.util/k-combinations vars i)))
                                  (map (fn [reqs]
-                                        {:symbol (gensym* "def__")
+                                        {:symbol (gensym* "D__")
                                          :vars reqs
                                          :reqs (vec reqs)
                                          :rets rets
