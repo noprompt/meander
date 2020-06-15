@@ -56,6 +56,10 @@
   *cata-symbol*
   nil)
 
+(def
+  ^{:private true}
+  any-node {:tag :any})
+
 
 (defn gensym*
   "Like gensym but adds additional meta data which can be used by the
