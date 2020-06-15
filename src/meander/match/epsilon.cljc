@@ -299,6 +299,12 @@
         (r.matrix/first-column matrix)))
 
 
+(defn process-matrix
+  {:style/indent 1}
+  [matrix f]
+  (mapv f (r.matrix/first-column matrix) (r.matrix/drop-column matrix)))
+
+
 (defmulti compile-specialized-matrix
   "Compile the matrix specialized for tag with respect to targets to a
   sequence of decision trees."
