@@ -704,123 +704,147 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
-
-(defn map-matrix-all-keys
-  "Return a sequence of all :map keys in matrix."
+(defn map-matrix-all-literal-keys
   {:private true}
-  [matrix]
-  (mapcat
-   (fn [node]
-     (when (= (r.syntax/tag node) :map)
-       (keys (:map node))))
-   (r.matrix/first-column matrix)))
+  [map-matrix]
+  (into #{}
+        (comp (filter r.syntax/map-node?)
+              (mapcat r.syntax/literal-keys))
+        (r.matrix/first-column map-matrix)))
 
-(defn non-search-lvars
+
+(defn compile-literal-key-map-matrix
   {:private true}
-  [node env]
-  (set/union
-   env
-   (reduce (fn [acc node]
-             (case (r.syntax/tag node)
-               :lvr (conj acc node)
-               :map (set/union acc (non-search-lvars node env))
-               nil))
-           #{}
-           (map second
-                (filter (fn [[k v]] (r.syntax/ground? k)) (:map node))))))
+  [literal-key-nodes [target :as targets] map-matrix]
+  {:pre [(seq literal-key-nodes)]}
+  (let [value_targets (vec (repeatedly (count literal-key-nodes) (fn [] (gensym "T__"))))
+        rest_target (gensym "T__")
+        literal-key-codes (map compile-ground literal-key-nodes)
+        sub_targets `[~rest_target ~@targets]
+        ir-target (r.ir/op-eval target)]
+    [(r.ir/op-check-map (r.ir/op-eval target)
+       (reduce
+        (fn [ir [value_target key-code]]
+          (r.ir/op-bind value_target (r.ir/op-lookup ir-target (r.ir/op-eval key-code))
+            ir))
+        (compile value_targets
+                 (process-matrix map-matrix
+                   (fn [node row]
+                     (let [as-node (or (get node :as) any-node)
+                           the-map (get node :map)
+                           local-literal-key-nodes (filter literal-key-nodes (keys the-map))
+                           local-literal-key-codes (map compile-ground local-literal-key-nodes)
+                           value-nodes (mapv (fn [key-node]
+                                               (or (get the-map key-node) any-node))
+                                             literal-key-nodes)
+                           the-map* (reduce dissoc the-map local-literal-key-nodes)
+                           rest-node (if (seq the-map*)
+                                       (merge node {:as nil :map the-map*})
+                                       (or (get node :rest-map) any-node))
+                           rest-row (r.matrix/add-vars row (mapcat r.syntax/variables value-nodes))
+                           rest-row (r.matrix/prepend-cells rest-row [rest-node as-node])
+                           rest-matrix [rest-row]
+                           rest-ir (compile sub_targets rest-matrix)
+                           rest-rhs (r.ir/op-bind rest_target (r.ir/op-eval `(dissoc ~target ~@local-literal-key-codes))
+                                      rest-ir)
+                           row* (merge row {:cols value-nodes, :rhs rest-rhs})]
+                       row*))))
+        (map vector value_targets literal-key-codes)))]))
 
-(defn find-search-keys
+(defn specialize-map-matrix-by-size
   {:private true}
-  [node env]
-  (set/difference
-   (set (remove r.syntax/ground? (keys (:map node))))
-   env))
+  [map-matrix]
+  (let [totals (sequence
+                (comp (filter r.syntax/map-node?)
+                      (map :map)
+                      (map count)
+                      (distinct))
+                (r.matrix/first-column map-matrix))
+        matrices (reduce
+                  (fn [grouped total]
+                    (let [s-matrix (into [] (filter
+                                             (fn [row]
+                                               (let [head-cell (nth (get row :cols) 0)]
+                                                 (or (r.syntax/any-node? head-cell)
+                                                     (and (r.syntax/map-node? head-cell)
+                                                          (= total (count (get head-cell :map))))))))
+                                         map-matrix)]
+                      (conj grouped [total s-matrix])))
+                  []
+                  totals)]
+    matrices))
 
-(defn search-map?
+(defn compile-k-map-specialized-matrix
   {:private true}
-  [node env]
-  (or (some (fn [[k v]]
-              (r.syntax/mvr-node? k))
-            (get node :map))
-      (not (empty? (set/difference
-                    (find-search-keys node env)
-                    (non-search-lvars node env))))))
-
-
-(defn find-search-keys-recursive
-  {:private true}
-  [env [k v]]
-  (concat
-   (find-search-keys {:tag :map :map {k v}} env)
-   (if (map? k) (mapcat (partial find-search-keys-recursive env) (:map k)) '())
-   (if (map? v) (mapcat (partial find-search-keys-recursive env) (:map v)) '())))
-
-(defn sort-by-search-keys
-  {:private true}
-  [the-map env]
-  (sort-by
-   (comp count (partial find-search-keys-recursive env))
-   the-map))
-
-(defmethod compile-specialized-matrix :map
-  [_ [target & targets*] matrix]
-  (let [all-keys (map-matrix-all-keys matrix)
-        num-keys (count all-keys)
-        matrix* (if (zero? num-keys)
-                  (mapv (fn [node row]
-                          (r.matrix/prepend-cells row [{:tag :any :symbol '_}]))
-                        (r.matrix/first-column matrix)
-                        (r.matrix/drop-column matrix))
-                  (mapv
+  [k [target & rest_targets :as targets] matrix]
+  (let [ir-target (r.ir/op-eval target)]
+    (r.ir/op-check-map ir-target
+      (case k
+        0
+        (compile `[~target ~@targets]
+                 (process-matrix matrix
                    (fn [node row]
                      (case (r.syntax/tag node)
-                       :any
-                       (r.matrix/prepend-cells row (repeat num-keys node))
+                       :any (r.matrix/prepend-cells row [any-node any-node])
 
                        :map
-                       (let [the-map (:map node)
-                             env (get row :env)
-                             the-map* (sort-by-search-keys the-map env)]
-                         (if (search-map? node env)
-                           (r.matrix/prepend-cells row
-                             (into [{:tag ::r.match.syntax/apply
-                                     :function `set
-                                     :argument {:tag :set
-                                                :elements (map (fn [[k-node v-node]]
-                                                                 {:tag :cat
-                                                                  :elements [k-node v-node]})
-                                                               the-map*)}}]
-                                   (repeat (dec num-keys) '{:tag :any, :symbol _})))
-                           (r.matrix/prepend-cells row
-                             (into (mapv (fn [key]
-                                           {:tag :mkv
-                                            :entry (clojure/find the-map key)})
-                                         (keys the-map*))
-                                   (repeat (- num-keys (count the-map*))
-                                           '{:tag :any :symbol _})))))))
-                   (r.matrix/first-column matrix)
-                   (r.matrix/drop-column matrix)))]
-    [(r.ir/op-check-map (r.ir/op-eval target)
-       (compile `[~@(repeat (max 1 num-keys) target) ~@targets*] matrix*))]))
+                       (let [as-node (or (get node :as) any-node)
+                             rest-map-node (or (get node :rest-map) any-node)
+                             row* (r.matrix/prepend-cells row `[~as-node ~rest-map-node])]
+                         row*)))))
+        ;; else
+        (let [search_space (gensym "T__")
+              search_space_element (gensym "T__")
+              selected (gensym "T__")
+              selected_key_targets (repeatedly k (fn [] (gensym "T__")))
+              selected_val_targets (repeatedly k (fn [] (gensym "T__")))
+              unselected_target (gensym "T__")
+              sub_targets `[~@selected_key_targets ~@selected_val_targets ~unselected_target ~@targets]
+              any-fill (vec (repeat (count sub_targets) any-node))]
+          (r.ir/op-search search_space_element (r.ir/op-eval `(r.match.runtime/map-k-permutations-with-unselected ~target ~k))
+            (r.ir/op-bind selected (r.ir/op-nth search_space_element 0)
+              (reduce
+               (fn [ir k]
+                 (let [selected_key_target (nth selected_key_targets k)
+                       selected_val_target (nth selected_val_targets k)]
+                   (r.ir/op-bind selected_key_target (r.ir/op-nth (r.ir/op-nth selected k) 0)
+                     (r.ir/op-bind selected_val_target (r.ir/op-lookup ir-target (r.ir/op-eval selected_key_target))
+                       ir))))
+               (r.ir/op-bind unselected_target (r.ir/op-nth search_space_element 1)
+                 (compile sub_targets
+                          (process-matrix matrix
+                            (fn [node row]
+                              (case (r.syntax/tag node)
+                                :any
+                                (let [row* (r.matrix/prepend-cells row any-fill)]
+                                  row*)
 
+                                :map
+                                (let [the-map (get node :map)
+                                      key-nodes (keys the-map)
+                                      val-nodes (vals the-map)
+                                      as-node (or (get node :as) any-node)
+                                      rest-map-node (or (get node :rest-map) any-node)
+                                      row* (r.matrix/prepend-cells row `[~@key-nodes ~@val-nodes ~rest-map-node ~as-node])]
+                                  row*))))))
+               (reverse (range k))))))))))
 
-(defmethod compile-specialized-matrix :mkv
-  [_ [target & targets* :as targets] matrix]
-  (let [targets* (vec targets*)]
-    (mapv
-     (fn [node row]
-       (case (r.syntax/tag node)
-         :any
-         (compile-pass targets* [row])
+(defn compile-non-literal-key-map-matrix
+  {:private true}
+  [targets map-matrix]
+  (let [matrices (specialize-map-matrix-by-size map-matrix)]
+    (into []
+          (keep
+           (fn [[k s-matrix]]
+             (compile-k-map-specialized-matrix k targets s-matrix)))
+          matrices)))
 
-         :mkv
-         (let [[key-node val-node] (:entry node)
-               val-target (gensym* "VAL__")]
-           (r.ir/op-bind val-target (r.ir/op-lookup (r.ir/op-eval target) (r.ir/op-eval (compile-ground key-node)))
-             (compile `[~val-target ~@targets*] (r.matrix/prepend-column [row] [val-node]))))))
-     (r.matrix/first-column matrix)
-     (r.matrix/drop-column matrix))))
-
+(defmethod compile-specialized-matrix :map
+  [_  targets map-matrix]
+  (let [literal-key-nodes (map-matrix-all-literal-keys map-matrix)]
+    (if (seq literal-key-nodes)
+      (compile-literal-key-map-matrix literal-key-nodes targets map-matrix)
+      (compile-non-literal-key-map-matrix targets map-matrix))))
 
 (defmethod compile-specialized-matrix :mut
   [_ [target & targets*] matrix]
