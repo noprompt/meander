@@ -16,8 +16,7 @@
 ;; AST rewriting
 
 (defn expand-as
-  {:deprecated true
-   :private true}
+  {:private true}
   [node]
   (if-some [as (:as node)]
     {:tag ::and
@@ -91,7 +90,6 @@
     node))
 
 (defn expand-or
-  {:deprecated true}
   [node]
   (let [node (flatten-or node)
         arguments (:arguments node)]
@@ -173,12 +171,10 @@
       :else node)))
 
 (defn expand-map-keys
-  {:deprecated true}
   [node]
   (prioritize-map-entries node))
 
 (defn expand-map
-  {:deprecated true}
   [node]
   (let [node* (prioritize-map-entries node)]
     (if (= node node*)
@@ -293,12 +289,10 @@
       :else node)))
 
 (defn expand-set-elements
-  {:deprecated true}
   [node]
   (prioritize-literal-set-elements node))
 
 (defn expand-set
-  {:depcrated true}
   [node]
   (let [node* (expand-set-elements node)]
     (if (= node node*)
