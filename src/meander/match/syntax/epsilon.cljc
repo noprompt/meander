@@ -342,18 +342,18 @@
             (flatten-and node)
             node)
 
-          ;; :map
-          ;; (let [node* (if prioritize-map-entries?
-          ;;               (prioritize-map-entries node)
-          ;;               node)
-          ;;       node* (if (= node node*)
-          ;;               (if rewrite-map-as-to-and?
-          ;;                 (expand-as node)
-          ;;                 node*)
-          ;;               node*)]
-          ;;   (if rewrite-map-rest-to-dissoc? 
-          ;;     (expand-map-rest node*)
-          ;;     node*))
+          :map
+          (let [node* (if prioritize-map-entries?
+                        (prioritize-map-entries node)
+                        node)
+                node* (if (= node node*)
+                        (if rewrite-map-as-to-and?
+                          (expand-as node)
+                          node*)
+                        node*)]
+            (if rewrite-map-rest-to-dissoc?
+              (expand-map-rest node*)
+              node*))
 
           ::not
           (if eliminate-double-negation?
