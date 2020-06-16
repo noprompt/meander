@@ -363,7 +363,6 @@
                        node)]
             node)
 
-          ;; TODO: needs flags.
           :prt
           (expand-prt node)
 
@@ -407,29 +406,57 @@
           node))
       node))))
 
-(defn expand-ast-bottom-up
+
+;; Produces shorter but potentially slower code.
+(defn abstract-plus
   {:private true}
   [node]
-  (r.syntax/postwalk
-   (fn [node]
-     (case (r.syntax/tag node)
-       ::or
-       (r.syntax/abstract node)
+  (let [cat-node (get node :cat)
+        cat-elements (get cat-node :elements)
+        n (get node :n)
+        node-map (into {} (map (fn [node]
+                                 [node (r.syntax/genref)]))
+                       cat-elements)]
+    {:tag :wth
+     :bindings (mapv
+                (fn [[node ref]]
+                  {:ref ref, :pattern node})
+                node-map)
+     :body
+     {:tag :prt
+      :left {:tag :cat
+             :elements (into [] cat (repeat n (map node-map cat-elements)))}
+      :right {:tag :rp*
+              :cat {:tag :cat
+                    :elements (mapv node-map cat-elements)}}}}))
 
-       :rp+
-       (let [n (:n node)]
-         (if (= 0 n)
-           (assoc (dissoc node :n) :tag :rp*)
-           (let [cat-node (get node :cat)]
-             {:tag :prt
-              :left cat-node
-              :right {:tag :rp+
-                      :cat cat-node
-                      :n (dec n)}})))
+(defn expand-ast-bottom-up
+  {:private true}
+  ([node]
+   (expand-ast-bottom-up r.environment/default))
+  ([node env]
+   (let [abstract-disjunction? (get env :meander.epsilon/abstract-disjunction)
+         abstract-plus? (get env :meander.epsilon/abstract-plus)]
+     (r.syntax/postwalk
+      (fn [node]
+        (case (r.syntax/tag node)
+          ::or
+          (if abstract-disjunction?
+            (r.syntax/abstract node)
+            node)
 
-       ;; else
-       node))
-   node))
+          :rp+
+          (let [n (get node :n)]
+            (if (zero? n)
+              (assoc (dissoc node :n) :tag :rp*)
+              (if abstract-plus?
+                (abstract-plus node)
+                node)))
+
+          ;; else
+          node))
+      node))))
+
 
 (defn expand-ast
   "Takes an AST node as returned by `meander.syntax.epsilon/parse` and
@@ -439,7 +466,7 @@
    (expand-ast node r.environment/default))
   ([node env]
    (let [node* (-> (expand-ast-top-down node env)
-                   (expand-ast-bottom-up)
+                   (expand-ast-bottom-up env)
                    (r.syntax/rename-refs)
                    (r.syntax/consolidate-with))
          node* (if (seq (get node* :bindings))

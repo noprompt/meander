@@ -12,7 +12,6 @@
    [meander.syntax.epsilon :as r.syntax]
    #?(:cljs [goog.array])))
 
-
 (def SeqInterface
   #?(:clj clojure.lang.ISeq
      :cljs ISeq))
@@ -860,7 +859,6 @@ compilation decisions."
       #'cljs.core/vector? cljs.core/PersistentVector}))
 
 
-
 (def
   ^{:private true}
   kind-types
@@ -1032,11 +1030,14 @@ compilation decisions."
   "Form used to test if two arrays a and b are equal in
   ClojureScript."
   [a b]
-  `(goog.array/equals ~a ~b
-                      (fn f# [a# b#]
-                        (if (cljs.core/array? a#)
-                          (goog.array/equals a# b# f#)
-                          (= a# b#)))))
+  (let [f (gensym "F__")
+        x_1 (gensym "X__")
+        x_2 (gensym "X__")]
+    `(goog.array/equals ~a ~b
+                        (fn ~f [~x_1 ~x_2]
+                          (if (cljs.core/array? ~x_1)
+                            (goog.array/equals ~x_1 ~x_2 ~f)
+                            (= ~x_1 ~x_2))))))
 
 (defn take-form [n target-form kind]
   (case kind
@@ -1317,7 +1318,7 @@ compilation decisions."
                `(<= ~length (count ~target))
 
                :seq
-               `(= (bounded-count (inc ~length) ~target)
+               `(= (bounded-count ~(inc length) ~target)
                    ~length)
 
                :vector
@@ -1514,19 +1515,21 @@ compilation decisions."
             input-sym (:input-symbol ir)
             return-syms (:return-symbols ir)
             body-form (compile* (:body ir) (fail-form kind) kind)
-            then-form (compile* (:then ir) fail kind)]
-        `(loop [i# 0
+            then-form (compile* (:then ir) fail kind)
+            result (gensym "R__")
+            i (gensym "N__")]
+        `(loop [~i 0
                 ~coll-sym ~(compile* (:input ir) fail kind)
                 ~return-syms ~(:return-symbols ir)]
            (let [~input-sym ~(take-form n coll-sym (:kind ir))]
              (if (= (count ~input-sym) ~n)
-               (let [result# ~body-form]
-                 (if (r.match.runtime/fail? result#)
+               (let [~result ~body-form]
+                 (if (r.match.runtime/fail? ~result)
                    ~fail
-                   (recur (inc i#) ~(drop-form n coll-sym (:kind ir)) result#)))
+                   (recur (inc ~i) ~(drop-form n coll-sym (:kind ir)) ~result)))
                ;; Failed to consume
                (if (or (seq ~coll-sym)
-                       (< i# ~m))
+                       (< ~i ~m))
                  ~fail
                  ~then-form))))))))
 
@@ -1579,7 +1582,8 @@ compilation decisions."
         body-f `(fn [~rets ~input-sym]
                   ~body-form)
         then-form (compile* (:then ir) fail kind)
-        then-f `(fn [~rets] ~then-form)]
+        then-f `(fn [~rets] ~then-form)
+        result (gensym "R__")]
     (case kind
       :search
       (case (:kind ir)
@@ -1593,22 +1597,22 @@ compilation decisions."
         `(r.match.runtime/run-star-vec-search ~input-form ~rets ~n ~body-f ~then-f))
 
       ;;else
-      `(let [ret# ~(case (:kind ir)
-                     :js-array
-                     `(r.match.runtime/run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
+      `(let [~result ~(case (:kind ir)
+                       :js-array
+                       `(r.match.runtime/run-star-js-array ~input-form ~rets ~n ~body-f ~then-f)
 
-                     :seq
-                     (if (= n 1)
-                       `(r.match.runtime/run-star-1 ~input-form ~rets ~body-f ~then-f)
-                       `(r.match.runtime/run-star-seq ~input-form ~rets ~n ~body-f ~then-f))
+                       :seq
+                       (if (= n 1)
+                         `(r.match.runtime/run-star-1 ~input-form ~rets ~body-f ~then-f)
+                         `(r.match.runtime/run-star-seq ~input-form ~rets ~n ~body-f ~then-f))
 
-                     :vector
-                     (if (= n 1)
-                       `(r.match.runtime/run-star-1 ~input-form ~rets ~body-f ~then-f)
-                       `(r.match.runtime/run-star-vec ~input-form ~rets ~n ~body-f ~then-f)))]
-           (if (r.match.runtime/fail? ret#)
-             ~fail
-             ret#)))))
+                       :vector
+                       (if (= n 1)
+                         `(r.match.runtime/run-star-1 ~input-form ~rets ~body-f ~then-f)
+                         `(r.match.runtime/run-star-vec ~input-form ~rets ~n ~body-f ~then-f)))]
+         (if (r.match.runtime/fail? ~result)
+           ~fail
+           ~result)))))
 
 (defmethod compile* :take
   [ir fail kind]
@@ -1623,11 +1627,11 @@ compilation decisions."
 (defn compile
   ([ir fail kind]
    (let [form (compile* (rewrite ir) `r.match.runtime/FAIL kind)
-         R__1 (gensym "R__")]
-     `(let [~R__1 ~form]
-        (if (r.match.runtime/fail? ~R__1)
+         result (gensym "R__")]
+     `(let [~result ~form]
+        (if (r.match.runtime/fail? ~result)
           ~fail
-          ~R__1))))
+          ~result))))
   ([ir fail kind env]
    (binding [*env* env]
      (compile ir fail kind))))

@@ -1154,38 +1154,45 @@
 
 
 (defmethod compile-specialized-matrix :rp+
-  [_ [target & targets*] matrix]
-  (let [targets* (vec targets*)]
+  [_ [target & rest_targets :as targets] matrix]
+  (let [rest_targets (vec rest_targets)]
     (mapv
      (fn [node row]
        (case (r.syntax/tag node)
          :any
-         (compile-pass targets* [row])
+         (compile-pass rest_targets [row])
 
          :rp+
-         (let [cat-node (:cat node)
-               n (count (:elements cat-node))
-               ;; Minimum number of times subsequence must match.
-               m (:n node)
-               unbound-mvrs (set/difference
-                             (r.syntax/memory-variables
-                              (r.syntax/substitute-refs cat-node (:refs row)))
-                             (r.matrix/bound-mvrs row))
-               row* (r.matrix/add-vars row unbound-mvrs)
-               mvr-syms (map :symbol (r.matrix/bound-mvrs row*))]
-           (reduce
-            (fn [op-tree mvr-node]
-              (r.ir/op-mvr-init (:symbol mvr-node)
-                op-tree))
-            (r.ir/op-plus (r.ir/op-eval target) n m *collection-context*
-              ;; Symbols to bind
-              mvr-syms
-              ;; Result of this is accumulated.
-              (fn [input-symbol dt-return]
-                (compile [input-symbol]
-                         [(assoc row* :cols [cat-node] :rhs dt-return)]))
-              (compile targets* [row*]))
-            unbound-mvrs))))
+         (let [minimum-times-subsequence-must-match (get node :n)
+               cat-node (get node :cat)]
+           (if (zero? minimum-times-subsequence-must-match)
+             (let [rp*-node {:tag :rp*
+                             :cat cat-node}
+                   row* (r.matrix/prepend-cells row [rp*-node])]
+               (compile targets [row*]))
+             (if (seq (r.matrix/unbound-vars row cat-node))
+               ;; If there are unbound variables, we need to bind
+               ;; them. The simplest way is to rewrite the node and
+               ;; compile it.
+               (let [prt-node {:tag :prt
+                               :left cat-node
+                               :right {:tag :rp+
+                                       :n (dec minimum-times-subsequence-must-match)
+                                       :cat cat-node}}
+                     row* (r.matrix/prepend-cells row [prt-node])]
+                 (compile targets [row*]))
+               (let [number-of-elements (count (get cat-node :elements))
+                     mvr-syms (map :symbol (r.matrix/bound-mvrs row))]
+                 (r.ir/op-plus (r.ir/op-eval target) number-of-elements minimum-times-subsequence-must-match *collection-context*
+                   ;; Symbols to bind
+                   mvr-syms
+                   ;; Result of this is accumulated.
+                   (fn [input-symbol dt-return]
+                     (compile [input-symbol] [(assoc row :cols [cat-node] :rhs dt-return)]))
+                   (compile rest_targets [row]))))))
+         
+
+         ))
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 

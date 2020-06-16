@@ -386,6 +386,20 @@
    (r.syntax/memory-variables (r.syntax/substitute-refs node (:refs row)))
    (bound-mvrs row)))
 
+(defn unbound-lvrs
+  "Return the set of unbound logic variables in node with respect to
+  row."
+  [row node]
+  (set/difference
+   (r.syntax/logic-variables (r.syntax/substitute-refs node (:refs row)))
+   (bound-lvrs row)))
+
+(defn unbound-vars
+  [row node]
+  (set/difference
+   (r.syntax/variables (r.syntax/substitute-refs node (get row :refs)))
+   (get row :env)))
+
 (defn any-row?
   "`true` if every column in `row` is an `any-node?`, `false`
   otherwise."

@@ -1,7 +1,10 @@
 (ns meander.environment.epsilon)
 
 (def default
-  {:meander.epsilon/eliminate-double-negation true
+  {:meander.epsilon/abstract-disjunction true
+   ;; This reduces code size at the expensive of performance.
+   :meander.epsilon/abstract-plus false
+   :meander.epsilon/eliminate-double-negation true
    :meander.epsilon/flatten-and true
    :meander.epsilon/flatten-or true
    :meander.epsilon/infer-case true
