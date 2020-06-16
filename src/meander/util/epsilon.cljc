@@ -1,6 +1,11 @@
 (ns ^:no-doc meander.util.epsilon
   (:require [clojure.walk :as walk]
-            [clojure.zip :as zip]))
+            [clojure.zip :as zip])
+  #?(:cljs
+     (:require-macros [meander.util.epsilon
+                       :refer [__disj
+                               __dissoc
+                               __nth]])))
 
 
 (defn cljs-env?
@@ -17,6 +22,28 @@
   #?(:clj (Integer/parseInt s)
      :cljs (js/parseInt s)))
 
+(defmacro __disj
+  {:private true}
+  [s x]
+  (if (cljs-env? &env)
+    `(disj ~s ~x)
+    `(.disjoin ~(vary-meta s assoc :tag 'clojure.lang.IPersistentSet) ~x)))
+
+(defmacro __dissoc
+  {:private true}
+  ([m x]
+   (if (cljs-env? &env)
+     `(dissoc ~m ~x)
+     `(.without  ~(vary-meta m assoc :tag 'clojure.lang.IPersistentMap) ~x)))
+  ([m x & xs]
+   `(__dissoc (__dissoc ~m ~x) ~@xs)))
+
+(defmacro __nth
+  {:private true}
+  [v i]
+  (if (cljs-env? &env)
+    `(nth ~v ~i)
+    `(.nth ~(vary-meta v assoc :tag 'clojure.lang.IPersistentVector) ~i)))
 
 (defn swap
   "Swap the elements at positions `i` and `j` in `v`."
@@ -25,7 +52,6 @@
   (-> v
       (assoc i (nth v j))
       (assoc j (nth v i))))
-
 
 ;; SEE: https://en.wikipedia.org/wiki/Heap%27s_algorithm
 (defn permutations
@@ -47,28 +73,159 @@
                   a)]
           (recur n* a*))))))
 
+(defn set-k-permutations-with-unselected
+  "Set specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] #{,,,}]
+
+  where the first element in the pair is a permuted selection of k
+  items from the set s, and the second element is s with those
+  elements removed."
+  [s k]
+  (case k
+    0 (list [[] s])
+
+    1 (map (fn [x]
+             [[x] (__disj s x)])
+           s)
+
+    2 (mapcat
+       (fn [x]
+         (let [s-x (__disj s x)]
+           (map (fn [y]
+                  [[x y] (__disj s-x y)])
+                s-x)))
+       s)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [xs (__nth pair 0)
+             s-xs (__nth pair 1)]
+         (map (fn [x]
+                [(conj xs x) (__disj s-xs x)])
+              s-xs)))
+     (set-k-permutations-with-unselected s (dec k)))))
+
+(defn map-k-permutations-with-unselected
+  "Map specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] {,,,}]
+
+  where the first element in the pair is a permuted selection of k
+  entries from the map m, and the second element is m with those
+  entries removed."
+  [m k]
+  (case k
+    0 (list [[] m])
+
+    1 (map (fn [e]
+             [[e] (__dissoc m (key e))])
+           m)
+
+    2 (mapcat
+       (fn [e1]
+         (let [m-e1 (__dissoc m (key e1))]
+           (map (fn [e2]
+                  [[e1 e2] (__dissoc m-e1 (key e2))])
+                m-e1)))
+       m)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [es (__nth pair 0)
+             m-es (__nth pair 1)]
+         (map (fn [e]
+                [(conj es e) (__dissoc m-es (key e))])
+              m-es)))
+     (map-k-permutations-with-unselected m (dec k)))))
+
+(defn vector-k-permutations-with-unselected
+  "Vector specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] [,,,]]
+
+  where the first element in the pair is a permuted selection of k
+  items from the vector v, and the second element is v with the items
+  at their respective indicies removed."
+  [v k]
+  (case k
+    0 (list [[] v])
+
+    1 (map-indexed
+       (fn [i x]
+         (let [j (inc i)]
+           [[x] (into (subvec v 0 i) (subvec v j))]))
+       v)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [xs (__nth pair 0)
+             v-xs (__nth pair 1)]
+         (map-indexed
+          (fn [i x]
+            (let [j (inc i)]
+              [(conj xs x) (into (subvec v-xs 0 i) (subvec v-xs j))]))
+          v-xs)))
+     (vector-k-permutations-with-unselected v (dec k)))))
+
+(defn seq-k-permutations-with-unselected
+  "Seq specific algorithm for returning a lazy sequence of pairs
+
+     [[,,,] (,,,)]
+
+  where the first element in the pair is a permuted selection of k
+  items from the seq s, and the second element is s with the items
+  at their respective indicies removed."
+  [s k]
+  (case k
+    0 (list [[] s])
+
+    1 (map-indexed
+       (fn [i x]
+         (let [j (inc i)]
+           [[x] (concat (take i s) (drop j s))]))
+       s)
+
+    ;; else
+    (mapcat
+     (fn [pair]
+       (let [xs (__nth pair 0)
+             s-xs (__nth pair 1)]
+         (map-indexed
+          (fn [i x]
+            (let [j (inc i)]
+              [(conj xs x) (concat (take i s-xs) (drop j s-xs))]))
+          s-xs)))
+     (seq-k-permutations-with-unselected s (dec k)))))
+
+(defn k-permutations
+  "All the ways to choose k permuted items from coll."
+  [coll k]
+  (map (fn [pair]
+         (__nth pair 0))
+       (cond
+         (map? coll)
+         (map-k-permutations-with-unselected coll k)
+
+         (set? coll)
+         (set-k-permutations-with-unselected coll k)
+
+         (vector? coll)
+         (vector-k-permutations-with-unselected coll k)
+
+         :else
+         (seq-k-permutations-with-unselected coll k))))
 
 (defn k-combinations
   "All the ways to choose k items from coll."
   [coll k]
-  (if (= k 1)
-    (sequence (map vector) coll)
-    (let [coll (vec coll)
-          n (count coll)]
-      (sequence
-       (comp
-        (reduce comp
-                (repeat (dec k)
-                        (mapcat
-                         (fn [v]
-                           (let [i (peek v)]
-                             (map conj (repeat v) (range i)))))))
-        (mapcat permutations)
-        (map
-         (fn [ptrs]
-           (mapv nth (repeat coll) ptrs))))
-       (map vector (range n))))))
-
+  (sequence
+   (comp (map set)
+         (distinct))
+   (k-permutations coll k)))
 
 (defn vsplit-at
   "Like `clojure.core/split-at` but for vectors."

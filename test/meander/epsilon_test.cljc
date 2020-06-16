@@ -729,7 +729,7 @@
 ;;; cata
 
 
-(t/deftest cata-test
+(t/deftest cata-test-1
   (t/is (= [:one :two :three]
            (r/match [1 2 3]
              [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
@@ -742,136 +742,143 @@
              :two
 
              1
-             :one
-             )))
+             :one))))
 
-  (t/is (= [[:one :two] :two [:three :two]]
-           (r/match [[2 1] 2 [3 2]]
-             [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
-             [?x ?y ?z]
-
-             [3 (r/cata ?y)]
-             [:three ?y]
-
-             2
-             :two
-
-             [(r/cata ?x) 1]
-             [:one ?x])))
-
-  (t/is (= #{[:other :other :other]
-             [:other :other :three]
-             [:other :two :other]
-             [:other :two :three]
-             [:one :other :other]
-             [:one :other :three]
-             [:one :two :other]
-             [:one :two :three]
-             :other}
-           (set
-            (r/search [1 2 3]
+(t/deftest cata-test-2
+   (t/is (= [[:one :two] :two [:three :two]]
+            (r/match [[2 1] 2 [3 2]]
               [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
               [?x ?y ?z]
 
-              ?other
-              :other
-
-              3
-              :three
+              [3 (r/cata ?y)]
+              [:three ?y]
 
               2
               :two
 
-              1
-              :one))))
-  (let [rep {:head :+
-             :arg1 {:head :number
-                    :value 1}
-             :arg2 {:head :number
-                    :value 2}}]
-    (t/is (= [1 2]
-             (r/match rep
-               {:head :+
-                :arg1 (r/cata [!xs1 ...])
-                :arg2 (r/cata [!xs2 ...])}
-               (r/subst [!xs1 ... !xs2 ...])
+              [(r/cata ?x) 1]
+              [:one ?x]))))
 
-               {:head :number
-                :value ?value}
-               [?value]
+(t/deftest cata-test-3
+   (t/is (= #{[:other :other :other]
+              [:other :other :three]
+              [:other :two :other]
+              [:other :two :three]
+              [:one :other :other]
+              [:one :other :three]
+              [:one :two :other]
+              [:one :two :three]
+              :other}
+            (set
+             (r/search [1 2 3]
+               [(r/cata ?x) (r/cata ?y) (r/cata ?z)]
+               [?x ?y ?z]
 
-               ?x
-               [?x]))))
+               ?other
+               :other
 
+               3
+               :three
+
+               2
+               :two
+
+               1
+               :one)))))
+
+(t/deftest cata-test-4
+   (let [rep {:head :+
+              :arg1 {:head :number
+                     :value 1}
+              :arg2 {:head :number
+                     :value 2}}]
+     (t/is (= [1 2]
+              (r/match rep
+                {:head :+
+                 :arg1 (r/cata [!xs1 ...])
+                 :arg2 (r/cata [!xs2 ...])}
+                (r/subst [!xs1 ... !xs2 ...])
+
+                {:head :number
+                 :value ?value}
+                [?value]
+
+                ?x
+                [?x])))))
+
+(t/deftest cata-test-5
   (let [x {:source {:type "ip"
                     :value "192.1.2.3"}
            :related {:type "ip"
-                     :value "192.1.2.3"}}]
-    (t/is (= {:source {:type "ip", :value "192.1.2.3", :internal true},
-              :related {:type "ip", :value "192.1.2.3", :internal true}}
-             (r/match x
-               {:source (r/and {} (r/cata ?source))
-                :related (r/and {} (r/cata ?related))}
-               (assoc x
-                      :source ?source
-                      :related ?related)
+                     :value "192.1.2.3"}}
+        expected {:source {:type "ip", :value "192.1.2.3", :internal true},
+                  :related {:type "ip", :value "192.1.2.3", :internal true}}
+        actual (r/match x
+                 {:source (r/and {} (r/cata ?source))
+                  :related (r/and {} (r/cata ?related))}
+                 (assoc x
+                        :source ?source
+                        :related ?related)
 
-               {:type "ip"
-                :value (r/re #"192\..*")}
-               (assoc x :internal true)
+                 {:type "ip"
+                  :value (r/re #"192\..*")
+                  :as ?x}
+                 (assoc ?x :internal true)
 
-               ?x
-               ?x))))
+                 ?x
+                 ?x)]
+    (t/is (= expected actual))))
 
-  (t/is (= [{:name "a", :arg-list [[1 2 3] [5 6 7]]}
-            {:name "b", :arg-list [[1]]}]
-           (r/rewrite (group-by :name [{:name "a" :args [1 2 3]}
-                                       {:name "a" :args [5 6 7]}
-                                       {:name "b" :args [1]}])
-             {?name [{:args !args} ...]
-              & (r/cata ?rest)}
-             [{:name ?name :arg-list [!args ...]}
-              & ?rest]
+(t/deftest cata-test-6
+   (t/is (= [{:name "a", :arg-list [[1 2 3] [5 6 7]]}
+             {:name "b", :arg-list [[1]]}]
+            (r/rewrite (group-by :name [{:name "a" :args [1 2 3]}
+                                        {:name "a" :args [5 6 7]}
+                                        {:name "b" :args [1]}])
+              {?name [{:args !args} ...]
+               & (r/cata ?rest)}
+              [{:name ?name :arg-list [!args ...]}
+               & ?rest]
 
-             ?x
-             ?x)))
+              ?x
+              ?x))))
 
+(t/deftest cata-test-7
+   (let [tree '(branch (leaf (s 0))
+                       (branch (leaf (s (s 0)))
+                               (leaf (s 0))))
+         expected '(branch (branch (leaf 0)
+                                   (leaf 0))
+                           (branch (branch (leaf 0)
+                                           (branch (leaf 0)
+                                                   (leaf 0)))
+                                   (branch (leaf 0)
+                                           (leaf 0))))]
+     (t/is (= expected
+              (r/rewrite tree
+                (leaf 0)
+                (leaf 0)
 
-  (let [tree '(branch (leaf (s 0))
-                      (branch (leaf (s (s 0)))
-                              (leaf (s 0))))
-        expected '(branch (branch (leaf 0)
-                                  (leaf 0))
-                          (branch (branch (leaf 0)
-                                          (branch (leaf 0)
-                                                  (leaf 0)))
-                                  (branch (leaf 0)
-                                          (leaf 0))))]
-    (t/is (= expected
-             (r/rewrite tree
-               (leaf 0)
-               (leaf 0)
+                (leaf (s ?n))
+                (branch (leaf 0)
+                        (r/cata (leaf ?n)))
 
-               (leaf (s ?n))
-               (branch (leaf 0)
-                       (r/cata (leaf ?n)))
+                (branch ?a ?b)
+                (branch (r/cata ?a)
+                        (r/cata ?b)))))
 
-               (branch ?a ?b)
-               (branch (r/cata ?a)
-                       (r/cata ?b)))))
+     (t/is (= expected
+              (r/rewrite tree
+                (leaf 0)
+                (leaf 0)
 
-    (t/is (= expected
-             (r/rewrite tree
-               (leaf 0)
-               (leaf 0)
+                (leaf (s ?n))
+                (branch (leaf 0)
+                        (r/cata (leaf ?n)))
 
-               (leaf (s ?n))
-               (branch (leaf 0)
-                       (r/cata (leaf ?n)))
-
-               (branch (r/cata ?a)
-                       (r/cata ?b))
-               (branch ?a ?b))))))
+                (branch (r/cata ?a)
+                        (r/cata ?b))
+                (branch ?a ?b))))))
 
 
 ;;; gather
@@ -1358,17 +1365,18 @@
                  [:li "Beef"]
                  [:li "Lamb"]
                  [:li "Pork"]
-                 [:li "Chicken"]]]]
-    (t/is (= (r/find hiccup
-               (r/with [%h1 [!tags {:as !attrs} . %hiccup ...]
-                        %h2 [!tags . %hiccup ...]
-                        %h3 !xs
-                        %hiccup (r/or %h1 %h2 %h3)]
-                 %hiccup)
-               [!tags !attrs !xs])
-             [[:div :p :strong :em :u :ul :li :li :li :li]
-              [{"foo" "bar"} {"baz" "quux"}]
-              ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]])))
+                 [:li "Chicken"]]]
+        expected [[:div :p :strong :em :u :ul :li :li :li :li]
+                  [{"foo" "bar"} {"baz" "quux"}]
+                  ["Foo" "Bar" "Baz" "Beef" "Lamb" "Pork" "Chicken"]]
+        actual (r/find hiccup
+                 (r/with [%h1 [!tags {:as !attrs} . %hiccup ...]
+                          %h2 [!tags . %hiccup ...]
+                          %h3 !xs
+                          %hiccup (r/or %h1 %h2 %h3)]
+                   %hiccup)
+                 [!tags !attrs !xs])]
+    (t/is (= actual expected)))
 
   (t/is (= (set
             (r/search '[#{{:tag :lvr, :symbol ?y}
@@ -1815,23 +1823,21 @@
                   [?x ?y])))))
 
 (t/deftest search-map-2-test
-  (t/is (= #{[:k3 :k2 {"v2" "v1"} nil]
-             [:k1 :k3 "v1" nil]
-             [:k2 :k3 {"v1" "v2"} nil]
-             [:k1 :k2 "v1" "v2"]
-             [:k1 :k2 :k3 "v1" "v2"]}
-           (set (r/search {:k1 "v1"
-                           :k2 {"v1" "v2"}
-                           :k3 {"v2" "v1"}}
+  (let [expected #{[:k1 :k2 "v1" "v2"]
+                   [:k1 :k2 :k3 "v1" "v2"]}]
+    (t/is (= expected
+             (set (r/search {:k1 "v1"
+                             :k2 {"v1" "v2"}
+                             :k3 {"v2" "v1"}}
 
-                  {?k1 ?x
-                   ?k2 {?x ?y}}
-                  [?k1 ?k2 ?x ?y]
+                    {?k1 ?x
+                     ?k2 {?x ?y}}
+                    [?k1 ?k2 ?x ?y]
 
-                  {?k1 ?x
-                   ?k2 {?x ?y}
-                   ?k3 {?y ?x}}
-                  [?k1 ?k2 ?k3 ?x ?y])))))
+                    {?k1 ?x
+                     ?k2 {?x ?y}
+                     ?k3 {?y ?x}}
+                    [?k1 ?k2 ?k3 ?x ?y]))))))
 
 
 (t/deftest search-map-3-unq-test
