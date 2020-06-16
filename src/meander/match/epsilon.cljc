@@ -707,17 +707,18 @@
 (defn map-matrix-all-literal-keys
   {:private true}
   [map-matrix]
-  (into #{}
-        (comp (filter r.syntax/map-node?)
-              (mapcat r.syntax/literal-keys))
-        (r.matrix/first-column map-matrix)))
+  (sequence
+   (comp (filter r.syntax/map-node?)
+         (mapcat r.syntax/literal-keys))
+   (r.matrix/first-column map-matrix)))
 
 
 (defn compile-literal-key-map-matrix
   {:private true}
   [literal-key-nodes [target :as targets] map-matrix]
   {:pre [(seq literal-key-nodes)]}
-  (let [value_targets (vec (repeatedly (count literal-key-nodes) (fn [] (gensym "T__"))))
+  (let [literal-key-nodes (r.util/rank literal-key-nodes)
+        value_targets (vec (repeatedly (count literal-key-nodes) (fn [] (gensym "T__"))))
         rest_target (gensym "T__")
         literal-key-codes (map compile-ground literal-key-nodes)
         sub_targets `[~rest_target ~@targets]
@@ -731,8 +732,8 @@
                  (process-matrix map-matrix
                    (fn [node row]
                      (let [as-node (or (get node :as) any-node)
-                           the-map (get node :map)
-                           local-literal-key-nodes (filter literal-key-nodes (keys the-map))
+                           the-map (or (get node :map) {})
+                           local-literal-key-nodes (filter the-map literal-key-nodes)
                            local-literal-key-codes (map compile-ground local-literal-key-nodes)
                            value-nodes (mapv (fn [key-node]
                                                (or (get the-map key-node) any-node))
