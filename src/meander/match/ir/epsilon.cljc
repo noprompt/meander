@@ -1480,7 +1480,7 @@ compilation decisions."
     `(let [~R__1 ~body-1-code]
        (if (r.match.runtime/fail? ~R__1)
          ~body-2-code
-         r.match.runtime/FAIL))))
+         ~fail))))
 
 (defmethod compile* :pass
   [ir fail kind]
