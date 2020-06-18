@@ -1848,7 +1848,7 @@
           ;; expr to eliminate clauses that won't match which can
           ;; be too aggressive when a catamorphism is present.
           (binding [*cata-symbol* (get search-analysis :cata-symbol)]
-            (let [cata-return (gensym "CATA_RETURN__")
+            (let [cata-return (gensym "R__")
                   ir {:op :def
                       :symbol *cata-symbol*
                       :target-arg target
