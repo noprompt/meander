@@ -24,15 +24,25 @@
       {:cata-symbol ?cata-symbol
        :contains-cata? ?match-cata?
        :matrix [{:rhs {:value (m.match.syntax/apply parse-subst !subst-asts)}} ...
-                :as ?matrix]}
+                :as ?matrix]
+       :final-clause ?final-clause}
       (let [subst-cata? (boolean (some m.subst.syntax/contains-cata-node? !subst-asts))
             matrix (mapv
                     (fn [column subst-ast]
                       (assoc column :rhs subst-ast))
                     ?matrix
                     !subst-asts)
+            final-clause (if (some? ?final-clause)
+                           (let [ir (get ?final-clause :rhs)
+                                 subst-form (get ir :value)
+                                 subst-node (parse-subst subst-form)]
+                             (assoc ?final-clause :rhs subst-node)))
+            matrix (if (some? final-clause)
+                     (conj matrix final-clause)
+                     matrix)
             analysis (merge find-analysis
                             {:contains-cata? (or ?match-cata? subst-cata?)
+                             :final-clause nil
                              :match-cata? ?match-cata?
                              :matrix matrix
                              :subst-cata? subst-cata?})]
@@ -52,8 +62,8 @@
                                   :subst-cata? ?subst-cata?})
             find-matrix (mapv
                          (fn [column]
-                           (let [subst-ast (get column :rhs)
-                                 value (m.subst/compile subst-ast subst-env)
+                           (let [subst-node (get column :rhs)
+                                 value (m.subst/compile subst-node subst-env)
                                  ir {:op :return, :value value}]
                              (assoc column :rhs ir)))
                          ?matrix)
