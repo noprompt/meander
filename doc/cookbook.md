@@ -1,5 +1,98 @@
 Please add your own tips and tricks! You can edit this file from Github by clicking then pencil icon in the top right of the file view.
 
+---
+
+
+## Common Patterns
+
+### Sequence Transformation
+
+- Example
+  ```clojure
+  ;EBNF
+  ns <= "obj" | "oppas" | "dc"
+  segattr <= ["/"] "@" alphanumeric
+  segobj  <= ["/"] alphanumeric
+  xpath   <= ns (segattr|segobj) {(segattr|segobj)}
+
+  ; Input
+  "obj:/myobj/mychild/@myattrib"
+  ;; Result =>
+  {:ns :obj,
+  :xsegs
+  ({:segkind :seg-chld, :segpath ""}
+    {:segkind :seg-chld, :segpath "myobj"}
+    {:segkind :seg-chld, :segpath "mychild"}
+    {:segkind :seg-attr, :segpath "@myattrib"})}
+  ```
+
+- What this shows:
+  - Make sure tokens match order pattern (`nstoken xseg {xseg}` )
+  - Transform each of the tokens based on the token
+    ```clojure
+    nstoken =>
+      case "obj": :objstore
+      default: (keyword nstoken)
+    ```
+  - ***QUESTION**:* want to be able to express this as production rules in meander where we only specify the special cases and uses a default otherwise for *valid* patterns (e.g. nstoken can't be "fakeNs")
+
+- **Old way**
+  ```clojure
+  (defn initPath-clj [axpath]
+    (let [nsandpath (str/split axpath #"[:]" 2)
+          nsstr (first nsandpath)
+          pathtokens (->
+                      nsandpath
+                      (nth 1)
+                      (str/split #"[/]"))]
+      {:ns (case nsstr
+            "op"    :op
+            "obj"   :obj
+            "oppas" :oppas)
+      :xsegs (map
+              #(if (= (first %1) \@)
+                  (->OppathSeg :seg-attr %1)
+                  (->OppathSeg :seg-chld %1))
+              pathtokens)}))
+  ```
+
+- **Meander hotness**   
+  - ***QUESTION:  Is there a better way? I don't like that the functional transformation on the pattern matching clause where conceptually feels like it should go in the generation part of the clause***
+    ```clojure
+    (defn initOppath-m1 [axpath]
+      (let [axptokens (str/split axpath #"[/:]")]
+        {:ns (m/match (first axptokens)
+               (m/and ?ns (m/or "op" "obj" "oppas"))
+               (keyword ?ns))
+         :xsegs (map
+                 #(if (= (first %1) \@)
+                    (->OppathSeg :seg-attr %1)
+                    (->OppathSeg :seg-chld %1))
+                 (rest axptokens))}))
+
+
+    (defn initOppath-m2 [axpath]
+      (m/match (str/split axpath #"[/:]")
+        (m/with [%segattr (m/pred #(= (first %1) \@)    (m/app #(->OppathSeg :seg-attr %1) !seg))
+                 %segobj  (m/pred #(not= (first %1) \@) (m/app #(->OppathSeg :seg-chld %1) !seg))]
+                [(m/re #"obj|oppas|dc" ?ns)
+                 . (m/or %segobj %segattr) ...])
+        {:ns (keyword ?ns) :xsegs !seg}))
+    ```
+
+### Transform
+- ***QUESTION:*** How to do EBNF like production rules.  Ex: 
+    ```clojure
+    token ::= (:arg-in|:arg-out) ?argname
+    pseudocode-result:: (str (emit-in ?arg-attr)|emit-out :arg-attr) ?argname)
+    
+    ```
+  
+
+
+
+---
+
 ## Reuse subpatterns in other patterns
 
 ```clojure
@@ -162,3 +255,4 @@ c) Constrain a memory variable to length <= 1:
   [?n (first !s) ?k])
 ;; => [1 "this is fine" :foo]
 ```
+
