@@ -80,14 +80,97 @@ Please add your own tips and tricks! You can edit this file from Github by click
         {:ns (keyword ?ns) :xsegs !seg}))
     ```
 
+    
+- How to capture a variable from a pattern match? Eg  want to do :as
+    - Ans: Use `:as`
+    - Ex:
+    ```clojure
+    (def a_opprmdefblk [(ophirPrmDef :inBoneTrk ctidChannel #{:EArg-In})
+                        (ophirPrmDef :inoutBoneTrk ctidChannel #{:EArg-In :EArg-Out})
+                        (ophirPrmDef :outBoneTrk ctidChannel #{:EArg-Out})])
+    (m/search
+     a_opprmdefblk
+     [(m/or {:argFlags #{:EArg-Out} :as !argOut}
+            {:argFlags #{:EArg-In} :as !argIn})
+      ...]
+     {:opmirArgIn !argIn
+      :opmirArgOut !argOut})
+    ```
+
+
 ### Transform
+- Split stream based on filter and project   (1-to-many)
+	- Pseudo code:
+        ```clojure
+        filter(
+          (predA? x) => (projA x) :as !projAseq
+          (predB? x) => (projB x) :as !projBseq
+        )
+        ```
+
+    - Examples
+        ```clojure
+
+
+        (def a_opprmdefblk [(ophirPrmDef :inBoneTrk ctidChannel #{:EArg-In})
+                            (ophirPrmDef :inoutBoneTrk ctidChannel #{:EArg-In :EArg-Out})
+                            (ophirPrmDef :outBoneTrk ctidChannel #{:EArg-Out})])
+        (m/match
+         a_opprmdefblk
+         [(m/or {:argFlags #{:EArg-Out} :as !argOut}
+                {:argFlags #{:EArg-In} :as !argIn})
+          ...]
+         {:opmirArgIn !argIn
+          :opmirArgOut !argOut})
+        ;; =>
+        {:opmirArgIn [{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}]
+         :opmirArgOut
+         [{:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}
+          {:name :outBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out}}]}
+
+        (m/search
+         a_opprmdefblk
+          [(m/or {:argFlags #{:EArg-Out} :as !argOut}
+                 {:argFlags #{:EArg-In} :as !argIn})
+           ...]
+          {:opmirArgIn !argIn
+           :opmirArgOut !argOut})
+        ;; =>
+        ({:opmirArgIn [{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}]
+          :opmirArgOut
+          [{:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}
+           {:name :outBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out}}]}
+         {:opmirArgIn
+          [{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}
+           {:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}]
+          :opmirArgOut
+          [{:name :outBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out}}]})
+
+
+        (m/search
+         a_opprmdefblk
+         (m/scan {:argFlags #{:EArg-In} :as ?argIn})
+         ?argIn)
+        ;; =>
+        ({:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}
+         {:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}})
+
+
+        (m/search
+         a_opprmdefblk
+         (m/scan {:argFlags #{:EArg-In} :as !argIn})
+         !argIn)
+        ;; =>
+        ([{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}]
+         [{:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}])
+        ```
+
+  
 - ***QUESTION:*** How to do EBNF like production rules.  Ex: 
     ```clojure
     token ::= (:arg-in|:arg-out) ?argname
-    pseudocode-result:: (str (emit-in ?arg-attr)|emit-out :arg-attr) ?argname)
-    
+    pseudocode-result:: (str (emit-in ?arg-attr)|emit-out :arg-attr) ?argname)    
     ```
-  
 
 
 
