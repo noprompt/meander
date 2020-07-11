@@ -99,6 +99,7 @@ Please add your own tips and tricks! You can edit this file from Github by click
 
 
 ### Transform
+
 - Split stream based on filter and project   (1-to-many)
 	- Pseudo code:
         ```clojure
@@ -108,65 +109,76 @@ Please add your own tips and tricks! You can edit this file from Github by click
         )
         ```
 
-    - Examples
-        ```clojure
-
-
-        (def a_opprmdefblk [(ophirPrmDef :inBoneTrk ctidChannel #{:EArg-In})
-                            (ophirPrmDef :inoutBoneTrk ctidChannel #{:EArg-In :EArg-Out})
-                            (ophirPrmDef :outBoneTrk ctidChannel #{:EArg-Out})])
+    - Approaches
+        ```clojure        
+        ;; Test Data
+        (def arglist [{:name :inBoneTrk    :argFlags #{:EArg-In}}
+                      {:name :inoutBoneTrk :argFlags #{:EArg-In :EArg-Out}}
+                      {:name :outBoneTrk   :argFlags #{:EArg-Out}}])
+        ;; Using match
         (m/match
-         a_opprmdefblk
-         [(m/or {:argFlags #{:EArg-Out} :as !argOut}
-                {:argFlags #{:EArg-In} :as !argIn})
-          ...]
-         {:opmirArgIn !argIn
-          :opmirArgOut !argOut})
-        ;; =>
-        {:opmirArgIn [{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}]
-         :opmirArgOut
-         [{:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}
-          {:name :outBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out}}]}
-
-        (m/search
-         a_opprmdefblk
+         arglist
           [(m/or {:argFlags #{:EArg-Out} :as !argOut}
                  {:argFlags #{:EArg-In} :as !argIn})
            ...]
           {:opmirArgIn !argIn
            :opmirArgOut !argOut})
         ;; =>
-        ({:opmirArgIn [{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}]
-          :opmirArgOut
-          [{:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}
-           {:name :outBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out}}]}
-         {:opmirArgIn
-          [{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}
-           {:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}]
-          :opmirArgOut
-          [{:name :outBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out}}]})
+        {:opmirArgIn  [{:name     :inBoneTrk
+                        :argFlags #{:EArg-In}}]
+         :opmirArgOut [{:name     :inoutBoneTrk
+                        :argFlags #{:EArg-Out :EArg-In}} 
+                       {:name     :outBoneTrk
+                        :argFlags #{:EArg-Out}}]}
 
-
+        ```
+        - Now let's use m/search to see the difference
+        
+        ```clojure
         (m/search
-         a_opprmdefblk
+         arglist
+         [(m/or {:argFlags #{:EArg-Out} :as !argOut}
+                {:argFlags #{:EArg-In} :as !argIn})
+          ...]
+         {:opmirArgIn !argIn
+          :opmirArgOut !argOut})
+        ;; =>
+        ({:opmirArgIn [{:name :inBoneTrk, :argFlags #{:EArg-In}}]
+          :opmirArgOut [{:name :inoutBoneTrk, :argFlags #{:EArg-Out :EArg-In}} 
+                        {:name :outBoneTrk, :argFlags #{:EArg-Out}}]}
+         {:opmirArgIn [{:name :inBoneTrk, :argFlags #{:EArg-In}} 
+                       {:name :inoutBoneTrk, :argFlags #{:EArg-Out :EArg-In}}]
+          :opmirArgOut [{:name :outBoneTrk, :argFlags #{:EArg-Out}}]})
+		```
+        - Now let's look using m/scan
+        ```clojure
+        (m/search
+         arglist
          (m/scan {:argFlags #{:EArg-In} :as ?argIn})
          ?argIn)
         ;; =>
-        ({:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}
-         {:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}})
+        ({:name     :inBoneTrk
+          :argFlags #{:EArg-In}} 
+         {:name     :inoutBoneTrk
+          :argFlags #{:EArg-Out :EArg-In}})
+		```
 
-
+        - Now let's look at m/scan with a memory variable
+        ```clojure
         (m/search
-         a_opprmdefblk
+         arglist
          (m/scan {:argFlags #{:EArg-In} :as !argIn})
          !argIn)
         ;; =>
-        ([{:name :inBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-In}}]
-         [{:name :inoutBoneTrk, :ctypeUid {:ctypeUUID -2019445768, :ctypeName "Channel_t"}, :argFlags #{:EArg-Out :EArg-In}}])
+        ([{:name     :inBoneTrk
+           :argFlags #{:EArg-In}}]
+         [{:name     :inoutBoneTrk
+           :argFlags #{:EArg-Out :EArg-In}}])
         ```
 
-  
-- ***QUESTION:*** How to do EBNF like production rules.  Ex: 
+
+# TODO  
+- How to do EBNF like production rules.  Ex: 
     ```clojure
     token ::= (:arg-in|:arg-out) ?argname
     pseudocode-result:: (str (emit-in ?arg-attr)|emit-out :arg-attr) ?argname)    
