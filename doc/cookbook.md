@@ -162,3 +162,21 @@ c) Constrain a memory variable to length <= 1:
   [?n (first !s) ?k])
 ;; => [1 "this is fine" :foo]
 ```
+
+## Unrolling relationships
+
+`m/scan` can be used to greatly simplify clojure code unrolling relationships.
+
+```clojure
+(m/search {:context-tag :one-to-five
+           :numbers     [1 2 3 4 5]}
+  {:context-tag ?context
+   :numbers     (m/scan ?n)}
+  [?context ?n])
+
+; => ([:one-to-five 1]
+;     [:one-to-five 2]
+;     [:one-to-five 3]
+;     [:one-to-five 4]
+;     [:one-to-five 5])
+```
