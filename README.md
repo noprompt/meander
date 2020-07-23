@@ -205,6 +205,7 @@ To learn more checkout how to apply meander [strategies](doc/strategies.md)
 * [Meander: The answer to map fatigue](http://timothypratley.blogspot.com/2019/01/meander-answer-to-map-fatigue.html)
 * [Meander for Practical Data Transformation](https://jimmyhmiller.github.io/meander-practical)
 * [Introduction to Term Rewriting with Meander](https://jimmyhmiller.github.io/meander-rewriting)
+* [Building Meander in Meander](https://jimmyhmiller.github.io/building-meander-in-meander)
 
 ### Talks
 
