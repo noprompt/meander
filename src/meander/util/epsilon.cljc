@@ -303,7 +303,6 @@
         (range (inc (count v)))))
      (list []))))
 
-
 (defn coll-partitions
   {:private true}
   ([n coll]
@@ -545,6 +544,44 @@
   otherwise."
   [x]
   (and (seq? x) (= (first x) 'quote)))
+
+
+(defn mix*
+  "Helper function for mix."
+  {:private true}
+  [colls]
+  (if (seq colls)
+    (if (seq (first colls))
+      (lazy-seq (cons (ffirst colls)
+                      (mix* (conj (subvec colls 1)
+                                  (rest (first colls))))))
+      (recur (subvec colls 1)))
+    ()))
+
+(defn mix
+  "Like clojure.core/interleave but exhausts each supplied
+  collection.
+    (interleave [1 2 3] [\"a\" \"b\"] [:w :x :y :z])
+    ;; =>
+    (1 \"a\" :w 2 \"b\" :x)
+    (mix [1 2 3] [\"a\" \"b\"] [:w :x :y :z])
+    ;; =>
+    (1 \"a\" :w 2 \"b\" :x 3 :y :z)"
+  {:arglists '([coll1 coll2 & more-colls])}
+  ([coll1 coll2]
+   (if (seq coll1)
+     (lazy-seq (cons (first coll1) (mix coll2 (rest coll1))))
+     coll2))
+  ([coll1 coll2 coll3]
+   (if (seq coll1)
+     (lazy-seq (cons (first coll1) (mix coll2 coll3 (rest coll1))))
+     (mix coll2 coll3)))
+  ([coll1 coll2 coll3 coll4]
+   (if (seq coll1)
+     (lazy-seq (cons (first coll1) (mix coll2 coll3 coll4 (rest coll1))))
+     (mix coll2 coll3 coll4)))
+  ([coll1 coll2 coll3 coll4 & more-colls]
+   (mix* (into [coll1 coll2 coll3 coll4] more-colls))))
 
 (defn knit
   [colls]
