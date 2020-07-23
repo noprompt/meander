@@ -4,6 +4,7 @@
                [clojure.set :as set]
                [clojure.spec.alpha :as s]
                [clojure.string :as string]
+               [meander.environment.epsilon :as m.environment]
                [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util])
      :cljs
@@ -11,6 +12,7 @@
                [cljs.spec.alpha :as s :include-macros true]
                [clojure.set :as set]
                [clojure.string :as string]
+               [meander.environment.epsilon :as m.environment]
                [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util]
                [goog.object]))
@@ -554,7 +556,7 @@
       [:success xs nil])))
 
 (defn parse-sequential
-  "Used by `parse-seq-no-head` and `parse-vector` to parse their
+  "Used by `parse-seq-not-special` and `parse-vector` to parse their
   `:prt` and `:as` nodes."
   {:private true}
   [xs env]
@@ -583,7 +585,7 @@
                       prt)]
             [:success prt as-node]))))))
 
-(defn parse-seq-no-head
+(defn parse-seq-not-special
   {:private true}
   [xs env]
   (let [result (parse-sequential xs env)]
@@ -645,11 +647,11 @@
                                     {:form xs
                                      :env env}))))
                 ;; Not a special form, parse as ordinary seq pattern.
-                (parse-seq-no-head xs env)))
+                (parse-seq-not-special xs env)))
             ;; Syntax expansion successful, recursively parse the
             ;; result.
             (assoc (parse xs* env) ::original-form xs))))
-      (parse-seq-no-head xs env))))
+      (parse-seq-not-special xs env))))
 
 (defn parse-symbol
   {:private true}
@@ -813,6 +815,13 @@
        :elements (parse-all (seq s) env)})
     (parse s env)))
 
+(defn make-environment
+  {:private true}
+  []
+  (merge m.environment/default
+         {::expander-registry @global-expander-registry
+          ::parser-registry @global-parser-registry}))
+
 (defn parse
   "Parse `form` into an abstract syntax tree (AST) optionally with
   respect to the environment `env`.
@@ -829,8 +838,7 @@
          :right {:tag :cat
                  :elements []}}}"
   ([form]
-   (parse form {::expander-registry @global-expander-registry
-                ::parser-registry @global-parser-registry}))
+   (parse form (make-environment)))
   ([form env]
    (let [node (cond
                 (seq? form)
