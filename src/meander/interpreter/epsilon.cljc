@@ -12,16 +12,6 @@
 
 (declare search-fn)
 
-(defn pass
-  {:private true}
-  [target bindings]
-  (return bindings))
-
-(defn fail
-  {:private true}
-  [target bindings]
-  ())
-
 ;; Tree patterns
 
 (defn search-fn-and
@@ -181,7 +171,8 @@
          (m.util/coll-seq target))))
 
     {:tag :drp}
-    return
+    (fn [target bindings]
+      (return bindings))
     
     {:tag :lit, :value ?value}
     (search-fn-literal ?value return reject)
@@ -228,6 +219,9 @@
     (search-fn-and (search-fn ?as env return reject)
                    (search-fn (assoc ast :as nil) env return reject))
 
+    {:tag :mut :symbol ?symbol}
+    (search-fn-mutable-variable ?symbol)
+
     {:tag :mvr :symbol ?symbol}
     (search-fn-memory-variable ?symbol)
 
@@ -239,14 +233,14 @@
       (val e)
       (throw (ex-info (str "Unbound reference: " ?symbol) {:meta (meta ?symbol)})))
 
+    {:tag :seq, :prt ?prt, ':as nil}
+    (search-fn-pred seq? (search-fn ?prt env return reject) reject)
+
     {:tag :seq, :prt ?prt, ':as ?as}
     (if (some? ?as)
       (search-fn-and (search-fn ?as env return reject)
-                     (search-fn-pred vector? (search-fn ?prt env return reject) reject))
-      (search-fn-pred vector? (search-fn ?prt env return reject) reject))
-
-    {:tag :mut :symbol ?symbol}
-    (search-fn-mutable-variable ?symbol)
+                     (search-fn-pred seq? (search-fn ?prt env return reject) reject))
+      (search-fn-pred seq? (search-fn ?prt env return reject) reject))
 
     {:tag :rp* :cat {:elements ?elements :as ?cat}}
     (let [k (count ?elements)
@@ -372,7 +366,8 @@
         (search-fn-body target bindings)))
 
     {:tag :wth, :bindings _, :body _}
-    pass
+    (fn [target bindings]
+      (return bindings))
 
     {:tag ::m.match.syntax/and, :arguments ?arguments}
     (if (seq ?arguments)
@@ -380,16 +375,15 @@
               (map (fn [argument]
                      (search-fn argument env return reject))
                    ?arguments))
-      pass)
+      (fn [target bindings]
+        (return bindings)))
 
     {:tag ::m.match.syntax/apply, :function ?function, :argument ?argument}
     (let [eval (get env ::eval)
           search-fn-argument (search-fn ?argument env return reject)]
-      (if-some [e (find env ?function)]
-        (let [f (val e)]
-          (fn [target bindings]
-            (search-fn-argument (f target) bindings)))
-        (throw (ex-info "Unable to resolve function" {:meta (meta ast)}))))
+      (fn [target bindings]
+        (let [f (eval ?function)]
+          (search-fn-argument (f target) bindings))))
 
     {:tag ::m.match.syntax/cata, :argument ?pattern}
     (let [search-fn-pattern (search-fn ?pattern env return reject)]
@@ -489,7 +483,7 @@
                             :cljs (fn [_] (throw (ex-info "eval not defined" {}))))}]
      (make-search-fn form options)))
   ([form options]
-   (let [search-fn (search-fn (m.syntax/parse form) options default-return default-reject)]
+   (let [search-fn (search-fn (m.match.syntax/parse form) options default-return default-reject)]
      (fn
        ([target] (search-fn target {}))
        ([target bindings] (search-fn target bindings))))))
