@@ -3,10 +3,9 @@
             [meander.compiled.parse.zeta :as m.parse])
   #?(:cljs (:require-macros [meander.syntax.zeta])))
 
-;; The map returned by this function is used to qualify symbols during
-;; parse.
 (defn ns-aliases*
-  "Like `ns-aliases` but returns a map from symbol to symbol."
+  "Like `ns-aliases` but returns a map from symbol to symbol. Used to
+  qualify symbols during parsing."
   [ns]
   #?(:clj (into {} (map (fn [[alias ns]]
                           [alias (ns-name ns)]))
