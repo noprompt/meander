@@ -180,3 +180,21 @@ c) Constrain a memory variable to length <= 1:
 ;     [:one-to-five 4]
 ;     [:one-to-five 5])
 ```
+
+## Not Unrolling Relationships
+
+Remember that `...` and memory variables work well together!
+
+```clojure
+(m/search [{:a :whatever :b [{:n 1} {:n 2} {:n 1}]}
+           {:a :goes :b [{:n 1} {:n 2} {:n 4}]}
+           {:a :here :b [{:n 2} {:n 2} {:n 3}]}]
+  (m/scan {:a ?a :b [{:n !n} ...]})
+  {:a ?a :n !n})
+
+
+;=> ({:a :whatever, :n [1 2 1]}
+;    {:a :goes,     :n [1 2 4]}
+;    {:a :here,     :n [2 2 3]})
+
+```
