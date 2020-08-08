@@ -1848,7 +1848,7 @@
           ;; expr to eliminate clauses that won't match which can
           ;; be too aggressive when a catamorphism is present.
           (binding [*cata-symbol* (get search-analysis :cata-symbol)]
-            (let [cata-return (gensym "CATA_RETURN__")
+            (let [cata-return (gensym "R__")
                   ir {:op :def
                       :symbol *cata-symbol*
                       :target-arg target
@@ -1960,7 +1960,7 @@
              matrix (if final-clause
                       (into [] (take-while (partial not= final-clause)) matrix)
                       matrix)]
-         {:cata-symbol (gensym "CATA__FN__")
+         {:cata-symbol (gensym "C__")
           :contains-cata? contains-cata?
           :errors errors
           :expr (get result :expr)
@@ -1985,7 +1985,7 @@
                      (gensym "TARGET__"))]
         (if contains-cata?
           (binding [*cata-symbol* (get find-analysis :cata-symbol)]
-            (let [cata-return (gensym "CATA_RETURN__")
+            (let [cata-return (gensym "R__")
                   ir {:op :def
                       :symbol *cata-symbol*
                       :target-arg target

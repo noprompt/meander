@@ -465,15 +465,22 @@
   ([node]
    (expand-ast node r.environment/default))
   ([node env]
+   (-> (expand-ast-top-down node env)
+       (expand-ast-bottom-up env)
+       (r.syntax/rename-refs)
+       (r.syntax/consolidate-with))
+   #_
    (let [node* (-> (expand-ast-top-down node env)
                    (expand-ast-bottom-up env)
                    (r.syntax/rename-refs)
                    (r.syntax/consolidate-with))
+         ;; Below introduced in
+         ;; 68cd2dd900aa70e913a4fa4119f6b63ff5de6c37
+         ;; causes problems with compilation _ pattern compilation.
          node* (if (seq (get node* :bindings))
                  node*
                  (get node* :body))]
      node*)))
-
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis
 

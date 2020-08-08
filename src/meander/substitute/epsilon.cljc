@@ -151,10 +151,11 @@
     {:argument ?argument :as ?node}
     (if-some [cata-symbol (get env :cata-symbol)]
       (let [[argument env] (compile* ?argument env)
-            form `(let [CATA_RESULT# (~cata-symbol ~argument)]
-                    (if (r.match.runtime/fail? CATA_RESULT#)
+            result (gensym "R__")
+            form `(let [~result (~cata-symbol ~argument)]
+                    (if (r.match.runtime/fail? ~result)
                       (throw r.subst.runtime/FAIL)
-                      (nth CATA_RESULT# 0)))]
+                      (nth ~result 0)))]
         [form env])
       (let [env (update env :data conj {:error :cata-not-bound})]
         [`(throw (ex-info "cata not bound" {})) env]))))

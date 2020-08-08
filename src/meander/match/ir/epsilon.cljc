@@ -929,7 +929,6 @@ compilation decisions."
 (defn infer-type-seq
   {:private true}
   [env node form]
-
   (cond
     ;; If it is quoted then a seq can't be a function call so it is a seq
     (and (r.util/quoted? form)
@@ -942,7 +941,8 @@ compilation decisions."
 
     ;; if it is a list, it is a seq
     (and (seq? form)
-         (= (r.util/expand-symbol (first form) *env*) 'clojure.core/list))
+         (and (symbol? (first form))
+              (= (r.util/expand-symbol (first form) *env*) 'clojure.core/list)))
     (add-type-to-env env (:symbol node) SeqInterface)
 
     ;; otherwise just check the type
@@ -1480,7 +1480,7 @@ compilation decisions."
     `(let [~R__1 ~body-1-code]
        (if (r.match.runtime/fail? ~R__1)
          ~body-2-code
-         r.match.runtime/FAIL))))
+         ~fail))))
 
 (defmethod compile* :pass
   [ir fail kind]
