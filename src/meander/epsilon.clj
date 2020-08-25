@@ -868,12 +868,12 @@
 (defsyntax map-of
   "Pattern matching and substitution operator.
 
-  When used as a pattern matching operator matches a map of which all
-  then entries have keys which match `k-pattern` and all the values
+  When used as a pattern matching operator, matches a map where all
+  the entries have keys which match `k-pattern` and all the values
   match `v-pattern`.
 
-  When used as a pattern substitution operator constructs a map of
-  by which all entries are constructed with keys with `k-pattern` and
+  When used as a pattern substitution operator, constructs a map where
+  all entries are constructed with keys with `k-pattern` and
   values with `v-pattern`."
   [k-pattern v-pattern]
   (cond
@@ -891,12 +891,12 @@
 (defsyntax submap-of
   "Pattern matching and substitution operator.
 
-  When used as a pattern matching operator matches a map of which some
+  When used as a pattern matching operator matches a map where some
   or none of the entries have keys that match `k-pattern` and values
   which match `v-pattern`.
 
-  When used as a pattern substitution operator constructs a map of
-  by which all entries are constructed with keys with `k-pattern` and
+  When used as a pattern substitution operator constructs a map where
+  all entries are constructed with keys with `k-pattern` and
   values with `v-pattern`."
   ([k-pattern v-pattern]
    (cond
@@ -912,3 +912,45 @@
      :else
      &form)))
 
+(defsyntax set-of
+  "Pattern matching and substitution operator.
+
+  When used as a pattern matching operator matches a set where all
+  the entries have keys which match `k-pattern`.
+
+  When used as a pattern substitution operator constructs a set where
+  all keys are constructed with `k-pattern`."
+  [k-pattern]
+  (cond
+    (match-syntax? &env)
+    `(with [%set# (or #{~k-pattern ^& %set#}
+                      '#{})]
+       %set#)
+
+    (subst-syntax? &env)
+    `#{^& [~k-pattern ...]}
+
+    :else
+    &form))
+
+(defsyntax subset-of
+  "Pattern matching and substitution operator.
+
+  When used as a pattern matching operator matches a set where
+  some or none of the entries have keys which match `k-pattern`.
+
+  When used as a pattern substitution operator constructs a set where
+  all keys are constructed with `k-pattern`."
+  [k-pattern]
+  (cond
+    (match-syntax? &env)
+    `(with [%set# (or #{~k-pattern ^& %set#}
+                      #{_# ^& %set#}
+                      '#{})]
+       %set#)
+
+    (subst-syntax? &env)
+    `#{^& [~k-pattern ...]}
+
+    :else
+    &form))

@@ -2523,3 +2523,20 @@
           (let [!k ["foo" "bar"]
                 !v [1 2]]
             (r/subst (r/submap-of !k !v))))))
+
+(t/deftest set-of-test
+  (t/is (= #{1 2 :c 4}
+          (r/rewrite #{1 2 :c 4}
+            (r/set-of !k)
+            (r/set-of !k))))
+
+  (t/is (= nil
+          (r/rewrite #{1 2 :c 4}
+            (r/map-of (r/pred number? !k) !v)
+            (r/set-of !k)))))
+
+(t/deftest subset-of-test
+  (t/is (= #{1 2 4}
+          (r/rewrite #{1 2 :c 4}
+            (r/subset-of (r/pred number? !k))
+            (r/subset-of !k)))))
