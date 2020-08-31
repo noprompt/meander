@@ -342,6 +342,9 @@
     :meander/match
     `(r.match.syntax/pred seqable? (r.match.syntax/apply seq ~patterns))
 
+    :meander/substitute
+    patterns
+
     ;; else
     &form))
 

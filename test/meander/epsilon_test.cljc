@@ -1248,7 +1248,12 @@
           [(r/seqable ?x) (r/seqable ?y)]
           true
           _
-          false)))
+          false))
+
+  (t/is (= '(1 2 3 4)
+          (r/rewrite [1 2 3 4]
+            (r/seqable !k ...)
+            (r/seqable !k ...)))))
 
 
 (t/deftest search-seqables
