@@ -213,7 +213,8 @@ To learn more checkout how to apply meander [strategies](doc/strategies.md)
 
 ## Community
 
-If you have any questions don't hesitate to ask them in [Clojurians Slack #meander](https://app.slack.com/client/T03RZGPFR/CFFTD7R6Z) or file an issue for this project in Github.
+If you have any questions don't hesitate to ask them in [Clojurians Slack #meander](https://app.slack.com/client/T03RZGPFR/CFFTD7R6Z)
+or file an [issue](https://github.com/noprompt/meander/issues) for this project.
 We are happy to help.
 
 ## Project Status
