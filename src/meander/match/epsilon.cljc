@@ -1283,6 +1283,92 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
+(defmethod compile-specialized-matrix ::r.match.syntax/subsequence
+  [_ [target & rest_targets] matrix]
+  (mapv
+   (fn [node row]
+     (case (r.syntax/tag node)
+       :any
+       (compile-pass rest_targets [row])
+
+       ::r.match.syntax/subsequence
+       (let [cat-node (get node :cat)
+             elements (get cat-node :elements)
+             n (count elements)]
+         (case n
+           0
+           (compile rest_targets [row])
+
+           1
+           (let [element_target (symbol (str target "__X"))
+                 element (nth elements 0)
+                 targets* `[~element_target ~@rest_targets]
+                 row* (r.matrix/prepend-cells row [element])
+                 matrix* [row*]]
+             (r.ir/op-search element_target (r.ir/op-eval target)
+               (compile targets* matrix*)))
+
+           ;; else
+           (let [elements_target (symbol (str target "__XS"))
+                 targets* `[~elements_target ~@rest_targets]
+                 row* (r.matrix/prepend-cells row [cat-node])
+                 matrix* [row*]]
+             (r.ir/op-search elements_target (r.ir/op-eval `(partition ~n 1 ~target))
+               (compile targets* matrix*)))))))
+   (r.matrix/first-column matrix)
+   (r.matrix/drop-column matrix)))
+
+
+(defmethod compile-specialized-matrix :cat
+  [_ [target & targets*] matrix]
+  (let [targets* (vec targets*)
+        max-size (reduce
+                  (fn [n node]
+                    (case (r.syntax/tag node)
+                      :any n
+                      :cat (max n (count (:elements node)))))
+                  0
+                  (r.matrix/first-column matrix))
+        nth-syms (mapv
+                  (fn [i]
+                    (symbol (str target "_nth_" i "__")))
+                  (range max-size))]
+    (mapv
+     (fn [node row]
+       (case (r.syntax/tag node)
+         :any
+         (compile-pass targets* [row])
+
+         :cat
+         (if (literal? node)
+           (if (js-array-context?)
+             (r.ir/op-check-array-equals
+               (r.ir/op-eval target)
+               (r.ir/op-eval (compile-ground
+                              {:tag :jsa
+                               :prt {:tag :prt
+                                     :left node
+                                     :right {:tag :cat
+                                             :elements []}}}))
+               (compile targets* [row]))
+             (r.ir/op-check-equal
+               (r.ir/op-eval target)
+               (r.ir/op-eval (vec (compile-ground node)))
+               (compile targets* [row])))
+           (let [elements (:elements node)
+                 nth-syms (take (count elements) nth-syms)
+                 targets* `[~@nth-syms ~@targets*]]
+             (reduce
+              (fn [tree [i nth-sym elem]]
+                (case (r.syntax/tag elem)
+                  :any tree
+                  (r.ir/op-bind nth-sym (r.ir/op-nth (r.ir/op-eval target) i)
+                    tree)))
+              (compile targets* [(assoc row :cols `[~@elements ~@(:cols row)])])
+              (reverse (map vector (range max-size) nth-syms elements)))))))
+     (r.matrix/first-column matrix)
+     (r.matrix/drop-column matrix))))
+
 (defn solved-set?
   "true if all of the :elements of `set-node` have been solved, false
   otherwise. Does not account for :as or :rest attributes."
