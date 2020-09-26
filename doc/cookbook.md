@@ -472,3 +472,35 @@ Remember that `...` and memory variables work well together!
 ;    {:a :here,     :n [2 2 3]})
 
 ```
+
+## Make sure m/some is used when recursively matching on a map with m/cata
+
+This piece of code would throw a `StackOverflowError` exception:
+
+```clojure
+(m/match {:a 1 :b 2}
+  {:a ?a & (m/cata ?rest)}
+  {:aa ?a :rest ?rest}
+
+  {:b ?b}
+  {:bb ?b})
+```
+
+This is because when matching a logic variable to a map value, the match would succeed even if the key doesn't exist (the variable would bind to `nil`). So the recursion unfolds like this:
+
+* 1st call: `?a` binds to 1, `?rest` binds to `{:b 2}`
+* 2nd call: `?a` binds to nil, `?rest` binds to `{:b 2}`
+* 3rd call: and now we have a dead loop!
+
+To fix this, simply use `m/some` to constrain the key `:a` must exist. This is because `m/some` only succeeds on a non-nil value.
+
+```clojure
+(m/match {:a 1 :b 2}
+  {:a ?a & (m/cata ?rest)}
+  {:aa ?a :rest ?rest}
+
+  {:b ?b}
+  {:bb ?b})
+;; it works!
+;; {:aa 1, :rest {:bb 2}}
+```
