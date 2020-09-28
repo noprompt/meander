@@ -496,7 +496,7 @@ To fix this, simply use `m/some` to constrain the key `:a` must exist. This is b
 
 ```clojure
 (m/match {:a 1 :b 2}
-  {:a ?a & (m/cata ?rest)}
+  {:a (m/some ?a) & (m/cata ?rest)}
   {:aa ?a :rest ?rest}
 
   {:b ?b}
