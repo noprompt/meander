@@ -48,8 +48,12 @@
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag ::or
-     :arguments arguments*}))
+    (case (count arguments*)
+      1
+      (nth arguments* 0)
+
+      {:tag ::or
+       :arguments arguments*})))
 
 (defn infer-case
   {:private true}
