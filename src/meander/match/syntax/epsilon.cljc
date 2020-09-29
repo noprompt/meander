@@ -32,8 +32,12 @@
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag ::and
-     :arguments arguments*}))
+    (case (count arguments*)
+      1
+      (nth arguments* 0)
+
+      {:tag ::and
+       :arguments arguments*})))
 
 (defn flatten-or
   [or-node]
