@@ -899,6 +899,9 @@
 (defmethod r.syntax/unparse ::rxt
   [node] `(~re-symbol ~(r.syntax/unparse (:regex node))))
 
+(defmethod r.syntax/walk ::subsequence [inner outer node]
+  (outer (assoc node :cat (inner (:cat node)))))
+
 (defmethod r.syntax/search? ::subsequence
   [node] (r.syntax/search? (:cat node)))
 
