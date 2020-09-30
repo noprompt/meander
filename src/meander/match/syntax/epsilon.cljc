@@ -32,8 +32,12 @@
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag ::and
-     :arguments arguments*}))
+    (case (count arguments*)
+      1
+      (nth arguments* 0)
+
+      {:tag ::and
+       :arguments arguments*})))
 
 (defn flatten-or
   [or-node]
@@ -44,8 +48,12 @@
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag ::or
-     :arguments arguments*}))
+    (case (count arguments*)
+      1
+      (nth arguments* 0)
+
+      {:tag ::or
+       :arguments arguments*})))
 
 (defn infer-case
   {:private true}
@@ -890,6 +898,9 @@
 
 (defmethod r.syntax/unparse ::rxt
   [node] `(~re-symbol ~(r.syntax/unparse (:regex node))))
+
+(defmethod r.syntax/walk ::subsequence [inner outer node]
+  (outer (assoc node :cat (inner (:cat node)))))
 
 (defmethod r.syntax/search? ::subsequence
   [node] (r.syntax/search? (:cat node)))

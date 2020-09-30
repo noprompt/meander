@@ -2545,3 +2545,17 @@
           (r/rewrite #{1 2 :c 4}
             (r/subset-of (r/pred number? !k))
             (r/subset-of !k)))))
+
+(t/deftest gh-141
+  (t/is (= #{{:a 1, :b1 nil, :b2 nil}
+             {:a 1, :b1 1, :b2 nil}
+             {:a 1, :b1 1, :b2 2}}
+           (set (r/search [{:a 1}
+                           {:a 1 :b {:b1 1}}
+                           {:a 1 :b {:b1 1 :b2 2}}]
+                  (r/scan {:a ?a
+                           :b (r/or (r/and nil ?b1 ?b2)
+                                    {:b1 ?b1
+                                     :b2 (r/or (r/and nil ?b2)
+                                               ?b2)})})
+                  {:a ?a :b1 ?b1 :b2 ?b2})))))
