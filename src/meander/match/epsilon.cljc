@@ -1640,7 +1640,7 @@
     ;; _ is in every cell of the first column; drop the first column,
     ;; recurse.
     (r.matrix/any-column? matrix 0)
-    (compile (rest targets) (r.matrix/drop-column matrix))
+    (recur (rest targets) (r.matrix/drop-column matrix))
 
     :else
     (let [[targets* matrix*] (prioritize-matrix targets matrix)
