@@ -504,3 +504,46 @@ To fix this, simply use `m/some` to constrain the key `:a` must exist. This is b
 ;; it works!
 ;; {:aa 1, :rest {:bb 2}}
 ```
+
+## The "Maybe" Pattern
+
+Sometimes the data may contain an optional nested field, e.g. a map
+that describes a task could be either unassigned and assigned, and
+when it's assigned it would have an `:assignee` field with a value of
+`{:name "Assignee's Name"}`, otherwise the field is nil.
+
+```clojure
+(def tasks [{:id "TASK-1"
+             :priority "high"
+             :assignee {:name "Jack"}}
+            {:id "TASK-2"
+             :priority "normal"
+             :assignee nil}])
+```
+
+We could write a naive pattern match like this:
+
+```clojure
+(m/search tasks
+  (m/scan {:id ?id
+           :assignee {:name ?assignee}})
+  {:id ?id
+   :assignee ?assignee})
+```
+
+But the return value of the above code would ignore "TASK-2", because its `:assignee` part is not a map.
+
+To solve this, we could write the code like this:
+
+```clojure
+(m/search tasks
+  (m/scan {:id ?id
+           :assignee (m/or (m/and nil ?assignee)
+                            {:name ?assignee})})
+  {:id ?id
+   :assignee ?assignee})
+```
+
+For the `:assignee` field, it either matches a nil and at the same
+time binds the `?assignee` variable to nil, or it matches a map whose
+`:name` value is bound to the `?assignee` variable.
