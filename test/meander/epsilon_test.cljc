@@ -2559,3 +2559,7 @@
                                      :b2 (r/or (r/and nil ?b2)
                                                ?b2)})})
                   {:a ?a :b1 ?b1 :b2 ?b2})))))
+
+(t/deftest gh-143
+  (let [x #{{:a 1} {:a 2} {:a 3}}]
+    (t/is (= x (set (r/search x #{{:as ?it}} ?it))))))
