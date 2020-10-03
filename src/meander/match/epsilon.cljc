@@ -1447,11 +1447,8 @@
                                 ir-search-body (r.ir/op-bind elements_target (r.ir/op-nth (r.ir/op-eval search_space_element) 0)
                                                  (r.ir/op-bind rest_target (r.ir/op-nth (r.ir/op-eval search_space_element) 1)
                                                    ir-body))]
-                            (if (or (negating?) (= strategy :find))
-                              (r.ir/op-find search_space_element ir-search-space
-                                ir-search-body)
-                              (r.ir/op-search search_space_element ir-search-space
-                                ir-search-body))))
+                            (r.ir/op-search search_space_element ir-search-space
+                              ir-search-body)))
                      ir (case n
                           0 ir
 
