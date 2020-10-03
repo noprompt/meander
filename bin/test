@@ -23,7 +23,7 @@ color yellow
 echo 'Running Clojure tests'
 color default
 echo '---------------------'
-clojure -A:test
+clojure -M:test
 
 echo
 
@@ -32,4 +32,4 @@ color yellow
 echo 'Running ClojureScript tests'
 color default
 echo '---------------------------'
-clojure -A:cljs-test
+clojure -M:cljs-test
