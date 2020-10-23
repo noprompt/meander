@@ -234,8 +234,8 @@ In this case we do not want a new version of the software i.e. we do not wish to
 Instead we create a new `meander/artifactID` update the namespaces accordingly and continue to progress from there.
 This might sound strange at first but this method allows the project to progress in a way that is much more free than a traditional approach with semantic versioning with the following advantages:
 
-1. A version of a `meander/artifactID` will always be safe to uprade.
-1. When a new `meander/artifactID` is created you can depend on both without conflict when or if you decide to transition.
+1. A version of a `meander/artifactID` will always be safe to upgrade.
+1. When a new `meander/artifactID` is created, you can depend on both the new and the old libraries without conflict when or if you decide to transition.
 1. It promotes project growth because it gives the library the ability grow and change without the fear of breaking users.
 
 Like anything, there are drawbacks to this approach, however, as the project matures it should stabilize and be more like a "regular" project.
