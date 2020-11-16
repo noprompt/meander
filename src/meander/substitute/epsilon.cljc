@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [compile])
   #?(:cljs (:require-macros [meander.substitute.epsilon]))
   (:require [clojure.set :as set]
-            [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
             [meander.match.runtime.epsilon :as r.match.runtime]
@@ -691,7 +690,3 @@
     (if (= ::CATA_NOT_BOUND x)
       (throw (ex-info "cata not allowed here" {:pattern pattern}))
       x)))
-
-(s/fdef substitute
-  :args (s/cat :pattern any?)
-  :ret any?)
