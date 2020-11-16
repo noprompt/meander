@@ -1671,7 +1671,7 @@
 
 (defn parse-match-args
   [match-args env]
-  (if-some [data (check-match-args martch-args)]
+  (if-some [data (check-match-args match-args)]
     {:errors [(ex-info "Invalid match-args" data)]}
     (let [clauses (map
                    (fn [{:keys [pat rhs]}]
