@@ -4,7 +4,6 @@
   (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure]
             [#?(:clj clojure.pprint :cljs cljs.pprint) :as pprint]
             [clojure.set :as set]
-            [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
             [meander.environment.epsilon :as r.environment]
@@ -249,11 +248,6 @@
       (count tag-ranking)
       i)))
 
-(s/fdef tag-rank
-  :args (s/cat :tag keyword?)
-  :ret nat-int?)
-
-
 (defn score-column
   "Returns the total score of a pattern matrix column"
   {:private true}
@@ -264,11 +258,6 @@
    +
    0
    column))
-
-(s/fdef score-column
-  :args (s/cat :column (s/coll-of ::r.syntax/node :kind sequential?))
-  :ret nat-int?)
-
 
 (defn prioritize-matrix
   "Reorganizes a the pattern targets and matrix columns according to
@@ -311,13 +300,6 @@
   {:arglists '([tag targets matrix])}
   (fn [tag targets matrix]
     tag))
-
-
-(s/fdef compile-specialized-matrix
-  :args (s/cat :tag keyword?
-               :targets (s/coll-of simple-symbol? :kind vector? :into [])
-               :matrix :meander.matrix.epsilon/matrix))
-
 
 (defmethod compile-specialized-matrix :any
   [_ [_ & rest-targets] matrix]
@@ -1661,40 +1643,6 @@
 ;; ---------------------------------------------------------------------
 ;; match macro
 
-
-(s/def :meander.match.epsilon/expr
-  any?)
-
-
-(s/def :meander.match.epsilon/pattern
-  any?)
-
-
-(s/def :meander.match.epsilon/clause
-  (s/cat :pat :meander.match.epsilon/pattern
-         :rhs :meander.match.epsilon/expr))
-
-
-(s/def :meander.match.epsilon.match/clauses
-  (s/* (s/cat :pat :meander.match.epsilon/pattern
-              :rhs :meander.match.epsilon/expr)))
-
-
-(s/def :meander.match.epsilon.match/args
-  (s/cat :expr :meander.match.epsilon/expr
-         :clauses (s/* :meander.match.epsilon/clause)))
-
-
-(s/def :meander.match.epsilon.match/data
-  (s/keys :req-un [:meander.match.epsilon/expr
-                   :meander.matrix.epsilon/matrix
-                   :meander.matrix.epsilon.data/final-clause]))
-
-
-(s/def :meander.match.epsilon.match.data/final-clause
-  (s/nilable :meander.matrix.alpha/row))
-
-
 (defn parse-expand
   {:private true}
   ([x]
@@ -1702,22 +1650,40 @@
   ([x env]
    (r.match.syntax/expand-ast (r.match.syntax/parse x env))))
 
+(defn match-args?
+  [x]
+  (and (seq? x)
+       (even? (count x))))
+
+(defn check-match-args
+  {:private true}
+  [match-args]
+  (if (match-args? match-args)
+    nil
+    ;; Ensure backward compatibility with prior versions.
+    {:clojure.spec.alpha/problems
+     [{:path []
+       :pred match-args?
+       :val match-args
+       :in []}]
+     :clojure.spec.alpha/spec match-args?
+     :clojure.spec.alpha/value match-args}))
+
 (defn parse-match-args
   [match-args env]
-  (let [data (s/conform :meander.match.epsilon.match/args match-args)]
-    (if (identical? data ::s/invalid)
-      {:errors [(ex-info "Invalid match-args" (s/explain-data :meander.match.epsilon.match/args match-args))]}
-      (let [clauses (map
-                     (fn [{:keys [pat rhs]}]
-                       (let [node (r.match.syntax/parse pat env)]
-                         {:pat node
-                          :contains-cata? (r.match.syntax/contains-cata-node? node)
-                          :rhs rhs}))
-                     (:clauses data))
-            contains-cata? (some :contains-cata? clauses)]
-        {:clauses clauses
-         :contains-cata? contains-cata?
-         :expr (get data :expr)}))))
+  (if-some [data (check-match-args martch-args)]
+    {:errors [(ex-info "Invalid match-args" data)]}
+    (let [clauses (map
+                   (fn [{:keys [pat rhs]}]
+                     (let [node (r.match.syntax/parse pat env)]
+                       {:pat node
+                        :contains-cata? (r.match.syntax/contains-cata-node? node)
+                        :rhs rhs}))
+                   (:clauses data))
+          contains-cata? (some :contains-cata? clauses)]
+      {:clauses clauses
+       :contains-cata? contains-cata?
+       :expr (get data :expr)})))
 
 (defn analyze-match-args
   "Analyzes arguments as would be supplied to the match macro e.g.
@@ -1781,12 +1747,6 @@
           :exhaustive? (some? final-clause)
           :final-clause final-clause
           :matrix matrix})))))
-
-(s/fdef analyze-match-args
-  :args (s/alt :a1 (s/cat :match-args :meander.match.epsilon.match/args)
-               :a2 (s/cat :match-args :meander.match.epsilon.match/args
-                          :env any?))
-  :ret :meander.match.epsilon.match/data)
 
 (defn compile-match-args [match-args env]
   (let [match-data (analyze-match-args match-args env)]
@@ -1863,13 +1823,6 @@
   [& match-args]
   (compile-match-args match-args (merge r.environment/default (meta &form) &env)))
 
-
-(s/fdef match
-  :args (s/cat :expr any?
-               :clauses :meander.match.epsilon.match/clauses)
-  :ret any?)
-
-
 (defn analyze-search-args
   "Analyzes arguments as would be supplied to the search macro e.g.
 
@@ -1912,7 +1865,6 @@
           :errors errors
           :expr (get result :expr)
           :matrix matrix})))))
-
 
 (defn compile-search-analysis
   [search-analysis env]
@@ -1989,13 +1941,6 @@
       (throw error)
       (compile-search-analysis search-analysis env))))
 
-
-(s/fdef search
-  :args (s/cat :expr any?
-               :clauses :meander.match.epsilon.match/clauses)
-  :ret (s/coll-of any? :kind sequential?))
-
-
 (defn analyze-find-args
   "Analyzes arguments as would be supplied to the find macro e.g.
 
@@ -2050,7 +1995,6 @@
           :final-clause final-clause
           :matrix matrix})))))
 
-
 (defn compile-find-analysis
   [find-analysis env]
   (let [matrix (get find-analysis :matrix)
@@ -2093,7 +2037,6 @@
                        ir))]
             (r.ir/compile ir nil :find env)))))))
 
-
 (defmacro find
   "Like `search` but returns only the first successful match."
   {:arglists '([x & clauses])
@@ -2104,8 +2047,3 @@
     (if-some [error (first (get find-analysis :errors))]
       (throw error)
       (compile-find-analysis find-analysis env))))
-
-(s/fdef find
-  :args (s/cat :expr any?
-               :clauses :meander.match.epsilon.match/clauses)
-  :ret any?)
