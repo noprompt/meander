@@ -1,8 +1,7 @@
 (ns ^:no-doc meander.matrix.epsilon
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
-  (:require [clojure.spec.alpha :as s]
-            [clojure.set :as set]
+  (:require [clojure.set :as set]
             [meander.syntax.epsilon :as r.syntax]))
 
 
