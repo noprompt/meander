@@ -1653,7 +1653,7 @@
 (defn match-args?
   [x]
   (and (seq? x)
-       (even? (count x))))
+       (odd? (count x))))
 
 (defn check-match-args
   {:private true}
@@ -1673,17 +1673,18 @@
   [match-args env]
   (if-some [data (check-match-args match-args)]
     {:errors [(ex-info "Invalid match-args" data)]}
-    (let [clauses (map
-                   (fn [{:keys [pat rhs]}]
+    (let [[expr & rest-match-args] match-args
+          clauses (map
+                   (fn [[pat rhs]]
                      (let [node (r.match.syntax/parse pat env)]
                        {:pat node
                         :contains-cata? (r.match.syntax/contains-cata-node? node)
                         :rhs rhs}))
-                   (:clauses data))
+                   (partition 2 rest-match-args))
           contains-cata? (some :contains-cata? clauses)]
       {:clauses clauses
        :contains-cata? contains-cata?
-       :expr (get data :expr)})))
+       :expr expr})))
 
 (defn analyze-match-args
   "Analyzes arguments as would be supplied to the match macro e.g.
