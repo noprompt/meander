@@ -483,6 +483,9 @@
                   (seq? coll)
                   coll-new
 
+                  (record? coll)
+                  (into coll coll-new)
+
                   (map? coll)
                   (into {} coll-new)
 

@@ -2563,3 +2563,8 @@
 (t/deftest gh-143
   (let [x #{{:a 1} {:a 2} {:a 3}}]
     (t/is (= x (set (r/search x #{{:as ?it}} ?it))))))
+
+(defrecord GH151 [v])
+
+(t/deftest gh-151
+  (t/is (instance? GH151 (r/rewrite (->GH151 :a) (r/$ ?ctx :a) (r/app ?ctx :b)))))
