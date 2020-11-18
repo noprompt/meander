@@ -468,8 +468,7 @@
 (defmethod compile* :seq
   [node env]
   (r.match/match node
-    {:prt ?prt
-     :as nil}
+    {:prt ?prt}
     (r.match/match (compile* ?prt env)
       [?form ?env]
       [`(list* ~?form) ?env])))
@@ -489,8 +488,7 @@
 (defmethod compile* :vec
   [node env]
   (r.match/match node
-    {:prt ?prt
-     :as nil}
+    {:prt ?prt}
     (r.match/match (compile* ?prt env)
       [?form ?env]
       [`(into [] ~?form) ?env])))
