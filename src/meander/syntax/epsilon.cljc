@@ -24,51 +24,63 @@
 (defn node?
   "true if x is an AST node."
   [x]
-  (s/valid? :meander.syntax.epsilon/node x))
+  (and (map? x) (keyword? (get x :tag))))
 
 (defn tag
   "Return the tag of node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
+  {:pre [(node? node)]}
   (:tag node))
 
 (defn any-node?
   [x]
-  (s/valid? :meander.syntax.epsilon.node/any x))
+  (and (map? x) (= (get x :tag) :any)))
+
+(defn logic-variable-symbol?
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"\?.+" (name x))))
 
 (defn lvr-node?
   [x]
-  (s/valid? :meander.syntax.epsilon.node/lvr x))
+  (and (map? x) (= (get x :tag) :lvr)))
+
+(defn memory-variable-symbol?
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"!.+" (name x))))
 
 (defn mvr-node?
   [x]
-  (s/valid? :meander.syntax.epsilon.node/mvr x))
+  (and (map? x) (= (get x :tag) :mvr)))
 
 (defn variable-node?
   [x]
   (or (mvr-node? x) (lvr-node? x)))
 
+(defn reference-symbol?
+  [x]
+  (and (simple-symbol? x) (r.util/re-matches? #"%.+" (name x))))
+
 (defn ref-node?
   "true if x is a :ref node, false otherwise."
   [x]
-  (s/valid? :meander.syntax.epsilon.node/ref x))
+  (and (map? x) (= (get x :tag) :ref)))
 
 (defn with-node? [x]
-  (s/valid? :meander.syntax.epsilon.node/with x))
+  (and (map? x) (= (get x :tag) :wth)))
 
 (defn partition-node? [x]
-  (s/valid? :meander.syntax.epsilon.node/partition x))
+  (and (map? x) (= (get x :tag) :prt)))
 
 (defn cat-node? [x]
   (and (map? x) (= (get x :tag) :cat)))
 
 (defn empty-cat-node? [x]
-  (and (= :cat (:tag x))
-       (not (seq (:elements x)))))
+  (and (map? x) (= (get x :tag) :cat)
+       (not (seq (get x :elements)))))
 
 (defn tail-node? [x]
-  (and (= :tail (:tag x))
-       (some? (:pattern x))))
+  (and (map? x) (= (get x :tag) :tail)
+       (some? (get x :pattern))))
 
 (defn map-node? [x]
   (and (map? x) (= (get x :tag) :map)))
@@ -213,20 +225,20 @@
 (defn variables
   "Return all :lvr and :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
+  {:pre [(node? node)]}
   (let [vars (variables* node)]
     (set/union (get vars :lvr) (get vars :mvr))))
 
 (defn memory-variables
   "Return all :mvr nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
+  {:pre [(node? node)]}
   (get (variables* node) :mvr))
 
 (defn logic-variables
   "Return all :lvr nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
+  {:pre [(node? node)]}
   (get (variables* node) :lvr))
 
 (defn references
@@ -237,7 +249,7 @@
 (defn mutable-variables
   "Return all :mut nodes in node."
   [node]
-  (s/assert :meander.syntax.epsilon/node node)
+  {:pre [(node? node)]}
   (get (variables* node) :mut))
 
 (defn top-level
@@ -485,7 +497,7 @@
   (let [bindings (nth xs 1)]
     (if (and (vector? bindings)
              (even? (count bindings))
-             (every? m.syntax.specs/reference-symbol? (take-nth 2 bindings)))
+             (every? reference-symbol? (take-nth 2 bindings)))
       {:tag :wth
        :bindings (map
                   (fn [[ref-sym x]]
@@ -768,8 +780,8 @@
   (if (and (map? m)
            (not (record? m)))
     (let [as (if-some [[_ y] (find m :as)]
-               (if (or (m.syntax.specs/logic-variable-symbol? y)
-                       (m.syntax.specs/memory-variable-symbol? y))
+               (if (or (logic-variable-symbol? y)
+                       (memory-variable-symbol? y))
                  (parse y env)))
           m (if (some? as)
               (dissoc m :as)
@@ -1810,7 +1822,7 @@
   {:arglists '([partition-node])
    :private true}
   [node]
-  (s/assert :meander.syntax.epsilon.node/partition node)
+  {:pre [(partition-node? node)]}
   (let [left (:left node)
         right (:right node)]
     (concat (if (partition-node? left)
@@ -1967,7 +1979,3 @@
                (catch Exception _))))))
     `(do ~expander-definition-body-form
          (var ~fn-name))))
-
-#?(:clj
-   (s/fdef defsyntax
-     :args ::m.syntax.specs/defsyntax-args))
