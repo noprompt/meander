@@ -5,7 +5,6 @@ function color () {
         red)
             echo -ne '\033[0;31m'
             ;;
-
         green)
             echo -ne '\033[0;32m'
             ;;
@@ -18,18 +17,34 @@ function color () {
     esac
 }
 
-echo '---------------------'
-color yellow
-echo 'Running Clojure tests'
-color default
-echo '---------------------'
-clojure -M:test
+function clj-test () {
+  echo '---------------------'
+  color yellow
+  echo 'Running Clojure tests'
+  color default
+  echo '---------------------'
+  clojure -A:test
+}
 
-echo
+function cljs-test () {
+  echo '---------------------------'
+  color yellow
+  echo 'Running ClojureScript tests'
+  color default
+  echo '---------------------------'
+  clojure -A:cljs-test
+}
 
-echo '---------------------------'
-color yellow
-echo 'Running ClojureScript tests'
-color default
-echo '---------------------------'
-clojure -M:cljs-test
+case $1 in
+    clj)
+        clj-test
+        ;;
+    cljs)
+        cljs-test
+        ;;
+    *)
+        clj-test
+        echo
+        cljs-test
+        ;;
+esac
