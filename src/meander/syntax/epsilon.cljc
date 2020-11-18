@@ -1,19 +1,13 @@
 (ns ^:no-doc meander.syntax.epsilon
   #?(:clj
-     (:require [clojure.core.specs.alpha :as core.specs]
-               [clojure.set :as set]
-               [clojure.spec.alpha :as s]
+     (:require [clojure.set :as set]
                [clojure.string :as string]
                [meander.environment.epsilon :as m.environment]
-               [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util])
      :cljs
-     (:require [cljs.core.specs.alpha :as core.specs]
-               [cljs.spec.alpha :as s :include-macros true]
-               [clojure.set :as set]
+     (:require [clojure.set :as set]
                [clojure.string :as string]
                [meander.environment.epsilon :as m.environment]
-               [meander.syntax.specs.epsilon :as m.syntax.specs]
                [meander.util.epsilon :as r.util]
                [goog.object]))
   #?(:cljs
