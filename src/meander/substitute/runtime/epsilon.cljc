@@ -11,7 +11,9 @@
   #?(:clj
      (if (instance? java.lang.Iterable coll)
        (.iterator ^java.lang.Iterable coll)
-       (.iterator (seq coll)))
+       (if (nil? coll)
+         (.iterator ())
+         (.iterator (seq coll))))
 
      :cljs
      (iter coll)))
