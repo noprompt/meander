@@ -849,12 +849,12 @@ compilation decisions."
       #'clojure.core/number? java.lang.Number
       #'clojure.core/seq? SeqInterface
       #'clojure.core/seqable? clojure.lang.Seqable
-      #'clojure.core/set? clojure.lang.PersistentHashSet
+      #'clojure.core/set? SetInterface
       #'clojure.core/string? java.lang.String
       #'clojure.core/vector? VectorInterface}
      :cljs
      {#'cljs.core/number? js/Number
-      #'cljs.core/set? cljs.core/PersistentHashSet
+      #'cljs.core/set? cljs.core/IPersistentHashSet
       #'cljs.core/string? js/String
       #'cljs.core/vector? cljs.core/PersistentVector}))
 
