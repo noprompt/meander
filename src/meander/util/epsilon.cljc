@@ -582,7 +582,7 @@
                   (symbol (name (ns-name ns)) (name sym))
                   sym))
               (if-some [var (ns-resolve *ns* sym)]
-                (symbol (name (ns-name (.ns ^clojure.lang.Var var))) (name sym))
+                (symbol (name (ns-name (get (meta var) :ns))) (name sym))
                 (symbol (name (ns-name *ns*)) (name sym)))))
      :cljs (if-some [cljs-ns (:ns env)]
              (if (qualified-symbol? sym)
