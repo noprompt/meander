@@ -12,8 +12,8 @@
      (if (instance? java.lang.Iterable coll)
        (.iterator ^java.lang.Iterable coll)
        (if (nil? coll)
-         (.iterator ())
-         (.iterator (seq coll))))
+         (.iterator ^java.lang.Iterable ())
+         (.iterator ^java.lang.Iterable (seq coll))))
 
      :cljs
      (iter coll)))
