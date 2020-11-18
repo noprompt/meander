@@ -1,6 +1,7 @@
 (ns ^:no-doc meander.substitute.epsilon
   (:refer-clojure :exclude [compile])
-  #?(:cljs (:require-macros [meander.substitute.epsilon]))
+  #?(:cljs (:require-macros [meander.substitute.epsilon
+                             meander.substitute.syntax.epsilon]))
   (:require [clojure.set :as set]
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
@@ -8,7 +9,7 @@
             [meander.match.syntax.epsilon :as r.match.syntax]
             [meander.syntax.epsilon :as r.syntax]
             [meander.substitute.runtime.epsilon :as r.subst.runtime]
-            [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]
+            [meander.substitute.syntax.epsilon :as r.subst.syntax]
             [meander.util.epsilon :as r.util]))
 
 ;; ---------------------------------------------------------------------

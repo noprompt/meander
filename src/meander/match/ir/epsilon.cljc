@@ -843,7 +843,14 @@ compilation decisions."
 (def
   ^{:private true}
   pred-types
-  #?(:clj
+  #?(:bb
+     {#'clojure.core/map? MapInterface
+      #'clojure.core/number? java.lang.Number
+      #'clojure.core/seq? SeqInterface
+      #'clojure.core/set? SetInterface
+      #'clojure.core/string? java.lang.String
+      #'clojure.core/vector? VectorInterface}
+     :clj
      {#'clojure.core/coll? clojure.lang.IPersistentCollection
       #'clojure.core/map? MapInterface
       #'clojure.core/number? java.lang.Number
