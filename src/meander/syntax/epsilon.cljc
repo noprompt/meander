@@ -1911,12 +1911,45 @@
 (def ^{:dynamic true}
   *env* {})
 
+(defn parse-defsyntax-args
+  {:private true}
+  [defsyntax-args]
+  (let [fn-name (nth defsyntax-args 0)
+        defsyntax-args-tail-1 (rest defsyntax-args)
+        docstring (let [x (nth defsyntax-args-tail-1 0)]
+                    (if (string? x)
+                      x))
+        defsyntax-args-tail-2 (if docstring
+                                (rest defsyntax-args-tail-1)
+                                defsyntax-args-tail-1)
+        meta (let [x (nth defsyntax-args-tail-2 0)]
+               (if (map? x)
+                 x))
+        defsyntax-args-tail-3 (if meta
+                                (rest defsyntax-args-tail-2)
+                                defsyntax-args-tail-2)
+        fn-tail
+        (if (seq? (nth defsyntax-args-tail-3 0))
+          (let [x (last defsyntax-args-tail-3)
+                attr-map (if (map? x)
+                           x)
+                bodies (if attr-map
+                         (butlast defsyntax-args-tail-3)
+                         defsyntax-args-tail-3)]
+            [:arity-n {:bodies bodies
+                       :attr-map attr-map}])
+          [:arity-1 defsyntax-args-tail-3])]
+    {:docstring docstring
+     :fn-name fn-name
+     :fn-tail fn-tail
+     :meta meta}))
+
 (defmacro defsyntax
   {:arglists '([name doc-string? attr-map? [params*] prepost-map? body]
                [name doc-string? attr-map? ([params*] prepost-map? body) + attr-map?])
    :style/indent :defn}
   [& defn-args]
-  (let [conformed-defn-args (s/conform ::m.syntax.specs/defsyntax-args defn-args)
+  (let [conformed-defn-args (parse-defsyntax-args defn-args)
         defn-args (next defn-args)
         docstring (:docstring conformed-defn-args)
         defn-args (if docstring
