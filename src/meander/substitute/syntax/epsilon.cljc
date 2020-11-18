@@ -3,16 +3,12 @@
   transformations and queries."
   #?(:clj
      (:require [clojure.walk :as walk]
-               [clojure.spec.alpha :as s]
-               [clojure.core.specs.alpha :as core.specs]
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.syntax.epsilon :as r.syntax]
                [meander.util.epsilon :as r.util])
      :cljs
      (:require [clojure.walk :as walk]
-               [cljs.spec.alpha :as s :include-macros true]
-               [cljs.core.specs.alpha :as core.specs]
                [meander.match.epsilon :as r.match]
                [meander.match.syntax.epsilon :as r.match.syntax]
                [meander.syntax.epsilon :as r.syntax]

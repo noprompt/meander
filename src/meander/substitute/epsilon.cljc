@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [compile])
   #?(:cljs (:require-macros [meander.substitute.epsilon]))
   (:require [clojure.set :as set]
-            [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
             [meander.match.runtime.epsilon :as r.match.runtime]
@@ -469,8 +468,7 @@
 (defmethod compile* :seq
   [node env]
   (r.match/match node
-    {:prt ?prt
-     :as nil}
+    {:prt ?prt}
     (r.match/match (compile* ?prt env)
       [?form ?env]
       [`(list* ~?form) ?env])))
@@ -490,8 +488,7 @@
 (defmethod compile* :vec
   [node env]
   (r.match/match node
-    {:prt ?prt
-     :as nil}
+    {:prt ?prt}
     (r.match/match (compile* ?prt env)
       [?form ?env]
       [`(into [] ~?form) ?env])))
@@ -691,7 +688,3 @@
     (if (= ::CATA_NOT_BOUND x)
       (throw (ex-info "cata not allowed here" {:pattern pattern}))
       x)))
-
-(s/fdef substitute
-  :args (s/cat :pattern any?)
-  :ret any?)
