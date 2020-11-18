@@ -1,7 +1,7 @@
 (ns ^:no-doc meander.substitute.epsilon
   (:refer-clojure :exclude [compile])
-  #?(:cljs (:require-macros [meander.substitute.epsilon
-                             meander.substitute.syntax.epsilon]))
+  #?(:cljs (:require-macros [meander.substitute.epsilon]
+                            [meander.substitute.syntax.epsilon]))
   (:require [clojure.set :as set]
             [clojure.walk :as walk]
             [meander.match.epsilon :as r.match]
