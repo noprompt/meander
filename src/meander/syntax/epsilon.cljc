@@ -502,7 +502,7 @@
 
 (defn logic-variable-symbol? [x]
   (and (simple-symbol? x)
-       (re-matches #"?.+" (name x))))
+       (re-matches #"\?.+" (name x))))
 
 (defn memory-variable-symbol? [x]
   (and (simple-symbol? x)
