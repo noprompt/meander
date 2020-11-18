@@ -9,9 +9,10 @@
 
 (defn iterator [coll]
   #?(:bb
-     (if (nil? coll)
-       (.iterator ())
-       (.iterator coll))
+     (if (instance? java.lang.Iterable coll)
+       (.iterator ^java.lang.Iterable coll)
+       (let [s (or (seq coll) [])]
+         (.iterator ^java.lang.Iterable s)))
 
      :clj
      (clojure.lang.RT/iter coll)
