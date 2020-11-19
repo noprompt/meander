@@ -936,8 +936,10 @@
    (parse form {}))
   ([form env]
    (let [parser-registry (merge (deref r.syntax/global-parser-registry)
-                                default-parsers)
-         expander-registry (deref r.syntax/global-expander-registry)
+                                default-parsers
+                                (get env ::r.syntax/parser-registry))
+         expander-registry (merge (deref r.syntax/global-expander-registry)
+                                  (get env ::r.syntax/expander-registry))
          env (merge env {::r.syntax/expander-registry expander-registry
                          ::r.syntax/phase :meander/match
                          ::r.syntax/parser-registry parser-registry})]
