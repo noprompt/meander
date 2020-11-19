@@ -526,7 +526,7 @@
   "Returns true if s matches the regex pattern re, false otherwise."
   [re s]
   #?(:clj
-     (.matches (re-matcher re s))
+     (boolean (re-matches re s))
      :cljs
      (.test re s)))
 
