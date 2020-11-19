@@ -26,6 +26,8 @@
 
 (defn search-fn-or
   {:private true}
+  ([]
+   (fn [x bindings] ()))
   ([search-fn-a]
    search-fn-a)
   ([search-fn-a search-fn-b]
@@ -137,7 +139,8 @@
   (case (get ast :tag)
     ;; {:tag :any}
     :any
-    return
+    (fn [target bindings]
+      (return bindings))
 
     ;; {:tag :cat, :elements ?elements}
     :cat
@@ -212,7 +215,7 @@
         ;; {:tag :map ':as nil :rest-map {:as ?rest-map} :map {:as ?map}}
         [true false]
         (let [k (count ?map)
-              entry-search-fns (entry-search-fns ?map env reject) 
+              entry-search-fns (entry-search-fns ?map env reject)
               rest-search-fn (search-fn ?rest-map env reject)]
           (search-fn-pred map?
                           (fn [target bindings]
@@ -242,8 +245,8 @@
     ;; {:tag :mvr :symbol ?symbol}
     :mvr
     (let [?symbol (get ast :symbol)]
-      (search-fn-memory-variable ?symbol))
-    
+      (search-fn-memory-variable ?symbol return))
+
     ;; {:tag :prt, :left ?left, :right ?right}
     :prt
     (let [?left (get ast :left)
@@ -300,7 +303,7 @@
     ;; {:tag :rpl, :lvr {:symbol ?symbol :as ?lvr}, :cat {:elements ?elements :as ?cat}}
     :rpl
     (let [?lvr (get ast :lvr)
-          ?symbol (get ?lvr :symbol) 
+          ?symbol (get ?lvr :symbol)
           ?cat (get ast :cat)
           ?elements (get ast :elements)
           search-fn-star (search-fn {:tag :rp* :cat ?cat} env return reject)]
@@ -331,7 +334,7 @@
     ;; {:tag :rst, :mvr {:symbol ?symbol}}
     :rst
     (let [?mvr (get ast :mvr)
-          ?symbol (get ast :symbol)]
+          ?symbol (get ?mvr :symbol)]
       (fn [target bindings]
         (let [xs (if-some [e (find bindings ?symbol)]
                    (val e)
@@ -392,18 +395,26 @@
     ;; {:tag :tail, :pattern ?pattern}
     :tail
     (let [?pattern (get ast :pattern)]
-      (search-fn ?pattern env))
+      (search-fn ?pattern env return reject))
 
     ;; {:tag :unq, :form ?form}
     :unq
     (let [?form (get ast :form)]
-      (if-some [e (find env ::eval)]
-        (let [eval (val e)]
+      (if-some [e (find env ?form)]
+        (let [value (val e)]
           (fn [target bindings]
-            (if (= target (eval ?form))
+            (if (= target value)
               (return bindings)
               (reject bindings))))
-        (throw (ex-info "Unable to resolve eval" {}))))
+        (let [ast-meta (meta ast)]
+          (fn [target bindings]
+            (if-some [e (find bindings ::eval)]
+              (let [eval (val e)]
+                (fn [target bindings]
+                  (if (= target (eval ?form))
+                    (return bindings)
+                    (reject bindings))))
+              (throw (ex-info "Unable to resolve eval function for unquote pattern" {:pattern-meta ast-meta})))))))
 
     :vec
     (let [?as (get ast :as)
@@ -447,7 +458,6 @@
         (fn [target bindings]
           (return bindings))))
 
-
     ;; {:tag ::m.match.syntax/apply, :function ?function, :argument ?argument}
     ::m.match.syntax/apply
     (let [?function (get ast :function)
@@ -470,14 +480,15 @@
                (fn [target]
                  (search-fn-pattern target bindings))
                (search-fn-cata target)))))
-        (fn [target bindings]
-          (if-some [e (find bindings ::cata)]
-            (let [search-fn-cata (val e)]
-              (mapcat
-               (fn [target]
-                 (search-fn-pattern target bindings))
-               (search-fn-cata target)))
-            (throw (ex-info "Unable to resolve cata" {:meta (meta ast)}))))))
+        (let [ast-meta (meta ast)]
+          (fn [target bindings]
+            (if-some [e (find bindings ::cata)]
+              (let [search-fn-cata (val e)]
+                (mapcat
+                 (fn [target]
+                   (search-fn-pattern target bindings))
+                 (search-fn-cata target)))
+              (throw (ex-info "Unable to resolve cata function for cata pattern" {:pattern-meta ast-meta})))))))
 
     ;; {:tag ::m.match.syntax/guard, :expr ?expr}
     ::m.match.syntax/guard
@@ -488,7 +499,14 @@
             (if (p target)
               (return bindings)
               (reject bindings))))
-        (throw (ex-info "Unable to resolve guard predicate" {:meta (meta ast)}))))
+        (let [ast-meta (meta ast)]
+          (fn [target bindings]
+            (if-some [e (find bindings ::eval)]
+              (let [eval (val e)]
+                (if (eval target)
+                  (return bindings)
+                  (reject bindings)))
+              (throw (ex-info "Unable to resolve eval function for guard pattern" {:meta ast-meta})))))))
 
     ;; {:tag ::m.match.syntax/let, :pattern ?pattern, :expression ?expression}
     ::m.match.syntax/let
@@ -507,7 +525,7 @@
         (if (seq (search-fn-argument target bindings))
           (reject bindings)
           (return bindings))))
-    
+
     ;; {:tag :meander.match.syntax.epsilon/or :arguments ?arguments}
     :meander.match.syntax.epsilon/or
     (let [?arguments (get ast :arguments)]
@@ -517,16 +535,16 @@
                        (search-fn argument env return reject))
                      ?arguments))
         reject))
-    
+
     ;; {:tag :meander.match.syntax.epsilon/pred, :form ?form, :arguments ?arguments}
     :meander.match.syntax.epsilon/pred
     (let [?form (get ast :form)
           ?arguments (get ast :arguments)
-          eval (get env ::eval)
           synthetic-and {:tag :meander.match.syntax.epsilon/and, :arguments ?arguments}
           search-fn-arguments (search-fn synthetic-and env return reject)]
-      (fn [target bindings]
-        (let [predicate (eval ?form)]
+      (fn pred-search-fn [target bindings]
+        (let [eval (get bindings ::eval)
+              predicate (eval ?form)]
           (if (predicate target)
             (search-fn-arguments target bindings)
             (reject bindings)))))
@@ -556,11 +574,18 @@
                           (reject bindings)))
                       reject))
 
-    _
+    ;; else
     (throw (ex-info "" {:ast ast}))))
 
 ;; Public API
 ;; ----------
+
+(def default-bindings
+  {::eval #?(:clj eval
+             :cljs (fn no-eval [_]
+                     (throw (ex-info "eval not defined" {}))))
+   ::cata (fn no-cata [bindings]
+            (throw (ex-info "Unable to resolve cata" {})))})
 
 (def
   ^{:arglists '([bindings])
@@ -571,13 +596,80 @@
   {:private true}
   [bindings] ())
 
-(defn make-search-fn
-  ([form]
-   (let [options {::eval #?(:clj eval
-                            :cljs (fn [_] (throw (ex-info "eval not defined" {}))))}]
-     (make-search-fn form options)))
-  ([form options]
-   (let [search-fn (search-fn (m.match.syntax/parse form) options default-return default-reject)]
-     (fn
-       ([target] (search-fn target {}))
-       ([target bindings] (search-fn target bindings))))))
+(def default-parse-env
+  {::m.syntax/expander-registry
+   {`meander.interpreter.epsilon/and
+    (fn [[_ & args] env]
+      `(m.match.syntax/and ~@args))
+
+    `meander.interpreter.epsilon/app
+    (fn [[_ & args] env]
+      (case (count args)
+        (0 1)
+        (throw (ex-info "app expects at least two arguments" {}))
+        ;; else
+        `(m.match.syntax/app ~(first args) (m.match.syntax/and ~@(rest args)))))
+
+    `meander.interpreter.epsilon/cata
+    (fn [[_ & args] env]
+      `(m.match.syntax/cata ~@args))
+
+    `meander.interpreter.epsilon/guard
+    (fn [[_ & args] env]
+      `(m.match.syntax/guard ~@args))
+
+    `meander.interpreter.epsilon/let
+    (fn [[_ & args] env]
+      (let [bindings (nth args 0 nil)]
+        (if (and (vector? bindings)
+                 (even? (count bindings)))
+          (reduce
+           (fn [inner [pattern expression]]
+             `(r.match.syntax/let ~pattern ~expression ~inner))
+           (reverse (partition 2 bindings)))
+          (throw (ex-info "The second argument to let must be a vector with an even number of elements" {}))))
+      (cons `m.match.syntax/let args))
+
+    `meander.interpreter.epsilon/not
+    (fn [[_ & args] env]
+      `(m.match.syntax/not ~@args))
+
+    `meander.interpreter.epsilon/or
+    (fn [[_ & args] env]
+      `(m.match.syntax/or ~@args))
+
+    `meander.interpreter.epsilon/pred
+    (fn [[_ & args] env]
+      (if (seq args)
+        `(m.match.syntax/pred ~(first args) (m.match.syntax/and ~@(rest args)))
+        `(m.match.syntax/pred)))
+
+    `meander.interpreter.epsilon/re
+    (fn [[_ & args] env]
+      `(m.match.syntax/re ~@args))}})
+
+(defn searcher
+  ([pattern-form callback]
+   (let [ast (m.match.syntax/parse pattern-form default-parse-env)
+         env (merge {} (meta pattern-form))
+         pattern-fn (search-fn ast env default-return default-reject)]
+     (fn f
+       ([target]
+        (f target default-bindings))
+       ([target bindings]
+        (map callback (pattern-fn target (assoc bindings ::cata pattern-fn)))))))
+  ([pattern-form callback & more-clauses]
+   (let [search-fn
+         (reduce search-fn-or
+                 (map (fn [[pattern-form callback]]
+                        (let [ast (m.match.syntax/parse pattern-form default-parse-env)
+                              env (merge {} (meta pattern-form))
+                              pattern-fn (search-fn ast env default-return default-reject)]
+                          (fn [x bindings]
+                            (map callback (pattern-fn x bindings)))))
+                      (cons [pattern-form callback] (partition 2 more-clauses))))]
+     (fn f
+       ([target]
+        (search-fn target default-bindings))
+       ([target bindings]
+        (search-fn target (assoc bindings ::cata search-fn)))))))
