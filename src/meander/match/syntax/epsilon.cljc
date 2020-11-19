@@ -32,8 +32,12 @@
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag ::and
-     :arguments arguments*}))
+    (case (count arguments*)
+      1
+      (nth arguments* 0)
+
+      {:tag ::and
+       :arguments arguments*})))
 
 (defn flatten-or
   [or-node]
@@ -44,8 +48,12 @@
                         (mapcat f (:arguments node))
                         (list node)))
                     arguments)]
-    {:tag ::or
-     :arguments arguments*}))
+    (case (count arguments*)
+      1
+      (nth arguments* 0)
+
+      {:tag ::or
+       :arguments arguments*})))
 
 (defn infer-case
   {:private true}
@@ -195,19 +203,57 @@
 (defn expand-not [node]
   (eliminate-double-negation node))
 
+
 (defn expand-prt [node]
   (let [left (get node :left)
-        right (get node :right)]
-    (if (= (r.syntax/tag right) :prt)
+        right (get node :right)
+        left-tag (r.syntax/tag left)
+        right-tag (r.syntax/tag right)]
+    (cond
+      (= right-tag :prt)
       (let [right-left (get right :left)
             right-right (get right :right)]
-        (if (and (= (r.syntax/tag left) :cat)
-                 (= (r.syntax/tag right-left) :cat))
+        (cond
+          ;; {:left {:tag :cat, :elements ?elements-a}
+          ;;  :right {:tag :prt
+          ;;          :left {:tag :cat, :elements ?elements-b}
+          ;;          :right ?right}}
+          ;; ;; =>
+          ;; {:left {:tag :cat, :elements (& ?elements-a  & ?elements-b)}
+          ;;  :right ?right}
+          (and (= left-tag :cat)
+               (= (r.syntax/tag right-left) :cat))
           (merge node {:left {:tag :cat
                               :elements (concat (get left :elements)
                                                 (get right-left :elements))}
                        :right right-right})
+
+          ;; {:left {:tag :drp}
+          ;;  :right {:tag :prt
+          ;;          :left {:tag :cat, :as ?cat}
+          ;;          :right {:tag :drp}}}
+          ;; ;; =>
+          ;; {:tag ::subsequence
+          ;;  :cat ?cat}
+          (and (= left-tag :drp)
+               (= (r.syntax/tag right-left) :cat)
+               (= (r.syntax/tag right-right) :drp))
+          {:tag ::subsequence
+           :cat right-left}
+
+          :else
           node))
+
+      ;; {:left {:tag :drp}
+      ;;  :right {:tag :cat, :elements ()}
+      ;; ;; =>
+      ;; {:tag :drp}
+      (and (= left-tag :drp)
+           (= right-tag :cat)
+           (and (not (seq (get right :elements) ))))
+      left
+
+      :else
       node)))
 
 (defn infer-subset
@@ -453,6 +499,9 @@
                 (abstract-plus node)
                 node)))
 
+          :prt
+          (expand-prt node)
+
           ;; else
           node))
       node))))
@@ -465,15 +514,22 @@
   ([node]
    (expand-ast node r.environment/default))
   ([node env]
+   (-> (expand-ast-top-down node env)
+       (expand-ast-bottom-up env)
+       (r.syntax/rename-refs)
+       (r.syntax/consolidate-with))
+   #_
    (let [node* (-> (expand-ast-top-down node env)
                    (expand-ast-bottom-up env)
                    (r.syntax/rename-refs)
                    (r.syntax/consolidate-with))
+         ;; Below introduced in
+         ;; 68cd2dd900aa70e913a4fa4119f6b63ff5de6c37
+         ;; causes problems with compilation _ pattern compilation.
          node* (if (seq (get node* :bindings))
                  node*
                  (get node* :body))]
      node*)))
-
 ;; ---------------------------------------------------------------------
 ;; Syntax analysis
 
@@ -843,6 +899,26 @@
 (defmethod r.syntax/unparse ::rxt
   [node] `(~re-symbol ~(r.syntax/unparse (:regex node))))
 
+(defmethod r.syntax/walk ::subsequence [inner outer node]
+  (outer (assoc node :cat (inner (:cat node)))))
+
+(defmethod r.syntax/search? ::subsequence
+  [node] (r.syntax/search? (:cat node)))
+
+(defmethod r.syntax/children ::subsequence
+  [node] [(:cat node)])
+
+(defmethod r.syntax/ground? ::subsequence
+  [node] (r.syntax/ground? (:cat node)))
+
+(defmethod r.syntax/unparse ::subsequence
+  [node] (concat '(_ ...) (r.syntax/unparse (:cat node)) '(. _ ...)))
+
+(defmethod r.syntax/min-length ::subsequence
+  [node] (r.syntax/min-length (:cat node)))
+
+(defmethod r.syntax/max-length ::subsequence
+  [node] ##Inf)
 
 (def default-parsers
   {and-symbol #'parse-and

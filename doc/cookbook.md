@@ -437,3 +437,113 @@ c) Constrain a memory variable to length <= 1:
 ;; => [1 "this is fine" :foo]
 ```
 
+## Unrolling relationships
+
+`m/scan` can be used to greatly simplify clojure code unrolling relationships.
+
+```clojure
+(m/search {:context-tag :one-to-five
+           :numbers     [1 2 3 4 5]}
+  {:context-tag ?context
+   :numbers     (m/scan ?n)}
+  [?context ?n])
+
+; => ([:one-to-five 1]
+;     [:one-to-five 2]
+;     [:one-to-five 3]
+;     [:one-to-five 4]
+;     [:one-to-five 5])
+```
+
+## Not Unrolling Relationships
+
+Remember that `...` and memory variables work well together!
+
+```clojure
+(m/search [{:a :whatever :b [{:n 1} {:n 2} {:n 1}]}
+           {:a :goes :b [{:n 1} {:n 2} {:n 4}]}
+           {:a :here :b [{:n 2} {:n 2} {:n 3}]}]
+  (m/scan {:a ?a :b [{:n !n} ...]})
+  {:a ?a :n !n})
+
+
+;=> ({:a :whatever, :n [1 2 1]}
+;    {:a :goes,     :n [1 2 4]}
+;    {:a :here,     :n [2 2 3]})
+
+```
+
+## Make sure m/some is used when recursively matching on a map with m/cata
+
+This piece of code would throw a `StackOverflowError` exception:
+
+```clojure
+(m/match {:a 1 :b 2}
+  {:a ?a & (m/cata ?rest)}
+  {:aa ?a :rest ?rest}
+
+  {:b ?b}
+  {:bb ?b})
+```
+
+This is because when matching a logic variable to a map value, the match would succeed even if the key doesn't exist (the variable would bind to `nil`). So the recursion unfolds like this:
+
+* 1st call: `?a` binds to 1, `?rest` binds to `{:b 2}`
+* 2nd call: `?a` binds to nil, `?rest` binds to `{:b 2}`
+* 3rd call: and now we have a dead loop!
+
+To fix this, simply use `m/some` to constrain the key `:a` must exist. This is because `m/some` only succeeds on a non-nil value.
+
+```clojure
+(m/match {:a 1 :b 2}
+  {:a (m/some ?a) & (m/cata ?rest)}
+  {:aa ?a :rest ?rest}
+
+  {:b ?b}
+  {:bb ?b})
+;; it works!
+;; {:aa 1, :rest {:bb 2}}
+```
+
+## The "Maybe" Pattern
+
+Sometimes the data may contain an optional nested field, e.g. a map
+that describes a task could be either unassigned and assigned, and
+when it's assigned it would have an `:assignee` field with a value of
+`{:name "Assignee's Name"}`, otherwise the field is nil.
+
+```clojure
+(def tasks [{:id "TASK-1"
+             :priority "high"
+             :assignee {:name "Jack"}}
+            {:id "TASK-2"
+             :priority "normal"
+             :assignee nil}])
+```
+
+We could write a naive pattern match like this:
+
+```clojure
+(m/search tasks
+  (m/scan {:id ?id
+           :assignee {:name ?assignee}})
+  {:id ?id
+   :assignee ?assignee})
+```
+
+But the return value of the above code would ignore "TASK-2", because its `:assignee` part is not a map.
+
+To solve this, we could write the code like this:
+
+```clojure
+(m/search tasks
+  (m/scan {:id ?id
+           :assignee (m/or (m/and nil ?assignee)
+                            {:name ?assignee})})
+  {:id ?id
+   :assignee ?assignee})
+```
+
+For the `:assignee` field, it either matches a nil and at the same
+time binds the `?assignee` variable to nil, or it matches a map whose
+`:name` value is bound to the `?assignee` variable.

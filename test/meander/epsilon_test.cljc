@@ -1248,7 +1248,12 @@
           [(r/seqable ?x) (r/seqable ?y)]
           true
           _
-          false)))
+          false))
+
+  (t/is (= '(1 2 3 4)
+          (r/rewrite [1 2 3 4]
+            (r/seqable !k ...)
+            (r/seqable !k ...)))))
 
 
 (t/deftest search-seqables
@@ -2523,3 +2528,43 @@
           (let [!k ["foo" "bar"]
                 !v [1 2]]
             (r/subst (r/submap-of !k !v))))))
+
+(t/deftest set-of-test
+  (t/is (= #{1 2 :c 4}
+          (r/rewrite #{1 2 :c 4}
+            (r/set-of !k)
+            (r/set-of !k))))
+
+  (t/is (= nil
+          (r/rewrite #{1 2 :c 4}
+            (r/map-of (r/pred number? !k) !v)
+            (r/set-of !k)))))
+
+(t/deftest subset-of-test
+  (t/is (= #{1 2 4}
+          (r/rewrite #{1 2 :c 4}
+            (r/subset-of (r/pred number? !k))
+            (r/subset-of !k)))))
+
+(t/deftest gh-141
+  (t/is (= #{{:a 1, :b1 nil, :b2 nil}
+             {:a 1, :b1 1, :b2 nil}
+             {:a 1, :b1 1, :b2 2}}
+           (set (r/search [{:a 1}
+                           {:a 1 :b {:b1 1}}
+                           {:a 1 :b {:b1 1 :b2 2}}]
+                  (r/scan {:a ?a
+                           :b (r/or (r/and nil ?b1 ?b2)
+                                    {:b1 ?b1
+                                     :b2 (r/or (r/and nil ?b2)
+                                               ?b2)})})
+                  {:a ?a :b1 ?b1 :b2 ?b2})))))
+
+(t/deftest gh-143
+  (let [x #{{:a 1} {:a 2} {:a 3}}]
+    (t/is (= x (set (r/search x #{{:as ?it}} ?it))))))
+
+(defrecord GH151 [v])
+
+(t/deftest gh-151
+  (t/is (instance? GH151 (r/rewrite (->GH151 :a) (r/$ ?ctx :a) (r/app ?ctx :b)))))

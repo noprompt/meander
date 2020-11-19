@@ -849,12 +849,12 @@ compilation decisions."
       #'clojure.core/number? java.lang.Number
       #'clojure.core/seq? SeqInterface
       #'clojure.core/seqable? clojure.lang.Seqable
-      #'clojure.core/set? clojure.lang.PersistentHashSet
+      #'clojure.core/set? SetInterface
       #'clojure.core/string? java.lang.String
       #'clojure.core/vector? VectorInterface}
      :cljs
      {#'cljs.core/number? js/Number
-      #'cljs.core/set? cljs.core/PersistentHashSet
+      #'cljs.core/set? cljs.core/IPersistentHashSet
       #'cljs.core/string? js/String
       #'cljs.core/vector? cljs.core/PersistentVector}))
 
@@ -929,7 +929,6 @@ compilation decisions."
 (defn infer-type-seq
   {:private true}
   [env node form]
-
   (cond
     ;; If it is quoted then a seq can't be a function call so it is a seq
     (and (r.util/quoted? form)
@@ -942,7 +941,8 @@ compilation decisions."
 
     ;; if it is a list, it is a seq
     (and (seq? form)
-         (= (r.util/expand-symbol (first form) *env*) 'clojure.core/list))
+         (and (symbol? (first form))
+              (= (r.util/expand-symbol (first form) *env*) 'clojure.core/list)))
     (add-type-to-env env (:symbol node) SeqInterface)
 
     ;; otherwise just check the type

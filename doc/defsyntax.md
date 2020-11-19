@@ -26,7 +26,7 @@ To build some motivation for `defsyntax` consider the following.
   [?ns ?name]
   
   _
-  nil))
+  nil)
 ;; => ["foo" "bar"]
 ```
 
@@ -41,7 +41,7 @@ We could tighten up the original pattern by matching the result `namespace`, etc
   ?name
   
   _
-  nil))
+  nil)
 ;; => nil
 ```
 

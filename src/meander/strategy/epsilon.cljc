@@ -13,7 +13,6 @@
   (:require
    [clojure.core :as clj]
    [clojure.set :as set]
-   [clojure.spec.alpha :as s]
    [meander.match.epsilon :as r.match :include-macros true]
    [meander.match.syntax.epsilon :as r.match.syntax :include-macros true]
    [meander.protocols.epsilon :as r.protocols]
@@ -1078,12 +1077,6 @@
          :else
          *fail*)))))
 
-
-(s/fdef match
-  :args :meander.match.epsilon.match/clauses
-  :ret any?)
-
-
 (defmacro match
   "Strategy version of match which defaults to returning *fail*."
   {:style/indent 0}
@@ -1094,12 +1087,6 @@
 
        ~'_
        *fail*)))
-
-
-(s/fdef search
-  :args :meander.match.epsilon.match/clauses
-  :ret any?)
-
 
 (defmacro search
   "Strategy version of search."
@@ -1130,11 +1117,6 @@
   `(fn [x#]
      (r.match/find x#
        ~@clauses)))
-
-
-(s/fdef find
-  :args :meander.match.epsilon.match/clauses
-  :ret any?)
 
 ;; ---------------------------------------------------------------------
 ;; Rewrite
@@ -1255,10 +1237,6 @@
      ~'_
      *fail*))
 
-(s/fdef rewrite
-  :args :meander.match.epsilon.match/clauses
-  :ret any?)
-
 (defmacro rewrites
   [& rules]
   `(search
@@ -1266,7 +1244,3 @@
        (fn [[pat rhs]]
          [pat `(r.substitute/substitute ~rhs)])
        (partition 2 rules))))
-
-(s/fdef rewrites
-  :args :meander.match.epsilon.match/clauses
-  :ret any?)

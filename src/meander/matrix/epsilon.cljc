@@ -1,80 +1,8 @@
 (ns ^:no-doc meander.matrix.epsilon
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
-  (:require [clojure.spec.alpha :as s]
-            [clojure.set :as set]
-            [clojure.spec.gen.alpha :as s.gen]
+  (:require [clojure.set :as set]
             [meander.syntax.epsilon :as r.syntax]))
-
-
-(s/def :meander.matrix.epsilon/matrix
-  (s/coll-of :meander.matrix.epsilon/row
-             :kind sequential?
-             :into []
-             :gen (fn []
-                    (s.gen/fmap
-                     (fn [rows]
-                       ;; All rows of a matrix must have equal width.
-                       (let [i (reduce min (map (comp count :cols) rows))]
-                         (into []
-                               (map
-                                (fn [row]
-                                  (update row :cols subvec 0 i)))
-                               rows)))
-                     (s.gen/vector
-                      (s/gen :meander.matrix.epsilon/row))))))
-
-(s/def :meander.matrix.epsilon.row/path
-  (s/coll-of :meander.syntax.epsilon/node
-             :kind sequential?
-             :into []))
-
-(s/def :meander.matrix.epsilon.row/refs
-  :meander.syntax.epsilon/ref-map)
-
-(s/def :meander.matrix.epsilon.row/ref-specs
-  (s/map-of :meander.syntax.epsilon.node/ref
-            (s/coll-of map?
-                       :kind sequential?
-                       :into [])))
-
-(s/def :meander.matrix.epsilon/ref-map
-  map?)
-
-(s/def :meander.matrix.epsilon/row
-  (s/keys :req-un [:meander.matrix.epsilon.row/cols
-                   :meander.matrix.epsilon.row/rhs]
-          :opt-un [:meander.matrix.epsilon.row/env
-                   :meander.matrix.epsilon.row/refs
-                   :meander.matrix.epsilon.row/ref-specs
-                   :meander.matrix.epsilon.row/path]))
-
-
-(s/def :meander.matrix.epsilon.row/cols
-  (s/coll-of :meander.syntax.epsilon/node
-             :kind sequential?
-             :into []))
-
-
-(s/def :meander.matrix.epsilon.row/rhs
-  any?)
-
-
-(s/def :meander.matrix.epsilon.row/env
-  (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
-                   :mut :meander.syntax.epsilon.node/mut
-                   :mvr :meander.syntax.epsilon.node/mvr)
-             :kind set?
-             :into #{}))
-
-
-(s/def :meander.matrix.epsilon/object
-  (s/or :matrix :meander.matrix.epsilon/matrix
-        :row :meander.matrix.epsilon/row
-        :unknown any?))
-
-(s/def :meander.matrix.epsilon/columns
-  (s/coll-of ::r.syntax/node :kind sequential? :into []))
 
 
 ;; ---------------------------------------------------------------------
@@ -93,19 +21,28 @@
   [nodes action-form]
   (assoc empty-row :cols nodes :rhs action-form))
 
-(s/fdef make-row
-  :args (s/cat :columns :meander.matrix.epsilon/columns
-               :action any?)
-  :ret :meander.matrix.epsilon/row)
-
 (defn action [row]
   (:rhs row))
 
 (defn row?
   "true if x is a matrix row."
   [x]
-  (s/valid? :meander.matrix.epsilon/row x))
-
+  (and (map? x)
+       (let [cols (get x :cols)]
+         (and (seq? x)
+              (every? r.syntax/node? cols)))
+       (let [env (get x :env)]
+         (or (nil? env)
+             (set? env)))
+       (let [refs (get x :refs)]
+         (or (nil? refs)
+             (map? refs)))
+       (let [ref-specs (get x :ref-specs)]
+         (or (nil? ref-specs)
+             (and (sequential? ref-specs) (every? map? ref-specs))))
+       (let [path (get x :path)]
+         (or (nil? path)
+             (and (sequential? path) (every? map? path))))))
 
 (defn empty?
   "true if matrix has no columns."
@@ -133,13 +70,6 @@
     (assoc v i (nth v j) j (nth v i))))
 
 
-(s/fdef swap-column
-  :args (s/cat :matrix :meander.matrix.epsilon/matrix
-               :i nat-int?
-               :j nat-int?)
-  :ret :meander.matrix.epsilon/matrix)
-
-
 (defn swap-column
   "Swaps column i with column j in the matrix."
   [matrix i j]
@@ -147,15 +77,6 @@
             (fn [row]
               (update row :cols swap i j)))
         matrix))
-
-
-(s/fdef subcols
-  :args (s/or :a2 (s/cat :matrix :meander.matrix.epsilon/matrix
-                         :i nat-int?)
-              :a3 (s/cat :matrix :meander.matrix.epsilon/matrix
-                         :i nat-int?
-                         :j nat-int?))
-  :ret :meander.matrix.epsilon/matrix)
 
 
 (defn subcols
@@ -170,11 +91,6 @@
              (fn [row]
                (update row :cols subvec i j)))
          matrix)))
-
-
-(s/fdef width
-  :args (s/cat :matrix :meander.matrix.epsilon/matrix)
-  :ret nat-int?)
 
 
 (defn width
@@ -197,15 +113,6 @@
          matrix)))
 
 
-(s/fdef nth-column
-  :args (s/alt :a2 (s/cat :matrix :meander.matrix.epsilon/matrix
-                          :index nat-int?)
-               :a3 (s/cat :matrix :meander.matrix.epsilon/matrix
-                          :index nat-int?
-                          :not-found any?))
-  :ret (s/coll-of :meander.syntax.epsilon/node))
-
-
 (defn first-column
   "Return the first column in matrix."
   [matrix]
@@ -220,11 +127,6 @@
    (range (width matrix))))
 
 
-(s/fdef drop-column
-  :args (s/cat :matrix :meander.matrix.epsilon/matrix)
-  :ret :meander.matrix.epsilon/matrix)
-
-
 (defn drop-column
   "Drop the first column in row."
   [matrix]
@@ -236,27 +138,11 @@
         matrix))
 
 
-(s/fdef prepend-cells
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :cells (s/coll-of :meander.syntax.epsilon/node
-                                 :kind sequential?
-                                 :into []))
-  :ret :meander.matrix.epsilon/row)
-
-
 (defn prepend-cells
   "Prepends `cells` to `row`."
   {:style/indent 1}
   [row cells]
   (assoc row :cols (into (vec cells) (:cols row))))
-
-
-(s/fdef prepend-column
-  :args (s/cat :matrix :meander.matrix.epsilon/matrix
-               :column (s/coll-of :meander.syntax.epsilon/node
-                                  :kind sequential?
-                                  :into []))
-  :ret :meander.matrix.epsilon/matrix)
 
 
 (defn prepend-column
@@ -267,15 +153,6 @@
                (assoc row :cols (into [cell] (:cols row))))
              matrix
              column)))
-
-
-(s/fdef specialize-by
-  :args (s/cat :f (s/fspec
-                   :args (s/cat :node :meander.syntax.epsilon/node)
-                   :ret any?)
-               :matrix :meander.matrix.epsilon/matrix)
-  :ret (s/map-of :meander.syntax.epsilon.node/tag
-                 :meander.matrix.epsilon/matrix))
 
 
 (defn specialize-by
@@ -304,11 +181,6 @@
 ;; ---------------------------------------------------------------------
 ;; Environment
 
-(s/fdef get-env
-  :args (s/cat :row :meander.matrix.epsilon/row)
-  :ret :meander.matrix.epsilon.row/env)
-
-
 (defn get-env
   [row]
   (or (:env row) #{}))
@@ -319,52 +191,15 @@
   [row var]
   (update row :env (fnil conj #{}) var))
 
-(s/fdef add-var
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :var (s/or :lvr :meander.syntax.epsilon.node/lvr
-                          :mvr :meander.syntax.epsilon.node/mvr
-                          :mut :meander.syntax.epsilon.node/mut))
-  :ret :meander.matrix.epsilon/row)
-
 (defn add-vars
   "Add vars to the environment in row."
   [row vars]
   (update row :env (fnil into #{}) vars))
 
-
-(s/fdef add-vars
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :vars (s/or
-                      :set
-                      (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
-                                       :mut :meander.syntax.epsilon.node/mut
-                                       :mvr :meander.syntax.epsilon.node/mvr)
-                                 :kind set?
-                                 :into #{})
-
-                      :sequential
-                      (s/coll-of (s/or :lvr :meander.syntax.epsilon.node/lvr
-                                       :mut :meander.syntax.epsilon.node/mut
-                                       :mvr :meander.syntax.epsilon.node/mvr)
-                                :kind sequential?
-                                :into #{})))
-  :ret :meander.matrix.epsilon/row)
-
 (defn get-var
   "Get var from the environment in row."
   [row var]
   (get (:env row) var))
-
-
-(s/fdef get-var
-  :args (s/cat :row :meander.matrix.epsilon/row
-               :var (s/or :lvr :meander.syntax.epsilon.node/lvr
-                          :mut :meander.syntax.epsilon.node/mut
-                          :mvr :meander.syntax.epsilon.node/mvr))
-  :ret (s/nilable
-        (s/or :lvr :meander.syntax.epsilon.node/lvr
-              :mut :meander.syntax.epsilon.node/mut
-              :mvr :meander.syntax.epsilon.node/mvr)))
 
 ;; TODO: Make mvrs it's own part of the map.
 (defn bound-mvrs
@@ -406,17 +241,8 @@
   [row]
   (every? r.syntax/any-node? (:cols row)))
 
-(s/fdef any-row?
-  :args (s/cat :row :meander.matrix.epsilon/row)
-  :ret boolean?)
-
 (defn any-column?
   "`true` if every cell in the nth-column `index` of `matrix` is an
   `any-node?`, `false` otherwise."
   [matrix index]
   (every? r.syntax/any-node? (nth-column matrix index)))
-
-(s/fdef any-column?
-  :args (s/cat :matrix :meander.matrix.epsilon/matrix
-               :index nat-int?)
-  :ret boolean?)
