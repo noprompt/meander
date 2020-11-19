@@ -25,14 +25,15 @@
     :dynamic true}
   *pass*
   "Strategy which returns t."
-  (reify
-    #?@(:clj [clojure.lang.IFn
-              (invoke [_ t] t)
-              (applyTo [_ args] (first args))]
-        :cljs [cljs.core/IFn
-               (-invoke [_ t] t)
-               ;; TODO: why no applyTo?
-               #_(-applyTo [_ args] (first args))])))
+  #?(:bb (fn [& args] (first args))
+     :clj (reify clojure.lang.IFn
+            (invoke [_ t] t)
+            (applyTo [_ args] (first args)))
+     :cljs (reify
+             cljs.core/IFn
+             (-invoke [_ t] t)
+             ;; TODO: why no applyTo?
+             #_(-applyTo [_ args] (first args)))))
 
 #?(:clj
    (defmethod print-method (class *pass*) [v ^java.io.Writer w]
@@ -59,14 +60,15 @@
     :dynamic true}
   *fail*
   "Strategy which always fails."
-  (reify
-    #?@(:clj [clojure.lang.IFn
-              (invoke [this _] this)
-              (applyTo [this _] this)]
-        :cljs [cljs.core/IFn
-               (-invoke [this _] this)
-               ;; TODO: why no applyTo?
-               #_(-applyTo [this _] this)])))
+  #?(:bb (fn foo [_] foo)
+     :clj (reify clojure.lang.IFn
+            (invoke [this _] this)
+            (applyTo [this _] this))
+     :cljs (reify
+             cljs.core/IFn
+             (-invoke [this _] this)
+             ;; TODO: why no applyTo?
+             #_(-applyTo [_ args] (first args)))))
 
 #?(:clj
    (defmethod print-method (class *fail*) [v ^java.io.Writer w]
