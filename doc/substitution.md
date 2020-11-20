@@ -64,7 +64,7 @@ variables is exhausted.
 
 ```clj
 (let [!bs ['x 'y]
-      !vs [1 2 3]]]
+      !vs [1 2 3]]
   (m/subst [!bs !vs ...]))
 ;; =>
 [x 1 y 2]
