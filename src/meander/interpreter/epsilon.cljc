@@ -579,8 +579,7 @@
 
 (defmethod -pattern :mvr [ast]
   (let [?symbol (get ast :symbol)]
-    (fn [runtime]
-      (memory-variable ?symbol))))
+    (memory-variable ?symbol)))
 
 (defmethod -pattern :quo [ast]
   (let [form (get ast :form)]
