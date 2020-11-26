@@ -652,13 +652,13 @@
 
 (defmethod -pattern :unq
   [ast]
-  (let [form (get ast :form)]
+  (let [expr (get ast :expr)]
     (fn [runtime]
       (if-some [eval (get runtime :eval)]
         (let [pass (get runtime :pass)
               fail (get runtime :fail)]
           (fn [target bindings]
-            (if (= target (eval form))
+            (if (= target (eval expr))
               (pass bindings)
               fail)))
         (throw (ex-info "eval not provided" {:runtime runtime}))))))
