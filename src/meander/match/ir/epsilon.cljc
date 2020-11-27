@@ -843,7 +843,14 @@ compilation decisions."
 (def
   ^{:private true}
   pred-types
-  #?(:clj
+  #?(:bb
+     {#'clojure.core/map? MapInterface
+      #'clojure.core/number? java.lang.Number
+      #'clojure.core/seq? SeqInterface
+      #'clojure.core/set? SetInterface
+      #'clojure.core/string? java.lang.String
+      #'clojure.core/vector? VectorInterface}
+     :clj
      {#'clojure.core/coll? clojure.lang.IPersistentCollection
       #'clojure.core/map? MapInterface
       #'clojure.core/number? java.lang.Number
@@ -854,7 +861,7 @@ compilation decisions."
       #'clojure.core/vector? VectorInterface}
      :cljs
      {#'cljs.core/number? js/Number
-      #'cljs.core/set? cljs.core/IPersistentHashSet
+      #'cljs.core/set? cljs.core/PersistentHashSet
       #'cljs.core/string? js/String
       #'cljs.core/vector? cljs.core/PersistentVector}))
 
@@ -1430,9 +1437,11 @@ compilation decisions."
   (if (r.util/cljs-env? *env*)
     `(get ~(compile* (:target ir) fail kind)
           ~(compile* (:key ir) fail kind))
-    `(.valAt ~(with-meta (compile* (:target ir) fail kind)
-                {:tag 'clojure.lang.ILookup})
-             ~(compile* (:key ir) fail kind))))
+    #?(:bb `(get ~(compile* (:target ir) fail kind)
+                 ~(compile* (:key ir) fail kind))
+       :clj `(.valAt ~(with-meta (compile* (:target ir) fail kind)
+                   {:tag 'clojure.lang.ILookup})
+                     ~(compile* (:key ir) fail kind)))))
 
 (defmethod compile* :lvr-bind
   [ir fail kind]

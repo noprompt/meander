@@ -8,12 +8,14 @@
   `(identical? ~x FAIL))
 
 (defn iterator [coll]
-  #?(:clj
+  #?(:bb
      (if (instance? java.lang.Iterable coll)
        (.iterator ^java.lang.Iterable coll)
-       (if (nil? coll)
-         (.iterator ^java.lang.Iterable ())
-         (.iterator ^java.lang.Iterable (seq coll))))
+       (let [s (or (seq coll) [])]
+         (.iterator ^java.lang.Iterable s)))
+
+     :clj
+     (clojure.lang.RT/iter coll)
 
      :cljs
      (iter coll)))

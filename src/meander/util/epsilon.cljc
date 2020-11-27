@@ -526,7 +526,9 @@
 (defn re-matches?
   "Returns true if s matches the regex pattern re, false otherwise."
   [re s]
-  #?(:clj
+  #?(:bb
+     (some? (seq (re-matches re s)))
+     :clj
      (.matches (re-matcher re s))
      :cljs
      (.test re s)))
@@ -625,3 +627,8 @@
 
 (defn val-of-js-value [x]
   (if (js-value? x) (.val x) x))
+
+(defn index-of
+  [coll item]
+  (or (first (keep-indexed (fn [i x] (if (= x item) i)) coll))
+      -1))

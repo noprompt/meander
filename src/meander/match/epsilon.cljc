@@ -243,7 +243,7 @@
   of a pattern matrix column."
   {:private true}
   [tag]
-  (let [i (.indexOf tag-ranking tag)]
+  (let [i (r.util/index-of tag-ranking tag)]
     (if (= i -1)
       (count tag-ranking)
       i)))

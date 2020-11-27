@@ -2,7 +2,8 @@
   "Operators for pattern matrices."
   (:refer-clojure :exclude [empty?])
   (:require [clojure.set :as set]
-            [meander.syntax.epsilon :as r.syntax]))
+            [meander.syntax.epsilon :as r.syntax]
+            [meander.util.epsilon :as r.util]))
 
 
 ;; ---------------------------------------------------------------------
@@ -169,7 +170,7 @@
           (compare
            (apply min ##Inf
                   (map (fn [v]
-                         (.indexOf matrix v))
+                         (r.util/index-of matrix v))
                        (get grouped k1)))
            (apply min  ##Inf
                   (map (fn [v]
