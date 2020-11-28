@@ -322,6 +322,10 @@
 
 (defn make-hash-map
   {:private true}
+  ([runtime]
+   (let [pass (get runtime :pass)]
+     (fn [target bindings]
+       (pass bindings))))
   ([runtime p_key p_val]
    (let [scan (get runtime :scan)
          p_entry (make-entry runtime p_key p_val)]
@@ -345,12 +349,13 @@
                  (m.util/map-k-permutations-with-unselected target entry-count))))
        (throw (ex-info "make-hash-map requires and odd number of arguments"))))))
 
+
 (defn make-set
   {:private true}
   ([runtime p_elements]
    {:pre [(sequential? p_elements)]}
    (let [k (count p_elements)
-         p_cat (make-cat p_elements)
+         p_cat (make-cat runtime p_elements)
          scan (get runtime :scan)]
      (fn [target bindings]
        (scan (fn [[elements _]]
@@ -478,17 +483,24 @@
 (defn hash-map
   {:private true}
   [p_keyvals*]
-  (fn [runtime]
-    (clojure/apply make-hash-map runtime (map (fn [p*] (p* runtime)) p_keyvals*))))
+  (all (pred map?)
+       (fn [runtime]
+         (clojure/apply make-hash-map runtime (map (fn [p*] (p* runtime)) p_keyvals*)))))
 
 (defn set
   {:private true}
   ([p_elements*]
    (all (pred set?)
-        (fn [runtime] (make-set runtime (map (fn [p*] (p* runtime)) p_elements* )))))
+        (fn [runtime]
+          (make-set runtime
+                    (map (fn [p*] (p* runtime))
+                         p_elements*)))))
   ([p_elements* p_rest*]
    (all (pred set?)
-        (fn [runtime] (make-set runtime (map (fn [p*] (p* runtime)) p_elements*) (p_rest* runtime))))))
+        (fn [runtime]
+          (make-set runtime
+                    (map (fn [p*] (p* runtime)) p_elements*)
+                    (p_rest* runtime))))))
 
 (defn -pattern-dispatch
   {:private true}
@@ -553,7 +565,8 @@
 
 (defmethod -pattern :map [ast]
   (if-some [as (get ast :as)]
-    (all (-pattern as) (-pattern (assoc ast :as nil)))
+    (all (-pattern as)
+         (-pattern (assoc ast :as nil)))
     (if-some [rest-map (get ast :rest-map)]
       (let [p_permutation* (cat (map (fn [[ast_key ast_val]]
                                        (all (apply first (-pattern ast_key))
@@ -569,7 +582,7 @@
               (scan (fn [element]
                       (p_element element bindings))
                     (m.util/map-k-permutations-with-unselected target k))))))
-      (let [p_keyvals* (sequence (comp clojure/cat (map -pattern)) (get ast :map))]
+      (let [p_keyvals* (map -pattern (mapcat identity (get ast :map)))]
         (hash-map p_keyvals*)))))
 
 (defmethod -pattern :mut
@@ -769,8 +782,8 @@
   [ast]
   (let [regex (get ast :regex)]
     (all (pred string?)
-         (apply (fn [s] (re-matches regex s)))
-         (-pattern (get ast :capture)))))
+         (all (apply (fn [s] (re-matches regex s)))
+              (-pattern (get ast :capture))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/rxt
   [ast]
@@ -860,7 +873,6 @@
        (partition-all 2 xs)))
 
 (defn system
-  {:private true}
   [args]
   (let [rules* (parse-rules args)]
     (fn [runtime]
@@ -882,10 +894,10 @@
                       (left target bindings)))
               rules))))))))
 
-
 (defn finder [& clauses]
-  (let [system* (system clauses)]
-    (system* find-runtime)))
+  (let [s_clauses ((system clauses) find-runtime)
+        fail (get find-runtime :fail)]
+    (comp (fn [x] (if (= x fail) nil x)) s_clauses)))
 
 (defn searcher [& clauses]
   (let [system* (system clauses)]
