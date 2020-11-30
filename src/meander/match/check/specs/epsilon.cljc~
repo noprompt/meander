@@ -1,2 +1,0 @@
-(ns ^:no-doc meander.match.check.epsilon
-  (:require [clojure.spec.alpha :as s]))
