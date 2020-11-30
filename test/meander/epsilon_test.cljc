@@ -2314,7 +2314,11 @@
   (t/is (= {:foo [["bar"]]}
            (r/match {:foo ["bar"]}
              (r/$ ?foo [& _ :as ?x])
-             (?foo [?x])))))
+             (?foo [?x]))))
+  (t/testing "gh-158"
+    (t/is (= [["a" :b]]
+             (let [x [{:a "a"} :b]]
+               (r/search x [(r/$ {:a ?a}) ?b] [?a ?b]))))))
 
 (t/deftest memory-variable-key-test
   (t/is (= [1 2]
@@ -2568,3 +2572,5 @@
 
 (t/deftest gh-151
   (t/is (instance? GH151 (r/rewrite (->GH151 :a) (r/$ ?ctx :a) (r/app ?ctx :b)))))
+
+
