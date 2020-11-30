@@ -425,42 +425,35 @@
      (r.matrix/drop-column matrix))))
 
 (defmethod compile-specialized-matrix :ctn
-  [_ [target & targets*] matrix]
+  [_ [target & rest-targets] matrix]
   (mapv
    (fn [node row]
      (case (r.syntax/tag node)
        :any
-       (compile-pass targets* [row])
+       (compile-pass rest-targets [row])
 
        :ctn
-       (let [context (:context node)
-             pattern (:pattern node)
-             ;; Bound zipper location if :context supplied.
-             loc-sym (symbol (str target "_loc_"))
-             ;; Bound to zipper node and tested against :pattern.
+       (let [pattern (get node :pattern)
              node-sym (symbol (str target "_node__"))
-             matrix* (as-> [row] %matrix
-                       (if (some? context)
-                         (r.matrix/prepend-column %matrix
-                                                  [{:tag ::r.match.syntax/let
-                                                    :pattern context
-                                                    :expression `(fn [x#]
-                                                                   (zip/root (zip/replace ~loc-sym x#)))}])
-                         %matrix)
-                       (r.matrix/prepend-column %matrix
-                                                [{:tag ::r.match.syntax/let
-                                                  :pattern pattern
-                                                  :expression node-sym}]))
-             targets* (as-> [node-sym] %targets
-                        (if (some? context)
-                          (conj %targets loc-sym))
-                        (into %targets targets*))]
-         (if (some? context)
-           (r.ir/op-search loc-sym (r.ir/op-eval `(r.match.runtime/zip-next-seq (r.match.runtime/coll-zip ~target)))
-             (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
-               (compile targets* matrix*)))
-           (r.ir/op-search node-sym (r.ir/op-eval `(r.match.runtime/coll-seq ~target))
-             (compile targets* matrix*))))))
+             synthetic-let_pattern {:tag ::r.match.syntax/let
+                                    :pattern pattern
+                                    :expression node-sym}]
+         (if-some [context (get node :context)]
+           (let [loc-sym (symbol (str target "_loc_"))
+                 synthetic-let_context {:tag ::r.match.syntax/let
+                                        :pattern context
+                                        :expression `(fn [x#] (zip/root (zip/replace ~loc-sym x#)))}
+                 row* (r.matrix/prepend-cells row [synthetic-let_context synthetic-let_pattern])
+                 matrix* [row*]
+                 targets* (vec (cons loc-sym (cons node-sym rest-targets)))]
+             (r.ir/op-search loc-sym (r.ir/op-eval `(r.match.runtime/zip-next-seq (r.match.runtime/coll-zip ~target)))
+               (r.ir/op-bind node-sym (r.ir/op-eval `(zip/node ~loc-sym))
+                 (compile targets* matrix*))))
+           (let [row* (r.matrix/prepend-cells row [synthetic-let_pattern])
+                 matrix* [row*]
+                 targets* (cons node-sym rest-targets)]
+             (r.ir/op-search node-sym (r.ir/op-eval `(r.match.runtime/coll-seq ~target))
+               (compile targets* matrix*)))))))
    (r.matrix/first-column matrix)
    (r.matrix/drop-column matrix)))
 
