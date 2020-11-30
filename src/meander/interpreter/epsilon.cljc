@@ -755,7 +755,7 @@
             fail (get runtime :fail)
             pass (get runtime :pass)]
         (fn [target bindings]
-          (if (= fail (p_argument target))
+          (if (= fail (p_argument target bindings))
             (pass bindings)
             fail))))))
 
