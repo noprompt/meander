@@ -1,6 +1,5 @@
 (ns ^:no-doc meander.match.check.epsilon
   (:require [clojure.spec.alpha :as s]
-            [meander.match.syntax.specs.epsilon :as r.match.syntax]
             [meander.syntax.specs.epsilon :as r.syntax]))
 
 
