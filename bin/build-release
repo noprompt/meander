@@ -14,7 +14,7 @@ git clone $project_root release
 
 cd release
 
-clojure -Mmake-defproject
+clojure -Amake-defproject
 
 bin/test && bin/tag-release
 
