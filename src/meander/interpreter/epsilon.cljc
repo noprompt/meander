@@ -67,7 +67,7 @@
   {:eval default-eval
    :pass list
    :fail ()
-   :fmap mapcat 
+   :fmap mapcat
    :join clojure/concat
    :scan mapcat})
 
@@ -88,419 +88,672 @@
              ([a b] (m.util/mix a b)))
      :scan fmap}))
 
-;; Matching function constructors
-;; ------------------------------
+;; Pattern factory protocols
+;; -------------------------
 
-;; Matching function constructors take a runtime along with other
-;; arguments and return a matching function. The prefix "p" or "p_" is
-;; used to indicate a matching function.
+(defprotocol IMakeQuery
+  (make-query [this runtime]))
 
-(defn make-anything
-  {:private true}
-  [runtime]
-  (let [pass (get runtime :pass)]
-    (fn [target bindings]
-      (pass bindings))))
+(defprotocol IMakeYield
+  (make-yield [this runtime]))
 
-(defn make-pred
-  {:private true}
-  [runtime p]
-  (let [pass (get runtime :pass)
-        fail (get runtime :fail)]
-    (fn [target bindings]
-      (if (p target)
-        (pass bindings)
-        fail))))
+;; Pattern factory constructors
+;; ----------------------------
 
-(defn make-apply
-  {:private true}
-  [runtime f p]
-  (fn [target bindings]
-    (p (f target) bindings)))
+(def anything
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pass (get runtime :pass)]
+        (fn anything-query [target bindings]
+          (pass bindings))))
 
-(defn make-all
-  {:private true}
-  [runtime p1 p2]
-  (let [fmap (get runtime :fmap)]
-    (fn [target bindings]
-      (fmap (fn [bindings] (p2 target bindings))
-            (p1 target bindings)))))
+    IMakeYield
+    (make-yield [this runtime]
+      (let [pass (get runtime :pass)]
+        (fn anything-yield [bindings]
+          (pass (assoc bindings :object (reify))))))))
 
+(defn pred [f g]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pass (get runtime :pass)
+            fail (get runtime :fail)]
+        (fn pred-query [target bindings]
+          (if (f target)
+            (pass (assoc bindings :object target))
+            fail))))
 
-(defn make-one
-  {:private true}
-  [runtime p1 p2]
-  (let [fail (get runtime :fail)]
-    (fn [target bindings]
-      (let [x (p1 target bindings)]
-        (if (= x fail)
-          (p2 target bindings)
-          x)))))
+    IMakeYield
+    (make-yield [this runtime]
+      (let [pass (get runtime :pass)
+            scan (get runtime :scan)]
+        (fn pred-yield [bindings]
+          (scan (fn [x]
+                  (pass (assoc bindings :object x)))
+                (g)))))))
 
-(defn make-some
-  {:private true}
-  [runtime p1 p2]
-  (let [fail (get runtime :fail)
-        join (get runtime :join)]
-    (fn [target bindings]
-      (let [x (p1 target bindings)
-            y (p2 target bindings)]
-        (case [(= x fail) (= y fail)]
-          [false false]
-          (join x y)
+(defn apply [f pf]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pq (make-query pf runtime)]
+        (fn apply-query [target bindings]
+          (pq (f target) bindings))))
 
-          [false true]
-          x
+    IMakeYield
+    (make-yield [this runtime]
+      (let [py (make-yield pf runtime)
+            fmap (get runtime :fmap)]
+        (fn apply-yield [bindings]
+          (fmap (fn [bindings]
+                  (update bindings :object f))
+                (py bindings)))))))
 
-          [true false]
-          y
-          
-          ;; else
-          fail)))))
+(defn one [pf_1 pf_2]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fail (get runtime :fail)
+            p_1 (make-query pf_1 runtime)
+            p_2 (make-query pf_2 runtime)]
+        (fn one-query [target bindings]
+          (let [x (p_1 target bindings)]
+            (if (= x fail)
+              (p_2 target bindings)
+              x)))))
 
-(defn make-literal
-  {:private true}
-  [runtime x]
-  (make-pred runtime (fn [y] (= y x))))
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            p_1 (make-yield pf_1 runtime)
+            p_2 (make-yield pf_2 runtime)]
+        (fn one-yield [bindings]
+          (let [x (p_1 bindings)]
+            (if (= x fail)
+              (p_2 bindings)
+              x)))))))
 
-(defn make-logic-variable
-  {:private true}
-  [runtime id]
-  (let [pass (get runtime :pass)
-        fail (get runtime :fail)]
-    (fn [target bindings]
-      (if-some [e (find bindings id)]
-        (if (= (val e) target)
-          (pass bindings)
-          fail)
-        (pass (assoc bindings id target))))))
+(defn some [pf_1 pf_2]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fail (get runtime :fail)
+            join (get runtime :join)
+            pq_1 (make-query pf_1 runtime)
+            pq_2 (make-query pf_2 runtime)]
+        (fn some-query [target bindings]
+          (let [x (pq_1 target bindings)
+                y (pq_2 target bindings)]
+            (case [(= x fail) (= y fail)]
+              [false false]
+              (join x y)
 
-(defn make-memory-variable
-  {:private true}
-  [runtime id]
-  (let [pass (get runtime :pass)]
-    (fn [target bindings]
-      (pass (update bindings id (fnil conj []) target)))))
+              [false true]
+              x
 
-(defn make-mutable-variable
-  {:private true}
-  [runtime id]
-  (let [pass (get runtime :pass)]
-    (fn [target bindings]
-      (pass (assoc bindings id target)))))
+              [true false]
+              y
 
-(defn make-reference
-  {:private true}
-  [runtime id]
-  (let [meta {::reference-id id}]
-    (with-meta (fn [target bindings]
-                 (if-some [p (get bindings meta)]
-                   (p target bindings)
-                   (throw (ex-info "Unbound reference" {:id id}))))
-      meta)))
+              ;; else
+              fail)))))
 
-(defn make-with [runtime bindings p_body]
-  (let [bindings_with (into {} (map (fn [[p_reference p]] [(meta p_reference) p])) 
-                            (partition 2 bindings))
-        fmap (get runtime :fmap)
-        pass (get runtime :pass)]
-    (fn [target bindings]
-      (fmap (fn [bindings_body]
-              ;; Pop the bindings
-              (pass (merge bindings (reduce dissoc bindings_body (keys bindings_with)))))
-            ;; Push the bindings
-            (p_body target (merge bindings bindings_with))))))
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            join (get runtime :join)
+            py_1 (make-yield pf_1 runtime)
+            py_2 (make-yield pf_2 runtime)]
+        (fn some-yield [target bindings]
+          (let [x (py_1 bindings)
+                y (py_2 bindings)]
+            (case [(= x fail) (= y fail)]
+              [false false]
+              (join x y)
 
-(defn make-containment
-  ([runtime p]
-   (let [scan (get runtime :scan)]
-     (fn [target bindings]
-       (scan (fn [x] (p x bindings))
-             (m.util/coll-seq target)))))
-  ([runtime p_context p]
-   (let [fmap (get runtime :fmap)
-         scan (get runtime :scan)]
-     (fn [target bindings]
-       (scan (fn [loc]
-               (let [node (zip/node loc)
-                     edit (fn [x]
-                            (zip/root (zip/replace loc x)))]
-                 (fmap (fn [bindings]
-                         (p_context edit bindings))
-                       (p node bindings))))
-             (m.util/zip-next-seq (m.util/coll-zip target)))))))
+              [false true]
+              x
 
-(defn make-empty
-  {:private true}
-  [runtime]
-  (let [pass (get runtime :pass)
-        fail (get runtime :fail)]
-    (fn [target bindings]
-      (if (seq target)
-        fail
-        (pass bindings)))))
+              [true false]
+              y
 
-(defn make-cons
-  {:private true}
-  [runtime p1 p2]
-  (make-all runtime
-            (make-pred runtime seq)
-            (make-all runtime (make-apply runtime first p1) (make-apply runtime rest p2))))
+              ;; else
+              fail)))))))
 
-(defn make-bounds-check
-  [n]
-  (let [exclusive-upper-bound (inc n)]
-    (fn [x]
-      (= (bounded-count exclusive-upper-bound x)
-         n))))
+(defn all [pf_1 pf_2]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fmap (get runtime :fmap)
+            pq_1 (make-query pf_1 runtime)
+            pq_2 (make-query pf_2 runtime)]
+        (fn all-query [target bindings]
+          (fmap (fn [bindings] (pq_2 target bindings))
+                (pq_1 target bindings)))))
 
-(defn make-cat
-  [runtime ps]
-  (let [n (count ps)
-        p_bounds-check (make-pred runtime (make-bounds-check n))
-        p_nths (map-indexed
-                (fn [i p]
-                  (make-apply runtime (fn [x] (nth x i)) p))
-                ps)]
-    (reduce (fn [p p_nth]
-              (make-all runtime p p_nth))
-            p_bounds-check
-            p_nths)))
-
-(defn make-concat
-  {:private true}
-  [runtime p_left p_right]
-  (let [fmap (get runtime :fmap)
-        scan (get runtime :scan)]
-    (fn [target bindings]
-      (scan (fn [[left right]]
-              (fmap (fn [bindings]
-                      (p_right right bindings))
-                    (p_left left bindings)))
-            (m.util/partitions 2 target)))))
-
-(defn make-star
-  {:private true}
-  [runtime p]
-  (let [fmap (get runtime :fmap)
-        pass (get runtime :pass)
-        scan (get runtime :scan)]
-    (fn f [target bindings]
-      (if (seq target)
-        (scan (fn [[left right]]
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fmap (get runtime :fmap)
+            join (get runtime :join)
+            pq_1 (make-query pf_1 runtime)
+            pq_2 (make-query pf_2 runtime)
+            py_1 (make-yield pf_1 runtime)
+            py_2 (make-yield pf_2 runtime)]
+        (fn all-yield [bindings]
+          (join (fmap (fn [bindings]
+                        (pq_2 (get bindings :object) bindings))
+                      (py_1 bindings))
                 (fmap (fn [bindings]
-                        (f right bindings))
-                      (p left bindings)))
-              (m.util/partitions 2 target))
-        (pass bindings)))))
+                        (pq_1 (get bindings :object) bindings))
+                      (py_2 bindings))))))))
 
-(defn make-plus
-  {:private true}
-  [runtime p n]
-  (let [fmap (get runtime :fmap)
-        pass (get runtime :pass)
-        fail (get runtime :fail)
-        scan (get runtime :scan)]
-    (fn [target bindings]
-      ((fn f [n target bindings]
-         (if (seq target)
-           (let [n* (dec n)]
-             (scan (fn [[left right]]
+(defn literal [x]
+  (pred (fn [y] (= y x)) (fn [] [x])))
+
+(defn logic-variable [id]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fail (get runtime :fail)
+            pass (get runtime :pass)]
+        (fn logic-variable-query [target bindings]
+          (if-some [e (find bindings id)]
+            (if (= (val e) target)
+              (pass bindings)
+              fail)
+            (pass (assoc bindings id target))))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            pass (get runtime :pass)]
+        (fn logic-variable-yield [bindings]
+          (if-some [e (find bindings id)]
+            (pass (assoc bindings :object (val e)))
+            fail))))))
+
+(defn memory-variable [id]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pass (get runtime :pass)]
+        (fn memory-variable-query [target bindings]
+          (pass (update bindings id (fnil conj []) target)))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            pass (get runtime :pass)]
+        (fn memory-variable-yield [bindings]
+          (if-some [e (find bindings id)]
+            (let [xs (val e)]
+              (if (seq xs)
+                (let [object (nth xs 0)]
+                  (pass (merge bindings {:object object, id (rest xs)})))
+                fail))
+            fail))))))
+
+(defn mutable-variable [id]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pass (get runtime :pass)]
+        (fn mutable-variable-query [target bindings]
+          (pass (assoc bindings id target)))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            pass (get runtime :pass)]
+        (fn mutable-variable-yield [bindings]
+          (if-some [e (find bindings id)]
+            (pass (val e))
+            fail))))))
+
+(defn reference [id]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [meta {::reference-id id}]
+        (with-meta
+          (fn reference-query [target bindings]
+            (if-some [pq (get bindings meta)]
+              (pq target bindings)
+              (throw (ex-info "Unbound reference" {:id id}))))
+          meta)))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [meta {::reference-id id}]
+        (with-meta
+          (fn reference-yield [bindings]
+            (if-some [py (get bindings meta)]
+              (py bindings)
+              (throw (ex-info "Unbound reference" {:id id}))))
+          meta)))))
+
+(defn with [bindings pf_body]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pq_body (make-query pf_body runtime)
+            bindings_with (into {}
+                                (map (fn [[pf_reference pf]]
+                                       (let [pq_reference (make-query pf_reference runtime)
+                                             pq (make-query pf runtime)]
+                                         [(meta pq_reference) pq])))
+                                (partition 2 bindings))
+            bindings-keys (keys bindings_with)
+            fmap (get runtime :fmap)
+            pass (get runtime :pass)]
+        (fn with-query [target bindings]
+          (fmap (fn [bindings_body]
+                  (pass (merge bindings (reduce dissoc bindings_body bindings-keys))))
+                (pq_body target (merge bindings bindings_with))))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (fn with-yield [bindings]
+        (let [py_body (make-yield pf_body runtime)
+              bindings_with (into {}
+                                  (map (fn [[pf_reference pf]]
+                                         (let [py_reference (make-yield pf_reference runtime)
+                                               py (make-yield pf runtime)]
+                                           [(meta py_reference) py])))
+                                  (partition 2 bindings))
+              bindings-keys (keys bindings_with)
+              fmap (get runtime :fmap)
+              pass (get runtime :pass)]
+          (fn with-yield [target bindings]
+            (fmap (fn [bindings_body]
+                    (pass (merge bindings (reduce dissoc bindings_body bindings-keys))))
+                  (py_body target (merge bindings bindings_with)))))))))
+
+(defn contain
+  ([pf_node]
+   (reify
+     IMakeQuery
+     (make-query [this runtime]
+       (let [pq_node (make-query pf_node runtime)
+             scan (get runtime :scan)]
+         (fn contain-a1-query [target bindings]
+           (scan (fn [x]
+                   (pq_node x bindings))
+                 (m.util/coll-seq target)))))
+
+     IMakeYield
+     (make-yield [this runtime]
+       (let [py_node (make-yield pf_node runtime)]
+         (fn contain-a1-yield [bindings]
+           (py_node bindings))))))
+  ([pf_context pf_node]
+   (reify
+     IMakeQuery
+     (make-query [this runtime]
+       (let [pq_context (make-query pf_context runtime)
+             pq_node (make-query pf_node runtime)
+             fmap (get runtime :fmap)
+             scan (get runtime :scan)]
+         (fn contain-a2-query [target bindings]
+           (scan (fn [loc]
+                   (let [node (zip/node loc)
+                         edit (fn [x]
+                                (zip/root (zip/replace loc x)))]
                      (fmap (fn [bindings]
-                             (f n* right bindings))
-                           (p left bindings)))
-                   (m.util/partitions 2 target)))
-           (if (zero? n)
-             (pass bindings)
-             fail)))
-       n target bindings))))
+                             (pq_context edit bindings))
+                           (pq_node node bindings))))
+                 (m.util/zip-next-seq (m.util/coll-zip target))))))
 
-(defn make-entry
-  {:private true}
-  [runtime p_key p_val]
-  (make-all runtime (make-apply runtime key p_key) (make-apply runtime val p_val)))
+     IMakeYield
+     (make-yield [this runtime]
+       (let [py_context (make-yield pf_context runtime)
+             py_node (make-yield pf_node runtime)
+             fmap (get runtime :fmap)
+             pass (get runtime :pass)]
+         (fn contain-a2-yield [bindings]
+           (fmap (fn [bindings]
+                   (let [edit (get bindings :object)]
+                     (fmap (fn [bindings]
+                             (pass (update bindings :object edit)))
+                           (py_node bindings))))
+                 (py_context bindings))))))))
 
-(defn make-hash-map
-  {:private true}
-  ([runtime]
-   (let [pass (get runtime :pass)]
-     (fn [target bindings]
-       (pass bindings))))
-  ([runtime p_key p_val]
-   (let [scan (get runtime :scan)
-         p_entry (make-entry runtime p_key p_val)]
-     (fn [target bindings]
-       (scan (fn [entry]
-               (p_entry entry bindings))
-             target))))
-  ([runtime p_key p_val & p_keyvals]
-   (let [entry-count (count p_keyvals)]
-     (if (even? entry-count)
-       (let [scan (get runtime :scan)
-             p_entries (reduce
-                        (fn [p_entries p_entry]
-                          (make-cons runtime p_entry p_entries))
-                        (make-empty runtime)
-                        (map (fn [[p_key p_val]]
-                               (make-entry runtime p_key p_val))
-                             (clojure.core/cons (list p_key p_val) (partition 2 p_keyvals))))]
-         (fn [target bindings]
-           (scan (fn [[entries _]] (p_entries entries bindings))
-                 (m.util/map-k-permutations-with-unselected target entry-count))))
-       (throw (ex-info "make-hash-map requires and odd number of arguments"))))))
-
-
-(defn make-set
-  {:private true}
-  ([runtime p_elements]
-   {:pre [(sequential? p_elements)]}
-   (let [k (count p_elements)
-         p_cat (make-cat runtime p_elements)
-         scan (get runtime :scan)]
-     (fn [target bindings]
-       (scan (fn [[elements _]]
-               (p_cat elements bindings)) 
-             (m.util/set-k-permutations-with-unselected target k)))))
-  ([runtime p_elements p_rest]
-   {:pre [(sequential? p_elements)]}
-   (let [k (count p_elements)
-         p_cat (make-cat p_elements)
-         scan (get runtime :scan)
-         fmap (get runtime :fmap)]
-     (fn [target bindings]
-       (scan (fn [[elements unselected]]
-               (fmap (fn [bindings]
-                       (p_rest unselected bindings))
-                     (p_cat elements bindings))) 
-             (m.util/set-k-permutations-with-unselected target k))))))
-
-;; Matching function factories
-;; ---------------------------
-
-;; Matching function factories return a function which takes a runtime
-;; and return matching function. Arguments prefixed with "p" or "p_"
-;; and suffixed with "*" indicate the argument is expected to be a
-;; matching function factory.
-
-(def ^{:arglists '([runtime])
-       :private true}
-  anything make-anything)
-
-(defn pred [f]
-  {:private true}
-  (fn [runtime] (make-pred runtime f)))
-
-(defn apply [f p*]
-  {:private true}
-  (fn [runtime] (make-apply runtime f (p* runtime))))
-
-(defn all
-  {:private true}
-  ([p*] p*)
-  ([p1* p2*]
-   (fn [runtime] (make-all runtime (p1* runtime) (p2* runtime)))))
-
-(defn one
-  {:private true}
-  ([p*] p*)
-  ([p1* p2*]
-   (fn [runtime] (make-one runtime (p1* runtime) (p2* runtime)))))
-
-(defn some
-  {:private true}
-  ([p*] p*)
-  ([p1* p2*]
-   (fn [runtime] (make-some runtime (p1* runtime) (p2* runtime)))))
-
-(defn $
-  {:private true}
-  ([p*]
-   (fn [runtime]
-     (make-containment runtime (p* runtime))))
-  ([p_context* p*]
-   (fn [runtime]
-     (make-containment runtime (p_context* runtime) (p* runtime)))))
-
-(defn literal
-  {:private true}
-  [x]
-  (fn [runtime] (make-literal runtime x)))
-
-(defn logic-variable
-  {:private true}
-  [id]
-  (fn [runtime] (make-logic-variable runtime id)))
-
-(defn memory-variable
-  {:private true}
-  [id]
-  (fn [runtime] (make-memory-variable runtime id)))
-
-(defn mutable-variable
-  {:private true}
-  [id]
-  (fn [runtime] (make-mutable-variable runtime id)))
-
-(defn reference
-  {:private true}
-  [id]
-  (fn [runtime] (make-reference runtime id)))
-
-(defn with
-  {:private true}
-  [bindings* p_body*]
-  (fn [runtime] (make-with runtime (map (fn [p*] (p* runtime)) bindings*) (p_body* runtime))))
-
-(def ^{:arglists '([runtime])
-       :private true}
-  empty make-empty)
+(def empty
+  (pred empty? (fn [] [[]])))
 
 (defn cons
-  {:private true}
-  [p_head* p_tail*]
-  (fn [runtime] (make-cons runtime (p_head* runtime) (p_tail* runtime))))
+  [pf_1 pf_2]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pq_1 (make-query pf_1 runtime)
+            pq_2 (make-query pf_2 runtime)
+            fail (get runtime :fail)
+            fmap (get runtime :fmap)]
+        (fn cons-query [target bindings]
+          (if (sequential? target)
+            (let [[head & tail] target]
+              (fmap (fn [bindings]
+                      (pq_2 tail bindings))
+                    (pq_1 head bindings)))
+            fail))))
 
-(defn cat
-  {:private true}
-  [ps*]
-  (fn [runtime] (make-cat runtime (map (fn [p*] (p* runtime)) ps*))))
+    IMakeYield
+    (make-yield [this runtime]
+      (let [py_1 (make-yield pf_1 runtime)
+            py_2 (make-yield pf_2 runtime)
+            fail (get runtime :fail)
+            fmap (get runtime :fmap)
+            pass (get runtime :pass)]
+        (fn cons-yield [bindings]
+          (fmap (fn [bindings]
+                  (let [head (get bindings :object)]
+                    (fmap (fn [bindings]
+                            (let [tail (get bindings :object)]
+                              (if (sequential? tail)
+                                (pass (assoc bindings :object (clojure/cons head tail)))
+                                fail)))
+                          (py_2 bindings))))
+                (py_1 bindings)))))))
 
-(defn concat
-  {:private true}
-  [p_left* p_right*]
-  (fn [runtime] (make-concat runtime (p_left* runtime) (p_right* runtime))))
+(defn cat [pfs]
+  (reduce (fn [pf_cons pf]
+            (cons pf pf_cons))
+          empty
+          (reverse pfs)))
 
-(defn star
-  {:private true}
-  [p*]
-  (fn [runtime] (make-star runtime (p* runtime))))
+(defn concat [pf_left pf_right]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fmap (get runtime :fmap)
+            scan (get runtime :scan)
+            pq_left (make-query pf_left runtime)
+            pq_right (make-query pf_right runtime)]
+        (fn concat-query [target bindings]
+          (scan (fn [[left right]]
+                  (fmap (fn [bindings]
+                          (pq_right right bindings))
+                        (pq_left left bindings)))
+                (m.util/partitions 2 target)))))
 
-(defn plus
-  {:private true}
-  [p* n]
-  (fn [runtime] (make-plus runtime (p* runtime) n)))
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            fmap (get runtime :fmap)
+            pass (get runtime :pass)
+            py_left (make-yield pf_left runtime)
+            py_right (make-yield pf_right runtime)]
+        (fn concat-yield [bindings]
+          (fmap (fn [bindings]
+                  (let [left (get bindings :object)]
+                    (if (coll? left)
+                      (fmap (fn [bindings]
+                              (let [right (get bindings :object)]
+                                (if (coll? right)
+                                  (pass (assoc bindings :object (clojure/concat left right)))
+                                  fail)))
+                            (py_right bindings))
+                      fail)))
+                (py_left bindings)))))))
+
+
+(defn greedy-star [pf]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fail (get runtime :fail)
+            fmap (get runtime :fmap)
+            join (get runtime :join)
+            pass (get runtime :pass)
+            pq (make-query pf runtime)]
+        (fn greedy-star-query [target bindings]
+          (reduce
+           (fn [default [left right]]
+             (let [x (pq left bindings)]
+               (if (= x fail)
+                 default
+                 (reduced
+                  (fmap (fn [bindings]
+                          (greedy-star-query right bindings))
+                        x)))))
+           (pass bindings)
+           (m.util/partitions 2 target)))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            fmap (get runtime :fmap)
+            pass (get runtime :pass)
+            py (make-yield pf runtime)]
+        (fn greedy-star-yield [bindings]
+          (let [x (py bindings)]
+            (if (= fail x)
+              (pass (assoc bindings :object ()))
+              (fmap (fn [bindings]
+                      (let [y (get bindings :object)]
+                        (if (sequential? y)
+                          (fmap (fn [bindings]
+                                  (let [z (get bindings :object)]
+                                    (pass (assoc bindings :object (clojure/concat y z)))))
+                                (greedy-star-yield bindings))
+                          fail)))
+                    x))))))))
+
+
+(defn frugal-star [pf]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [fmap (get runtime :fmap)
+            pass (get runtime :pass)
+            scan (get runtime :scan)
+            pq (make-query pf runtime)]
+        (fn frugal-star-query [target bindings]
+          (if (seq target)
+            (scan (fn [[left right]]
+                    (fmap (fn [bindings]
+                            (frugal-star-query right bindings))
+                          (pq left bindings)))
+                  (m.util/partitions 2 target))
+            (pass bindings)))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [fail (get runtime :fail)
+            fmap (get runtime :fmap)
+            join (get runtime :join)
+            pass (get runtime :pass)
+            py (make-yield pf runtime)]
+        (fn frugal-star-yield [bindings]
+          (join (pass (assoc bindings :object ()))
+                (fmap (fn [bindings]
+                        (let [y (get bindings :object)]
+                          (if (sequential? y)
+                            (fmap (fn [bindings]
+                                    (let [z (get bindings :object)]
+                                      (pass (assoc bindings :object (clojure/concat y z)))))
+                                  (frugal-star-yield bindings))
+                            fail)))
+                      (py bindings))))))))
+
+
+ (defn frugal-plus [pf n]
+   (reduce
+    (fn [pf_tail pf]
+      (concat pf pf_tail))
+    (frugal-star pf)
+    (repeat n pf)))
+
+(defn greedy-plus [pf n]
+  (reduce
+   (fn [pf_tail pf]
+     (concat pf pf_tail))
+   (greedy-star pf)
+   (repeat n pf)))
+
+(defn entry [pf_key pf_val]
+  (reify
+    IMakeQuery
+    (make-query [this runtime]
+      (let [pq_key (make-query pf_key runtime)
+            pq_val (make-query pf_val runtime)
+            fmap (get runtime :fmap)]
+        (fn entry-query [target bindings]
+          (let [k (key target)
+                v (val target)]
+            (fmap (fn [bindings]
+                    (pq_val v bindings))
+                  (pq_key k bindings))))))
+
+    IMakeYield
+    (make-yield [this runtime]
+      (let [py_key (make-yield pf_key runtime)
+            py_val (make-yield pf_val runtime)
+            fmap (get runtime :fmap)
+            pass (get runtime :pass)]
+        (fn entry-yield [bindings]
+          (fmap (fn [bindings]
+                  (let [k (get bindings :object)]
+                    (fmap (fn [bindings]
+                            (let [v (get bindings :object)
+                                  e #?(:clj (clojure.lang.MapEntry/create k v)
+                                       :cljs (MapEntry. k v (hash [k v])))]
+                              (pass (assoc bindings :object e))))
+                          (py_val bindings))))
+                (py_key bindings)))))))
 
 (defn hash-map
-  {:private true}
-  [p_keyvals*]
-  (all (pred map?)
-       (fn [runtime]
-         (clojure/apply make-hash-map runtime (map (fn [p*] (p* runtime)) p_keyvals*)))))
+  ([pf_entries]
+   {:pre [(sequential? pf_entries)]}
+   (let [k (count pf_entries)
+         pf_entries-cat (cat pf_entries)]
+     (reify
+       IMakeQuery
+       (make-query [this runtime]
+         (let [pq_entries-cat (make-query pf_entries-cat runtime)
+               fail (get runtime :fail)
+               pass (get runtime :pass)
+               scan (get runtime :scan)]
+           (fn hash-map-a1-query [target bindings]
+             (if (map? target)
+               (scan (fn [[entries _]]
+                       (pq_entries-cat entries bindings))
+                     (m.util/map-k-permutations-with-unselected target k))
+               fail))))
+
+       IMakeYield
+       (make-yield [this runtime]
+         (let [py_entries-cat (make-yield pf_entries-cat runtime)
+               fmap (get runtime :fmap)
+               pass (get runtime :pass)]
+           (fn hash-map-a1-yield [bindings]
+             (fmap (fn [bindings]
+                     (let [entries (get bindings :object)]
+                       (pass (assoc bindings :object (into {} entries)))))
+                   (py_entries-cat bindings))))))))
+  ([pf_entries pf_rest-map]
+   {:pre [(sequential? pf_entries)]}
+   (let [k (count pf_entries)
+         pf_entries-cat (cat pf_entries)]
+     (reify
+       IMakeQuery
+       (make-query [this runtime]
+         (let [pq_entries-cat (make-query pf_entries-cat runtime)
+               pq_rest-map (make-query pf_rest-map runtime)
+               fail (get runtime :fail)
+               fmap (get runtime :fmap)
+               pass (get runtime :pass)
+               scan (get runtime :scan)]
+           (fn hash-map-a2-query [target bindings]
+             (if (map? target)
+               (scan (fn [[entries rest-map]]
+                       (fmap (fn [bindings]
+                               (pq_rest-map rest-map bindings))
+                             (pq_entries-cat entries bindings)))
+                     (m.util/map-k-permutations-with-unselected target k))
+               fail))))
+
+       IMakeYield
+       (make-yield [this runtime]
+         (let [py_entries-cat (make-yield pf_entries-cat runtime)
+               py_rest-map (make-yield pf_rest-map runtime)
+               fmap (get runtime :fmap)
+               pass (get runtime :pass)]
+           (fn hash-map-a2-yield [bindings]
+             (fmap (fn [bindings]
+                     (let [entries (get bindings :object)]
+                       (fmap (fn [bindings]
+                               (let [rest-map (get bindings :object)]
+                                 (pass (assoc bindings :object (into rest-map entries)))))
+                             (py_rest-map bindings))))
+                   (py_entries-cat bindings)))))))))
 
 (defn set
-  {:private true}
-  ([p_elements*]
-   (all (pred set?)
-        (fn [runtime]
-          (make-set runtime
-                    (map (fn [p*] (p* runtime))
-                         p_elements*)))))
-  ([p_elements* p_rest*]
-   (all (pred set?)
-        (fn [runtime]
-          (make-set runtime
-                    (map (fn [p*] (p* runtime)) p_elements*)
-                    (p_rest* runtime))))))
+  ([pf_elements]
+   {:pre [(sequential? pf_elements)]}
+   (let [k (count pf_elements)
+         pf_elements-cat (cat pf_elements)]
+     (reify
+       IMakeQuery
+       (make-query [this runtime]
+         (let [pq_elements-cat (make-query pf_elements-cat runtime)
+               scan (get runtime :scan)
+               fail (get runtime :fail)]
+           (fn set-a1-query [target bindings]
+             (if (set? target)
+               (scan (fn [[elements _]]
+                       (pq_elements-cat elements bindings))
+                     (m.util/set-k-permutations-with-unselected target k))
+               fail))))
+
+       IMakeYield
+       (make-yield [this runtime]
+         (let [py_elements-cat (make-yield pf_elements-cat runtime)
+               fmap (get runtime :fmap)]
+           (fn set-a1-yield [bindings]
+             (fmap (fn [bindings]
+                     (let [elements (get bindings :object)]
+                       (clojure/set elements)))
+                   (py_elements-cat bindings))))))))
+  ([pf_elements pf_rest-set]
+   {:pre [(sequential? pf_elements)]}
+   (let [k (count pf_elements)
+         pf_elements-cat (cat pf_elements)]
+     (reify
+       IMakeQuery
+       (make-query [this runtime]
+         (let [pq_elements-cat (make-query pf_elements-cat runtime)
+               pq_rest-set (make-query pf_rest-set runtime)
+               scan (get runtime :scan)
+               fail (get runtime :fail)
+               fmap (get runtime :fmap)]
+           (fn set-a2-query [target bindings]
+             (if (set? target)
+               (scan (fn [[elements rest-set]]
+                       (fmap (fn [bindings]
+                               (pq_rest-set rest-set bindings))
+                             (pq_elements-cat elements bindings)))
+                     (m.util/set-k-permutations-with-unselected target k))
+               fail))))
+
+       IMakeYield
+       (make-yield [this runtime]
+         (let [py_elements-cat (make-yield pf_elements-cat runtime)
+               py_rest-set (make-yield pf_rest-set runtime)
+               fmap (get runtime :fmap)
+               fail (get runtime :fail)]
+           (fn set-a2-yield [bindings]
+             (fmap (fn [bindings]
+                     (let [elements (get bindings :object)]
+                       (fmap (fn [bindings]
+                               (let [rest-set (get bindings :object)]
+                                 (if (set? rest)
+                                   (into rest-set elements)
+                                   fail))))
+                       (py_rest-set bindings)))
+                   (py_elements-cat bindings)))))))))
 
 (defn -pattern-dispatch
   {:private true}
@@ -522,29 +775,16 @@
 
 (defmethod -pattern :cat
   [ast]
-  (let [elements (get ast :elements)
-        length (count elements)
-        exclusive-upper-bound (inc length)]
-    (all (pred (fn [x]
-                 (= (bounded-count exclusive-upper-bound x) 
-                    length)))
-         (reduce
-          (fn [p* p_element*]
-            (cons p_element* p*))
-          empty
-          (map -pattern (reverse elements))))))
+  (cat (map -pattern (get ast :elements))))
 
 (defmethod -pattern :ctn
   [ast]
-  (let [?context (get ast :context)
-        ?pattern (get ast :pattern)
-        p_-pattern (-pattern ?pattern)]
-    (if (some? ?context)
+  (let [pf_pattern (-pattern (get ast :pattern))]
+    (if-some [context (get ast :context)]
       ;; {:tag :ctn, :context {:as ?context} :pattern ?pattern}
-      (let [p_context* (-pattern ?context)]
-        ($ p_context* p_-pattern))
+      (contain (-pattern context) pf_pattern)
       ;; {:tag :ctn, :context nil :pattern ?pattern}
-      ($ p_-pattern))))
+      (contain pf_pattern))))
 
 (defmethod -pattern :drp [_]
   anything)
@@ -555,76 +795,98 @@
 
 (defmethod -pattern :lvr
   [ast]
-  (let [?symbol (get ast :symbol)]
-    (logic-variable ?symbol)))
+  (logic-variable (get ast :symbol)))
 
 (defmethod -pattern :lit
   [ast]
-  (let [?value (get ast :value)]
-    (literal ?value)))
+  (literal (get ast :value)))
 
 (defmethod -pattern :map [ast]
   (if-some [as (get ast :as)]
     (all (-pattern as)
          (-pattern (assoc ast :as nil)))
-    (if-some [rest-map (get ast :rest-map)]
-      (let [p_permutation* (cat (map (fn [[ast_key ast_val]]
-                                       (all (apply first (-pattern ast_key))
-                                            (apply second (-pattern ast_val))))
-                                     (get ast :map)))
-            p_rest-map* (-pattern rest-map)
-            p_element* (cat [p_permutation* p_rest-map*])
-            k (count (get ast :map))]
-        (fn [runtime]
-          (let [p_element (p_element* runtime)
-                scan (get runtime :scan)]
-            (fn [target bindings]
-              (scan (fn [element]
-                      (p_element element bindings))
-                    (m.util/map-k-permutations-with-unselected target k))))))
-      (let [p_keyvals* (map -pattern (mapcat identity (get ast :map)))]
-        (hash-map p_keyvals*)))))
+    (let [pf_entries (map (fn [[k v]]
+                            (entry (-pattern k) (-pattern v)))
+                          (get ast :map))]
+      (if-some [rest-map (get ast :rest-map)]
+        (hash-map pf_entries (-pattern rest-map))
+        (hash-map pf_entries)))))
 
 (defmethod -pattern :mut
   [ast]
-  (let [?symbol (get ast :symbol)]
-    (mutable-variable ?symbol)))
+  (mutable-variable (get ast :symbol)))
 
 (defmethod -pattern :mvr [ast]
-  (let [?symbol (get ast :symbol)]
-    (memory-variable ?symbol)))
+  (memory-variable (get ast :symbol)))
 
 (defmethod -pattern :quo [ast]
-  (let [form (get ast :form)]
-    (literal form)))
+  (literal (get ast :form)))
 
 (defmethod -pattern :prt
   [ast]
-  (let [?left (get ast :left)
-        ?right (get ast :right)]
-    (concat (-pattern ?left) (-pattern ?right))))
+  (concat (-pattern (get ast :left))
+          (-pattern (get ast :right))))
 
 (defmethod -pattern :seq
   [ast]
-  (let [?as (get ast :as)
-        ?prt (get ast :prt)]
-    (all (pred seq?)
-         (if (some? ?as)
-           (-pattern ?as)
-           (-pattern ?prt)))))
+  (let [pf_prt (-pattern (get ast :prt))
+        pf_seq (reify
+                 IMakeQuery
+                 (make-query [this runtime]
+                   (let [pq_prt (make-query pf_prt runtime)
+                         fail (get runtime :fail)]
+                     (fn seq-query [target bindings]
+                       (if (seq? target)
+                         (pq_prt target bindings)
+                         fail))))
+                 IMakeYield
+                 (make-yield [this runtime]
+                   (let [py_prt (make-yield pf_prt runtime)]
+                     py_prt)))]
+    (if-some [as (get ast :as)]
+      (all (-pattern as) pf_seq)
+      pf_seq)))
 
 (defmethod -pattern :ref
   [ast]
   (reference (get ast :symbol)))
 
 (defmethod -pattern :rp* [ast]
-  (let [p_cat* (-pattern (get ast :cat))]
-    (star p_cat*)))
+  (let [pf_cat (-pattern (get ast :cat))
+        pf_frugal-star (frugal-star pf_cat)
+        pf_greedy-star (greedy-star pf_cat)]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (make-query pf_frugal-star runtime))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (make-query pf_greedy-star runtime)))))
+
+(defmethod -pattern :rp+
+  [ast]
+  (let [n (get ast :n)
+        pf_cat (-pattern (get ast :cat))
+        pf_frugal-plus (frugal-plus pf_cat n)
+        pf_greedy-plus (greedy-plus pf_cat n)]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (make-query pf_frugal-plus runtime))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (make-query pf_greedy-plus runtime)))))
 
 (defmethod -pattern :rpl [ast]
-  (let [p_cat* (-pattern (get ast :cat))
-        p_lvr* (-pattern (get ast :lvr))]
-    (all p_cat* (apply count p_lvr*))))
+  (all (-pattern {:tag :rp*, :cat (get ast :cat)})
+       (apply count (-pattern (get ast :lvr)))))
+
+(defmethod -pattern :rpm
+  [ast]
+  (all (-pattern {:tag :rp*, :cat (get ast :cat)})
+       (apply count (-pattern (get ast :mvr)))))
 
 (defmethod -pattern :rst [ast]
   (-pattern (get ast :mvr)))
@@ -632,65 +894,89 @@
 (defmethod -pattern :tail [ast]
   (-pattern (get ast :pattern)))
 
-
-(defmethod -pattern :rp+
-  [ast]
-  (let [n (get ast :n)
-        p_cat* (cat (map -pattern (get ast :cat)))]
-    (plus -pattern n)))
-
-(defmethod -pattern :rpm
-  [ast]
-  (all (-pattern {:tag :rp*, :cat (get ast :cat)})
-       (-pattern (get ast :mvr))))
-
 (defmethod -pattern :set
   [ast]
-  (let [as (get ast :ast)
-        rest (get ast :rest)
-        elements (get ast :elements)
-        k (count elements)
-        p_elements* (map -pattern elements)]
-    (case [(nil? as) (nil? rest)]
-      [true true]
-      (set p_elements*)
-      
-      [true false]
-      (let [p_rest* (-pattern rest)]
-        (set p_elements* p_rest*))
-
-      (let [p_as* (-pattern as)]
-        (all p_as* (-pattern (assoc ast :as nil)))))))
+  (if-some [as (get ast :as)]
+    (all (-pattern as)
+         (-pattern (assoc ast :as nil)))
+    (let [pf_elements (map -pattern (get ast :elements))]
+      (if-some [rest (get ast :rest)]
+        (set pf_elements (-pattern rest))
+        (set pf_elements)))))
 
 (defmethod -pattern :unq
   [ast]
   (let [expr (get ast :expr)]
-    (fn [runtime]
-      (if-some [eval (get runtime :eval)]
-        (let [pass (get runtime :pass)
-              fail (get runtime :fail)]
-          (fn [target bindings]
-            (if (= target (eval expr))
-              (pass bindings)
-              fail)))
-        (throw (ex-info "eval not provided" {:runtime runtime}))))))
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pass (get runtime :pass)
+                fail (get runtime :fail)]
+            (fn unquote-query [target bindings]
+              (if (= target (eval expr))
+                (pass bindings)
+                fail)))
+          (throw (ex-info "eval not provided" {:runtime runtime}))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pass (get runtime :pass)
+                fail (get runtime :fail)]
+            (fn unquote-yield [target bindings]
+              (pass (assoc bindings :object (eval expr)))))
+          (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
 (defmethod -pattern :uns
   [ast]
   (let [expr (get ast :expr)]
-    (fn [runtime]
-      (if-some [eval (get runtime :eval)]
-        (pred (fn [x] (= (eval expr) x)))
-        (throw (ex-info "eval not provided" {:runtime runtime}))))))
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pass (get runtime :pass)
+                fail (get runtime :fail)]
+            (fn unquote-query [target bindings]
+              (let [x (eval expr)]
+                (if (and (coll? x) (= target x))
+                  (pass bindings)
+                  fail))))
+          (throw (ex-info "eval not provided" {:runtime runtime}))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pass (get runtime :pass)
+                fail (get runtime :fail)]
+            (fn unquote-yield [target bindings]
+              (let [x (eval expr)]
+                (if (coll? x)
+                  (pass (assoc bindings :object x))
+                  fail))))
+          (throw (ex-info "eval not provided" {:runtime runtime})))))))
+
 
 (defmethod -pattern :vec
-  [ast]  
-  (let [?as (get ast :as)
-        ?prt (get ast :prt)]
-    (all (pred vector?)
-         (if (some? ?as)
-           (-pattern ?as)
-           (-pattern ?prt)))))
+  [ast]
+  (let [pf_prt (-pattern (get ast :prt))
+        pf_seq (reify
+                 IMakeQuery
+                 (make-query [this runtime]
+                   (let [pq_prt (make-query pf_prt runtime)
+                         fail (get runtime :fail)]
+                     (fn vector-query [target bindings]
+                       (if (vector? target)
+                         (pq_prt target bindings)
+                         fail))))
+
+                 IMakeYield
+                 (make-yield [this runtime]
+                   (let [py_prt (make-yield pf_prt runtime)]
+                     py_prt)))]
+    (if-some [as (get ast :as)]
+      (all (-pattern as) pf_seq)
+      pf_seq)))
 
 (defmethod -pattern :wth
   [ast]
@@ -705,8 +991,7 @@
 
 (defmethod -pattern :meander.match.syntax.epsilon/and
   [ast]
-  (let [p_arguments* (map -pattern (get ast :arguments))]
-    (reduce all p_arguments*)))
+  (reduce all (map -pattern (get ast :arguments))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/cata
   [ast]
@@ -731,84 +1016,164 @@
 (defmethod -pattern :meander.match.syntax.epsilon/apply
   [ast]
   (let [function (get ast :function)
-        p_argument* (-pattern (get ast :argument))]
-    (fn [runtime]
-      (if-some [eval (get runtime :eval)]
-        (let [p_argument (p_argument* runtime)]
-          (fn [target bindings]
-            (p_argument ((eval function) target) bindings)))
-        (throw (ex-info "eval not provided" {:runtime runtime}))))))
+        pf_argument (-pattern (get ast :argument))]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pq_argument (make-query pf_argument runtime)]
+            (fn pattern-apply-query [target bindings]
+              (let [f (eval function)]
+                (pq_argument (f target) bindings))))
+          (throw (ex-info "eval not provided" {:runtime runtime}))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [py_argument (make-yield pf_argument runtime)
+                fmap (get runtime :fmap)]
+            (fn pattern-apply-yield [bindings]
+              (let [f (eval function)]
+                (fmap (fn [bindings]
+                        (update bindings :object f))
+                      (py_argument bindings)))))
+          (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/guard
   [ast]
   (let [expr (get ast :expr)]
-    (fn [runtime]
-      (if-some [eval (get runtime :eval)]
-        (pred (fn [_] (eval expr)))
-        (throw (ex-info "eval not provided" {:runtime runtime}))))))
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [fail (get runtime :fail)
+                pass (get runtime :pass)]
+            (fn pattern-guard-query [target bindings]
+              (if (eval expr)
+                (pass bindings)
+                fail)))
+          (throw (ex-info "eval not provided" {:runtime runtime}))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [fail (get runtime :fail)
+                pass (get runtime :pass)]
+            (fn pattern-guard-yield [bindings]
+              (if (eval expr)
+                (pass bindings)
+                fail)))
+          (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/not
   [ast]
-  (let [p_argument* (-pattern (get ast :argument))]
-    (fn [runtime]
-      (let [p_argument (p_argument* runtime)
-            fail (get runtime :fail)
-            pass (get runtime :pass)]
-        (fn [target bindings]
-          (if (= fail (p_argument target bindings))
-            (pass bindings)
-            fail))))))
+  (let [pf_argument (-pattern (get ast :argument))]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (let [pq_argument (make-query pf_argument runtime)
+              fail (get runtime :fail)
+              pass (get runtime :pass)]
+          (fn pattern-not-query [target bindings]
+            (if (= fail (pq_argument target bindings))
+              (pass bindings)
+              fail))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (let [py_argument (make-yield pf_argument runtime)
+              fail (get runtime :fail)
+              pass (get runtime :pass)]
+          (fn pattern-not-yield [bindings]
+            (let [x (py_argument bindings)]
+              (if (= x fail)
+                (pass bindings)
+                fail))))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/pred
   [ast]
   (let [form (get ast :form)
         arguments (get ast :arguments)
-        synthetic-and {:tag :meander.match.syntax.epsilon/and
-                       :arguments arguments}
-        p_and* (-pattern synthetic-and)]
-    (fn [runtime]
-      (if-some [eval (get runtime :eval)]
-        (let [predicate (eval form)
-              p_and (p_and* runtime)
-              fail (get runtime :fail)
-              pass (get runtime :pass)]
-          (fn [target bindings]
-            (if (predicate target)
-              (pass bindings)
-              fail)))
-        (throw (ex-info "eval not provided" {:runtime runtime}))))))
+        pf_and (-pattern {:tag :meander.match.syntax.epsilon/and
+                          :arguments arguments})]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pq_and (make-query pf_and runtime)
+                fail (get runtime :fail)
+                pass (get runtime :pass)]
+            (fn pattern-pred-query [target bindings]
+              (let [predicate (eval form)]
+                (if (predicate target)
+                  (pass bindings)
+                  fail))))
+          (throw (ex-info "eval not provided" {:runtime runtime}))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (throw (ex-info "pred pattern does not support yield" {}))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/rxc
   [ast]
-  (let [regex (get ast :regex)]
-    (all (pred string?)
-         (all (apply (fn [s] (re-matches regex s)))
-              (-pattern (get ast :capture))))))
+  (let [regex (get ast :regex)
+        pf_capture (-pattern (get ast :capture))]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (let [pq_capture (make-query pf_capture runtime)
+              fail (get runtime :fail)
+              pass (get runtime :pass)]
+          (fn pattern-re-a2-query [target bindings]
+            (if (string? target)
+              (if-some [matches (re-matches regex target)]
+                (pq_capture matches bindings)
+                fail)
+              fail))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (throw (ex-info "re pattern does not support yield" {}))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/rxt
   [ast]
   (let [regex (get ast :regex)]
-    (pred (fn [target]
-            (and (string? target)
-                 (re-matches regex target))))))
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (let [fail (get runtime :fail)
+              pass (get runtime :pass)]
+          (fn pattern-re-a2-query [target bindings]
+            (if (string? target)
+              (pass bindings)
+              fail))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (throw (ex-info "re pattern does not support yield" {}))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/subsequence
   [ast]
   (let [cat (get ast :cat)
-        p_cat* (-pattern cat)
-        n (count cat)]
-    (fn [runtime]
-      (let [scan (get runtime :scan)
-            p_cat (p_cat* runtime)]
-        (fn [target bindings]
-          (scan (fn [partition]
-                  (p_cat partition bindings))
-           (partition n 1 target)))))))
+        n (count cat)
+        pf_cat (-pattern cat)]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (let [pq_cat (make-query pf_cat runtime)
+              scan (get runtime :scan)]
+          (fn [target bindings]
+            (scan (fn [partition]
+                    (pf_cat partition bindings))
+                  (partition n 1 target)))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (make-yield pf_cat runtime)))))
 
 (defn pattern [form]
   (let [ast (m.match.syntax/parse form)]
     (-pattern ast)))
-
 
 (def default-parse-env
   {::m.syntax/expander-registry
@@ -879,8 +1244,8 @@
       (let [fmap (get runtime :fmap)
             scan (get runtime :scan)
             pass (get runtime :pass)
-            rules (map (fn [[p_left* right]]
-                         [(p_left* runtime) right])
+            rules (map (fn [[pf_left right]]
+                         [(make-query pf_left runtime) right])
                        rules*)]
         (fn f
           ([target]
@@ -910,4 +1275,47 @@
 
   ((searcher '{?k ?v} identity) {:a 1 :b 2})
   ;; =>
-  ({?k :a, ?v 1} {?k :b, ?v 2}))
+  ({?k :a, ?v 1} {?k :b, ?v 2})
+
+  (let [pf_!xs (memory-variable '!xs)
+
+        ;; cat setup
+        ;; =========
+        ;; (!xs !xs !xs)
+        pf_cat (cat [pf_!xs pf_!xs pf_!xs])
+        py_cat (make-yield pf_cat breadth-first-search-runtime)
+
+        ;; greedy-star setup
+        ;; =================
+        ;; (* !xs !xs !xs)
+        pf_greedy-star (greedy-star pf_cat)
+        ;; Use the find-runtime to produce a single result
+        pq_greedy-star (make-query pf_greedy-star find-runtime)
+        py_greedy-star (make-yield pf_greedy-star breadth-first-search-runtime)
+
+        ;; frugal-star setup
+        ;; =================
+        ;; (*? !xs !xs !xs)
+        pf_frugal-star (frugal-star pf_cat)
+        py_frugal-star (make-yield pf_frugal-star breadth-first-search-runtime)
+
+        ;; frugal-star setup
+        ;; =================
+        ;; (+ 2 !xs !xs !xs)
+        pf_frugal-plus (frugal-plus pf_cat 2)
+        py_frugal-plus (make-yield pf_frugal-plus breadth-first-search-runtime)
+
+        ;; Some bindings.
+        bindings (pq_greedy-star (list 1 2 3 4 5 6) {})]
+    [bindings
+     ;; => {!xs [1 2 3 4 5 6], :object nil}
+     (py_cat bindings)
+     ;; => ({!xs (4 5 6), :object (1 2 3)})
+     (py_greedy-star bindings)
+     ;; => ({!xs (), :object (1 2 3 4 5 6)})
+     (py_frugal-star bindings)
+     ;; => ({!xs [1 2 3 4 5 6], :object ()}
+     ;;     {!xs (4 5 6), :object (1 2 3)}
+     ;;     {!xs (), :object (1 2 3 4 5 6)})
+     (py_frugal-plus bindings)
+     ]))
