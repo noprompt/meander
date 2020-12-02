@@ -890,7 +890,19 @@
        (apply count (-pattern (get ast :mvr)))))
 
 (defmethod -pattern :rst [ast]
-  (-pattern (get ast :mvr)))
+  (let [id (get (get ast :mvr) :symbol)]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (let [pass (get runtime :pass)]
+          (fn rest-query [target bindings]
+            (pass (update bindings id (fnil into []) target)))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (let [pass (get runtime :pass)]
+          (fn rest-yield [bindings]
+            (pass (merge bindings {id [] :object (get bindings id)}))))))))
 
 (defmethod -pattern :tail [ast]
   (-pattern (get ast :pattern)))
