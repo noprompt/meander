@@ -1057,7 +1057,7 @@
       (make-yield [this runtime]
         (if-some [eval (get runtime :eval)]
           (let [pq_pattern (make-query pf_pattern runtime)]
-            (fn let-yield [target bindings]
+            (fn let-yield [bindings]
               (let [x (eval expression)]
                 (pq_pattern x bindings))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
