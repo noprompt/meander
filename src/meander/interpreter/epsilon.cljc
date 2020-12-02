@@ -205,7 +205,7 @@
             join (get runtime :join)
             py_1 (make-yield pf_1 runtime)
             py_2 (make-yield pf_2 runtime)]
-        (fn some-yield [target bindings]
+        (fn some-yield [bindings]
           (let [x (py_1 bindings)
                 y (py_2 bindings)]
             (case [(= x fail) (= y fail)]
