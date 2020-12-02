@@ -40,7 +40,7 @@
 (def
   ^{:private true}
   find-runtime
-  (let [fail (reify)]
+  (let [fail nil #_(reify)]
     {:eval default-eval
      :pass identity
      :fail fail
