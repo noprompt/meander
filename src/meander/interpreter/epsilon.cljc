@@ -972,8 +972,13 @@
 
                  IMakeYield
                  (make-yield [this runtime]
-                   (let [py_prt (make-yield pf_prt runtime)]
-                     py_prt)))]
+                   (let [py_prt (make-yield pf_prt runtime)
+                         pass (get runtime :pass)
+                         fmap (get runtime :fmap)]
+                     (fn vector-yield [bindings]
+                       (fmap (fn [bindings]
+                               (pass (update bindings :object vec)))
+                             (py_prt bindings))))))]
     (if-some [as (get ast :as)]
       (all (-pattern as) pf_seq)
       pf_seq)))
