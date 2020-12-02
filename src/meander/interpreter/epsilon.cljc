@@ -1309,6 +1309,35 @@
   (let [system* (system clauses)]
     (system* depth-first-search-runtime)))
 
+(defn rule-factory [pf_query pf_yield]
+  (fn [runtime]
+    (let [pq_query (make-query pf_query runtime)
+          py_yield (make-yield pf_yield runtime)
+          fmap (get runtime :fmap)
+          pass (get runtime :pass)]
+      (fn [x bindings]
+        (fmap (fn [bindings]
+                (fmap (fn [bindings]
+                        (pass (get bindings :object)))
+                      (py_yield bindings)))
+              (pq_query x bindings))))))
+
+(defn rewriter [& clauses]
+  (let [rfs (map (fn [[query yield]]
+                   (rule-factory
+                    (if (satisfies? IMakeQuery query)
+                      query
+                      (pattern query))
+                    (if (satisfies? IMakeYield yield)
+                      yield
+                      (pattern yield))))
+                 (partition 2 clauses))]
+    (fn [runtime]
+      (let [scan (get runtime :scan)
+            rules (map (fn [rf] (rf runtime)) rfs)]
+        (fn f [x]
+          (scan (fn [rule] (rule x {::cata f})) rules))))))
+
 (comment
   ((finder '{?k ?v} identity) {:a 1 :b 2})
   ;; =>
@@ -1359,4 +1388,29 @@
      ;;     {!xs (4 5 6), :object (1 2 3)}
      ;;     {!xs (), :object (1 2 3 4 5 6)})
      (py_frugal-plus bindings)
-     ]))
+     ]
+
+    )
+
+  (let [sf (rewriter
+            '{?k1 ?v1, ?k2 ?v2}
+            '(meander.epsilon/or {?v1 ?k1} {?v2 ?k2}))
+        s_find (sf find-runtime)
+        s_search (sf depth-first-search-runtime)
+        target {:a 1 :b 2 :c 3}]
+    [(s_find target)
+     (s_search target)])
+  ;; => [{1 :a}
+  ;;     ({1 :a}
+  ;;      {2 :b}
+  ;;      {1 :a}
+  ;;      {3 :c}
+  ;;      {2 :b}
+  ;;      {1 :a}
+  ;;      {2 :b}
+  ;;      {3 :c}
+  ;;      {3 :c}
+  ;;      {1 :a}
+  ;;      {3 :c}
+  ;;      {2 :b})]
+  )
