@@ -1000,19 +1000,54 @@
 
 (defmethod -pattern :meander.match.syntax.epsilon/cata
   [ast]
-  (let [p_argument* (-pattern (get ast :argument))]
-    (fn [runtime]
-      (let [fmap (get runtime :fmap)
-            scan (get runtime :scan)
-            p_argument (p_argument* runtime)]
-        (fn [target bindings]
-          (if-some [cata (get bindings ::cata)]
-            (fmap (fn [x] (p_argument x bindings))
-                  (cata target))
-            (throw (ex-info "cata not provided" {}))))))))
+  (let [pf_argument (-pattern (get ast :argument))]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (let [fmap (get runtime :fmap)
+              scan (get runtime :scan)
+              pq_argument (make-query pf_argument runtime)]
+          (fn cata-query [target bindings]
+            (if-some [cata (get bindings ::cata)]
+              (fmap (fn [x]
+                      (pq_argument x bindings))
+                    (cata target))
+              (throw (ex-info "cata not provided" {}))))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (let [fmap (get runtime :fmap)
+              scan (get runtime :scan)
+              py_argument (make-yield pf_argument runtime)]
+          (fn cata-query [target bindings]
+            (if-some [cata (get bindings ::cata)]
+              (fmap (fn [x]
+                      (py_argument x bindings))
+                    (cata target))
+              (throw (ex-info "cata not provided" {})))))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/let
-  [ast])
+  [ast]
+  (let [pf_pattern (-pattern (get ast :pattern))
+        expression (get ast :expression)]
+    (reify
+      IMakeQuery
+      (make-query [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pq_pattern (make-query pf_pattern runtime)]
+            (fn let-query [target bindings]
+              (let [x (eval expression)]
+                (pq_pattern x bindings))))
+          (throw (ex-info "eval not provided" {:runtime runtime}))))
+
+      IMakeYield
+      (make-yield [this runtime]
+        (if-some [eval (get runtime :eval)]
+          (let [pq_pattern (make-query pf_pattern runtime)]
+            (fn let-yield [target bindings]
+              (let [x (eval expression)]
+                (pq_pattern x bindings))))
+          (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/or
   [ast]
