@@ -432,7 +432,7 @@
             fail (get runtime :fail)
             fmap (get runtime :fmap)]
         (fn cons-query [target bindings]
-          (if (sequential? target)
+          (if (and (sequential? target) (seq target))
             (let [[head & tail] target]
               (fmap (fn [bindings]
                       (pq_2 tail bindings))
