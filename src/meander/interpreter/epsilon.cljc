@@ -839,6 +839,7 @@
                        (if (seq? target)
                          (pq_prt target bindings)
                          fail))))
+
                  IMakeYield
                  (make-yield [this runtime]
                    (let [py_prt (make-yield pf_prt runtime)]
