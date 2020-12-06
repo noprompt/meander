@@ -616,7 +616,9 @@
 
     (quote <form>)
     (clojure.core/unquote <form>)
-    (clojure.core/unquote-splicig <form>)
+    (clojure.core/unquote-splicing <form>)
+    (meander.epsilon/fresh [<variable-form> ...] <form>)
+    (meander.epsilon/project <form> <form> <form>)
     (<symbol*> <form_0> ... <form_n>)
 
   where symbol* is a fully qualified symbol with respect to the
@@ -636,6 +638,21 @@
         clojure.core/unquote-splicing
         {:tag :uns
          :expr (second xs)}
+
+        meander.syntax.epsilon/fresh
+        (let [[_ var-forms pattern-form] xs]
+          {:tag :meander.syntax.epsilon/fresh
+           :vars (parse-all var-forms env)
+           :pattern (parse pattern-form env)
+           ::original-form xs})
+
+        meander.syntax.epsilon/project
+        (let [[_ yield-form query-form object-form] xs]
+          {:tag :meander.syntax.epsilon/project
+           :yield-pattern (parse yield-form env)
+           :query-pattern (parse query-form env)
+           :value-pattern (parse object-form env)
+           ::original-form xs})
 
         ;; else
         (let [xs* (expand-form xs env)]
