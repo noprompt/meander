@@ -753,6 +753,28 @@
                     {:pattern form
                      :meta (meta form)}))))
 
+#_ ;; Defined in terms of project (pending)
+(defn parse-let [[_ & args :as form] env]
+  (case (bounded-count 4 args)
+    2
+    (let [[pattern expression] args]
+      {:tag :meander.syntax.epsilon/project
+       :yield-pattern {:tag :unq :expr expression}
+       :query-pattern (r.syntax/parse pattern env)
+       :value-pattern {:tag :any}})
+
+    3
+    (let [[pattern expression then] args]
+      {:tag :meander.syntax.epsilon/project
+       :yield-pattern {:tag :unq :expr expression}
+       :query-pattern (r.syntax/parse pattern env)
+       :value-pattern (r.syntax/parse then env)})
+
+    ;; else
+    (throw (ex-info "meander.match.syntax.epsilon/let expects two or three arguments"
+                    {:pattern form
+                     :meta (meta form)}))))
+
 
 (defmethod r.syntax/children ::let
   [node] [(:pattern node)])
