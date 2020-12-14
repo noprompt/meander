@@ -1,5 +1,6 @@
 (ns ^:no-doc meander.pattern-factory.epsilon
   (:refer-clojure :exclude [*
+                            +
                             apply
                             cat
                             conj
@@ -727,7 +728,7 @@
    (pred vector? (is [])))
   ([& pfs]
    (pred (fn [x] (vector? x))
-         (call vec (list-from pfs)))))
+         (call clojure/vec (list-from pfs)))))
 
 (defrecord Concat [left-pf right-pf]
   IMakeQuery
@@ -1143,6 +1144,48 @@
     body
     vars))
 
+(def ^{:arglists '([form])
+       :private true}
+  parse-*-or-+-args
+  (stale [!xs ?as]
+    (rewrite-rule
+     (concat (greedy-star (list !xs))
+             (one empty (list (is :as) ?as)))
+     ;; =>
+     (list (greedy-star (list !xs))
+           (one ?as (is nil))))))
+
+(defmacro *
+  [& args]
+  (if-some [[form-pfs as] (parse-*-or-+-args args)]
+    (if as
+      `(greedy-star (all (list ~@form-pfs) ~as))
+      `(greedy-star (list ~@form-pfs)))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
+
+(defmacro *?
+  [& args]
+  (if-some [[form-pfs as] (parse-*-or-+-args args)]
+    (if as
+      `(frugal-star (all (list ~@form-pfs) ~as))
+      `(frugal-star (list ~@form-pfs)))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
+
+(defmacro +
+  [n & args]
+  (if-some [[form-pfs as] (parse-*-or-+-args args)]
+    (if as
+      `(greedy-plus ~n (all (list ~@form-pfs) ~as))
+      `(greedy-plus ~n (list ~@form-pfs)))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
+
+(defmacro +? [n & args]
+  (if-some [[form-pfs as] (parse-*-or-+-args args)]
+    (if as
+      `(frugal-plus ~n (all (list ~@form-pfs) ~as))
+      `(frugal-plus ~n (list ~@form-pfs)))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
+
 (defn seq [pf]
   (factory
    (fn list-make-query [runtime]
@@ -1192,14 +1235,15 @@
   parse-vector-args
   (stale [!x ?rest]
     (rewrite-rule
-     (concat (* !x) (one (cat (is '&) ?rest) empty))
-     (cat (* !x) (one ?rest (is nil))))))
+     (concat (* !x)
+             (one (list (is '&) ?rest) empty))
+     (list (* !x) (one ?rest (is nil))))))
 
 (defmacro vector [& args]
   (let [[items rest-vector] (parse-vector-args args)]
     (if (some? rest-vector)
-      `(vec (concat (cat ~@items) ~rest-vector))
-      `(vec (cat ~@items)))))
+      `(vec (concat (list ~@items) ~rest-vector))
+      `(vec (list ~@items)))))
 
 (defn hash-map-from
   ([entry-pfs]
@@ -1213,11 +1257,11 @@
   (stale [!k ?rest-map ?as-map]
     (rewrite-rule
      (concat (* !k !k)
-             (concat (one empty (cat (is '&) ?rest-map))
-                     (one empty (cat (is ':as) ?as-map))))
-     (cat (* (vector !k !k))
-          (one ?rest-map (is nil))
-          (one ?as-map (is nil))))))
+             (concat (one empty (list (is '&) ?rest-map))
+                     (one empty (list (is ':as) ?as-map))))
+     (list (greedy-star (list (vector !k !k)))
+           (one ?rest-map (is nil))
+           (one ?as-map (is nil))))))
 
 (defmacro hash-map
   [& args]
@@ -1237,12 +1281,12 @@
   parse-hash-set-args
   (stale [!e ?rest-set ?as-set]
     (rewrite-rule
-     (concat (* !e)
-             (concat (one empty (cat (is '&) ?rest-set))
-                     (one empty (cat (is ':as) ?as-set))))
-     (cat (* !e)
-          (one ?rest-set (is nil))
-          (one ?as-set (is nil))))))
+     (concat (greedy-star (list !e))
+             (concat (one empty (list (is '&) ?rest-set))
+                     (one empty (list (is ':as) ?as-set))))
+     (list (greedy-star (list !e))
+           (one ?rest-set (is nil))
+           (one ?as-set (is nil))))))
 
 (defmacro hash-set
   [& args]
@@ -1254,46 +1298,4 @@
                     `(all ~pf-form ~as-set)
                     pf-form)]
       pf-form)
-    (throw (ex-info "Invalid syntax" {:form &form}))))
-
-(def ^{:arglists '([form])
-       :private true}
-  parse-*-or-+-args
-  (stale [!xs ?as]
-    (rewrite-rule
-     (concat (greedy-star (cat !xs))
-             (one empty (cat (is :as) ?as)))
-     ;; =>
-     (vector (greedy-star (cat !xs))
-             (one ?as (is nil))))))
-
-(defmacro *
-  [& args]
-  (if-some [[form-pfs as] (parse-*-or-+-args args)]
-    (if as
-      `(greedy-star (all (cat ~@form-pfs) ~as))
-      `(greedy-star (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {:form &form}))))
-
-(defmacro *?
-  [& args]
-  (if-some [[form-pfs as] (parse-*-or-+-args args)]
-    (if as
-      `(frugal-star (all (cat ~@form-pfs) ~as))
-      `(frugal-star (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {:form &form}))))
-
-(defmacro +
-  [n & args]
-  (if-some [[form-pfs as] (parse-*-or-+-args args)]
-    (if as
-      `(greedy-plus ~n (all (cat ~@form-pfs) ~as))
-      `(greedy-plus ~n (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {:form &form}))))
-
-(defmacro +? [n & args]
-  (if-some [[form-pfs as] (parse-*-or-+-args args)]
-    (if as
-      `(frugal-plus ~n (all (cat ~@form-pfs) ~as))
-      `(frugal-plus ~n (cat ~@form-pfs)))
     (throw (ex-info "Invalid syntax" {:form &form}))))

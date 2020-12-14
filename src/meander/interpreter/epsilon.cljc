@@ -90,7 +90,7 @@
 
 (defmethod -pattern :cat
   [ast]
-  (m.pf/cat-from (map -pattern (get ast :elements))))
+  (m.pf/list-from (map -pattern (get ast :elements))))
 
 (defmethod -pattern :ctn
   [ast]
@@ -218,7 +218,7 @@
     (let [element-pfs (map -pattern (get ast :elements))]
       (if-some [rest (get ast :rest)]
         (m.pf/into-set-of element-pfs (-pattern rest))
-        (m.pf/set-of element-pfs)))))
+        (m.pf/set-from element-pfs)))))
 
 (defmethod -pattern :unq
   [ast]
@@ -265,7 +265,6 @@
                   (pass (assoc bindings :object x))
                   fail))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
-
 
 (defmethod -pattern :vec
   [ast]
