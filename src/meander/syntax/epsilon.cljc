@@ -285,25 +285,6 @@
   (swap! global-parser-registry assoc symbol f)
   nil)
 
-(defn parse-fresh
-  {:private true}
-  [[_ var-forms pattern-form] env]
-  {:tag :meander.syntax.epsilon/fresh
-   :vars (parse-all var-forms env)
-   :pattern (parse pattern-form env)})
-
-(register-parser `meander.syntax.epsilon/fresh #'parse-fresh)
-
-(defn parse-project
-  {:private true}
-  [[_ yield-form query-form object-form] env]
-  {:tag :meander.syntax.epsilon/project
-   :yield-pattern (parse yield-form env)
-   :query-pattern (parse query-form env)
-   :value-pattern (parse object-form env)})
-
-(register-parser `meander.syntax.epsilon/project #'parse-project)
-
 ;;; Syntax expansion
 
 (defn expander-registry
@@ -2061,3 +2042,22 @@
                (catch Exception _))))))
     `(do ~expander-definition-body-form
          (var ~fn-name))))
+
+(defn parse-fresh
+  {:private true}
+  [[_ var-forms pattern-form] env]
+  {:tag :meander.syntax.epsilon/fresh
+   :vars (parse-all var-forms env)
+   :pattern (parse pattern-form env)})
+
+(register-parser `meander.syntax.epsilon/fresh #'parse-fresh)
+
+(defn parse-project
+  {:private true}
+  [[_ yield-form query-form object-form] env]
+  {:tag :meander.syntax.epsilon/project
+   :yield-pattern (parse yield-form env)
+   :query-pattern (parse query-form env)
+   :value-pattern (parse object-form env)})
+
+(register-parser `meander.syntax.epsilon/project #'parse-project)
