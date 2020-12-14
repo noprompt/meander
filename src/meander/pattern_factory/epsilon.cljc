@@ -9,9 +9,12 @@
                             list
                             not
                             hash-map
+                            hash-set
                             set
+                            seq
                             some
                             symbol
+                            vec
                             vector])
   (:require [clojure.core :as clojure]
             [clojure.zip :as zip]
@@ -72,7 +75,7 @@
 
 (def breadth-first-search-runtime
   (let [fmap (fn g [f x]
-               (if (seq x)
+               (if (clojure/seq x)
                  (m.util/mix (f (first x))
                              (lazy-seq (g f (rest x))))
                  ()))]
@@ -171,7 +174,7 @@
   (Factory. make-query make-yield))
 
 (def anything
-  (Factory.
+  (factory
     (fn anything-make-query [runtime]
       (let [pass (get runtime :pass)]
         (fn anything-query [target bindings]
@@ -182,7 +185,7 @@
           (pass (assoc bindings :object (reify))))))))
 
 (defn pred [f pf]
-  (Factory.
+  (factory
    (fn pred-make-query [runtime]
      (let [pass (get runtime :pass)
            fail (get runtime :fail)
@@ -206,7 +209,7 @@
                (py bindings)))))))
 
 (defn call [f pf]
-  (Factory.
+  (factory
    (fn call-make-query [runtime]
      (let [pq (make-query pf runtime)]
        (fn call-query [target bindings]
@@ -220,7 +223,7 @@
                (py bindings)))))))
 
 (defn one [pf-1 pf-2]
-  (Factory.
+  (factory
    (fn one-make-query [runtime]
      (let [fail (get runtime :fail)
            p_1 (make-query pf-1 runtime)
@@ -241,7 +244,7 @@
              x)))))))
 
 (defn some [pf-1 pf-2]
-  (Factory.
+  (factory
    (fn some-make-query [runtime]
      (let [fail (get runtime :fail)
            join (get runtime :join)
@@ -305,7 +308,7 @@
              fail)))))))
 
 (defn all [pf-1 pf-2]
-  (Factory.
+  (factory
    (fn all-make-query [runtime]
      (let [fmap (get runtime :fmap)
            pq-1 (make-query pf-1 runtime)
@@ -423,7 +426,7 @@
       (fn memory-variable-yield [bindings]
         (if-some [e (find bindings id)]
           (let [xs (val e)]
-            (if (seq xs)
+            (if (clojure/seq xs)
               (let [object (nth xs 0)]
                 (pass (merge bindings {:object object, id (rest xs)})))
               fail))
@@ -519,7 +522,7 @@
   (Reference. id))
 
 (defn with [bindings body-pf]
-  (Factory.
+  (factory
    (fn with-make-query [runtime]
      (let [body-pq (make-query body-pf runtime)
            bindings_with (into {}
@@ -554,7 +557,7 @@
 
 (defn contain
   ([node-pf]
-   (Factory.
+   (factory
      (fn contain-a1-make-query [runtime]
        (let [node-pq (make-query node-pf runtime)
              scan (get runtime :scan)]
@@ -567,7 +570,7 @@
          (fn contain-a1-yield [bindings]
            (node-py bindings))))))
   ([context-pf node-pf]
-   (Factory.
+   (factory
      (fn contain-a2-make-query [runtime]
        (let [context-pq (make-query context-pf runtime)
              node-pq (make-query node-pf runtime)
@@ -604,7 +607,7 @@
           fail (get runtime :fail)
           fmap (get runtime :fmap)]
       (fn cons-query [target bindings]
-        (if (and (sequential? target) (seq target))
+        (if (and (sequential? target) (clojure/seq target))
           (let [head (first target)
                 tail (next target)]
             (fmap (fn [bindings]
@@ -636,7 +639,7 @@
 (def empty
   (some (is ()) (is nil)))
 
-(defn cat-from [pfs]
+(defn list-from [pfs]
   (let [k (count pfs)
         j (inc k)]
     (pred (fn [x]
@@ -647,14 +650,8 @@
                   empty
                   (reverse pfs)))))
 
-(defn list
-  ([]
-   (pred seq? (is ())))
-  ([& pfs]
-   (pred seq? (cat-from pfs))))
-
-(defmacro cat [& pfs]
-  `(cat-from [~@pfs]))
+(defn list [& pfs]
+  (list-from (clojure/vec pfs)))
 
 (defrecord Conj [coll-pf item-pf]
   IMakeQuery
@@ -665,7 +662,7 @@
           fmap (get runtime :fmap)
           scan (get runtime :scan)]
       (fn conj-query [target bindings]
-        (if (seq target)
+        (if (clojure/seq target)
           (cond
             (vector? target)
             (let [coll (pop target)
@@ -730,7 +727,7 @@
    (pred vector? (is [])))
   ([& pfs]
    (pred (fn [x] (vector? x))
-         (call vec (cat-from pfs)))))
+         (call vec (list-from pfs)))))
 
 (defrecord Concat [left-pf right-pf]
   IMakeQuery
@@ -780,7 +777,7 @@
       (fn greedy-star-query [target bindings]
         ;; Pass if there is nothing to consume or attempt to consume
         ;; the whole target.
-        (if (seq target)
+        (if (clojure/seq target)
           (reduce
            (fn [default [left right]]
              (let [x (pq left bindings)]
@@ -828,7 +825,7 @@
       (fn frugal-star-query [target bindings]
         ;; Pass if there is nothing to consume or attempt to consume a
         ;; part of the target.
-        (if (seq target)
+        (if (clojure/seq target)
           (scan (fn [[left right]]
                   (fmap (fn [bindings]
                           (frugal-star-query right bindings))
@@ -912,7 +909,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count entries-pf)
-          entries-pf-cat (cat-from entries-pf)
+          entries-pf-cat (list-from entries-pf)
           entries-pq-cat (make-query entries-pf-cat runtime)
           fail (get runtime :fail)
           pass (get runtime :pass)
@@ -926,7 +923,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [entries-pf-cat (cat-from entries-pf)
+    (let [entries-pf-cat (list-from entries-pf)
           entries-py-cat (make-yield entries-pf-cat runtime)
           fmap (get runtime :fmap)
           pass (get runtime :pass)]
@@ -940,7 +937,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count entries-pf)
-          entries-pf-cat (cat-from entries-pf)
+          entries-pf-cat (list-from entries-pf)
           entries-pq-cat (make-query entries-pf-cat runtime)
           rest-pq-map (make-query rest-pf-map runtime)
           fail (get runtime :fail)
@@ -958,7 +955,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [entries-pf-cat (cat-from entries-pf)
+    (let [entries-pf-cat (list-from entries-pf)
           entries-py-cat (make-yield entries-pf-cat runtime)
           rest-py-map (make-yield rest-pf-map runtime)
           fmap (get runtime :fmap)
@@ -976,7 +973,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count elements-pf)
-          elements-pf-cat (cat-from elements-pf)
+          elements-pf-cat (list-from elements-pf)
           elements-pq-cat (make-query elements-pf-cat runtime)
           scan (get runtime :scan)
           fail (get runtime :fail)]
@@ -989,7 +986,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [elements-pf-cat (cat-from elements-pf)
+    (let [elements-pf-cat (list-from elements-pf)
           elements-py-cat (make-yield elements-pf-cat runtime)
           fmap (get runtime :fmap)]
       (fn set-a1-yield [bindings]
@@ -1002,7 +999,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count elements-pf)
-          elements-pf-cat (cat-from elements-pf)
+          elements-pf-cat (list-from elements-pf)
           elements-pq-cat (make-query elements-pf-cat runtime)
           rest-pq-set (make-query rest-pf-set runtime)
           scan (get runtime :scan)
@@ -1019,7 +1016,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [elements-pf-cat (cat-from elements-pf)
+    (let [elements-pf-cat (list-from elements-pf)
           elements-py-cat (make-yield elements-pf-cat runtime)
           rest-py-set (make-yield rest-pf-set runtime)
           fmap (get runtime :fmap)
@@ -1035,13 +1032,13 @@
                   (rest-py-set bindings)))
               (elements-py-cat bindings))))))
 
-(defn set-of [elements-pf]
-  {:pre [(sequential? elements-pf)]}
-  (SetA1. (vec elements-pf)))
+(defn set-from [element-pfs]
+  {:pre [(sequential? element-pfs)]}
+  (SetA1. (clojure/vec element-pfs)))
 
-(defn into-set-of [elements-pf rest-pf-set]
-  {:pre [(sequential? elements-pf)]}
-  (SetA2. (vec elements-pf) rest-pf-set))
+(defn into-set-of [element-pfs rest-pf-set]
+  {:pre [(sequential? element-pfs)]}
+  (SetA2. (clojure/vec element-pfs) rest-pf-set))
 
 (defrecord SimpleSymbol [name-pf]
   IMakeQuery
@@ -1146,6 +1143,50 @@
     body
     vars))
 
+(defn seq [pf]
+  (factory
+   (fn list-make-query [runtime]
+     (let [pq (make-query pf runtime)
+           fail (get runtime :fail)]
+       (fn [target bindings]
+         (if (seqable? target)
+           (pq target bindings)
+           fail))))
+   (fn list-make-yield [runtime]
+     (let [py (make-yield pf runtime)
+           fail (get runtime :fail)
+           fmap (get runtime :fmap)
+           pass (get runtime :pass)]
+       (fn [bindings]
+         (fmap (fn [bindings]
+                 (let [object (get bindings :object)]
+                   (if (seqable? object)
+                     (pass (update bindings :object clojure/seq))
+                     fail)))
+               (py bindings)))))))
+
+(defn vec [pf]
+  (factory
+   (fn [runtime]
+     (let [pq (make-query pf runtime)
+           fail (get runtime :fail)]
+       (fn [target bindings]
+         (if (vector? target)
+           (pq target bindings)
+           fail))))
+   (fn [runtime]
+     (let [py (make-yield pf runtime)
+           fail (get runtime :fail)
+           fmap (get runtime :fmap)
+           pass (get runtime :pass)]
+       (fn [bindings]
+         (fmap (fn [bindings]
+                 (let [object (get bindings :object)]
+                   (if (coll? object)
+                     (pass (update bindings :object clojure/vec))
+                     fail)))
+               (py bindings)))))))
+
 (def ^{:arglists '([form])
        :private true}
   parse-vector-args
@@ -1157,8 +1198,8 @@
 (defmacro vector [& args]
   (let [[items rest-vector] (parse-vector-args args)]
     (if (some? rest-vector)
-      `(pred vector? (concat (cat ~@items) ~rest-vector))
-      `(vector-from ~@items))))
+      `(vec (concat (cat ~@items) ~rest-vector))
+      `(vec (cat ~@items)))))
 
 (defn hash-map-from
   ([entry-pfs]
@@ -1169,30 +1210,59 @@
 (def ^{:arglists '([form])
        :private true}
   parse-hash-map-args
-  (stale [!k ?rest-map]
+  (stale [!k ?rest-map ?as-map]
     (rewrite-rule
      (concat (* !k !k)
-             (one (cat (is '&) ?rest-map) empty))
-     (cat (* !k !k) (one ?rest-map (is nil))))))
+             (concat (one empty (cat (is '&) ?rest-map))
+                     (one empty (cat (is ':as) ?as-map))))
+     (cat (* (vector !k !k))
+          (one ?rest-map (is nil))
+          (one ?as-map (is nil))))))
 
 (defmacro hash-map
   [& args]
-  (if-some [[keyvals rest-map] (parse-hash-map-args args)]
-    (let [entries (map (fn [[k v]] `(entry ~k ~v)) (partition 2 keyvals))]
-      (if (some? rest-map)
-        `(HashMapA2. ~(vec entries) ~rest-map)
-        `(HashMapA1. ~(vec entries))))
+  (if-some [[keyvals rest-map as-map] (parse-hash-map-args args)]
+    (let [entries (map (fn [[k v]] `(entry ~k ~v)) keyvals)
+          form-pf (if (some? rest-map)
+                    `(HashMapA2. ~(clojure/vec entries) ~rest-map)
+                    `(HashMapA1. ~(clojure/vec entries)))
+          form-pf (if (some? as-map)
+                    `(all ~as-map ~form-pf)
+                    form-pf)]
+      form-pf)
     (throw (ex-info "hash-map expects and even number of arguments" {:form &form}))))
+
+(def ^{:arglists '([form])
+       :private true}
+  parse-hash-set-args
+  (stale [!e ?rest-set ?as-set]
+    (rewrite-rule
+     (concat (* !e)
+             (concat (one empty (cat (is '&) ?rest-set))
+                     (one empty (cat (is ':as) ?as-set))))
+     (cat (* !e)
+          (one ?rest-set (is nil))
+          (one ?as-set (is nil))))))
+
+(defmacro hash-set
+  [& args]
+  (if-some [[elements rest-set as-set] (parse-hash-set-args args)]
+    (let [pf-form (if (some? rest-set)
+                    `(HashMapA2. ~(clojure/vec elements) ~rest-set)
+                    `(HashMapA1. ~(clojure/vec elements)))
+          pf-form (if (some? as-set)
+                    `(all ~pf-form ~as-set)
+                    pf-form)]
+      pf-form)
+    (throw (ex-info "Invalid syntax" {:form &form}))))
 
 (def ^{:arglists '([form])
        :private true}
   parse-*-or-+-args
   (stale [!xs ?as]
     (rewrite-rule
-     (concat (greedy-star (cat (all (not (is ::as))
-                                    !xs)))
-             (one (cat (is ::as) ?as)
-                  empty))
+     (concat (greedy-star (cat !xs))
+             (one empty (cat (is :as) ?as)))
      ;; =>
      (vector (greedy-star (cat !xs))
              (one ?as (is nil))))))
@@ -1203,7 +1273,7 @@
     (if as
       `(greedy-star (all (cat ~@form-pfs) ~as))
       `(greedy-star (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {}))))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
 
 (defmacro *?
   [& args]
@@ -1211,7 +1281,7 @@
     (if as
       `(frugal-star (all (cat ~@form-pfs) ~as))
       `(frugal-star (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {}))))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
 
 (defmacro +
   [n & args]
@@ -1219,11 +1289,11 @@
     (if as
       `(greedy-plus ~n (all (cat ~@form-pfs) ~as))
       `(greedy-plus ~n (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {}))))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
 
 (defmacro +? [n & args]
   (if-some [[form-pfs as] (parse-*-or-+-args args)]
     (if as
       `(frugal-plus ~n (all (cat ~@form-pfs) ~as))
       `(frugal-plus ~n (cat ~@form-pfs)))
-    (throw (ex-info "Invalid syntax" {}))))
+    (throw (ex-info "Invalid syntax" {:form &form}))))
