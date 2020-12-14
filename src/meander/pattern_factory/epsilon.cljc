@@ -1273,7 +1273,7 @@
      (concat (* !k !k)
              (concat (one empty (list (is '&) ?rest-map))
                      (one empty (list (is ':as) ?as-map))))
-     (list (greedy-star (list (vector !k !k)))
+     (list (* (vector !k !k))
            (one ?rest-map (is nil))
            (one ?as-map (is nil))))))
 
