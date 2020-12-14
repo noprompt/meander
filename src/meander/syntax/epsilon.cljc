@@ -285,6 +285,25 @@
   (swap! global-parser-registry assoc symbol f)
   nil)
 
+(defn parse-fresh
+  {:private true}
+  [[_ var-forms pattern-form] env]
+  {:tag :meander.syntax.epsilon/fresh
+   :vars (parse-all var-forms env)
+   :pattern (parse pattern-form env)})
+
+(register-parser `meander.syntax.epsilon/fresh #'parse-fresh)
+
+(defn parse-project
+  {:private true}
+  [[_ yield-form query-form object-form] env]
+  {:tag :meander.syntax.epsilon/project
+   :yield-pattern (parse yield-form env)
+   :query-pattern (parse query-form env)
+   :value-pattern (parse object-form env)})
+
+(register-parser `meander.syntax.epsilon/project #'parse-project)
+
 ;;; Syntax expansion
 
 (defn expander-registry
@@ -638,21 +657,6 @@
         clojure.core/unquote-splicing
         {:tag :uns
          :expr (second xs)}
-
-        meander.syntax.epsilon/fresh
-        (let [[_ var-forms pattern-form] xs]
-          {:tag :meander.syntax.epsilon/fresh
-           :vars (parse-all var-forms env)
-           :pattern (parse pattern-form env)
-           ::original-form xs})
-
-        meander.syntax.epsilon/project
-        (let [[_ yield-form query-form object-form] xs]
-          {:tag :meander.syntax.epsilon/project
-           :yield-pattern (parse yield-form env)
-           :query-pattern (parse query-form env)
-           :value-pattern (parse object-form env)
-           ::original-form xs})
 
         ;; else
         (let [xs* (expand-form xs env)]
@@ -1467,6 +1471,40 @@
 (defmethod search? :wth [node]
   ;; Come back to to this.
   true)
+
+;; meander.syntax.epsilon/fresh
+
+(defmethod children :meander.syntax.epsilon/fresh
+  [node]
+  [(get node :pattern)])
+
+(defmethod ground? :meander.syntax.epsilon/fresh
+  [node]
+  (ground? (get node :pattern)))
+
+(defmethod unparse :meander.syntax.epsilon/fresh
+  [node]
+  `(meander.syntax.epsilon/fresh ~@[(map unparse (get node :vars))]
+     ~(unparse (get node :pattern))))
+
+;; meander.syntax.epsilon/project
+
+(defmethod children :meander.syntax.epsilon/project
+  [node]
+  [(get node :yield-pattern)
+   (get node :query-pattern)
+   (get node :value-pattern)])
+
+(defmethod ground? :meander.syntax.epsilon/project
+  [node]
+  false)
+
+(defmethod unparse :meander.syntax.epsilon/project
+  [node]
+  `(meander.syntax.epsilon/project
+    ~(unparse (get node :yield-pattern))
+    ~(unparse (get node :query-pattern))
+    ~(unparse (get node :value-pattern))))
 
 ;; ---------------------------------------------------------------------
 ;; walk
