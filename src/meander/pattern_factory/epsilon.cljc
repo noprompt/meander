@@ -654,6 +654,20 @@
 (defn list [& pfs]
   (list-from (clojure/vec pfs)))
 
+(defn cat-from [pfs]
+  (let [k (count pfs)
+        j (inc k)]
+    (pred (fn [x]
+             (and (sequential? x)
+                  (= k (bounded-count j x))))
+          (reduce (fn [cons-pf pf]
+                    (cons pf cons-pf))
+                  empty
+                  (reverse pfs)))))
+
+(defn cat [& pfs]
+  (cat-from (clojure/vec pfs)))
+
 (defrecord Conj [coll-pf item-pf]
   IMakeQuery
   (make-query [this runtime]
