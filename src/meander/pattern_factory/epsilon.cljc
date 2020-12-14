@@ -644,7 +644,7 @@
   (let [k (count pfs)
         j (inc k)]
     (pred (fn [x]
-             (and (sequential? x)
+             (and (seq? x)
                   (= k (bounded-count j x))))
           (reduce (fn [cons-pf pf]
                     (cons pf cons-pf))
