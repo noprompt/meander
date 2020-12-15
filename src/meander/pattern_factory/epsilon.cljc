@@ -988,7 +988,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count elements-pf)
-          elements-pf-cat (list-from elements-pf)
+          elements-pf-cat (cat-from elements-pf)
           elements-pq-cat (make-query elements-pf-cat runtime)
           scan (get runtime :scan)
           fail (get runtime :fail)]
@@ -1001,7 +1001,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [elements-pf-cat (list-from elements-pf)
+    (let [elements-pf-cat (cat-from elements-pf)
           elements-py-cat (make-yield elements-pf-cat runtime)
           fmap (get runtime :fmap)]
       (fn set-a1-yield [bindings]
