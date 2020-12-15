@@ -924,7 +924,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count entries-pf)
-          entries-pf-cat (list-from entries-pf)
+          entries-pf-cat (cat-from entries-pf)
           entries-pq-cat (make-query entries-pf-cat runtime)
           fail (get runtime :fail)
           pass (get runtime :pass)
@@ -938,7 +938,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [entries-pf-cat (list-from entries-pf)
+    (let [entries-pf-cat (cat-from entries-pf)
           entries-py-cat (make-yield entries-pf-cat runtime)
           fmap (get runtime :fmap)
           pass (get runtime :pass)]
@@ -952,7 +952,7 @@
   IMakeQuery
   (make-query [this runtime]
     (let [k (count entries-pf)
-          entries-pf-cat (list-from entries-pf)
+          entries-pf-cat (cat-from entries-pf)
           entries-pq-cat (make-query entries-pf-cat runtime)
           rest-pq-map (make-query rest-pf-map runtime)
           fail (get runtime :fail)
@@ -970,7 +970,7 @@
 
   IMakeYield
   (make-yield [this runtime]
-    (let [entries-pf-cat (list-from entries-pf)
+    (let [entries-pf-cat (cat-from entries-pf)
           entries-py-cat (make-yield entries-pf-cat runtime)
           rest-py-map (make-yield rest-pf-map runtime)
           fmap (get runtime :fmap)
