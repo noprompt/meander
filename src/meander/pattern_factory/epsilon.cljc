@@ -244,48 +244,52 @@
              (py-2 bindings)
              x)))))))
 
-(defn some [pf-1 pf-2]
-  (factory
-   (fn some-make-query [runtime]
-     (let [fail (get runtime :fail)
-           join (get runtime :join)
-           pq-1 (make-query pf-1 runtime)
-           pq-2 (make-query pf-2 runtime)]
-       (fn some-query [target bindings]
-         (let [x (pq-1 target bindings)
-               y (pq-2 target bindings)]
-           (case [(= x fail) (= y fail)]
-             [false false]
-             (join x y)
+(defn some
+  ([pf] pf)
+  ([pf-1 pf-2]
+   (factory
+    (fn some-make-query [runtime]
+      (let [fail (get runtime :fail)
+            join (get runtime :join)
+            pq-1 (make-query pf-1 runtime)
+            pq-2 (make-query pf-2 runtime)]
+        (fn some-query [target bindings]
+          (let [x (pq-1 target bindings)
+                y (pq-2 target bindings)]
+            (case [(= x fail) (= y fail)]
+              [false false]
+              (join x y)
 
-             [false true]
-             x
+              [false true]
+              x
 
-             [true false]
-             y
+              [true false]
+              y
 
-             ;; else
-             fail)))))
-   (fn some-make-yield [runtime]
-     (let [fail (get runtime :fail)
-           join (get runtime :join)
-           py-1 (make-yield pf-1 runtime)
-           py-2 (make-yield pf-2 runtime)]
-       (fn some-yield [bindings]
-         (let [x (py-1 bindings)
-               y (py-2 bindings)]
-           (case [(= x fail) (= y fail)]
-             [false false]
-             (join x y)
+              ;; else
+              fail)))))
+    (fn some-make-yield [runtime]
+      (let [fail (get runtime :fail)
+            join (get runtime :join)
+            py-1 (make-yield pf-1 runtime)
+            py-2 (make-yield pf-2 runtime)]
+        (fn some-yield [bindings]
+          (let [x (py-1 bindings)
+                y (py-2 bindings)]
+            (case [(= x fail) (= y fail)]
+              [false false]
+              (join x y)
 
-             [false true]
-             x
+              [false true]
+              x
 
-             [true false]
-             y
+              [true false]
+              y
 
-             ;; else
-             fail)))))))
+              ;; else
+              fail)))))))
+  ([pf-1 pf-2 & more-pfs]
+   (clojure/apply some (some pf-1 pf-2) more-pfs)))
 
 (defn not [pf]
   (factory

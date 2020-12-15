@@ -365,7 +365,7 @@
 
 (defmethod -pattern :meander.match.syntax.epsilon/or
   [ast]
-  (reduce some (map -pattern (get ast :arguments))))
+  (reduce m.pf/some (map -pattern (get ast :arguments))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/apply
   [ast]
