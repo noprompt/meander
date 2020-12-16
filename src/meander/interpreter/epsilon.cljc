@@ -472,11 +472,9 @@
   expression at evaluation time. This macro should only be used when
 
     * you are using patterns with operator symbols that need to be
-      qualified in ClojureScript;
+      qualified in ClojureScript; or
     * you want to define a pattern in one namespace and use it in
-      another.
- 
-  "
+      another."
      [expression]
      `(with-meta ~expression (m.util/canonical-ns))))
 
@@ -519,6 +517,7 @@
 
 (defn finder
   "Takes an even number of arguments
+
     query_1 f_1
     ...
     query_n f_n
@@ -526,23 +525,24 @@
   and returns a function which behaves like
   `meander.epsilon/find`. query is a quoted pattern and f is a unary
   function which takes a map of bindings and returns any value."
-  ([pattern f]
-   (finder-from [pattern f]))
-  ([pattern f & more-clauses]
+  ([query f]
+   (finder-from [query f]))
+  ([query f & more-clauses]
    (assert (even? (count more-clauses)) "finder expects an even number of arguments")
-   (finder-from (cons [pattern f] (partition 2 more-clauses)))))
+   (finder-from (cons [query f] (partition 2 more-clauses)))))
 
 (defn searcher-from
   "Takes a sequence of [query f] pairs and returns a function which
   behaves like `meander.epsilon/search`. query is a quoted pattern
   and f is a unary function which takes a map of bindings and returns
   any value."
-  {:arglists '([[pattern f] & more-clauses])}
+  {:arglists '([[query f] & more-clauses])}
   [clauses]
   ((match-system-factory clauses) m.pf/depth-first-search-runtime))
 
 (defn searcher
   "Takes an even number of arguments
+
     query_1 f_1
     ...
     query_n f_n
@@ -550,11 +550,11 @@
   and returns a function which behaves like
   `meander.epsilon/search`. query is a quoted pattern and f is a unary
   function which takes a map of bindings and returns any value."
-  ([pattern f]
-   (searcher-from [pattern f]))
-  ([pattern f & more-clauses]
+  ([query f]
+   (searcher-from [query f]))
+  ([query f & more-clauses]
    (assert (even? (count more-clauses)) "searcher expects an even number of arguments")
-   (searcher-from (cons [pattern f] (partition 2 more-clauses)))))
+   (searcher-from (cons [query f] (partition 2 more-clauses)))))
 
 (defn rewrite-rule-factory
   {:private true}
@@ -590,12 +590,25 @@
         (fn f [x]
           (scan (fn [rule] (rule x {::cata f})) rules))))))
 
-(defn rewriter
-  {:arglists '([x_lhs x_rhs & more-clauses])}
-  [& clauses]
+(defn rewriter-from
+  "Takes a sequence of [query yield] pairs and returns a function which
+  behaves like `meander.epsilon/rewrite`. query and yield is are
+  quoted patterns."
+  {:arglists '([[query yield] & more-query-yield-pairs])}
+  [clauses]
   ((rewrite-system-factory clauses) m.pf/find-runtime))
 
-(defn rewriter*
-  {:arglists '([x_lhs x_rhs & more-clauses])}
-  [& clauses]
-  ((rewrite-system-factory clauses) m.pf/depth-first-search-runtime))
+(defn rewriter
+  "Takes an even number of arguments
+
+    query_1 yield_1
+    ...
+    query_n yield_n
+
+  and returns a function which behaves like
+  `meander.epsilon/rewrite`. query and yield are quoted patterns."
+  ([query yield]
+   (rewriter-from [query yield]))
+  ([query yield & more-clauses]
+   (assert (even? (count more-clauses)) "finder expects an even number of arguments")
+   (rewriter-from (cons [query yield] (partition 2 more-clauses)))))
