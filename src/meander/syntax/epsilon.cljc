@@ -616,7 +616,7 @@
 
     (quote <form>)
     (clojure.core/unquote <form>)
-    (clojure.core/unquote-splicig <form>)
+    (clojure.core/unquote-splicing <form>)
     (<symbol*> <form_0> ... <form_n>)
 
   where symbol* is a fully qualified symbol with respect to the
@@ -1451,6 +1451,40 @@
   ;; Come back to to this.
   true)
 
+;; meander.syntax.epsilon/fresh
+
+;; (defmethod children :meander.syntax.epsilon/fresh
+;;   [node]
+;;   [(get node :pattern)])
+
+;; (defmethod ground? :meander.syntax.epsilon/fresh
+;;   [node]
+;;   (ground? (get node :pattern)))
+
+;; (defmethod unparse :meander.syntax.epsilon/fresh
+;;   [node]
+;;   `(meander.syntax.epsilon/fresh ~@[(map unparse (get node :vars))]
+;;      ~(unparse (get node :pattern))))
+
+;; meander.syntax.epsilon/project
+
+;; (defmethod children :meander.syntax.epsilon/project
+;;   [node]
+;;   [(get node :yield-pattern)
+;;    (get node :query-pattern)
+;;    (get node :value-pattern)])
+
+;; (defmethod ground? :meander.syntax.epsilon/project
+;;   [node]
+;;   false)
+
+;; (defmethod unparse :meander.syntax.epsilon/project
+;;   [node]
+;;   `(meander.syntax.epsilon/project
+;;     ~(unparse (get node :yield-pattern))
+;;     ~(unparse (get node :query-pattern))
+;;     ~(unparse (get node :value-pattern))))
+
 ;; ---------------------------------------------------------------------
 ;; walk
 
@@ -2006,3 +2040,22 @@
                (catch Exception _))))))
     `(do ~expander-definition-body-form
          (var ~fn-name))))
+
+;; (defn parse-fresh
+;;   {:private true}
+;;   [[_ var-forms pattern-form] env]
+;;   {:tag :meander.syntax.epsilon/fresh
+;;    :vars (parse-all var-forms env)
+;;    :pattern (parse pattern-form env)})
+
+;; (register-parser `meander.syntax.epsilon/fresh #'parse-fresh)
+
+;; (defn parse-project
+;;   {:private true}
+;;   [[_ yield-form query-form object-form] env]
+;;   {:tag :meander.syntax.epsilon/project
+;;    :yield-pattern (parse yield-form env)
+;;    :query-pattern (parse query-form env)
+;;    :value-pattern (parse object-form env)})
+
+;; (register-parser `meander.syntax.epsilon/project #'parse-project)
