@@ -1453,37 +1453,37 @@
 
 ;; meander.syntax.epsilon/fresh
 
-(defmethod children :meander.syntax.epsilon/fresh
-  [node]
-  [(get node :pattern)])
+;; (defmethod children :meander.syntax.epsilon/fresh
+;;   [node]
+;;   [(get node :pattern)])
 
-(defmethod ground? :meander.syntax.epsilon/fresh
-  [node]
-  (ground? (get node :pattern)))
+;; (defmethod ground? :meander.syntax.epsilon/fresh
+;;   [node]
+;;   (ground? (get node :pattern)))
 
-(defmethod unparse :meander.syntax.epsilon/fresh
-  [node]
-  `(meander.syntax.epsilon/fresh ~@[(map unparse (get node :vars))]
-     ~(unparse (get node :pattern))))
+;; (defmethod unparse :meander.syntax.epsilon/fresh
+;;   [node]
+;;   `(meander.syntax.epsilon/fresh ~@[(map unparse (get node :vars))]
+;;      ~(unparse (get node :pattern))))
 
 ;; meander.syntax.epsilon/project
 
-(defmethod children :meander.syntax.epsilon/project
-  [node]
-  [(get node :yield-pattern)
-   (get node :query-pattern)
-   (get node :value-pattern)])
+;; (defmethod children :meander.syntax.epsilon/project
+;;   [node]
+;;   [(get node :yield-pattern)
+;;    (get node :query-pattern)
+;;    (get node :value-pattern)])
 
-(defmethod ground? :meander.syntax.epsilon/project
-  [node]
-  false)
+;; (defmethod ground? :meander.syntax.epsilon/project
+;;   [node]
+;;   false)
 
-(defmethod unparse :meander.syntax.epsilon/project
-  [node]
-  `(meander.syntax.epsilon/project
-    ~(unparse (get node :yield-pattern))
-    ~(unparse (get node :query-pattern))
-    ~(unparse (get node :value-pattern))))
+;; (defmethod unparse :meander.syntax.epsilon/project
+;;   [node]
+;;   `(meander.syntax.epsilon/project
+;;     ~(unparse (get node :yield-pattern))
+;;     ~(unparse (get node :query-pattern))
+;;     ~(unparse (get node :value-pattern))))
 
 ;; ---------------------------------------------------------------------
 ;; walk
