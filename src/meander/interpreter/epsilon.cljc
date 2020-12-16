@@ -2,7 +2,10 @@
   (:require
    [meander.match.syntax.epsilon :as m.match.syntax]
    [meander.pattern-factory.epsilon :as m.pf]
-   [meander.syntax.epsilon :as m.syntax]))
+   [meander.syntax.epsilon :as m.syntax]
+   [meander.util.epsilon :as m.util])
+  #?(:cljs
+     (:require-macros [meander.util.epsilon])))
 
 (def expander-registry
   {`meander.interpreter.epsilon/and
@@ -66,93 +69,89 @@
 (def default-parse-env
   {::m.syntax/expander-registry expander-registry})
 
-#_
-(doseq [[symbol f] expander-registry]
-  (m.syntax/register-expander symbol f))
-
-(defn -pattern-dispatch
+(defn -pattern-factory-from-dispatch
   {:private true}
   [ast]
   (get ast :tag))
 
-(defmulti -pattern
+(defmulti -pattern-factory-from
   {:arglists '([ast])
    :private true}
-  #'-pattern-dispatch)
+  #'-pattern-factory-from-dispatch)
 
-(defn pattern
+(defn pattern-factory-from
   {:private true}
   [form]
   (let [parse-env (merge default-parse-env (meta form))]
-    (-pattern (m.match.syntax/parse form parse-env))))
+    (-pattern-factory-from (m.match.syntax/parse form parse-env))))
 
-(defmethod -pattern :any [_]
+(defmethod -pattern-factory-from :any [_]
   m.pf/anything)
 
-(defmethod -pattern :cat
+(defmethod -pattern-factory-from :cat
   [ast]
-  (m.pf/cat-from (map -pattern (get ast :elements))))
+  (m.pf/cat-from (map -pattern-factory-from (get ast :elements))))
 
-(defmethod -pattern :ctn
+(defmethod -pattern-factory-from :ctn
   [ast]
-  (let [pattern_pf (-pattern (get ast :pattern))]
+  (let [pattern_pf (-pattern-factory-from (get ast :pattern))]
     (if-some [context (get ast :context)]
       ;; {:tag :ctn, :context {:as ?context} :pattern ?pattern}
-      (m.pf/contain (-pattern context) pattern_pf)
+      (m.pf/contain (-pattern-factory-from context) pattern_pf)
       ;; {:tag :ctn, :context nil :pattern ?pattern}
       (m.pf/contain pattern_pf))))
 
-(defmethod -pattern :drp [_]
+(defmethod -pattern-factory-from :drp [_]
   m.pf/anything)
 
-(defmethod -pattern :jsa [ast])
+(defmethod -pattern-factory-from :jsa [ast])
 
-(defmethod -pattern :jso [ast])
+(defmethod -pattern-factory-from :jso [ast])
 
-(defmethod -pattern :lvr
+(defmethod -pattern-factory-from :lvr
   [ast]
   (m.pf/logic-variable (get ast :symbol)))
 
-(defmethod -pattern :lit
+(defmethod -pattern-factory-from :lit
   [ast]
   (m.pf/is (get ast :value)))
 
-(defmethod -pattern :map [ast]
+(defmethod -pattern-factory-from :map [ast]
   (if-some [as (get ast :as)]
-    (m.pf/all (-pattern as)
-              (-pattern (assoc ast :as nil)))
+    (m.pf/all (-pattern-factory-from as)
+              (-pattern-factory-from (assoc ast :as nil)))
     (let [entries-pf (map (fn [[k v]]
-                            (m.pf/entry (-pattern k) (-pattern v)))
+                            (m.pf/entry (-pattern-factory-from k) (-pattern-factory-from v)))
                           (get ast :map))]
       (if-some [rest-map (get ast :rest-map)]
-        (m.pf/hash-map-from entries-pf (-pattern rest-map))
+        (m.pf/hash-map-from entries-pf (-pattern-factory-from rest-map))
         (m.pf/hash-map-from entries-pf)))))
 
-(defmethod -pattern :mut
+(defmethod -pattern-factory-from :mut
   [ast]
   (m.pf/mutable-variable (get ast :symbol)))
 
-(defmethod -pattern :mvr [ast]
+(defmethod -pattern-factory-from :mvr [ast]
   (m.pf/memory-variable (get ast :symbol)))
 
-(defmethod -pattern :quo [ast]
+(defmethod -pattern-factory-from :quo [ast]
   (m.pf/is (get ast :form)))
 
-(defmethod -pattern :prt
+(defmethod -pattern-factory-from :prt
   [ast]
-  (m.pf/concat (-pattern (get ast :left))
-               (-pattern (get ast :right))))
+  (m.pf/concat (-pattern-factory-from (get ast :left))
+               (-pattern-factory-from (get ast :right))))
 
-(defmethod -pattern :seq
+(defmethod -pattern-factory-from :seq
   [ast]
-  (m.pf/seq (-pattern (get ast :prt))))
+  (m.pf/seq (-pattern-factory-from (get ast :prt))))
 
-(defmethod -pattern :ref
+(defmethod -pattern-factory-from :ref
   [ast]
   (m.pf/reference (get ast :symbol)))
 
-(defmethod -pattern :rp* [ast]
-  (let [cat-pf (-pattern (get ast :cat))
+(defmethod -pattern-factory-from :rp* [ast]
+  (let [cat-pf (-pattern-factory-from (get ast :cat))
         frugal-star-pf (m.pf/frugal-star cat-pf)
         greedy-star-pf (m.pf/greedy-star cat-pf)]
     (m.pf/factory
@@ -161,10 +160,10 @@
       (fn make-yield [runtime]
         (m.pf/make-query greedy-star-pf runtime)))))
 
-(defmethod -pattern :rp+
+(defmethod -pattern-factory-from :rp+
   [ast]
   (let [n (get ast :n)
-        cat-pf (-pattern (get ast :cat))
+        cat-pf (-pattern-factory-from (get ast :cat))
         frugal-plus-pf (m.pf/frugal-plus cat-pf n)
         greedy-plus-pf (m.pf/greedy-plus cat-pf n)]
     (m.pf/factory
@@ -173,16 +172,16 @@
       (fn make-yield [runtime]
         (m.pf/make-query greedy-plus-pf runtime)))))
 
-(defmethod -pattern :rpl [ast]
-  (m.pf/all (-pattern {:tag :rp*, :cat (get ast :cat)})
-            (m.pf/call count (-pattern (get ast :lvr)))))
+(defmethod -pattern-factory-from :rpl [ast]
+  (m.pf/all (-pattern-factory-from {:tag :rp*, :cat (get ast :cat)})
+            (m.pf/call count (-pattern-factory-from (get ast :lvr)))))
 
-(defmethod -pattern :rpm
+(defmethod -pattern-factory-from :rpm
   [ast]
-  (m.pf/all (-pattern {:tag :rp*, :cat (get ast :cat)})
-            (m.pf/call count (-pattern (get ast :mvr)))))
+  (m.pf/all (-pattern-factory-from {:tag :rp*, :cat (get ast :cat)})
+            (m.pf/call count (-pattern-factory-from (get ast :mvr)))))
 
-(defmethod -pattern :rst [ast]
+(defmethod -pattern-factory-from :rst [ast]
   (let [id (get (get ast :mvr) :symbol)]
     (m.pf/factory
       (fn make-query [runtime]
@@ -194,20 +193,20 @@
           (fn rest-yield [bindings]
             (pass (merge bindings {id [] :object (get bindings id)}))))))))
 
-(defmethod -pattern :tail [ast]
-  (-pattern (get ast :pattern)))
+(defmethod -pattern-factory-from :tail [ast]
+  (-pattern-factory-from (get ast :pattern)))
 
-(defmethod -pattern :set
+(defmethod -pattern-factory-from :set
   [ast]
   (if-some [as (get ast :as)]
-    (m.pf/all (-pattern as)
-              (-pattern (assoc ast :as nil)))
-    (let [element-pfs (map -pattern (get ast :elements))]
+    (m.pf/all (-pattern-factory-from as)
+              (-pattern-factory-from (assoc ast :as nil)))
+    (let [element-pfs (map -pattern-factory-from (get ast :elements))]
       (if-some [rest (get ast :rest)]
-        (m.pf/into-set-of element-pfs (-pattern rest))
+        (m.pf/into-set-of element-pfs (-pattern-factory-from rest))
         (m.pf/set-from element-pfs)))))
 
-(defmethod -pattern :unq
+(defmethod -pattern-factory-from :unq
   [ast]
   (let [expr (get ast :expr)]
     (m.pf/factory
@@ -228,7 +227,7 @@
               (pass (assoc bindings :object (eval expr)))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
-(defmethod -pattern :uns
+(defmethod -pattern-factory-from :uns
   [ast]
   (let [expr (get ast :expr)]
     (m.pf/factory
@@ -253,42 +252,42 @@
                   fail))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
-(defmethod -pattern :vec
+(defmethod -pattern-factory-from :vec
   [ast]
-  (m.pf/vec (-pattern (get ast :prt))))
+  (m.pf/vec (-pattern-factory-from (get ast :prt))))
 
-(defmethod -pattern :wth
+(defmethod -pattern-factory-from :wth
   [ast]
   (let [bindings (get ast :bindings)
         body (get ast :body)]
     (if (some? body)
       (m.pf/with (sequence (comp (mapcat (juxt :ref :pattern))
-                                 (map -pattern))
+                                 (map -pattern-factory-from))
                            bindings)
-        (-pattern body))
+        (-pattern-factory-from body))
       m.pf/anything)))
 
-;; (defmethod -pattern :meander.syntax.epsilon/fresh
+;; (defmethod -pattern-factory-from :meander.syntax.epsilon/fresh
 ;;   [ast]
 ;;   (reduce
 ;;    (fn [pattern_pf var-pf]
 ;;      (m.pf/make-fresh var-pf pattern_pf))
-;;    (-pattern (get ast :pattern))
-;;    (map -pattern (get ast :vars))))
+;;    (-pattern-factory-from (get ast :pattern))
+;;    (map -pattern-factory-from (get ast :vars))))
 
-;; (defmethod -pattern :meander.syntax.epsilon/project
+;; (defmethod -pattern-factory-from :meander.syntax.epsilon/project
 ;;   [ast]
-;;   (m.pf/project (-pattern (get ast :yield-pattern))
-;;                 (-pattern (get ast :query-pattern))
-;;                 (-pattern (get ast :value-pattern))))
+;;   (m.pf/project (-pattern-factory-from (get ast :yield-pattern-factory-from))
+;;                 (-pattern-factory-from (get ast :query-pattern-factory-from))
+;;                 (-pattern-factory-from (get ast :value-pattern-factory-from))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/and
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/and
   [ast]
-  (reduce m.pf/all (map -pattern (get ast :arguments))))
+  (reduce m.pf/all (map -pattern-factory-from (get ast :arguments))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/cata
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/cata
   [ast]
-  (let [argument-pf (-pattern (get ast :argument))]
+  (let [argument-pf (-pattern-factory-from (get ast :argument))]
     (m.pf/factory
       (fn make-query [runtime]
         (let [fmap (get runtime :fmap)
@@ -311,9 +310,9 @@
                     (cata target))
               (throw (ex-info "cata not provided" {})))))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/let
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/let
   [ast]
-  (let [pattern_pf (-pattern (get ast :pattern))
+  (let [pattern_pf (-pattern-factory-from (get ast :pattern))
         expression (get ast :expression)]
     (m.pf/factory
       (fn let-make-query [runtime]
@@ -331,14 +330,14 @@
                 (pattern-pq x bindings))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/or
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/or
   [ast]
-  (reduce m.pf/some (map -pattern (get ast :arguments))))
+  (reduce m.pf/some (map -pattern-factory-from (get ast :arguments))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/apply
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/apply
   [ast]
   (let [function (get ast :function)
-        argument-pf (-pattern (get ast :argument))]
+        argument-pf (-pattern-factory-from (get ast :argument))]
     (m.pf/factory
       (fn apply-make-query [runtime]
         (if-some [eval (get runtime :eval)]
@@ -358,7 +357,7 @@
                       (argument-py bindings)))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/guard
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/guard
   [ast]
   (let [expr (get ast :expr)]
     (m.pf/factory
@@ -381,15 +380,15 @@
                 fail)))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/not
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/not
   [ast]
-  (m.pf/not (-pattern (get ast :argument))))
+  (m.pf/not (-pattern-factory-from (get ast :argument))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/pred
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/pred
   [ast]
   (let [form (get ast :form)
         arguments (get ast :arguments)
-        and-pf (-pattern {:tag :meander.match.syntax.epsilon/and
+        and-pf (-pattern-factory-from {:tag :meander.match.syntax.epsilon/and
                           :arguments arguments})]
     (m.pf/factory
       (fn pred-make-query [runtime]
@@ -419,10 +418,10 @@
                       (and-py bindings)))))
           (throw (ex-info "eval not provided" {:runtime runtime})))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/rxc
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/rxc
   [ast]
   (let [regex (get ast :regex)
-        capture-pf (-pattern (get ast :capture))]
+        capture-pf (-pattern-factory-from (get ast :capture))]
     (m.pf/factory
       (fn make-query [runtime]
         (let [capture-pq (m.pf/make-query capture-pf runtime)
@@ -437,7 +436,7 @@
       (fn make-yield [runtime]
         (throw (ex-info "re pattern does not support yield" {}))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/rxt
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/rxt
   [ast]
   (let [regex (get ast :regex)]
     (m.pf/factory
@@ -451,11 +450,11 @@
       (fn make-yield [runtime]
         (throw (ex-info "re pattern does not support yield" {}))))))
 
-(defmethod -pattern :meander.match.syntax.epsilon/subsequence
+(defmethod -pattern-factory-from :meander.match.syntax.epsilon/subsequence
   [ast]
   (let [cat (get ast :cat)
         n (count cat)
-        cat-pf (-pattern cat)]
+        cat-pf (-pattern-factory-from cat)]
     (m.pf/factory
       (fn make-query [runtime]
         (let [cat-pq (m.pf/make-query cat-pf runtime)
@@ -466,6 +465,20 @@
                   (partition n 1 target)))))
       (fn make-yield [runtime]
         (m.pf/make-yield cat-pf runtime)))))
+
+#?(:clj
+   (defmacro pattern
+     "Attach macro time namespace meta data to result of evaluating
+  expression at evaluation time. This macro should only be used when
+
+    * you are using patterns with operator symbols that need to be
+      qualified in ClojureScript;
+    * you want to define a pattern in one namespace and use it in
+      another.
+ 
+  "
+     [expression]
+     `(with-meta ~expression (m.util/canonical-ns))))
 
 (defn match-clause-factory
   {:private true}
@@ -486,7 +499,7 @@
                    (match-clause-factory
                     (if (satisfies? m.pf/IMakeQuery query)
                       query
-                      (pattern query))
+                      (pattern-factory-from query))
                     yield))
                  (partition 2 clauses))]
     (fn [runtime]
@@ -566,10 +579,10 @@
                    (rewrite-rule-factory
                     (if (satisfies? m.pf/IMakeQuery query)
                       query
-                      (pattern query))
+                      (pattern-factory-from query))
                     (if (satisfies? m.pf/IMakeYield yield)
                       yield
-                      (pattern yield))))
+                      (pattern-factory-from yield))))
                  (partition 2 clauses))]
     (fn [runtime]
       (let [scan (get runtime :scan)
