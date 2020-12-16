@@ -90,7 +90,7 @@
 
 (defmethod -pattern :cat
   [ast]
-  (m.pf/list-from (map -pattern (get ast :elements))))
+  (m.pf/cat-from (map -pattern (get ast :elements))))
 
 (defmethod -pattern :ctn
   [ast]
@@ -144,21 +144,7 @@
 
 (defmethod -pattern :seq
   [ast]
-  (let [prt-pf (-pattern (get ast :prt))
-        seq-pf (m.pf/factory
-                 (fn make-query [runtime]
-                   (let [prt-pq (m.pf/make-query prt-pf runtime)
-                         fail (get runtime :fail)]
-                     (fn seq-query [target bindings]
-                       (if (seq? target)
-                         (prt-pq target bindings)
-                         fail))))
-                 (fn make-yield [runtime]
-                   (let [prt-py (m.pf/make-yield prt-pf runtime)]
-                     prt-py)))]
-    (if-some [as (get ast :as)]
-      (m.pf/all (-pattern as) seq-pf)
-      seq-pf)))
+  (m.pf/seq (-pattern (get ast :prt))))
 
 (defmethod -pattern :ref
   [ast]
@@ -268,26 +254,7 @@
 
 (defmethod -pattern :vec
   [ast]
-  (let [prt-pf (-pattern (get ast :prt))
-        seq-pf (m.pf/factory
-                 (fn make-query [runtime]
-                   (let [prt-pq (m.pf/make-query prt-pf runtime)
-                         fail (get runtime :fail)]
-                     (fn vector-query [target bindings]
-                       (if (vector? target)
-                         (prt-pq target bindings)
-                         fail))))
-                 (fn make-yield [runtime]
-                   (let [prt-py (m.pf/make-yield prt-pf runtime)
-                         pass (get runtime :pass)
-                         fmap (get runtime :fmap)]
-                     (fn vector-yield [bindings]
-                       (fmap (fn [bindings]
-                               (pass (update bindings :object vec)))
-                             (prt-py bindings))))))]
-    (if-some [as (get ast :as)]
-      (m.pf/all (-pattern as) seq-pf)
-      seq-pf)))
+  (m.pf/vec (-pattern (get ast :prt))))
 
 (defmethod -pattern :wth
   [ast]
@@ -300,19 +267,19 @@
         (-pattern body))
       m.pf/anything)))
 
-(defmethod -pattern :meander.syntax.epsilon/fresh
-  [ast]
-  (reduce
-   (fn [pattern_pf var-pf]
-     (m.pf/make-fresh var-pf pattern_pf))
-   (-pattern (get ast :pattern))
-   (map -pattern (get ast :vars))))
+;; (defmethod -pattern :meander.syntax.epsilon/fresh
+;;   [ast]
+;;   (reduce
+;;    (fn [pattern_pf var-pf]
+;;      (m.pf/make-fresh var-pf pattern_pf))
+;;    (-pattern (get ast :pattern))
+;;    (map -pattern (get ast :vars))))
 
-(defmethod -pattern :meander.syntax.epsilon/project
-  [ast]
-  (m.pf/project (-pattern (get ast :yield-pattern))
-                (-pattern (get ast :query-pattern))
-                (-pattern (get ast :value-pattern))))
+;; (defmethod -pattern :meander.syntax.epsilon/project
+;;   [ast]
+;;   (m.pf/project (-pattern (get ast :yield-pattern))
+;;                 (-pattern (get ast :query-pattern))
+;;                 (-pattern (get ast :value-pattern))))
 
 (defmethod -pattern :meander.match.syntax.epsilon/and
   [ast]
@@ -457,7 +424,7 @@
         capture-pf (-pattern (get ast :capture))]
     (m.pf/factory
       (fn make-query [runtime]
-        (let [capture-pq (make-query capture-pf runtime)
+        (let [capture-pq (m.pf/make-query capture-pf runtime)
               fail (get runtime :fail)
               pass (get runtime :pass)]
           (fn re-a2-query [target bindings]
@@ -527,15 +494,53 @@
         (fn f [x]
           (scan (fn [rule] (rule x {::cata f})) rules))))))
 
-(defn finder
-  {:arglists '([[x_lhs f_rhs & more-clauses]])}
-  [& clauses]
+(defn finder-from
+  "Takes a sequence of [query f] pairs and returns a function which
+  behaves like `meander.epsilon/find`. query is a quoted pattern
+  and f is a unary function which takes a map of bindings and returns
+  any value."
+  {:arglists '([[query f] & more-clauses])}
+  [clauses]
   ((match-system-factory clauses) m.pf/find-runtime))
 
-(defn searcher
-  {:arglists '([[x_lhs f_rhs & more-clauses]])}
-  [& clauses]
+(defn finder
+  "Takes an even number of arguments
+    query_1 f_1
+    ...
+    query_n f_n
+
+  and returns a function which behaves like
+  `meander.epsilon/find`. query is a quoted pattern and f is a unary
+  function which takes a map of bindings and returns any value."
+  ([pattern f]
+   (finder-from [pattern f]))
+  ([pattern f & more-clauses]
+   (assert (even? (count more-clauses)) "finder expects an even number of arguments")
+   (finder-from (cons [pattern f] (partition 2 more-clauses)))))
+
+(defn searcher-from
+  "Takes a sequence of [query f] pairs and returns a function which
+  behaves like `meander.epsilon/search`. query is a quoted pattern
+  and f is a unary function which takes a map of bindings and returns
+  any value."
+  {:arglists '([[pattern f] & more-clauses])}
+  [clauses]
   ((match-system-factory clauses) m.pf/depth-first-search-runtime))
+
+(defn searcher
+  "Takes an even number of arguments
+    query_1 f_1
+    ...
+    query_n f_n
+
+  and returns a function which behaves like
+  `meander.epsilon/search`. query is a quoted pattern and f is a unary
+  function which takes a map of bindings and returns any value."
+  ([pattern f]
+   (searcher-from [pattern f]))
+  ([pattern f & more-clauses]
+   (assert (even? (count more-clauses)) "searcher expects an even number of arguments")
+   (searcher-from (cons [pattern f] (partition 2 more-clauses)))))
 
 (defn rewrite-rule-factory
   {:private true}
@@ -553,7 +558,8 @@
               (query-pq x bindings))))))
 
 (defn rewrite-system-factory
-  {:arglists '([[x_lhs x_rhs & more-clauses]])}
+  {:arglists '([[x_lhs x_rhs & more-clauses]])
+   :private true}
   [clauses]
   (let [rfs (map (fn [[query yield]]
                    (rewrite-rule-factory

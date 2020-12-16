@@ -17,10 +17,21 @@
                             symbol
                             vec
                             vector])
-  (:require [clojure.core :as clojure]
+  (:require [#?(:clj clojure.core, :cljs cljs.core) :as clojure]
             [clojure.zip :as zip]
             [meander.syntax.epsilon :as m.syntax]
-            [meander.util.epsilon :as m.util]))
+            [meander.util.epsilon :as m.util])
+  #?(:cljs
+     (:require-macros [meander.pattern-factory.epsilon
+                       :refer [*
+                               *?
+                               +
+                               +?
+                               fresh
+                               hash-map
+                               hash-set
+                               stale
+                               vector]])))
 
 ;; Runtime
 ;; -------
@@ -604,42 +615,74 @@
                            (node-py bindings))))
                  (context-py bindings))))))))
 
-(defrecord Cons [head-pf tail-pf]
-  IMakeQuery
-  (make-query [this runtime]
-    (let [head-pq (make-query head-pf runtime)
-          tail-pq (make-query tail-pf runtime)
-          fail (get runtime :fail)
-          fmap (get runtime :fmap)]
-      (fn cons-query [target bindings]
-        (if (and (sequential? target) (clojure/seq target))
-          (let [head (first target)
-                tail (next target)]
-            (fmap (fn [bindings]
-                    (tail-pq tail bindings))
-                  (head-pq head bindings)))
-          fail))))
+;; ClojureScript doesn't like this.
+;;
+;; (defrecord Cons [head-pf tail-pf]
+;;   IMakeQuery
+;;   (make-query [this runtime]
+;;     (let [head-pq (make-query head-pf runtime)
+;;           tail-pq (make-query tail-pf runtime)
+;;           fail (get runtime :fail)
+;;           fmap (get runtime :fmap)]
+;;       (fn cons-query [target bindings]
+;;         (if (and (sequential? target) (clojure/seq target))
+;;           (let [head (first target)
+;;                 tail (next target)]
+;;             (fmap (fn [bindings]
+;;                     (tail-pq tail bindings))
+;;                   (head-pq head bindings)))
+;;           fail))))
 
-  IMakeYield
-  (make-yield [this runtime]
-    (let [head-py (make-yield head-pf runtime)
-          tail-py (make-yield tail-pf runtime)
-          fail (get runtime :fail)
-          fmap (get runtime :fmap)
-          pass (get runtime :pass)]
-      (fn cons-yield [bindings]
-        (fmap (fn [bindings]
-                (let [head (get bindings :object)]
-                  (fmap (fn [bindings]
-                          (let [tail (get bindings :object)]
-                            (if (sequential? tail)
-                              (pass (assoc bindings :object (clojure/cons head tail)))
-                              fail)))
-                        (tail-py bindings))))
-              (head-py bindings))))))
+;;   IMakeYield
+;;   (make-yield [this runtime]
+;;     (let [head-py (make-yield head-pf runtime)
+;;           tail-py (make-yield tail-pf runtime)
+;;           fail (get runtime :fail)
+;;           fmap (get runtime :fmap)
+;;           pass (get runtime :pass)]
+;;       (fn cons-yield [bindings]
+;;         (fmap (fn [bindings]
+;;                 (let [head (get bindings :object)]
+;;                   (fmap (fn [bindings]
+;;                           (let [tail (get bindings :object)]
+;;                             (if (sequential? tail)
+;;                               (pass (assoc bindings :object (clojure/cons head tail)))
+;;                               fail)))
+;;                         (tail-py bindings))))
+;;               (head-py bindings))))))
 
 (defn cons [head-pf tail-pf]
-  (Cons. head-pf tail-pf))
+  ;; (Cons. head-pf tail-pf)
+  (factory
+   (fn cons-make-query [runtime]
+     (let [head-pq (make-query head-pf runtime)
+           tail-pq (make-query tail-pf runtime)
+           fail (get runtime :fail)
+           fmap (get runtime :fmap)]
+       (fn cons-query [target bindings]
+         (if (and (sequential? target) (clojure/seq target))
+           (let [head (first target)
+                 tail (next target)]
+             (fmap (fn [bindings]
+                     (tail-pq tail bindings))
+                   (head-pq head bindings)))
+           fail))))
+   (fn cons-make-yield [runtime]
+     (let [head-py (make-yield head-pf runtime)
+           tail-py (make-yield tail-pf runtime)
+           fail (get runtime :fail)
+           fmap (get runtime :fmap)
+           pass (get runtime :pass)]
+       (fn cons-yield [bindings]
+         (fmap (fn [bindings]
+                 (let [head (get bindings :object)]
+                   (fmap (fn [bindings]
+                           (let [tail (get bindings :object)]
+                             (if (sequential? tail)
+                               (pass (assoc bindings :object (clojure/cons head tail)))
+                               fail)))
+                         (tail-py bindings))))
+               (head-py bindings)))))))
 
 (def empty
   (some (is ()) (is nil)))
@@ -739,7 +782,7 @@
   ([coll-pf item-pf]
    (Conj. coll-pf item-pf))
   ([coll-pf item-pf & more-items-pf]
-   (call conj (conj coll-pf item-pf) more-items-pf)))
+   (clojure/apply conj (conj coll-pf item-pf) more-items-pf)))
 
 (defn vector-from
   ([]
