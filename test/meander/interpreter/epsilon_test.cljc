@@ -3,19 +3,48 @@
             [meander.interpreter.epsilon :as mi]
             [meander.util.epsilon :as m.util])
   #?(:cljs
-     (:require-macros [meander.interpreter.epsilon-test :refer [with-the-right-namespace]])))
+     (:require-macros [meander.interpreter.epsilon-test :refer [pattern]])))
+
+;; Helpers/Hacks
+;; ---------------------------------------------------------------------
+
+;; HACK: `*ns*` is user when running tests from the command
+;; line. This is a problem for tests which need to resolve symbols
+;; e.g. any test which uses an operator. The two macros below "fix"
+;; this problem by ensuring that we are in *this* namespace for
+;; Clojure, and by ensuring that a pattern form is parsed with respect
+;; to *this* namespace in ClojureScript. The latter solution does this
+;; by attaching meta to the form which, internally, is merged into the
+;; parse environment.
 
 #?(:clj
-   ;; A breadth and depth of sadness captured in macro form.
-   (defmacro with-the-right-namespace [& body]
-     (if (m.util/cljs-env? &env) 
-       `(comment ~@body)
-       `(binding [*ns* (the-ns 'meander.interpreter.epsilon-test)]
-          ~@body))))
+   (defmacro in-this-ns [& body]
+     (if (m.util/cljs-env? &env)
+       `(do ~@body)
+       (binding [*ns* (the-ns (symbol (namespace ::_)))]
+         ~@body))))
 
-(defn project [vars]
-  (fn [bindings]
-    (mapv bindings vars)))
+#?(:clj
+   (defmacro pattern [form]
+     (if (m.util/cljs-env? &env) 
+       `(quote ~(with-meta form &env))
+       `(quote ~form))))
+
+(defn project
+  "Helper which extracts the values of vars (keys) out a map in the
+  order they are given.
+
+  Example:
+
+    (let [f (mi/finder '[?x ?y] (project '[?y ?x ?y]))]
+      (f [1 2]))
+    ;; => [2 1 2]"
+  [vars]
+  (fn [bindings] (mapv bindings vars)))
+
+;; Tests
+;; ---------------------------------------------------------------------
+
 
 (t/deftest quote-pattern-test
   (t/is ((mi/finder ''?x (constantly true)) '?x))
@@ -40,29 +69,43 @@
 
 
 (t/deftest and-test
-  (with-the-right-namespace
-    (let [sf (mi/searcher '(mi/and ?x 1) (project '[?x]))]
+  (in-this-ns
+    (let [sf (mi/searcher
+              (pattern (mi/and ?x 1))
+              (project '[?x]))]
       (t/is (= (sf 1) [[1]])))
 
-    (let [ff (mi/finder '(mi/and 1 1) (constantly true))]
+    (let [ff (mi/finder
+              (pattern (mi/and 1 1))
+              (constantly true))]
       (t/is (ff 1)))
 
-    (let [ff (mi/finder '(mi/and 1 2) (constantly false))]
+    (let [ff (mi/finder
+              (pattern (mi/and 1 2))
+              (constantly false))]
       (t/is (= nil (ff 2))))
 
-    (let [ff (mi/finder '(mi/and ?x 1) (project ['?x]))]
+    (let [ff (mi/finder
+              (pattern (mi/and ?x 1))
+              (project ['?x]))]
       (t/is (= (ff 1) [1])))))
 
 
 (t/deftest or-test
-  (with-the-right-namespace
-    (let [sf (mi/searcher '(mi/or ?x 1) (project ['?x]))]
+  (in-this-ns
+    (let [sf (mi/searcher
+              (pattern (mi/or ?x 1))
+              (project ['?x]))]
       (t/is (= (sf 1) [[1] [nil]])))
 
-    (let [ff (mi/finder '(mi/or 1 2) (constantly true))]
+    (let [ff (mi/finder
+              (pattern (mi/or 1 2))
+              (constantly true))]
       (t/is (ff 2)))
 
-    (let [ff (mi/finder '(mi/or 2 1) (constantly true))]
+    (let [ff (mi/finder
+              (pattern (mi/or 2 1))
+              (constantly true))]
       (t/is (ff 1)))))
 
 (t/deftest vec-test

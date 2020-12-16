@@ -83,7 +83,8 @@
 (defn pattern
   {:private true}
   [form]
-  (-pattern (m.match.syntax/parse form default-parse-env)))
+  (let [parse-env (merge default-parse-env (meta form))]
+    (-pattern (m.match.syntax/parse form parse-env))))
 
 (defmethod -pattern :any [_]
   m.pf/anything)
