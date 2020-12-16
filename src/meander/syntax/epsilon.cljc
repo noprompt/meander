@@ -617,8 +617,6 @@
     (quote <form>)
     (clojure.core/unquote <form>)
     (clojure.core/unquote-splicing <form>)
-    (meander.epsilon/fresh [<variable-form> ...] <form>)
-    (meander.epsilon/project <form> <form> <form>)
     (<symbol*> <form_0> ... <form_n>)
 
   where symbol* is a fully qualified symbol with respect to the
@@ -2043,21 +2041,21 @@
     `(do ~expander-definition-body-form
          (var ~fn-name))))
 
-(defn parse-fresh
-  {:private true}
-  [[_ var-forms pattern-form] env]
-  {:tag :meander.syntax.epsilon/fresh
-   :vars (parse-all var-forms env)
-   :pattern (parse pattern-form env)})
+;; (defn parse-fresh
+;;   {:private true}
+;;   [[_ var-forms pattern-form] env]
+;;   {:tag :meander.syntax.epsilon/fresh
+;;    :vars (parse-all var-forms env)
+;;    :pattern (parse pattern-form env)})
 
-(register-parser `meander.syntax.epsilon/fresh #'parse-fresh)
+;; (register-parser `meander.syntax.epsilon/fresh #'parse-fresh)
 
-(defn parse-project
-  {:private true}
-  [[_ yield-form query-form object-form] env]
-  {:tag :meander.syntax.epsilon/project
-   :yield-pattern (parse yield-form env)
-   :query-pattern (parse query-form env)
-   :value-pattern (parse object-form env)})
+;; (defn parse-project
+;;   {:private true}
+;;   [[_ yield-form query-form object-form] env]
+;;   {:tag :meander.syntax.epsilon/project
+;;    :yield-pattern (parse yield-form env)
+;;    :query-pattern (parse query-form env)
+;;    :value-pattern (parse object-form env)})
 
-(register-parser `meander.syntax.epsilon/project #'parse-project)
+;; (register-parser `meander.syntax.epsilon/project #'parse-project)
