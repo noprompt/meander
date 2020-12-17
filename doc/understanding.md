@@ -4,17 +4,17 @@
 
 Meander provides five pattern matching macros that supply different functionality for specific circumstances:
 
-  * `match` --
+  * [`match`](#match) --
      Finds a single match of the input against the list of patterns.
      Throws an exception if nothing matches.
-  * `search` --
+  * [`search`](#search) --
     Finds potentially multiple matches of the input against the list of patterns.
     Returns a sequence of matches or `nil` if nothing matches.
-  * `find` --
+  * [`find`](#find) --
     Like `search` but only returns the first match or `nil`.
-  * `rewrites` --
-    Like `search`, returns a sequence of values or `nil`, but using Meander's substitution operations on the right-hand-side (see below).
-  * `rewrite` --
+  * [`rewrites`](#rewrites-and-rewrite) --
+    Like `search`, returns a sequence of values or `nil`, but using Meander's substitution operations on the right-hand-side (see [below](#rewrites-and-rewrite)).
+  * [`rewrite`](#rewrites-and-rewrite) --
     As `find` is to `search`, so `rewrite` is to `rewrites`.
     Returns the first match and uses Meander's substitution operations on the right-hand-side.
 
@@ -34,11 +34,11 @@ Before we dive in, however, let's define some concepts that appear throughout th
     If the *input* matches the *pattern* then Meander evaluates the corresponding *expression* and returns the result.
     Depending on the matching macro that is being used, this may happen multiple times.
   * *pattern* --
-    The *pattern* is composed of literal data and Meander's matching operators (described in more detail in [Operator Overview](./operator-overview)).
+    The *pattern* is composed of literal data and Meander's matching operators (described in more detail in [Operator Overview](./operator-overview.md)).
   * *expression* --
     If the *input* matches the *pattern* then Meander evaluates the corresponding *expression* and returns the result.
     In the `match`, `search`, and `find` macros, the *expression* is arbitrary Clojure code that is evaluated normally.
-    In the `rewrites` and `rewrite` macros, the expression uses Meander's substitution operations instead of evaluating arbitrary Clojure code (described in more detail in [Substitution](./substitution)).
+    In the `rewrites` and `rewrite` macros, the expression uses Meander's substitution operations instead of evaluating arbitrary Clojure code (described in more detail in [Substitution](./substitution.md)).
 
 The general form of a Meander matching macro is:
 
@@ -98,10 +98,10 @@ Meander can match against various types of Clojure data structures, too.
 ```
 
 Here, we're matching against a vector.
-As you'll see when we review the [operators](./operator-overview), we can also match against all the other Clojure datatypes (lists, maps, sets, etc.).
+As you'll see when we review the [operators](./operator-overview.md), we can also match against all the other Clojure datatypes (lists, maps, sets, etc.).
 
 Meander also supports *logic variables* that will be set to the value of all or a portion of the input value that matches the rest of the pattern.
-We'll learn more about these in [Operator Overview](./operator-overview), but we'll introduce the basics here to help us with more sophisticated examples.
+We'll learn more about these in [Operator Overview](./operator-overview.md), but we'll introduce the basics here to help us with more sophisticated examples.
 A logic variable is simply a symbol that begins with a leading question mark.
 
 ```clojure
@@ -300,7 +300,7 @@ You can even scan multiple collections of things and find relationships between 
 ;;     {:name "Alice", :address {:type :vacation, :person-id 2, :info ""}})
 ```
 
-Here, the first clause pattern will match a Clojure map containing *at least* two keys, `:people` and `:addresses` (there may be other keys present; see [Operator Overview](./operator-overview)).
+Here, the first clause pattern will match a Clojure map containing *at least* two keys, `:people` and `:addresses` (there may be other keys present; see [Operator Overview](./operator-overview.md)).
 The first `scan` will run through each item of the `:people` vector, matching each item to another map with `:name` and `:id` keys, binding the `?name` and `?id` logic variables to each value, in turn.
 The second `scan` will run through each item of the `:addresses` vector, confirming that each element is a map with a `:person-id` key.
 Since the same logic variable, `?id`, is used in this second scan, it will only match maps that have a `:person-id` value that corresponds to the current binding of `?id`.
@@ -510,7 +510,7 @@ In the next example, you can see how easy it is to use Meander to destructure a 
 This is simply a data-to-data transformation.
 Meander extracts data values in the LHS pattern and then reconstructs a new data value in the RHS substitution.
 
-There is a lot more you can do with Meander's substitution capabilities. You can read about them in [Substitution](./substition).
+There is a lot more you can do with Meander's substitution capabilities. You can read about them in [Substitution](./substition.md).
 
 
 ## Conclusion
