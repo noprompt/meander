@@ -612,3 +612,26 @@
   ([query yield & more-clauses]
    (assert (even? (count more-clauses)) "finder expects an even number of arguments")
    (rewriter-from (cons [query yield] (partition 2 more-clauses)))))
+
+(defn rewriters-from
+  "Takes a sequence of [query yield] pairs and returns a function which
+  behaves like `meander.epsilon/rewrites`. query and yield is are
+  quoted patterns."
+  {:arglists '([[query yield] & more-query-yield-pairs])}
+  [clauses]
+  ((rewrite-system-factory clauses) m.pf/depth-first-search-runtime))
+
+(defn rewriters
+  "Takes an even number of arguments
+
+    query_1 yield_1
+    ...
+    query_n yield_n
+
+  and returns a function which behaves like
+  `meander.epsilon/rewrites`. query and yield are quoted patterns."
+  ([query yield]
+   (rewriters-from [query yield]))
+  ([query yield & more-clauses]
+   (assert (even? (count more-clauses)) "finder expects an even number of arguments")
+   (rewriters-from (cons [query yield] (partition 2 more-clauses)))))
