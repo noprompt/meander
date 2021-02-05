@@ -385,12 +385,15 @@
           cata (get environment :cata)
           give (get environment :give)
           mint (get environment :mint)
+          pass (get environment :pass)
           take (get environment :take)
           pattern-yield (yield-function pattern environment)
           cata-yield (yield-function cata environment)]
       (fn [state]
         (bind (fn [pattern-state]
-                (cata-yield (mint pattern-state)))
+                (bind (fn [cata-state]
+                        (pass (give pattern-state (take cata-state))))
+                      (cata-yield (mint pattern-state))))
               (pattern-yield state))))))
 
 ;; Regular Expression Patterns
