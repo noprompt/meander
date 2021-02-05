@@ -12,7 +12,6 @@
                             list
                             merge
                             not
-                            proxy
                             hash-map
                             hash-set
                             set
@@ -36,22 +35,6 @@
 (defprotocol IYieldFunction
   :extend-via-metadata true
   (yield-function [this environment]))
-
-(defrecord Proxy [query-proxy yield-proxy]
-  IQueryFunction
-  (query-function [this environment]
-    (query-function (query-proxy environment) environment))
-
-  IYieldFunction
-  (yield-function [this environment]
-    (yield-function (yield-proxy environment) environment)))
-
-(defn proxy
-  {:style/indent 0}
-  ([make-pattern]
-   (->Proxy make-pattern make-pattern))
-  ([make-query-pattern make-yield-pattern]
-   (->Proxy make-query-pattern make-yield-pattern)))
 
 (defrecord Rule [query-pattern yield-pattern]
   IQueryFunction
