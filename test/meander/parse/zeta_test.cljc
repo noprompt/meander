@@ -1,4 +1,4 @@
-(ns meander.parse-test.zeta
+(ns meander.parse.zeta-test
   (:require [clojure.test :as t]
             [meander.core.zeta :as m]
             [meander.util.zeta :as m.util]
