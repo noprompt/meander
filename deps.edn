@@ -1,20 +1,18 @@
 {:paths ["src"]
  :deps {org.clojure/clojure {:mvn/version "1.10.0"}
-        org.clojure/clojurescript {:mvn/version "1.10.439"}
+        org.clojure/clojurescript {:mvn/version "1.10.773"}
         org.clojure/test.check {:mvn/version "0.10.0-alpha3"}}
  :aliases {:dev {:extra-deps {fipp/fipp {:mvn/version "0.6.21"}
-                              meander/epsilon
-                              {:mvn/version "0.0.479"}}
+                              meander/epsilon {:mvn/version "0.0.479"}}
                  :extra-paths ["dev" "test"]}
            :test {:extra-paths ["test"]
                   :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                                           :sha "209b64504cb3bd3b99ecfec7937b358a879f55c1"}
-                               eftest {:mvn/version "0.5.8"}
+                               eftest/eftest {:mvn/version "0.5.8"}
                                meander/epsilon {:mvn/version "0.0.287"}}
                   :main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]])"
-                              "-e" "(run-tests,(find-tests,\"test\"))"]
-                  #_["-m" "cognitect.test-runner"]}
+                              "-e" "(run-tests,(find-tests,\"test\"))"]}
            :cljs-test {:extra-paths ["test"]
                        :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
