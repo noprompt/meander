@@ -62,9 +62,7 @@
               (m/one (m/all (m/seq m/_) (m/project m/seq ?f m/_))
                      (m/all (m/vec m/_) (m/project m/vec ?f m/_))))
        (m/apply ?f [(m/apply m/* [(m/* [(m/apply parse [<1])])
-                                  (m/apply parse [?2])])])))
-
-    ]))
+                                  (m/apply parse [?2])])])))]))
 
 (defn variable-rules [environment]
   (let [?id (m/logic-variable)
