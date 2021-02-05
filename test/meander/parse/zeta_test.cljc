@@ -1,7 +1,7 @@
 (ns meander.parse.zeta-test
   (:require [clojure.test :as t]
             [meander.core.zeta :as m]
-            [meander.util.zeta :as m.util]
+            [meander.util.zeta :as m.util :include-macros true]
             [meander.parse.zeta :as m.parse]))
 
 (defn parse [form]

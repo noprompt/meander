@@ -943,7 +943,7 @@
   (yield-function [this environment]
     (yield-function (->ConstantPattern this) environment)))
 
-(extend-type Object
+(extend-type #?(:clj Object :cljs default)
   IQueryFunction
   (query-function [this environment]
     (query-function (->ConstantPattern this) environment))
@@ -951,7 +951,6 @@
   IYieldFunction
   (yield-function [this environment]
     (yield-function (->ConstantPattern this) environment)))
-
 
 ;; API
 ;; ---------------------------------------------------------------------
