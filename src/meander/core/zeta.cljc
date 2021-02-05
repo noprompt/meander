@@ -36,15 +36,6 @@
   :extend-via-metadata true
   (yield-function [this environment]))
 
-(defrecord Rule [query-pattern yield-pattern]
-  IQueryFunction
-  (query-function [this environment]
-    (query-function query-pattern environment))
-
-  IYieldFunction
-  (yield-function [this environment]
-    (yield-function yield-pattern environment)))
-
 ;; Primitive Patterns
 ;; ---------------------------------------------------------------------
 
@@ -929,6 +920,19 @@
                    (yield state))))
          (pass (give state {}))
          yields)))))
+
+
+;; Other objects
+;; ---------------------------------------------------------------------
+
+(defrecord Rule [query-pattern yield-pattern]
+  IQueryFunction
+  (query-function [this environment]
+    (query-function query-pattern environment))
+
+  IYieldFunction
+  (yield-function [this environment]
+    (yield-function yield-pattern environment)))
 
 (extend-type nil
   IQueryFunction
