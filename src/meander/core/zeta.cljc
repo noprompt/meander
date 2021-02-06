@@ -1149,8 +1149,11 @@
                     (fn []
                       (fail none))))))))
 
-(defn filo-variable [id]
-  (variable id filo-fold-function filo-unfold-function))
+(defn filo-variable
+  ([]
+   (filo-variable (gensym ">__")))
+  ([id]
+   (variable id filo-fold-function filo-unfold-function)))
 
 (defn reference
   ([] (->Reference (gensym "%__")))
