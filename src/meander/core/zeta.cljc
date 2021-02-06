@@ -81,23 +81,18 @@
 (defrecord DualPattern [is-pattern is-not-pattern]
   IQueryFunction
   (query-function [this environment]
-    (let [bind (get environment :bind)
-          fail (get environment :fail)
-          pass (get environment :pass)
+    (let [dual (get environment :dual)
           is-query (query-function is-pattern environment)
-          is-not-query (query-function is-not-pattern (clojure/merge environment {:fail pass, :pass fail}))]
+          is-not-query (query-function is-not-pattern environment)]
       (fn [state]
-        (bind is-not-query (is-query state)))))
+        (dual (is-query state) (is-not-query state)))))
 
   IYieldFunction
   (yield-function [this environment]
-    (let [bind (get environment :bind)
-          fail (get environment :fail)
-          pass (get environment :pass)
-          is-yield (yield-function is-pattern environment)
-          is-not-query (query-function is-not-pattern (clojure/merge environment {:fail pass, :pass fail}))]
+    (let [is-yield (yield-function is-pattern environment)
+          is-not-yield (yield-function is-not-pattern environment)]
       (fn [state]
-        (bind is-not-query (is-yield state))))))
+        (dual (is-yield state) (is-not-yield state))))))
 
 (defrecord OnePattern [pattern-a pattern-b]
   IQueryFunction
