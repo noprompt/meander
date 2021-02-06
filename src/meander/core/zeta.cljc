@@ -904,16 +904,18 @@
           merge (eval `clojure.core/merge)]
       (fn [state]
         (reduce
-         (fn [state yield]
-           (let [m1 (take state)]
-             (bind (fn [state]
-                     (let [m2 (take state)]
-                       (test (call map? m2)
-                             (fn []
-                               (pass (give state (call merge m1 m2))))
-                             (fn []
-                               (fail state)))))
-                   (yield state))))
+         (fn [ma yield]
+           (bind (fn [state]
+                   (let [m1 (take state)]
+                     (bind (fn [yield-state]
+                             (let [m2 (take yield-state)]
+                               (test (call map? m2)
+                                     (fn []
+                                       (pass (give state (call merge m1 m2))))
+                                     (fn []
+                                       (fail state)))))
+                           (yield state))))
+                 ma))
          (pass (give state {}))
          yields)))))
 
