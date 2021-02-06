@@ -33,6 +33,7 @@
       (m/rule
        (m/cons (m/one (m/project m/all ?f (special-symbol `m/all environment))
                       (m/project m/again ?f (special-symbol `m/again environment))
+                      (m/project m/dual ?f (special-symbol `m/dual environment))
                       (m/project m/some ?f (special-symbol `m/some environment))
                       (m/project m/predicate ?f (special-symbol `m/predicate environment))
                       (m/project m/project ?f (special-symbol `m/project environment))
