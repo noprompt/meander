@@ -413,7 +413,7 @@
           head-query (query-function head-pattern environment)
           tail-query (query-function tail-pattern environment)
           nth (eval `clojure.core/nth)
-          rest (eval `clojure.core/rest)
+          tail (eval `m.algorithms/tail)
           seq (eval `clojure.core/seq)
           sequential? (eval `clojure.core/sequential?)
           zero (eval 0)]
@@ -424,9 +424,9 @@
                   (test (call seq object)
                         (fn []
                           (let [head (call nth object zero)
-                                tail (call rest object)]
+                                rest (call tail object)]
                             (bind (fn [x-state]
-                                    (tail-query (give x-state tail)))
+                                    (tail-query (give x-state rest)))
                                   (head-query (give state head)))))
                         (fn []
                           (fail state))))
