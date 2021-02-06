@@ -94,7 +94,7 @@
 (defn base-sequential-rules []
   (m/one-system
    [(m/rule
-     (m/one [] '[&] '[*] '[+])
+     (m/one [] '[&] '[*] '[+] '[*?])
      [])
 
     (let [?1 (m/logic-variable)
@@ -109,13 +109,14 @@
           ?f (m/logic-variable)]
       (m/rule
        (m/rx-join ?1 (m/rx-cons (m/one (m/project m/* ?f '*)
+                                       (m/project m/*? ?f '*?)
                                        (m/project m/+ ?f '+))
                                 ?2))
        (m/apply ?f [(m/again ?1) (m/again ?2)])))
 
     (let [<1 (m/fifo-variable)]
       (m/rule
-       (m/* [(m/dual <1 (m/one '& '* '+))])
+       (m/* [(m/dual <1 (m/one '& '* '*? '+))])
        (m/apply m/rx-cat (m/* [(m/again <1)]))))]))
 
 (defn sequential-rules []
