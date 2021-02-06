@@ -1,6 +1,6 @@
 (ns meander.environment.code.zeta-test
   (:require [clojure.test :as t]
-            [meander.util.zeta :as m.util :include-macros true]
+            [meander.util.zeta :as m.util]
             [meander.environment.code.zeta :as m.environment.code]))
 
 (defmacro => [a b]
