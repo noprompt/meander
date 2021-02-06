@@ -1,41 +1,25 @@
 (ns meander.environment.code.zeta
-  (:require
-   [clojure.walk :as walk]
-   [meander.core.zeta :as m]
-   [meander.environment.eval.zeta :as m.environment.eval]
-   [meander.parse.zeta :as m.parse]
-   [meander.util.zeta :as m.util]))
+  (:require [clojure.walk :as walk]
+            [meander.core.zeta :as m]
+            [meander.environment.eval.zeta :as m.environment.eval]
+            [meander.parse.zeta :as m.parse]
+            [meander.util.zeta :as m.util]))
 
-(defn constant? [x]
-  (or (boolean? x)
-      (nil? x)
-      (number? x)
-      (string? x)
-      (keyword? x)
-      (and (or (vector? x)
-               (map? x)
-               (set? x))
-           (every? constant? x))
-      (= x ())))
+;; Utilities
+;; ---------------------------------------------------------------------
 
-(defn truthy-constant? [x]
-  (or (true? x)
-      (number? x)
-      (string? x)
-      (keyword? x)
-      (vector? x)
-      (map? x)
-      (set? x)))
-
-(defn falsy-constant? [x]
-  (or (false? x)
-      (nil? x)))
-
-(defn parse-environment []
+(defn parse-environment
+  {:private true}
+  []
   (letfn [(variable-id [sigil name]
             (gensym (str sigil "__")))]
     (assoc (m.util/canonical-ns)
            :variable-id (memoize variable-id))))
+
+(defn parser
+  {:private true}
+  []
+  (m.parse/parser (parse-environment)))
 
 (defn invert-quote
   {:private true}
@@ -57,14 +41,51 @@
          x)))
    form))
 
-(defmacro rule [query yield]
-  `(let [parse-environment# (parse-environment)]
-     (m/rule (m.parse/parse parse-environment# ~(invert-quote query))
-             (m.parse/parse parse-environment# ~(invert-quote yield)))))
+(defmacro rule
+  {:private true}
+  [query yield]
+  `(let [parse# (m.parse/parser (parse-environment))]
+     (m/rule (parse# ~(invert-quote query))
+             (parse# ~(invert-quote yield)))))
 
-(def partial-evaluation-system
+;; Partial Evaluation
+;; ---------------------------------------------------------------------
+
+(defn constant?
+  {:private true}
+  [x]
+  (or (boolean? x)
+      (nil? x)
+      (number? x)
+      (string? x)
+      (keyword? x)
+      (and (or (vector? x)
+               (map? x)
+               (set? x))
+           (every? constant? x))
+      (= x ())))
+
+(defn truthy-constant?
+  {:private true}
+  [x]
+  (or (true? x)
+      (number? x)
+      (string? x)
+      (keyword? x)
+      (vector? x)
+      (map? x)
+      (set? x)))
+
+(defn falsy-constant?
+  {:private true}
+  [x]
+  (or (false? x)
+      (nil? x)))
+
+(def ^{:private true}
+  partial-evaluation-system
   (m/one-system
-   [ ;; clojure.core/assoc
+   [;; clojure.core/assoc
     (rule
      (clojure.core/assoc (m/again ?map-form) (m/again ?key-form) (m/again ?val-form))
      (m/one
@@ -111,17 +132,3 @@
 
 (defn partial-evaluate [x]
   (m/run-system partial-evaluation-system m.environment.eval/depth-first-one x))
-
-(comment
-  (partial-evaluate
-   '(let* [X__345992 (clojure.core/= (clojure.core/get (clojure.core/assoc A__345504 :object (clojure.core/get A__345988 :object)) :object) X__345990)]
-      (if true
-        (clojure.core/assoc (clojure.core/assoc A__345504 :object (clojure.core/get A__345988 :object)) '?__344558 X__345990)
-        nil)))
-
-  (partial-evaluate
-   '(let* [X__345992 (clojure.core/= (clojure.core/get (clojure.core/assoc A__345504 :object (clojure.core/get A__345988 :object)) :object) X__345990)]
-      (if false
-        (clojure.core/assoc (clojure.core/assoc A__345504 :object (clojure.core/get A__345988 :object)) '?__344558 X__345990)
-        nil))))
-
