@@ -1492,9 +1492,14 @@
       (bind (comp pass take)
             (with (seed x) {(:id %again) again} again)))))
 
-#_
-(run-system (one-system
-             [(rule 1 (again 2))
-              (rule 2 (again 3))
-              (one-system [(rule 3 4)])])
-            m.environment/depth-first-one-eval 1)
+(comment
+  (require '[meander.environment.eval.zeta :as m.environment.eval])
+
+  (run-system
+   (one-system
+    [(rule 1 (again 2))
+     (rule 2 (again 3))
+     (one-system [(rule 3 4)])])
+   m.environment.eval/depth-first-one 1)
+  ;; => 4
+  )
