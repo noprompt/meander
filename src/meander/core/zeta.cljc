@@ -1468,13 +1468,16 @@
           (bind yield (query (seed object))))))
 
 (defn one-system [rules]
-  (let [?rule-id (logic-variable)]
+  (let [?rule-id (logic-variable)
+        system-id (name (gensym "SYSTEM__"))
+        ?system-id (logic-variable)]
     (if (seq rules)
-      (reduce one (mapv
-                   (fn [rule]
-                     (let [rule-id (name (gensym "RULE__"))]
-                       (project rule-id ?rule-id rule)))
-                   rules))
+      (project system-id ?system-id
+               (reduce one (mapv
+                            (fn [rule]
+                              (let [rule-id (name (gensym "RULE__"))]
+                                (project rule-id ?rule-id rule)))
+                            rules)))
       nothing)))
 
 (defn run-system [system environment x]
