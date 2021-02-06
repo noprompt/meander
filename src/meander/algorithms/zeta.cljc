@@ -35,6 +35,15 @@
     `(nth ~v ~i)
     `(.nth ~(vary-meta v assoc :tag 'clojure.lang.IPersistentVector) ~i)))
 
+(defn tail
+  [x]
+  {:pre [(sequential? x)]}
+  (if (vector? x)
+    (if (zero? (count x))
+      []
+      (subvec x 1))
+    (rest x)))
+
 ;; Permutations
 ;; ---------------------------------------------------------------------
 
