@@ -1227,12 +1227,11 @@
      (yield-proxy
       (fn [environment]
         (let [eval (get environment :eval)
-              seq (eval `clojure.core/seq)
+              list (eval `clojure.core/list)
               coll? (eval `clojure.core/coll?)
               nil? (eval `clojure.core/nil?)]
-          (apply seq
-                 [(some (predicate coll? pattern)
-                        (predicate nil? pattern))]))))}))
+          (apply list (one (predicate coll? pattern)
+                           (predicate nil? pattern))))))}))
 
 (defn cons [x-pattern seq-pattern]
   (seq (rx-cons x-pattern seq-pattern)))
@@ -1256,11 +1255,12 @@
      (yield-proxy
       (fn [environment]
         (let [eval (get environment :eval)
+              vec (eval `clojure.core/vec)
               coll? (eval `clojure.core/coll?)
-              ?coll (logic-variable)
-              %coll (all ?coll (some nil (predicate coll?)))]
-          (apply (eval `clojure.core/vec)
-                 (rx-cat (project pattern %coll ?coll))))))}))
+              nil? (eval `clojure.core/nil?)]
+          (apply vec
+                 [(one (predicate coll? pattern)
+                       (predicate nil? pattern))]))))}))
 
 (defn keyword
   ([name-pattern]
