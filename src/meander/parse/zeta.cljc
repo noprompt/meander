@@ -90,7 +90,7 @@
        (m/symbol ?namespace ?name)
        (m/apply m/symbol [?namespace ?name])))]))
 
-(def base-sequential-rules
+(defn base-sequential-rules []
   (m/one-system
    [(m/rule
      (m/one [] '[&] '[*] '[+])
@@ -117,15 +117,16 @@
        (m/* [(m/dual <1 (m/one '& '* '+))])
        (m/apply m/rx-cat (m/* [(m/again <1)]))))]))
 
-(def sequential-rules
+(defn sequential-rules []
   (let [?x (m/logic-variable)
-        ?f (m/logic-variable)]
+        ?f (m/logic-variable)
+        %base-sequential-rules (base-sequential-rules)]
     (m/rule
-     (m/one (m/seq (m/project m/seq ?f base-sequential-rules))
-            (m/vec (m/project m/vec ?f base-sequential-rules)))
-     (m/apply ?f [base-sequential-rules]))))
+     (m/one (m/seq (m/project m/seq ?f %base-sequential-rules))
+            (m/vec (m/project m/vec ?f %base-sequential-rules)))
+     (m/apply ?f [%base-sequential-rules]))))
 
-(def map-rules 
+(defn map-rules []
   (m/one-system
    [;; {} => (m/merge)
     (m/rule
@@ -145,9 +146,7 @@
           ?v (m/logic-variable)]
       (m/rule
        (m/assoc ?m (m/dual ?k '&) ?v)
-       (m/apply m/assoc [(m/again ?m)
-                         (m/again ?k)
-                         (m/again ?v)])))]))
+       (m/apply m/assoc [(m/again ?m) (m/again ?k) (m/again ?v)])))]))
 
 (defn make-rules
   {:private true}
@@ -156,8 +155,8 @@
     (m/one-system
      [(special-form-rules environment)
       (make-symbol-rules environment)
-      sequential-rules
-      map-rules
+      (sequential-rules)
+      (map-rules)
       ?x])))
 
 (defn parser [environment]
@@ -168,4 +167,3 @@
 
 (defn parse [environment x]
   ((parser environment) x))
-
