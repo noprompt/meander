@@ -4,8 +4,8 @@
             [meander.util.zeta :as m.util :include-macros true]
             [meander.parse.zeta :as m.parse]))
 
-(defn parse [form]
-  (m.parse/parse (m.util/canonical-ns) form))
+(def parse
+  (m.parse/parser (m.util/canonical-ns)))
 
 (t/deftest parse-variable-test
   (t/testing "parse logic variable"
@@ -42,17 +42,17 @@
 
 (t/deftest parse-sequential-test
   (t/testing "parse seq"
-    (t/is (= ()
+    (t/is (= (m/seq ())
              (parse ())))
 
-    (t/is (= (m/seq (m/rx-cons 1 ()))
+    (t/is (= (m/seq (m/rx-cat 1))
              (parse '(1)))))
 
   (t/testing "parse vector"
-    (t/is (= []
+    (t/is (= (m/vec [])
              (parse [])))
 
-    (t/is (= (m/vec (m/rx-cons 1 ()))
+    (t/is (= (m/vec (m/rx-cat 1))
              (parse [1])))))
 
 (t/deftest parse-map-test
