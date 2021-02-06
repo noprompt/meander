@@ -753,29 +753,27 @@
           concat (eval `clojure.core/concat)
           sequential? (eval `clojure.core/sequential?)]
       (fn [state]
-        (bind (fn [rest-state]
-                (star (fn [rec xs ys state]
-                        (join (pass (give state (call concat xs ys)))
-                              (bind (fn [pattern-state]
-                                      (let [subsequence (take pattern-state)]
-                                        (test (call sequential? subsequence)
-                                              (fn []
-                                                (bind (fn [rest-state]
-                                                        (let [rest (take rest-state)]
-                                                          (test (call sequential? rest)
-                                                                (fn []
-                                                                  (let [xs* (call concat xs subsequence)
-                                                                        ys* (call concat ys rest)]
-                                                                    (call rec xs* ys* rest-state)))
-                                                                (fn [] (fail state)))))
-                                                      (rest-yield pattern-state)))
-                                              (fn []
-                                                (fail state)))))
-                                    (pattern-yield state))))
-                      ()
-                      (take rest-state)
-                      state))
-              (rest-yield state))))))
+        (join (rest-yield state)
+              (star (fn [rec xs state]
+                      (bind (fn [pattern-state]
+                              (let [subsequence (take pattern-state)]
+                                (test (call sequential? subsequence)
+                                      (fn []
+                                        (bind (fn [rest-state]
+                                                (let [rest (take rest-state)]
+                                                  (test (call sequential? rest)
+                                                        (fn []
+                                                          (let [xs* (call concat xs subsequence)
+                                                                ys* (call concat xs* rest)]
+                                                            (join (pass (give rest-state ys*))
+                                                                  (call rec xs* pattern-state))))
+                                                        (fn [] (fail state)))))
+                                              (rest-yield pattern-state)))
+                                      (fn []
+                                        (fail state)))))
+                            (pattern-yield state)))
+                    ()
+                    state))))))
 
 ;; Data Structure Patterns
 ;; -----------------------
@@ -1204,7 +1202,10 @@
 
 
 (defn *? [subsequence-pattern rest-pattern]
-  (->FrugalStar subsequence-pattern rest-pattern))
+  (let [subsequence-pattern (if (sequential? subsequence-pattern)
+                              (clojure/apply rx-cat subsequence-pattern)
+                              subsequence-pattern)]
+    (->FrugalStar subsequence-pattern rest-pattern)))
 
 (defn query-proxy [f]
   (fn [this environment]
