@@ -1111,7 +1111,7 @@
 
 (defn fifo-variable
   ([]
-   (fifo-variable (gensym "!__")))
+   (fifo-variable (gensym "<__")))
   ([id]
    (variable id fifo-fold-function fifo-unfold-function)))
 
