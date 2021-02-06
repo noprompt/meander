@@ -840,7 +840,7 @@
                                   (let [k (take key-state)]
                                     (bind (fn [val-state]
                                             (let [v (take val-state)]
-                                              (pass (give val-state (assoc m k v)))))
+                                              (pass (give val-state (call assoc m k v)))))
                                           (val-yield key-state))))
                                 (key-yield map-state)))
                         (fn []
