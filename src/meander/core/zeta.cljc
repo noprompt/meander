@@ -194,11 +194,20 @@
           take (get environment :take)
           test (get environment :test)
           apply (eval `clojure.core/apply)
-          sequential? (eval `clojure.core/sequential?)
+          coll? (eval `clojure.core/coll?)
+          nil? (eval `clojure.core/nil?)
           fn? (eval `clojure.core/fn?)
           function-yield (yield-function function-pattern environment)
           arguments-yield (yield-function arguments-pattern environment)
-          return-query (query-function return-pattern environment)]
+          return-query (query-function return-pattern environment)
+          arguments-then (memoize
+                          (fn [f arguments state]
+                            (fn []
+                              (let [object (call apply f arguments)
+                                    object-state (give state object)]
+                                (bind (fn [return-state]
+                                        (pass object-state))
+                                      (return-query object-state))))))]
       (fn [state]
         (bind (fn [function-state]
                 (let [f (take function-state)]
@@ -206,22 +215,23 @@
                         (fn []
                           (bind (fn [arguments-state]
                                   (let [arguments (take arguments-state)]
-                                    (test (call sequential? arguments)
+                                    (test (call coll? arguments)
+                                          (arguments-then f arguments arguments-state)
                                           (fn []
-                                            (let [object (call apply f arguments)
-                                                  object-state (give arguments-state object)]
-                                              (bind (fn [return-state]
-                                                      (pass object-state))
-                                                    (return-query object-state))))
-                                          (fn []
-                                            (fail arguments-state)))))
+                                            (test (call nil? arguments)
+                                                  (arguments-then f arguments arguments-state)
+                                                  (fn []
+                                                    (fail arguments-state)))))))
                                 (arguments-yield function-state)))
                         (fn []
                           (fail function-state)))))
               (function-yield state))))))
 
-
 (defrecord PredicatePattern [predicate-pattern x-pattern]
+  IChildren
+  (children [this]
+    [predicate-pattern x-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -1230,11 +1240,16 @@
      (yield-proxy
       (fn [environment]
         (let [eval (get environment :eval)
+              seq (eval `clojure.core/seq)
               list (eval `clojure.core/list)
               coll? (eval `clojure.core/coll?)
-              nil? (eval `clojure.core/nil?)]
-          (apply list (one (predicate coll? pattern)
-                           (predicate nil? pattern))))))}))
+              nil? (eval `clojure.core/nil?)
+              ?x (logic-variable)]
+          (project pattern
+                   (some (predicate coll? ?x)
+                         (predicate nil? ?x))
+                   (apply list ?x)))))}))
+
 
 (defn cons [x-pattern seq-pattern]
   (seq (rx-cons x-pattern seq-pattern)))
@@ -1262,8 +1277,8 @@
               coll? (eval `clojure.core/coll?)
               nil? (eval `clojure.core/nil?)]
           (apply vec
-                 [(one (predicate coll? pattern)
-                       (predicate nil? pattern))]))))}))
+                 [(some (predicate coll? pattern)
+                        (predicate nil? pattern))]))))}))
 
 (defn keyword
   ([name-pattern]
