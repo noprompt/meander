@@ -1009,7 +1009,7 @@
   (dual (anything) pattern))
 
 (defn apply
-  ([function-pattern arguments-pattern] 
+  ([function-pattern arguments-pattern]
    (apply function-pattern arguments-pattern (anything)))
   ([function-pattern arguments-pattern return-pattern]
    (let [arguments-pattern (if (sequential? arguments-pattern)
@@ -1317,7 +1317,7 @@
                keyword (eval `clojure.core/keyword)
                nil? (eval `clojure.core/nil?)
                string? (eval `clojure.core/string?)]
-           (apply keyword 
+           (apply keyword
                   (rx-cat (one (predicate string? namespace-pattern) nil)
                           (predicate string? name-pattern))))))})))
 
@@ -1368,7 +1368,7 @@
                symbol (eval `clojure.core/symbol)
                nil? (eval `clojure.core/nil?)
                string? (eval `clojure.core/string?)]
-           (apply symbol 
+           (apply symbol
                   (rx-cat (one (predicate string? namespace-pattern) nil)
                           (predicate string? name-pattern))))))})))
 (defn str
@@ -1401,7 +1401,7 @@
          (case [(string? x-pattern) (string? y-pattern)]
            [true true]
            (clojure/str x-pattern y-pattern)
-           
+
            [true false]
            (let [eval (get environment :eval)
                  subs (eval `clojure.core/subs)
