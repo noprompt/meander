@@ -135,7 +135,25 @@
           yield-b (yield-function pattern-b environment)]
       (fn [state]
         (pick (yield-a state)
-              (yield-b state))))))
+              (yield-b state)))))
+
+  ISimplify
+  (simplify [this context]
+    (loop [work (clojure/list (simplify pattern-a context) (simplify pattern-b context))
+           done ()]
+      (if (clojure/seq work)
+        (let [task (nth work 0)]
+          (if (instance? OnePattern task)
+            (recur (clojure/list* (get task :pattern-b) (get task :pattern-a) (rest work))
+                   done)
+            (recur (rest work)
+                   (clojure/cons task done))))
+        (let [patterns (distinct done)]
+          (reduce
+           (fn [one-pattern pattern]
+             (OnePattern. one-pattern pattern))
+           (nth patterns 0)
+           (rest patterns)))))))
 
 (defrecord SomePattern [pattern-a pattern-b]
   IChildren
@@ -1033,7 +1051,12 @@
 
   IYieldFunction
   (yield-function [this environment]
-    (yield-function (->ConstantPattern this) environment)))
+    (yield-function (->ConstantPattern this) environment))
+
+
+  ISimplify
+  (simplify [this]
+    this))
 
 (extend-type #?(:clj Object :cljs default)
   IChildren
@@ -1046,7 +1069,11 @@
 
   IYieldFunction
   (yield-function [this environment]
-    (yield-function (->ConstantPattern this) environment)))
+    (yield-function (->ConstantPattern this) environment))
+
+  ISimplify
+  (simplify [this context]
+    this))
 
 ;; API
 ;; ---------------------------------------------------------------------
@@ -1316,8 +1343,12 @@
     (yield-function (f environment) environment)))
 
 (defn seq [pattern]
-  (with-meta {:seq-pattern pattern}
-    {`query-function
+  (with-meta {::identifier `seq
+              :pattern pattern}
+    {`children
+     (fn [this] [pattern])
+
+     `query-function
      (query-proxy
       (fn [environment]
         (let [eval (get environment :eval)
@@ -1348,8 +1379,12 @@
   (seq (clojure/apply rx-join patterns)))
 
 (defn vec [pattern]
-  (with-meta {:vec-pattern pattern}
-    {`query-function
+  (with-meta {::identifier `vec
+              :pattern pattern}
+    {`children
+     (fn [this] [pattern])
+
+     `query-function
      (query-proxy
       (fn [environment]
         (let [eval (get environment :eval)
@@ -1369,8 +1404,13 @@
 
 (defn keyword
   ([name-pattern]
-   (with-meta {:name-pattern name-pattern}
-     {`query-function
+   (with-meta {::identifier `keyword
+               :name-pattern name-pattern}
+     {`children
+      (fn [this]
+        [name-pattern])
+
+      `query-function
       (query-proxy
        (fn [environment]
          (let [eval (get environment :eval)
@@ -1386,9 +1426,14 @@
                string? (eval `clojure/string?)]
            (apply keyword? (rx-cat (predicate string? name-pattern))))))}))
   ([namespace-pattern name-pattern]
-   (with-meta {:namespace-pattern namespace-pattern
+   (with-meta {::identifier `keyword
+               :namespace-pattern namespace-pattern
                :name-pattern name-pattern}
-     {`query-function
+     {`children
+      (fn [this]
+        [namespace-pattern name-pattern])
+
+      `query-function
       (query-proxy
        (fn [environment]
          (let [eval (get environment :eval)
@@ -1410,7 +1455,8 @@
 
 (defn symbol
   ([name-pattern]
-   (with-meta {:name-pattern name-pattern}
+   (with-meta {::identifier `symbol
+               :name-pattern name-pattern}
      {`query-function
       (query-proxy
        (fn [environment]
@@ -1427,9 +1473,14 @@
                string? (eval `clojure/string?)]
            (apply symbol? (rx-cat (predicate string? name-pattern))))))}))
   ([namespace-pattern name-pattern]
-   (with-meta {:namespace-pattern namespace-pattern
+   (with-meta {::identifier `symbol
+               :namespace-pattern namespace-pattern
                :name-pattern name-pattern}
-     {`query-function
+     {`children
+      (fn [this]
+        [namespace-pattern name-pattern])
+
+      `query-function
       (query-proxy
        (fn [environment]
          (let [eval (get environment :eval)
