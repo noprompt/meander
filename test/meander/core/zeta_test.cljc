@@ -27,9 +27,15 @@
 ;; Pattern tests
 ;; ---------------------------------------------------------------------
 
+;; Anything
+;; --------
+
 (tc.t/defspec anything-query-test
   (tc.prop/for-all [x tc.gen/any-equatable]
     (t/is (query-one m/_ x))))
+
+;; Constant
+;; --------
 
 (tc.t/defspec constant-query-test
   (tc.prop/for-all [x tc.gen/any-equatable]
@@ -38,6 +44,9 @@
 (tc.t/defspec constant-yield-test
   (tc.prop/for-all [x tc.gen/any-equatable]
     (t/is (= x (yield-one x)))))
+
+;; Predicate
+;; ---------
 
 (t/deftest predicate-test
   (t/testing "predicate query"
@@ -57,6 +66,41 @@
     (t/is (= [number? 2]
              (m/children (m/predicate number? 2))))))
 
+;; Apply
+;; -----
+
+(t/deftest apply-query-one-test
+  (t/is (query-one (m/apply inc [] 2) 1))
+
+  (t/is (not (query-one (m/apply inc [] 3) 1))))
+
+(t/deftest apply-query-all-test
+  (t/is (= [{:object 2}]
+           (query-all (m/apply (m/some inc dec) [] 2) 1)))
+
+  (t/is (= ()
+           (query-all (m/apply (m/some inc dec) [] 3) 1))))
+
+(t/deftest apply-yield-one-test
+  (t/is (= 2
+           (yield-one (m/apply inc [1]))))
+
+  (t/is (yield-one (m/apply inc [1] 2)))
+
+  (t/is (not (yield-one (m/apply inc [1] 3)))))
+
+(t/deftest apply-yield-all-test
+  (t/is (= [2 0]
+           (yield-all (m/apply (m/some inc dec) [1]))))
+
+  (t/is (= [2]
+           (yield-all (m/apply (m/some inc dec) [1] 2))))
+
+  (t/is (= ()
+           (yield-all (m/apply (m/some inc dec) [1] 3)))))
+
+;; One
+;; ---
 
 (tc.t/defspec dual-query-one-test
   (tc.prop/for-all [[x y] (tc.gen/such-that
@@ -83,6 +127,8 @@
       (every? (fn [x]
                 (= [{:object x}] (query-all p x)))
               xs))))
+;; Some
+;; ----
 
 (tc.t/defspec some-query-one-test
   (tc.prop/for-all [xs non-empty-list-of-anything]
@@ -102,6 +148,54 @@
 
   (t/is (= [true (m/some false nil)]
            (m/children (m/some true false nil)))))
+
+
+;; All
+;; ---
+
+(t/deftest all-query-one-test
+  (t/is (query-one (m/all 1) 1))
+
+  (t/is (query-one (m/all 1 1) 1))
+
+  (t/is (query-one (m/all 1 1 1) 1))
+
+  (t/is (not (query-one (m/all 1 2) 1))))
+
+(t/deftest all-query-all-test
+  (t/is (query-all (m/all 1) 1))
+
+  (t/is (query-all (m/all 1 1) 1))
+
+  (t/is (query-all (m/all 1 1 1) 1))
+
+  (t/is (= []
+           (query-all (m/all 1 2) 1))))
+
+(t/deftest all-yield-one-test
+  (t/is (yield-one (m/all 1)))
+
+  (t/is (yield-one (m/all 1 1)))
+
+  (t/is (yield-one (m/all 1 1 1)))
+
+  (t/is (not (yield-one (m/all 1 2)))))
+
+(t/deftest all-yield-all-test
+  (t/is (= [1]
+           (yield-all (m/all 1))))
+
+  (t/is (= [1 1]
+           (yield-all (m/all 1 1))))
+
+  (t/is (= [1 1 1]
+           (yield-all (m/all 1 1 1))))
+
+  (t/is (= []
+           (yield-all (m/all 1 2)))))
+
+;; Symbol
+;; ------
 
 (t/deftest symbol-test
   (t/is (= [nil "symbol"]
@@ -124,6 +218,8 @@
   (t/is (= 'meander.zeta/symbol
            (yield-one (m/symbol "meander.zeta" "symbol")))))
 
+;; Keyword
+;; -------
 
 (t/deftest keyword-test
   (t/is (= [nil "keyword"]
@@ -146,8 +242,8 @@
   (t/is (= :meander.zeta/keyword
            (yield-one (m/keyword "meander.zeta" "keyword")))))
 
-;; Collection pattern tests
-;; ---------------------------------------------------------------------
+;; RegexCons
+;; ---------
 
 (t/deftest rx-cons-test
   (t/is (query-one (m/rx-cons 1 '(2 3)) '[1 2 3]))
@@ -161,6 +257,9 @@
   (t/is (= '(1 2 3) (yield-one (m/rx-cons 1 '(2 3)))))
 
   (t/is (= '(1 2 3) (yield-one (m/rx-cons 1 '[2 3])))))
+
+;; Seq
+;; ---
 
 (t/deftest seq-test
   (t/testing "seq query"
@@ -203,6 +302,8 @@
   (t/testing "seq yield satisfies query"
     (t/is (query-one (m/seq [1 2 3]) (yield-one (m/seq [1 2 3]))))))
 
+;; Vec
+;; ---
 
 (t/deftest vec-test
   (t/testing "vec query"
@@ -240,7 +341,6 @@
     (t/testing "vec pattern yields nothing for a non-collection type value."
       (t/is (= '()
                (yield-all (m/vec (m/some 1 :a :b 2)))))))
-
 
   (t/testing "vec yield satisfies query"
     (t/is (query-one (m/vec [1 2 3]) (yield-one (m/vec [1 2 3]))))))
