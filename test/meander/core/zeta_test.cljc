@@ -9,14 +9,20 @@
 ;; Helpers
 ;; ---------------------------------------------------------------------
 
-(defn yield-one [pattern]
-  (m/run-yield pattern m.environment.eval/depth-first-one))
+(defn yield-one
+  ([pattern]
+   (m/run-yield pattern m.environment.eval/depth-first-one))
+  ([pattern bindings]
+   (m/run-yield pattern m.environment.eval/depth-first-one bindings)))
 
 (defn yield-all [pattern]
-  (m/run-yield pattern m.environment.eval/depth-first-all))
+  (m/run-yield pattern m.environment.eval/depth-first-all {}))
 
-(defn query-one [pattern object]
-  (m/run-query pattern m.environment.eval/depth-first-one object))
+(defn query-one
+  ([pattern object]
+   (m/run-query pattern m.environment.eval/depth-first-one object))
+  ([pattern object bindings]
+   (m/run-query pattern m.environment.eval/depth-first-one object bindings)))
 
 (defn query-all [pattern object]
   (m/run-query pattern m.environment.eval/depth-first-all object))
@@ -26,6 +32,32 @@
 
 ;; Pattern tests
 ;; ---------------------------------------------------------------------
+
+;; Logic Variable
+;; --------------
+
+(tc.t/defspec logic-variable-query-one-test-1
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [?x (m/logic-variable id)]
+      (t/is (query-one ?x x)))))
+
+(tc.t/defspec logic-variable-query-one-test-2
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [?x (m/logic-variable id)]
+      (t/is (query-one ?x x {?x x})))))
+
+(tc.t/defspec logic-variable-yield-one-test-1
+  (tc.prop/for-all [id tc.gen/symbol]
+    (let [?x (m/logic-variable id)]
+      (t/is (not (yield-one ?x))))))
+
+(tc.t/defspec logic-variable-yield-one-test-2
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [?x (m/logic-variable id)]
+      (t/is (= x (yield-one ?x {?x x}))))))
 
 ;; Anything
 ;; --------
@@ -99,6 +131,29 @@
   (t/is (= ()
            (yield-all (m/apply (m/some inc dec) [1] 3)))))
 
+;; Project
+;; -------
+
+(tc.t/defspec project-query-one-test-1
+  (tc.prop/for-all [x tc.gen/any-equatable]
+    (query-one (m/project [x] [x] x) x)))
+
+(tc.t/defspec project-query-one-test-2
+  (tc.prop/for-all [x tc.gen/any-equatable]
+    (not (query-one (m/project x [x] x) x))))
+
+(tc.t/defspec project-query-one-test-3
+  (tc.prop/for-all [x tc.gen/any-equatable]
+    (not (query-one (m/project x x [x]) x))))
+
+(tc.t/defspec project-yield-one-test-1
+  (tc.prop/for-all [x tc.gen/any-equatable]
+    (= x (yield-one (m/project [x] [x] x)))))
+
+(tc.t/defspec project-yield-one-test-2
+  (tc.prop/for-all [x tc.gen/any-equatable]
+    (not (yield-one (m/project x [x] x)))))
+
 ;; One
 ;; ---
 
@@ -127,6 +182,7 @@
       (every? (fn [x]
                 (= [{:object x}] (query-all p x)))
               xs))))
+
 ;; Some
 ;; ----
 
@@ -148,7 +204,6 @@
 
   (t/is (= [true (m/some false nil)]
            (m/children (m/some true false nil)))))
-
 
 ;; All
 ;; ---

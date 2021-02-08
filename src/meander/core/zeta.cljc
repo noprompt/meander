@@ -1534,21 +1534,39 @@
 ;; Running queries, yields, rules, and systems
 ;; ---------------------------------------------------------------------
 
-(defn run-query [pattern environment object]
+(defn initial-state [environment object bindings]
   (let [bind (get environment :bind)
+        fail (get environment :fail)
         pass (get environment :pass)
         seed (get environment :seed)
-        take (get environment :take)
-        query (query-function pattern environment)]
-    (query (seed object))))
+        save (get environment :save)]
+    (reduce-kv
+     (fn [m v x]
+       (bind (fn [state]
+               (let [fold ((:fold-function v) environment)]
+                 (save state (:id v) fold x pass fail)))
+             m))
+     (pass (seed object))
+     bindings)))
 
-(defn run-yield [pattern environment]
-  (let [bind (get environment :bind)
-        pass (get environment :pass)
-        seed (get environment :seed)
-        take (get environment :take)
-        yield (yield-function pattern environment)]
-    (bind (comp pass take) (yield (seed nil)))))
+(defn run-query
+  ([pattern environment object]
+   (run-query pattern environment object {}))
+  ([pattern environment object bindings]
+   (let [bind (get environment :bind)
+         query (query-function pattern environment)]
+     (bind query (initial-state environment object bindings)))))
+
+(defn run-yield
+  ([pattern environment]
+   (run-yield pattern environment {}))
+  ([pattern environment bindings]
+   (let [bind (get environment :bind)
+         pass (get environment :pass)
+         take (get environment :take)
+         yield (yield-function pattern environment)]
+     (bind (comp pass take)
+           (bind yield (initial-state environment nil bindings))))))
 
 (defn run-rule [rule environment object]
   (let [bind (get environment :bind)
