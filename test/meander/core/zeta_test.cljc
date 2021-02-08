@@ -22,21 +22,21 @@
   (m/run-query pattern m.environment.eval/depth-first-all object))
 
 (def non-empty-list-of-anything
-  (tc.gen/such-that not-empty (tc.gen/list tc.gen/any)))
+  (tc.gen/such-that not-empty (tc.gen/list tc.gen/any-equatable)))
 
 ;; Pattern tests
 ;; ---------------------------------------------------------------------
 
 (tc.t/defspec anything-query-test
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x tc.gen/any-equatable]
     (t/is (query-one m/_ x))))
 
 (tc.t/defspec constant-query-test
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x tc.gen/any-equatable]
     (t/is (query-one x x))))
 
 (tc.t/defspec constant-yield-test
-  (tc.prop/for-all [x tc.gen/any]
+  (tc.prop/for-all [x tc.gen/any-equatable]
     (t/is (= x (yield-one x)))))
 
 (t/deftest predicate-test
@@ -62,14 +62,14 @@
   (tc.prop/for-all [[x y] (tc.gen/such-that
                            (fn [[x y]]
                              (not= x y))
-                           (tc.gen/tuple tc.gen/any tc.gen/any))]
+                           (tc.gen/tuple tc.gen/any-equatable tc.gen/any-equatable))]
     (query-one (m/dual x y) x)))
 
 (tc.t/defspec dual-yield-one-test
   (tc.prop/for-all [[x y] (tc.gen/such-that
                            (fn [[x y]]
                              (not= x y))
-                           (tc.gen/tuple tc.gen/any tc.gen/any))]
+                           (tc.gen/tuple tc.gen/any-equatable tc.gen/any-equatable))]
     (= x (yield-one (m/dual x y)))))
 
 (tc.t/defspec one-query-one-test
