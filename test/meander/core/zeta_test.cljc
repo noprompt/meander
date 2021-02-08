@@ -151,7 +151,7 @@
   (t/is (not (query-one (m/apply inc [] 3) 1))))
 
 (t/deftest apply-query-all-test
-  (t/is (= [{:object 2}]
+  (t/is (= [{}]
            (query-all (m/apply (m/some inc dec) [] 2) 1)))
 
   (t/is (= ()
@@ -224,7 +224,7 @@
   (tc.prop/for-all [xs non-empty-list-of-anything]
     (let [p (apply m/one xs)]
       (every? (fn [x]
-                (= [{:object x}] (query-all p x)))
+                (= [{}] (query-all p x)))
               xs))))
 
 ;; Some

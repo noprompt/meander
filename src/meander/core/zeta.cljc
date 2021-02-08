@@ -1555,8 +1555,9 @@
   ([pattern environment object bindings]
    (let [bind (get environment :bind)
          list (get environment :list)
+         pass (get environment :pass)
          query (query-function pattern environment)]
-     (bind list
+     (bind (comp pass list)
            (bind query (initial-state environment object bindings))))))
 
 (defn run-yield
