@@ -1091,7 +1091,7 @@
   ([a-pattern b-pattern]
    (->AllPattern a-pattern b-pattern))
   ([a-pattern b-pattern & more-patterns]
-   (clojure/apply all (->AllPattern a-pattern b-pattern) more-patterns)))
+   (->AllPattern a-pattern (clojure/apply all b-pattern more-patterns))))
 
 (defn not [pattern]
   (dual (anything) pattern))
