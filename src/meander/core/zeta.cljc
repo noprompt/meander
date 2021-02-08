@@ -8,6 +8,7 @@
                             cons
                             concat
                             empty
+                            eval
                             keyword
                             list
                             merge
@@ -35,6 +36,14 @@
 (defprotocol IYieldFunction
   :extend-via-metadata true
   (yield-function [this environment]))
+
+(defprotocol IChildren
+  :extend-via-metadata true
+  (children [this]))
+
+(defprotocol ISimplify
+  :extend-via-metadata true
+  (simplify [this context]))
 
 ;; Primitive Patterns
 ;; ---------------------------------------------------------------------
@@ -64,7 +73,7 @@
           pass (get environment :pass)
           take (get environment :take)
           test (get environment :test)
-          = (eval `clojure.core/=)]
+          = (eval `clojure/=)]
       (fn [state]
         (let [target (take state)]
           (test (call = target x)
@@ -79,6 +88,10 @@
         (pass (give state x))))))
 
 (defrecord DualPattern [is-pattern is-not-pattern]
+  IChildren
+  (children [this]
+    [is-pattern is-not-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [dual (get environment :dual)
@@ -89,12 +102,23 @@
 
   IYieldFunction
   (yield-function [this environment]
-    (let [is-yield (yield-function is-pattern environment)
-          is-not-yield (yield-function is-not-pattern environment)]
+    (let [bind (get environment :bind)
+          dual (get environment :dual)
+          give (get environment :give)
+          take (get environment :take)
+          is-yield (yield-function is-pattern environment)
+          is-not-query (query-function is-not-pattern environment)]
       (fn [state]
-        (dual (is-yield state) (is-not-yield state))))))
+        (bind (fn [yield-state]
+                (let [object (take yield-state)]
+                  (dual yield-state (is-not-query (give state object)))))
+              (is-yield state))))))
 
 (defrecord OnePattern [pattern-a pattern-b]
+  IChildren
+  (children [this]
+    [pattern-a pattern-b])
+
   IQueryFunction
   (query-function [this environment]
     (let [pick (get environment :pick)
@@ -114,6 +138,10 @@
               (yield-b state))))))
 
 (defrecord SomePattern [pattern-a pattern-b]
+  IChildren
+  (children [this]
+    [pattern-a pattern-b])
+
   IQueryFunction
   (query-function [this environment]
     (let [join (get environment :join)
@@ -133,6 +161,10 @@
               (yield-b state))))))
 
 (defrecord AllPattern [a-pattern b-pattern]
+  IChildren
+  (children [this]
+    [a-pattern b-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -159,6 +191,10 @@
               (bind a-query (b-yield state)))))))
 
 (defrecord ApplyPattern [function-pattern arguments-pattern return-pattern]
+  IChildren
+  (children [this]
+    [function-pattern arguments-pattern return-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -167,7 +203,7 @@
           pass (get environment :pass)
           give (get environment :give)
           take (get environment :take)
-          apply (eval `clojure.core/apply)
+          apply (eval `clojure/apply)
           function-yield (yield-function function-pattern environment)
           arguments-yield (yield-function arguments-pattern environment)
           return-query (query-function return-pattern environment)]
@@ -193,10 +229,10 @@
           pass (get environment :pass)
           take (get environment :take)
           test (get environment :test)
-          apply (eval `clojure.core/apply)
-          coll? (eval `clojure.core/coll?)
-          nil? (eval `clojure.core/nil?)
-          fn? (eval `clojure.core/fn?)
+          apply (eval `clojure/apply)
+          coll? (eval `clojure/coll?)
+          nil? (eval `clojure/nil?)
+          fn? (eval `clojure/fn?)
           function-yield (yield-function function-pattern environment)
           arguments-yield (yield-function arguments-pattern environment)
           return-query (query-function return-pattern environment)
@@ -277,6 +313,10 @@
               (predicate-yield state))))))
 
 (defrecord ProjectPattern [a-pattern b-pattern c-pattern]
+  IChildren
+  (children [this]
+    [a-pattern b-pattern c-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -344,6 +384,10 @@
         (call (find state id) state)))))
 
 (defrecord With [pattern-mapping pattern]
+  IChildren
+  (children [this]
+    [pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [with (get environment :with)
@@ -367,6 +411,10 @@
         (with state mapping yield)))))
 
 (defrecord Again [pattern]
+  IChildren
+  (children [this]
+    [pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -405,6 +453,10 @@
 ;; ---------------------------------------------------------------------
 
 (defrecord RegexCons [head-pattern tail-pattern]
+  IChildren
+  (children [this]
+    [head-pattern tail-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -417,10 +469,10 @@
           test (get environment :test)
           head-query (query-function head-pattern environment)
           tail-query (query-function tail-pattern environment)
-          nth (eval `clojure.core/nth)
+          nth (eval `clojure/nth)
           tail (eval `m.algorithms/tail)
-          seq (eval `clojure.core/seq)
-          sequential? (eval `clojure.core/sequential?)
+          seq (eval `clojure/seq)
+          sequential? (eval `clojure/sequential?)
           zero (eval 0)]
       (fn [state]
         (let [object (take state)]
@@ -450,8 +502,8 @@
           test (get environment :test)
           head-yield (yield-function head-pattern environment)
           tail-yield (yield-function tail-pattern environment)
-          cons (eval `clojure.core/cons)
-          sequential? (eval `clojure.core/sequential?)]
+          cons (eval `clojure/cons)
+          sequential? (eval `clojure/sequential?)]
       (fn [state]
         (bind (fn [head-state]
                 (let [head (take head-state)]
@@ -466,6 +518,10 @@
               (head-yield state))))))
 
 (defrecord RegexConcatenation [patterns]
+  IChildren
+  (children [this]
+    (clojure/vec patterns))
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -486,10 +542,10 @@
           m* (inc n*)
           n (eval n*)
           m (eval m*)
-          = (eval `clojure.core/=)
-          nth (eval `clojure.core/nth)
-          bounded-count (eval `clojure.core/bounded-count)
-          sequential? (eval `clojure.core/sequential?)]
+          = (eval `clojure/=)
+          nth (eval `clojure/nth)
+          bounded-count (eval `clojure/bounded-count)
+          sequential? (eval `clojure/sequential?)]
       (fn [state]
         (let [object (take state)]
           (test (call sequential? object)
@@ -521,7 +577,7 @@
           yields (map (fn [pattern]
                         (yield-function pattern environment))
                       patterns)
-          conj (eval `clojure.core/conj)]
+          conj (eval `clojure/conj)]
       (case n
         0
         (fn [state]
@@ -551,6 +607,10 @@
                     rest-yields)))))))
 
 (defrecord RegexJoin [x-pattern y-pattern]
+  IChildren
+  (children [this]
+    [x-pattern y-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -564,8 +624,8 @@
           scan (get environment :scan)
           x-query (query-function x-pattern environment)
           y-query (query-function y-pattern environment)
-          nth (eval `clojure.core/nth)
-          sequential? (eval `clojure.core/sequential?)
+          nth (eval `clojure/nth)
+          sequential? (eval `clojure/sequential?)
           partitions (eval `meander.algorithms.zeta/partitions)
           zero (eval 0)
           one (eval 1)
@@ -597,8 +657,8 @@
           test (get environment :test)
           x-yield (yield-function x-pattern environment)
           y-yield (yield-function y-pattern environment)
-          concat (eval `clojure.core/concat)
-          coll? (eval `clojure.core/coll?)]
+          concat (eval `clojure/concat)
+          coll? (eval `clojure/coll?)]
       (fn [state]
         (bind (fn [x-state]
                 (let [x (take x-state)]
@@ -617,6 +677,10 @@
               (x-yield state))))))
 
 (defrecord GreedyStar [subsequence-pattern rest-pattern]
+  IChildren
+  (children [this]
+    [subsequence-pattern rest-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -633,10 +697,10 @@
           subsequence-query (query-function subsequence-pattern environment)
           rest-query (query-function rest-pattern environment)
           partitions (eval `m.algorithms/partitions)
-          nth (eval `clojure.core/nth)
-          rest (eval `clojure.core/rest)
-          seq (eval `clojure.core/seq)
-          sequential? (eval `clojure.core/sequential?)
+          nth (eval `clojure/nth)
+          rest (eval `clojure/rest)
+          seq (eval `clojure/seq)
+          sequential? (eval `clojure/sequential?)
           zero (eval 0)
           one (eval 1)
           two (eval 2)]
@@ -676,8 +740,8 @@
           test (get environment :test)
           subsequence-yield (yield-function subsequence-pattern environment)
           rest-yield (yield-function rest-pattern environment)
-          concat (eval `clojure.core/concat)
-          sequential? (eval `clojure.core/sequential?)]
+          concat (eval `clojure/concat)
+          sequential? (eval `clojure/sequential?)]
       (fn [state]
         (star (fn [rec state]
                 (let [a (take state)]
@@ -700,6 +764,10 @@
               (give state ()))))))
 
 (defrecord FrugalStar [pattern rest-pattern]
+  IChildren
+  (children [this]
+    [pattern rest-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -716,10 +784,10 @@
           pattern-query (query-function pattern environment)
           rest-query (query-function rest-pattern environment)
           partitions (eval `m.algorithms/partitions)
-          nth (eval `clojure.core/nth)
-          rest (eval `clojure.core/rest)
-          seq (eval `clojure.core/seq)
-          sequential? (eval `clojure.core/sequential?)
+          nth (eval `clojure/nth)
+          rest (eval `clojure/rest)
+          seq (eval `clojure/seq)
+          sequential? (eval `clojure/sequential?)
           zero (eval 0)
           one (eval 1)
           two (eval 2)]
@@ -760,8 +828,8 @@
           test (get environment :test)
           pattern-yield (yield-function pattern environment)
           rest-yield (yield-function rest-pattern environment)
-          concat (eval `clojure.core/concat)
-          sequential? (eval `clojure.core/sequential?)]
+          concat (eval `clojure/concat)
+          sequential? (eval `clojure/sequential?)]
       (fn [state]
         (join (rest-yield state)
               (star (fn [rec xs state]
@@ -789,6 +857,10 @@
 ;; -----------------------
 
 (defrecord AssocPattern [map-pattern key-pattern val-pattern]
+  IChildren
+  (children [this]
+    [map-pattern key-pattern val-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -803,11 +875,11 @@
           map-query (query-function map-pattern environment)
           key-query (query-function key-pattern environment)
           val-query (query-function val-pattern environment)
-          dissoc (eval `clojure.core/dissoc)
-          key (eval `clojure.core/key)
-          map? (eval `clojure.core/map?)
-          seq (eval `clojure.core/seq)
-          val (eval `clojure.core/val)]
+          dissoc (eval `clojure/dissoc)
+          key (eval `clojure/key)
+          map? (eval `clojure/map?)
+          seq (eval `clojure/seq)
+          val (eval `clojure/val)]
       (fn [state]
         (let [object (take state)]
           (test (call map? object)
@@ -839,8 +911,8 @@
           map-yield (yield-function map-pattern environment)
           key-yield (yield-function key-pattern environment)
           val-yield (yield-function val-pattern environment)
-          assoc (eval `clojure.core/assoc)
-          map? (eval `clojure.core/map?)]
+          assoc (eval `clojure/assoc)
+          map? (eval `clojure/map?)]
       (fn [state]
         (bind (fn [map-state]
                 (let [m (take map-state)]
@@ -858,6 +930,10 @@
               (map-yield state))))))
 
 (defrecord MergePattern [map-patterns]
+  IChildren
+  (children [this]
+    (clojure/vec map-patterns))
+
   IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -871,9 +947,9 @@
           test (get environment :test)
           queries (map query-function map-patterns (repeat environment))
           indexed-queries (map-indexed (fn [index query] [(eval index) query]) queries)
-          map? (eval `clojure.core/map?)
+          map? (eval `clojure/map?)
           map-partitions (eval `m.algorithms/map-partitions)
-          nth (eval `clojure.core/nth)
+          nth (eval `clojure/nth)
           n (eval (count queries))]
       (if (zero? n)
         (fn [state]
@@ -910,8 +986,8 @@
           take (get environment :take)
           test (get environment :test)
           yields (map yield-function map-patterns (repeat environment))
-          map? (eval `clojure.core/map?)
-          merge (eval `clojure.core/merge)]
+          map? (eval `clojure/map?)
+          merge (eval `clojure/merge)]
       (fn [state]
         (reduce
          (fn [ma yield]
@@ -934,6 +1010,10 @@
 ;; ---------------------------------------------------------------------
 
 (defrecord Rule [query-pattern yield-pattern]
+  IChildren
+  (children [this]
+    [query-pattern yield-pattern])
+
   IQueryFunction
   (query-function [this environment]
     (query-function query-pattern environment))
@@ -943,6 +1023,10 @@
     (yield-function yield-pattern environment)))
 
 (extend-type nil
+  IChildren
+  (children [this]
+    [])
+
   IQueryFunction
   (query-function [this environment]
     (query-function (->ConstantPattern this) environment))
@@ -952,6 +1036,10 @@
     (yield-function (->ConstantPattern this) environment)))
 
 (extend-type #?(:clj Object :cljs default)
+  IChildren
+  (children [this]
+    [])
+
   IQueryFunction
   (query-function [this environment]
     (query-function (->ConstantPattern this) environment))
@@ -1034,7 +1122,7 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)]
+        = (eval `clojure/=)]
     (fn [old new pass fail]
       (test (call = old none)
             (fn []
@@ -1051,7 +1139,7 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)]
+        = (eval `clojure/=)]
     (fn [old pass fail]
       (test (call = old none)
             (fn []
@@ -1074,7 +1162,7 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)]
+        = (eval `clojure/=)]
     (fn [old pass fail]
       (test (call = old none)
             (fn []
@@ -1090,8 +1178,8 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)
-        conj (eval `clojure.core/conj)]
+        = (eval `clojure/=)
+        conj (eval `clojure/conj)]
     (fn [old new pass fail]
       (test (call = old none)
             (fn []
@@ -1104,10 +1192,10 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)
-        nth (eval `clojure.core/nth)
-        seq (eval `clojure.core/seq)
-        subvec (eval `clojure.core/subvec)]
+        = (eval `clojure/=)
+        nth (eval `clojure/nth)
+        seq (eval `clojure/seq)
+        subvec (eval `clojure/subvec)]
     (fn [old pass fail]
       (test (call = old none)
             (fn []
@@ -1130,8 +1218,8 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)
-        cons (eval `clojure.core/cons)]
+        = (eval `clojure/=)
+        cons (eval `clojure/cons)]
     (fn [old new pass fail]
       (test (call = old none)
             (fn []
@@ -1144,10 +1232,10 @@
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
-        = (eval `clojure.core/=)
-        nth (eval `clojure.core/nth)
-        seq (eval `clojure.core/seq)
-        rest (eval `clojure.core/rest)]
+        = (eval `clojure/=)
+        nth (eval `clojure/nth)
+        seq (eval `clojure/seq)
+        rest (eval `clojure/rest)]
     (fn [old pass fail]
       (test (call = old none)
             (fn []
@@ -1233,17 +1321,16 @@
      (query-proxy
       (fn [environment]
         (let [eval (get environment :eval)
-              seq? (eval `clojure.core/seq?)]
+              seq? (eval `clojure/seq?)]
           (predicate seq? pattern))))
 
      `yield-function
      (yield-proxy
       (fn [environment]
         (let [eval (get environment :eval)
-              seq (eval `clojure.core/seq)
-              list (eval `clojure.core/list)
-              coll? (eval `clojure.core/coll?)
-              nil? (eval `clojure.core/nil?)
+              list (eval `clojure/list)
+              coll? (eval `clojure/coll?)
+              nil? (eval `clojure/nil?)
               ?x (logic-variable)]
           (project pattern
                    (some (predicate coll? ?x)
@@ -1266,16 +1353,16 @@
      (query-proxy
       (fn [environment]
         (let [eval (get environment :eval)
-              vector? (eval `clojure.core/vector?)]
+              vector? (eval `clojure/vector?)]
           (predicate vector? pattern))))
 
      `yield-function
      (yield-proxy
       (fn [environment]
         (let [eval (get environment :eval)
-              vec (eval `clojure.core/vec)
-              coll? (eval `clojure.core/coll?)
-              nil? (eval `clojure.core/nil?)]
+              vec (eval `clojure/vec)
+              coll? (eval `clojure/coll?)
+              nil? (eval `clojure/nil?)]
           (apply vec
                  [(some (predicate coll? pattern)
                         (predicate nil? pattern))]))))}))
@@ -1287,16 +1374,16 @@
       (query-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               keyword? (eval `clojure.core/keyword?)
-               name (eval `clojure.core/name)]
+               keyword? (eval `clojure/keyword?)
+               name (eval `clojure/name)]
            (predicate keyword? (apply name [] name-pattern)))))
 
       `yield-function
       (yield-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               keyword (eval `clojure.core/keyword)
-               string? (eval `clojure.core/string?)]
+               keyword (eval `clojure/keyword)
+               string? (eval `clojure/string?)]
            (apply keyword? (rx-cat (predicate string? name-pattern))))))}))
   ([namespace-pattern name-pattern]
    (with-meta {:namespace-pattern namespace-pattern
@@ -1305,69 +1392,59 @@
       (query-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               keyword? (eval `clojure.core/keyword?)
-               name (eval `clojure.core/name)
-               namespace (eval `clojure.core/namespace)]
+               keyword? (eval `clojure/keyword?)
+               name (eval `clojure/name)
+               namespace (eval `clojure/namespace)]
            (predicate keyword? (all (apply namespace [] namespace-pattern)
                                     (apply name [] name-pattern))))))
       `yield-function
       (yield-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               keyword (eval `clojure.core/keyword)
-               nil? (eval `clojure.core/nil?)
-               string? (eval `clojure.core/string?)]
+               keyword (eval `clojure/keyword)
+               nil? (eval `clojure/nil?)
+               string? (eval `clojure/string?)]
            (apply keyword
                   (rx-cat (one (predicate string? namespace-pattern) nil)
                           (predicate string? name-pattern))))))})))
 
 (defn symbol
   ([name-pattern]
-   (if (string? name-pattern)
-     (clojure/symbol name-pattern)
-     #_
-     `(quote ~(clojure/symbol name-pattern))
-     (with-meta {:name-pattern name-pattern}
-       {`query-function
-        (query-proxy
-         (fn [environment]
-           (let [eval (get environment :eval)
-                 symbol? (eval `clojure.core/symbol?)
-                 name (eval `clojure.core/name)]
-             (predicate symbol? (apply name [] name-pattern)))))
+   (with-meta {:name-pattern name-pattern}
+     {`query-function
+      (query-proxy
+       (fn [environment]
+         (let [eval (get environment :eval)
+               symbol? (eval `clojure/symbol?)
+               name (eval `clojure/name)]
+           (predicate symbol? (apply name [] name-pattern)))))
 
-        `yield-function
-        (yield-proxy
-         (fn [environment]
-           (let [eval (get environment :eval)
-                 symbol (eval `clojure.core/symbol)
-                 string? (eval `clojure.core/string?)]
-             (apply symbol? (rx-cat (predicate string? name-pattern))))))})))
+      `yield-function
+      (yield-proxy
+       (fn [environment]
+         (let [eval (get environment :eval)
+               symbol (eval `clojure/symbol)
+               string? (eval `clojure/string?)]
+           (apply symbol? (rx-cat (predicate string? name-pattern))))))}))
   ([namespace-pattern name-pattern]
-   #_
-   (if (and (string? namespace-pattern)
-            (string? name-pattern))
-     (clojure/symbol namespace-pattern name-pattern)
-     #_
-     `(quote ~(clojure/symbol namespace-pattern name-pattern)))
    (with-meta {:namespace-pattern namespace-pattern
                :name-pattern name-pattern}
      {`query-function
       (query-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               symbol? (eval `clojure.core/symbol?)
-               name (eval `clojure.core/name)
-               namespace (eval `clojure.core/namespace)]
+               symbol? (eval `clojure/symbol?)
+               name (eval `clojure/name)
+               namespace (eval `clojure/namespace)]
            (predicate symbol? (all (apply namespace [] namespace-pattern)
                                    (apply name [] name-pattern))))))
       `yield-function
       (yield-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               symbol (eval `clojure.core/symbol)
-               nil? (eval `clojure.core/nil?)
-               string? (eval `clojure.core/string?)]
+               symbol (eval `clojure/symbol)
+               nil? (eval `clojure/nil?)
+               string? (eval `clojure/string?)]
            (apply symbol
                   (rx-cat (one (predicate string? namespace-pattern) nil)
                           (predicate string? name-pattern))))))})))
@@ -1383,13 +1460,13 @@
         (query-proxy
          (fn [environment]
            (let [eval (get environment :eval)
-                 string? (eval `clojure.core/string?)]
+                 string? (eval `clojure/string?)]
              (predicate string? x-pattern))))
         `yield-function
         (yield-proxy
          (fn [environment]
            (let [eval (get environment :eval)
-                 str (eval `clojure.core/str)]
+                 str (eval `clojure/str)]
              (apply str (rx-cat x-pattern)))))})))
   ([x-pattern y-pattern]
    (with-meta {::identifier `str
@@ -1404,18 +1481,18 @@
 
            [true false]
            (let [eval (get environment :eval)
-                 subs (eval `clojure.core/subs)
-                 string? (eval `clojure.core/string?)]
+                 subs (eval `clojure/subs)
+                 string? (eval `clojure/string?)]
              (predicate string?
                         (all (apply subs [0 (count x-pattern)] x-pattern)
                              (apply subs [(count x-pattern)] y-pattern))))
 
            [false true]
            (let [eval (get environment :eval)
-                 - (eval `clojure.core/-)
-                 count (eval `clojure.core/count)
-                 string? (eval `clojure.core/string?)
-                 subs (eval `clojure.core/subs)
+                 - (eval `clojure/-)
+                 count (eval `clojure/count)
+                 string? (eval `clojure/string?)
+                 subs (eval `clojure/subs)
                  ?count (logic-variable)
                  ?total (logic-variable)]
              (predicate string?
@@ -1426,7 +1503,7 @@
 
            [false false]
            (let [eval (get environment :eval)
-                 string? (eval `clojure.core/string?)
+                 string? (eval `clojure/string?)
                  string-partitions (eval `m.algorithms/string-partitions)]
              (predicate string?
                         (apply string-partitions [2] (rx-join _ (rx-cat (rx-cat x-pattern y-pattern)) _)))))))
@@ -1435,7 +1512,7 @@
       (yield-proxy
        (fn [environment]
          (let [eval (get environment :eval)
-               str (eval `clojure.core/str)]
+               str (eval `clojure/str)]
            (apply str (rx-cat x-pattern y-pattern)))))}))
   ([x-pattern y-pattern z-pattern]
    (str (str x-pattern y-pattern) z-pattern)))

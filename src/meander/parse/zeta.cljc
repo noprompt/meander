@@ -32,6 +32,7 @@
 
       (m/rule
        (m/cons (m/one (m/project m/all ?f (special-symbol `m/all environment))
+                      (m/project m/apply ?f (special-symbol `m/apply environment))
                       (m/project m/again ?f (special-symbol `m/again environment))
                       (m/project m/dual ?f (special-symbol `m/dual environment))
                       (m/project m/some ?f (special-symbol `m/some environment))
@@ -135,20 +136,20 @@
      {}
      (m/apply m/merge []))
 
-    ;; {'& ?m} => (m/merge ?m)
-    (let [?m (m/logic-variable)
-          ?x (m/logic-variable)]
-      (m/rule
-       (m/assoc {} '& ?x)
-       (m/apply m/merge [(m/again ?x)])))
-
     ;; {(m/dual ?k '&) ?v & ?m} => (m/assoc ?m ?k ?v)
     (let [?m (m/logic-variable)
           ?k (m/logic-variable)
           ?v (m/logic-variable)]
       (m/rule
        (m/assoc ?m (m/dual ?k '&) ?v)
-       (m/apply m/assoc [(m/again ?m) (m/again ?k) (m/again ?v)])))]))
+       (m/apply m/assoc [(m/again ?m) (m/again ?k) (m/again ?v)])))
+
+    ;; {'& ?m} => (m/merge ?m)
+    (let [?m (m/logic-variable)
+          ?x (m/logic-variable)]
+      (m/rule
+       (m/assoc {} '& ?x)
+       (m/apply m/merge [(m/again ?x)])))]))
 
 (defn make-rules
   {:private true}

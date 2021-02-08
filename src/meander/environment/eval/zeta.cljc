@@ -4,11 +4,66 @@
    [clojure.set :as set]
    [meander.algorithms.zeta :as m.algorithms]))
 
+#?(:cljs
+   (def cljs-symbol-table
+     {'cljs.core/- cljs.core/-
+      'cljs.core/= cljs.core/=
+      'cljs.core/apply cljs.core/apply
+      'cljs.core/assoc cljs.core/assoc
+      'cljs.core/bounded-count cljs.core/bounded-count
+      'cljs.core/coll? cljs.core/coll?
+      'cljs.core/concat cljs.core/concat
+      'cljs.core/conj cljs.core/conj
+      'cljs.core/cons cljs.core/cons
+      'cljs.core/count cljs.core/count
+      'cljs.core/dissoc cljs.core/dissoc
+      'cljs.core/fn? cljs.core/fn?
+      'cljs.core/key cljs.core/key
+      'cljs.core/keyword cljs.core/keyword
+      'cljs.core/keyword? cljs.core/keyword?
+      'cljs.core/list cljs.core/list
+      'cljs.core/map? cljs.core/map?
+      'cljs.core/merge cljs.core/merge
+      'cljs.core/name cljs.core/name
+      'cljs.core/namespace cljs.core/namespace
+      'cljs.core/nil? cljs.core/nil?
+      'cljs.core/nth cljs.core/nth
+      'cljs.core/rest cljs.core/rest
+      'cljs.core/seq cljs.core/seq
+      'cljs.core/seq? cljs.core/seq?
+      'cljs.core/sequential? cljs.core/sequential?
+      'cljs.core/str cljs.core/str
+      'cljs.core/string? cljs.core/string?
+      'cljs.core/subs cljs.core/subs
+      'cljs.core/subvec cljs.core/subvec
+      'cljs.core/symbol cljs.core/symbol
+      'cljs.core/symbol? cljs.core/symbol?
+      'cljs.core/val cljs.core/val
+      'cljs.core/vec cljs.core/vec
+      'cljs.core/vector? cljs.core/vector?
+      'meander.algorithms.zeta/map-partitions meander.algorithms.zeta/map-partitions
+      'meander.algorithms.zeta/partitions meander.algorithms.zeta/partitions
+      'meander.algorithms.zeta/string-partitions meander.algorithms.zeta/string-partitions
+      'meander.algorithms.zeta/tail meander.algorithms.zeta/tail}))
+
+#?(:cljs
+   (defn cljs-eval [form]
+     (cond
+       (or (keyword? form) (number? form) (string? form))
+       form
+
+       (symbol? form)
+       (if-some [x (get cljs-symbol-table form)]
+         x
+         (throw (ex-info "Unable to evaluate symbol" {:symbol form})))
+
+       :else
+       (throw (ex-info "Unable to evaluate form" {:form form})))))
+
 (def ^{:private true}
   default-eval
   #?(:clj eval
-     :cljs (fn no-eval [_]
-             (throw (ex-info "eval not defined" {})))))
+     :cljs cljs-eval))
 
 (def ^{:private true}
   none ::none)

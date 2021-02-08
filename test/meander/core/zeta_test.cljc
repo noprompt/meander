@@ -1,34 +1,107 @@
 (ns meander.core.zeta-test
-  (:require [clojure.test :as t]
+  (:require [clojure.test :as t :include-macros true]
+            [clojure.test.check.clojure-test :as tc.t :include-macros true]
+            [clojure.test.check.generators :as tc.gen :include-macros true]
+            [clojure.test.check.properties :as tc.prop :include-macros true]
             [meander.core.zeta :as m]
-            [meander.environment.zeta :as m.environment]))
+            [meander.environment.eval.zeta :as m.environment.eval]))
 
 ;; Helpers
 ;; ---------------------------------------------------------------------
 
 (defn yield-one [pattern]
-  (m/run-yield pattern m.environment/depth-first-one-eval))
+  (m/run-yield pattern m.environment.eval/depth-first-one))
 
 (defn yield-all [pattern]
-  (m/run-yield pattern m.environment/depth-first-all-eval))
+  (m/run-yield pattern m.environment.eval/depth-first-all))
 
 (defn query-one [pattern object]
-  (m/run-query pattern m.environment/depth-first-one-eval object))
+  (m/run-query pattern m.environment.eval/depth-first-one object))
 
 (defn query-all [pattern object]
-  (m/run-query pattern m.environment/depth-first-all-eval object))
+  (m/run-query pattern m.environment.eval/depth-first-all object))
 
+(def non-empty-list-of-anything
+  (tc.gen/such-that not-empty (tc.gen/list tc.gen/any)))
 
-;; Atomic pattern tests
+;; Pattern tests
 ;; ---------------------------------------------------------------------
 
-(t/deftest constant-test
-  (t/is (some? (query-one even? even?)))
-  (t/is (some? (query-one `even? `even?))))
+(tc.t/defspec anything-query-test
+  (tc.prop/for-all [x tc.gen/any]
+    (t/is (query-one m/_ x))))
 
-(t/deftest some-test
-  (t/is (= '(nil [])
-           (yield-all (m/some nil [])))))
+(tc.t/defspec constant-query-test
+  (tc.prop/for-all [x tc.gen/any]
+    (t/is (query-one x x))))
+
+(tc.t/defspec constant-yield-test
+  (tc.prop/for-all [x tc.gen/any]
+    (t/is (= x (yield-one x)))))
+
+(t/deftest predicate-test
+  (t/testing "predicate query"
+    (t/is (query-one (m/predicate number?) 2))
+
+    (t/is (query-one (m/predicate number? 2) 2)))
+
+  (t/testing "predicate yield"
+    (t/is (yield-one (m/predicate number? 2)))
+
+    (t/is (not (yield-one (m/predicate number? "2"))))
+
+    (t/is (= '(1 3)
+             (yield-all (m/predicate number? (m/some 1 "2" 3 "4"))))))
+
+  (t/testing "predicate children"
+    (t/is (= [number? 2]
+             (m/children (m/predicate number? 2))))))
+
+
+(tc.t/defspec dual-query-one-test
+  (tc.prop/for-all [[x y] (tc.gen/such-that
+                           (fn [[x y]]
+                             (not= x y))
+                           (tc.gen/tuple tc.gen/any tc.gen/any))]
+    (query-one (m/dual x y) x)))
+
+(tc.t/defspec dual-yield-one-test
+  (tc.prop/for-all [[x y] (tc.gen/such-that
+                           (fn [[x y]]
+                             (not= x y))
+                           (tc.gen/tuple tc.gen/any tc.gen/any))]
+    (= x (yield-one (m/dual x y)))))
+
+(tc.t/defspec one-query-one-test
+  (tc.prop/for-all [xs non-empty-list-of-anything]
+    (let [p (apply m/one xs)]
+      (every? (fn [x] (query-one p x)) xs))))
+
+(tc.t/defspec one-query-all-test
+  (tc.prop/for-all [xs non-empty-list-of-anything]
+    (let [p (apply m/one xs)]
+      (every? (fn [x]
+                (= [{:object x}] (query-all p x)))
+              xs))))
+
+(tc.t/defspec some-query-one-test
+  (tc.prop/for-all [xs non-empty-list-of-anything]
+    (let [p (apply m/some xs)]
+      (every? (fn [x] (query-one p x)) xs))))
+
+(tc.t/defspec some-yield-all-test
+  (tc.prop/for-all [xs non-empty-list-of-anything]
+    (= xs (yield-all (apply m/some xs)))))
+
+(t/deftest some-children-test
+  (t/is (= []
+           (m/children (m/some true))))
+
+  (t/is (= [true false]
+           (m/children (m/some true false))))
+
+  (t/is (= [true (m/some false nil)]
+           (m/children (m/some true false nil)))))
 
 (t/deftest symbol-test
   (t/is (= [nil "symbol"]
