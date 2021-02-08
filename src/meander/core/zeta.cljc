@@ -1586,15 +1586,3 @@
           again (fn again [state] (bind yield (query state)))]
       (bind (comp pass take)
             (with (seed x) {(:id %again) again} again)))))
-
-(comment
-  (require '[meander.environment.eval.zeta :as m.environment.eval])
-
-  (run-system
-   (one-system
-    [(rule 1 (again 2))
-     (rule 2 (again 3))
-     (one-system [(rule 3 4)])])
-   m.environment.eval/depth-first-one 1)
-  ;; => 4
-  )
