@@ -210,8 +210,7 @@
             {:object x})
 
           (take [state]
-            (partial-evaluate
-             `(get ~state :object)))
+            `(get ~state :object))
 
           (test [test then else]
             `(if ~test ~(then) ~(else)))
