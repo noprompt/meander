@@ -143,6 +143,11 @@
   [test then else]
   (if test (then) (else)))
 
+(defn list-bindings
+  {:private true}
+  [state]
+  (dissoc state :object :references))
+
 ;; Depth First One
 ;; ---------------------------------------------------------------------
 
@@ -194,6 +199,7 @@
      :give give-object
      :join join
      :load load-object
+     :list list-bindings
      :make make
      :mint mint
      :none none
@@ -234,6 +240,7 @@
      :fail fail
      :find find-reference
      :give give-object
+     :list list-bindings
      :load load-object
      :make make
      :none none

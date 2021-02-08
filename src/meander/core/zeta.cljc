@@ -1554,8 +1554,10 @@
    (run-query pattern environment object {}))
   ([pattern environment object bindings]
    (let [bind (get environment :bind)
+         list (get environment :list)
          query (query-function pattern environment)]
-     (bind query (initial-state environment object bindings)))))
+     (bind list
+           (bind query (initial-state environment object bindings))))))
 
 (defn run-yield
   ([pattern environment]

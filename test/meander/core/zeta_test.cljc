@@ -15,8 +15,11 @@
   ([pattern bindings]
    (m/run-yield pattern m.environment.eval/depth-first-one bindings)))
 
-(defn yield-all [pattern]
-  (m/run-yield pattern m.environment.eval/depth-first-all {}))
+(defn yield-all
+  ([pattern]
+   (m/run-yield pattern m.environment.eval/depth-first-all {}))
+  ([pattern bindings]
+   (m/run-yield pattern m.environment.eval/depth-first-all bindings)))
 
 (defn query-one
   ([pattern object]
@@ -24,8 +27,11 @@
   ([pattern object bindings]
    (m/run-query pattern m.environment.eval/depth-first-one object bindings)))
 
-(defn query-all [pattern object]
-  (m/run-query pattern m.environment.eval/depth-first-all object))
+(defn query-all
+  ([pattern object]
+   (m/run-query pattern m.environment.eval/depth-first-all object))
+  ([pattern object bindings]
+   (m/run-query pattern m.environment.eval/depth-first-all object bindings)))
 
 (def non-empty-list-of-anything
   (tc.gen/such-that not-empty (tc.gen/list tc.gen/any-equatable)))
@@ -40,24 +46,62 @@
   (tc.prop/for-all [id tc.gen/symbol
                     x tc.gen/any-equatable]
     (let [?x (m/logic-variable id)]
-      (t/is (query-one ?x x)))))
+      (= {id x}
+         (query-one ?x x)))))
 
 (tc.t/defspec logic-variable-query-one-test-2
   (tc.prop/for-all [id tc.gen/symbol
                     x tc.gen/any-equatable]
     (let [?x (m/logic-variable id)]
-      (t/is (query-one ?x x {?x x})))))
+      (= {id x}
+         (query-one ?x x {?x x})))))
+
+(tc.t/defspec logic-variable-query-one-test-3
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [?x (m/logic-variable id)]
+      (not (query-one ?x x {?x [x]})))))
 
 (tc.t/defspec logic-variable-yield-one-test-1
   (tc.prop/for-all [id tc.gen/symbol]
     (let [?x (m/logic-variable id)]
-      (t/is (not (yield-one ?x))))))
+      (not (yield-one ?x)))))
 
 (tc.t/defspec logic-variable-yield-one-test-2
   (tc.prop/for-all [id tc.gen/symbol
                     x tc.gen/any-equatable]
     (let [?x (m/logic-variable id)]
-      (t/is (= x (yield-one ?x {?x x}))))))
+      (= x
+         (yield-one ?x {?x x})))))
+
+;; Mutable Variable
+;; ----------------
+
+(tc.t/defspec mutable-variable-query-one-test-1
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [*x (m/mutable-variable id)]
+      (= {id x}
+         (query-one *x x)))))
+
+(tc.t/defspec mutable-variable-query-one-test-2
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [y [x]
+          *x (m/mutable-variable id)]
+      (= {id y}
+         (query-one *x y {*x x})))))
+
+(tc.t/defspec mutable-variable-yield-one-test-1
+  (tc.prop/for-all [id tc.gen/symbol]
+    (let [*x (m/mutable-variable id)]
+      (not (yield-one *x)))))
+
+(tc.t/defspec mutable-variable-yield-one-test-2
+  (tc.prop/for-all [id tc.gen/symbol
+                    x tc.gen/any-equatable]
+    (let [*x (m/mutable-variable id)]
+      (= x (yield-one *x {*x x})))))
 
 ;; Anything
 ;; --------

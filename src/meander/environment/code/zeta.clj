@@ -1,15 +1,21 @@
 (ns meander.environment.code.zeta)
 
-;; Depth First One
-;; ---------------------------------------------------------------------
 
 (def ^{:private true}
   none ::none)
 
-(defn star-code [f & args]
+(defn star-code
+  {:private true}
+  [f & args]
   (let [loop__ (gensym "F__")
         args__ (repeatedly (count args) #(gensym "X__"))]
     `((fn* ~loop__ [~@args__] ~(apply f loop__ args__)) ~@args)))
+
+(defn list-bindings [state]
+  `(dissoc ~state :bindings :references))
+
+;; Depth First One
+;; ---------------------------------------------------------------------
 
 (def depth-first-one
   (letfn [(bind [f x]
@@ -123,6 +129,7 @@
      :find find
      :give give
      :join join
+     :list list-bindings 
      :load load
      :make make
      :mint mint
@@ -229,6 +236,7 @@
      :give give
      :join join
      :load load
+     :list list-bindings 
      :make make
      :none none
      :pass pass
