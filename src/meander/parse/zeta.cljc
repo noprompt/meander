@@ -36,9 +36,10 @@
                       (m/project m/again ?f (special-symbol `m/again environment))
                       (m/project m/dual ?f (special-symbol `m/dual environment))
                       (m/project m/some ?f (special-symbol `m/some environment))
+                      (m/project m/not ?f (special-symbol `m/not environment))
+                      (m/project m/one ?f (special-symbol `m/one environment))
                       (m/project m/predicate ?f (special-symbol `m/predicate environment))
-                      (m/project m/project ?f (special-symbol `m/project environment))
-                      (m/project m/one ?f (special-symbol `m/one environment)))
+                      (m/project m/project ?f (special-symbol `m/project environment)))
                (m/* [>arguments]))
        (m/apply ?f (m/* [(m/again >arguments)])))])))
 
