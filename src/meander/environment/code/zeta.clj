@@ -12,16 +12,16 @@
     `((fn* ~loop__ [~@args__] ~(apply f loop__ args__)) ~@args)))
 
 (defn list-bindings [state]
-  `(dissoc ~state :bindings :references))
+  `(dissoc ~state :object :references))
 
 ;; Depth First One
 ;; ---------------------------------------------------------------------
 
 (def depth-first-one
   (letfn [(bind [f x]
-            (let [a (gensym "A__")]
+            (let [a (gensym "X__")]
               `(let* [~a ~x]
-                 ~(f ~a))))
+                 ~(f a))))
 
           (call [f & args]
             `(~f ~@args))
@@ -55,11 +55,11 @@
           (load [state id unfold pass fail]
             (let [pass* (fn [x new]
                           (let [new-state (gensym "X__")]
-                            `(let* [~new-state (assoc ~state (quote ~id) new) x]
-                               ~(pass (give new-state)))))
+                            `(let* [~new-state (assoc ~state '~id ~new)]
+                               ~(pass new-state))))
                   fail* (fn [x]
                           (fail state))]
-              (let [entry (gensym "E__")
+              (let [entry (gensym "X__")
                     old (gensym "X__")]
                 `(let* [~entry (clojure.core/find ~state '~id)
                         ~old (if ~entry (val ~entry) ~none)]
@@ -84,7 +84,7 @@
           (save [state id fold new pass fail]
             (let [pass* (fn [new]
                           (let [new-state (gensym "X__")]
-                            `(let* [~new-state (assoc ~state `(quote ~id) new)]
+                            `(let* [~new-state (assoc ~state '~id ~new)]
                                ~(pass new-state))))
                   fail* (fn [x]
                           (fail state))]
