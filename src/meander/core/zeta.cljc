@@ -1591,8 +1591,8 @@
         pass (get environment :pass)
         seed (get environment :seed)
         save (get environment :save)]
-    (reduce-kv
-     (fn [m v x]
+    (reduce
+     (fn [m [v x]]
        (bind (fn [state]
                (let [fold ((:fold-function v) environment)]
                  (save state (:id v) fold x pass fail)))
