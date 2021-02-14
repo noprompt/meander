@@ -36,7 +36,6 @@
       (and (or (map? x)
                (vector? x)
                (set? x))
-
            (every? constant-expression? x))))
 
 (defmulti peval-seq
@@ -100,6 +99,22 @@
              (coll? last-arg))
       (peval-seq `(~g ~@(butlast args) ~@(last args)))
       form)))
+
+(defmethod peval-seq `assoc [[f m k v :as form]]
+  (if (map? m)
+    (assoc m k v)
+    form))
+
+(defmethod peval-seq `get [[f m k v :as form]]
+  (if (map? m)
+    (if (empty? m)
+      v
+      (if (contains? m k)
+        (get m k)
+        (if (every? constant-value? (keys m))
+          v
+          form)))
+    form))
 
 (defmethod peval-seq `conj [[f xs & args :as form]]
   (if (vector? xs)

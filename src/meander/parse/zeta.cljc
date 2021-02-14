@@ -176,7 +176,7 @@
   [environment]
   (let [?x (m/logic-variable)]
     (m/one-system
-     [#_(special-form-rules environment)
+     [(special-form-rules environment)
       (make-symbol-rules environment)
       (sequential-rules)
       (map-rules)

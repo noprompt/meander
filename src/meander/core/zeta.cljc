@@ -1662,6 +1662,7 @@
 
 (defn initial-state [environment object bindings]
   (let [bind (get environment :bind)
+        eval (get environment :eval)
         fail (get environment :fail)
         give (get environment :give)
         pass (get environment :pass)
@@ -1674,7 +1675,7 @@
                (let [fold ((:fold-function v) environment)
                      object (take state)]
                  (-> state
-                     (give x)
+                     (give (eval x))
                      (save (:id v) fold pass fail)
                      (give object))))
              m))
@@ -1688,9 +1689,10 @@
    (let [bind (get environment :bind)
          list (get environment :list)
          pass (get environment :pass)
-         query (query-function pattern environment)]
+         query (query-function pattern environment)
+         state (initial-state environment object bindings)]
      (bind (comp pass list)
-           (bind query (initial-state environment object bindings))))))
+           (bind query state)))))
 
 (defn run-yield*
   ([pattern environment]
@@ -1699,8 +1701,9 @@
    (let [bind (get environment :bind)
          pass (get environment :pass)
          take (get environment :take)
-         yield (yield-function pattern environment)]
-     (bind yield (initial-state environment nil bindings)))))
+         yield (yield-function pattern environment)
+         state (initial-state environment nil bindings)]
+     (bind yield state))))
 
 (defn run-yield
   ([pattern environment]
