@@ -61,3 +61,20 @@
        (deref x)
        x))
    (f form)))
+
+(defn fix [f]
+  (fn [x]
+    (let [x* (f x)]
+      (if (= x x*)
+        x
+        (recur x*)))))
+
+(defn one [x fs]
+  (reduce
+   (fn [x f]
+     (let [x* (f x)]
+       (if (= x x*)
+         x
+         (reduced x*))))
+   x
+   fs))

@@ -14,10 +14,11 @@
         namespace-symbol (symbol namespace-name)
         name (name fully-qualified-symbol)
         ?alias (m/logic-variable)]
-    (m/one fully-qualified-symbol
+    (m/one (m/symbol namespace-name name)
            (m/project environment
-                      (m/assoc m/_ :requires (m/assoc m/_ (m/symbol ?alias) namespace-symbol))
+                      (m/assoc m/_ :requires (m/assoc m/_ (m/symbol ?alias) (m/symbol namespace-name)))
                       (m/symbol ?alias name)))))
+
 
 (defn special-form-rules
   {:private true}
@@ -36,10 +37,9 @@
                       (m/project m/again ?f (special-symbol `m/again environment))
                       (m/project m/dual ?f (special-symbol `m/dual environment))
                       (m/project m/some ?f (special-symbol `m/some environment))
-                      (m/project m/not ?f (special-symbol `m/not environment))
-                      (m/project m/one ?f (special-symbol `m/one environment))
                       (m/project m/predicate ?f (special-symbol `m/predicate environment))
-                      (m/project m/project ?f (special-symbol `m/project environment)))
+                      (m/project m/project ?f (special-symbol `m/project environment))
+                      (m/project m/one ?f (special-symbol `m/one environment)))
                (m/* [>arguments]))
        (m/apply ?f (m/* [(m/again >arguments)])))])))
 
@@ -93,32 +93,51 @@
        (m/symbol ?namespace ?name)
        (m/apply m/symbol [?namespace ?name])))]))
 
+(def ampersand
+  (m/symbol "&"))
+
+(def greedy-plus
+  (m/symbol "+"))
+
+(def greedy-star
+  (m/symbol "*"))
+
+(def frugal-star
+  (m/symbol "*?"))
+
+(def sequential-operator
+  (m/one ampersand
+         frugal-star
+         greedy-plus
+         greedy-star))
+
 (defn base-sequential-rules []
   (m/one-system
    [(m/rule
-     (m/one [] '[&] '[*] '[+] '[*?])
-     [])
+     (m/one (m/rx-cat sequential-operator)
+            (m/rx-cat))
+     (m/rx-cat))
 
     (let [?1 (m/logic-variable)
           ?2 (m/logic-variable)
           ?3 (m/logic-variable)]
       (m/rule
-       (m/rx-join ?1 (m/rx-cons '& (m/rx-cons ?2 ?3)))
+       (m/rx-join ?1 (m/rx-cons ampersand (m/rx-cons ?2 ?3)))
        (m/apply m/rx-join [(m/again ?1) (m/again ?2) (m/again ?3)])))
 
     (let [?1 (m/logic-variable)
           ?2 (m/logic-variable)
           ?f (m/logic-variable)]
       (m/rule
-       (m/rx-join ?1 (m/rx-cons (m/one (m/project m/* ?f '*)
-                                       (m/project m/*? ?f '*?)
-                                       (m/project m/+ ?f '+))
+       (m/rx-join ?1 (m/rx-cons (m/one (m/project m/* ?f greedy-star)
+                                       (m/project m/*? ?f frugal-star)
+                                       (m/project m/+ ?f greedy-plus))
                                 ?2))
        (m/apply ?f [(m/again ?1) (m/again ?2)])))
 
     (let [<1 (m/fifo-variable)]
       (m/rule
-       (m/* [(m/dual <1 (m/one '& '* '*? '+))])
+       (m/* [(m/dual <1 sequential-operator)])
        (m/apply m/rx-cat (m/* [(m/again <1)]))))]))
 
 (defn sequential-rules []
@@ -142,14 +161,14 @@
           ?k (m/logic-variable)
           ?v (m/logic-variable)]
       (m/rule
-       (m/assoc ?m (m/dual ?k '&) ?v)
+       (m/assoc ?m (m/dual ?k ampersand) ?v)
        (m/apply m/assoc [(m/again ?m) (m/again ?k) (m/again ?v)])))
 
     ;; {'& ?m} => (m/merge ?m)
     (let [?m (m/logic-variable)
           ?x (m/logic-variable)]
       (m/rule
-       (m/assoc {} '& ?x)
+       (m/assoc {} ampersand ?x)
        (m/apply m/merge [(m/again ?x)])))]))
 
 (defn make-rules
@@ -157,7 +176,7 @@
   [environment]
   (let [?x (m/logic-variable)]
     (m/one-system
-     [(special-form-rules environment)
+     [#_(special-form-rules environment)
       (make-symbol-rules environment)
       (sequential-rules)
       (map-rules)

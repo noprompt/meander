@@ -15,6 +15,12 @@
   ([pattern bindings]
    (m/run-yield pattern m.environment.eval/depth-first-one bindings)))
 
+(defn yield-one*
+  ([pattern]
+   (m/run-yield* pattern m.environment.eval/depth-first-one))
+  ([pattern bindings]
+   (m/run-yield* pattern m.environment.eval/depth-first-one bindings)))
+
 (defn yield-all
   ([pattern]
    (m/run-yield pattern m.environment.eval/depth-first-all {}))
@@ -397,9 +403,9 @@
       (t/is (= '()
                (yield-all (m/seq (m/some 1 :a :b 2)))))))
 
-
   (t/testing "seq yield satisfies query"
     (t/is (query-one (m/seq [1 2 3]) (yield-one (m/seq [1 2 3]))))))
+
 
 ;; Vec
 ;; ---

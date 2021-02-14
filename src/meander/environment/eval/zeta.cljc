@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [test])
   (:require
    [clojure.set :as set]
+   [meander.util.zeta :as m.util]
    [meander.algorithms.zeta :as m.algorithms]))
 
 #?(:cljs
@@ -116,18 +117,6 @@
   {:object (get state :object)
    :references (get state :references)})
 
-(defn save
-  {:private true}
-  [state id fold new pass fail]
-  (let [fold-pass (fn [new]
-                    (pass (assoc state id new)))
-        fold-fail (fn [x]
-                    (fail state))
-        old (if-some [entry (find state id)]
-              (val entry)
-              none)]
-    (fold old new fold-pass fold-fail)))
-
 (defn seed
   {:private true}
   [x]
@@ -137,6 +126,19 @@
   {:private true}
   [state]
   (get state :object))
+
+(defn save
+  {:private true}
+  [state id fold pass fail]
+  (let [new (take-object state)
+        fold-pass (fn [new]
+                    (pass (assoc state id new)))
+        fold-fail (fn [x]
+                    (fail state))
+        old (if-some [entry (find state id)]
+              (val entry)
+              none)]
+    (fold old new fold-pass fold-fail)))
 
 (defn test
   {:private true}
@@ -192,6 +194,7 @@
                     (f (assoc state :references new-references)))))]
     {:bind bind
      :call call
+     :code identity
      :dual dual
      :eval eval
      :find find-reference
@@ -235,6 +238,7 @@
             (f (reduce-kv (fn [m k v] (assoc m k v)) state mapping)))]
     {:bind mapcat
      :call call
+     :code identity
      :dual dual
      :eval eval
      :fail fail

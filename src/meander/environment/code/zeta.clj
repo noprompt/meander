@@ -1,6 +1,5 @@
 (ns meander.environment.code.zeta)
 
-
 (def ^{:private true}
   none ::none)
 
@@ -81,8 +80,9 @@
                    ~x
                    ~b))))
 
-          (save [state id fold new pass fail]
-            (let [pass* (fn [new]
+          (save [state id fold pass fail]
+            (let [object (take state)
+                  pass* (fn [new]
                           (let [new-state (gensym "X__")]
                             `(let* [~new-state (assoc ~state '~id ~new)]
                                ~(pass new-state))))
@@ -92,7 +92,7 @@
                     old (gensym "X__")]
                 `(let* [~entry (clojure.core/find ~state '~id)
                         ~old (if ~entry (val ~entry) ~none)]
-                   ~(fold old new pass* fail*)))))
+                   ~(fold old object pass* fail*)))))
 
           (scan [f xs]
             (let [state (gensym "S__")
@@ -198,8 +198,9 @@
                    ~m-a
                    ~b))))
 
-          (save [state id fold new pass fail]
-            (let [entry__ (gensym "E__")
+          (save [state id fold pass fail]
+            (let [object (take state)
+                  entry__ (gensym "E__")
                   old__ (gensym "X__")
                   pass* (fn [new]
                           (pass `(assoc ~state '~id ~new)))
@@ -207,7 +208,7 @@
                           (fail state))]
               `(let [~entry__ (find ~state '~id)
                      ~old__ (if ~entry__ (val ~entry__) ~none)]
-                 ~(fold old__ new pass* fail*))))
+                 ~(fold old__ object pass* fail*))))
 
           (scan [f x]
             (let [y (gensym "X__")]
