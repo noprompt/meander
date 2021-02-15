@@ -466,6 +466,14 @@
 (defn top-down-pass [f tree]
   (zip/root (m.zip/top-down f (zipper tree))))
 
+(defn parent-test-map
+  {:private true}
+  [loc]
+  (into {} (keep (fn [node]
+                   (if (= (:tag node) :test)
+                     [(:test node) node])))
+        (zip/path loc)))
+
 (defn pass-interpret-test [tree]
   (bottom-up-pass
    (fn [loc]
@@ -481,7 +489,16 @@
              (zip/replace loc (:else node))
 
              :else
-             loc))
+             ;; Eliminate duplicate tests by finding them on the path
+             ;; to this node.
+             (if-some [parent-test (get (parent-test-map loc) test)]
+               ;; If this node is on the then branch of the parent
+               ;; test, replace this node with its then
+               ;; branch. Otherwise, replace it with its else branch.
+               (if (some #{node} (subnodes (:then parent-test)))
+                 (zip/replace loc (:then node))
+                 (zip/replace loc (:else node)))
+               loc)))
          ;;else
          loc)))
    tree))
