@@ -1029,29 +1029,30 @@
           map? (eval `clojure/map?)
           map-partitions (eval `m.algorithms/map-partitions)
           nth (eval `clojure/nth)
-          n (eval (count queries))]
+          n (count queries)]
       (if (zero? n)
         (fn [state]
           (let [object (take state)]
             (test (call map? object)
                   (fn [] (pass state))
                   (fn [] (fail state)))))
-        (fn [state]
-          (let [object (take state)]
-            (test (call map? object)
-                  (fn []
-                    (scan (fn [partition]
-                            (reduce
-                             (fn [ma [index query]]
-                               (let [m (call nth partition index)]
-                                 (bind (fn [state]
-                                         (query (give state m)))
-                                       ma)))
-                             (pass state)
-                             indexed-queries))
-                          (call map-partitions object n)))
-                  (fn []
-                    (fail state))))))))
+        (let [n (eval n)]
+          (fn [state]
+            (let [object (take state)]
+              (test (call map? object)
+                    (fn []
+                      (scan (fn [partition]
+                              (reduce
+                               (fn [ma [index query]]
+                                 (let [m (call nth partition index)]
+                                   (bind (fn [state]
+                                           (query (give state m)))
+                                         ma)))
+                               (pass state)
+                               indexed-queries))
+                            (call map-partitions object n)))
+                    (fn []
+                      (fail state)))))))))
 
   IYieldFunction
   (yield-function [this environment]

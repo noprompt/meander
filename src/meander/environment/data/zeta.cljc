@@ -313,9 +313,12 @@
                         (fail state))))))
 
           (scan [f xs]
-            {:tag :scan
-             :f f
-             :xs xs})
+            (let [identifier (make-identifier)]
+              {:tag :scan
+               :identifier identifier
+               :expression xs
+               :body (f identifier)
+               :children [:expression :body]}))
 
           (star [f & args]
             {:tag :star
@@ -366,11 +369,9 @@
       (case (:tag node)
         :bind
         (let [expression (m.peval/peval (f (:expression node) scope))]
-          (if (m.peval/constant-expression? expression)
-            (f (:body node) (assoc scope (:identifier node) expression))
-            `(let* [~(f (:identifier node) scope) ~(f (:expression node) scope)]
-               (if ~(f (:identifier node) scope)
-                 ~(f (:body node) scope)))))
+          `(let* [~(f (:identifier node) scope) ~expression]
+             (if ~(f (:identifier node) scope)
+               ~(m.peval/peval (f (:body node) scope)))))
 
         :call
         (m.peval/peval `(~@(map (fn [node] (f node scope)) (map node (:children node)))))
@@ -416,7 +417,19 @@
         (into {} (map (fn [k] [(f k scope) (f (get node k) scope)])) (:children node))
 
         :pass
-        (f (:state node) scope)
+        (m.peval/peval (f (:state node) scope))
+
+        :scan
+        (let [x__1 (x__)
+              x__2 (x__)]
+          `(reduce
+            (fn [~x__1 ~(f (:identifier node) scope)]
+              (let* [~x__2 ~(m.peval/peval (f (:body node) scope))]
+                (if ~x__2
+                  (reduced ~x__2)
+                  ~x__1)))
+            nil
+            ~(m.peval/peval (f (:expression node) scope))))
 
         :setv
         (let [x--0 (m.peval/peval (f (:state node) scope))
@@ -720,9 +733,26 @@
          loc)))
    tree))
 
+(defn pass-call [tree]
+  (bottom-up-pass
+   (fn [loc]
+     (let [node (zip/node loc)]
+       (if (= (:tag node) :call)
+         (let [scope (scope-map (zip/up loc))
+               identifier (some (fn [[identifier value]]
+                                  (if (= value node)
+                                    identifier))
+                                scope)]
+           (if identifier
+             (zip/replace loc identifier)
+             loc))
+         loc)))
+   tree))
+
 (defn binding-pass [tree]
   ((m.util/fix (comp pass-interpret-let
-                     pass-interpret-bind-one))
+                     pass-interpret-bind-one
+                     pass-call))
    tree))
 
 (defn interpretation-pass [tree]
