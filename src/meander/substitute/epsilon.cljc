@@ -9,7 +9,8 @@
             [meander.syntax.epsilon :as r.syntax]
             [meander.substitute.runtime.epsilon :as r.subst.runtime]
             [meander.substitute.syntax.epsilon :as r.subst.syntax :include-macros true]
-            [meander.util.epsilon :as r.util]))
+            [meander.util.epsilon :as r.util])
+  #?(:clj (:import (clojure.lang ExceptionInfo))))
 
 ;; ---------------------------------------------------------------------
 ;; Environment utilities
@@ -673,7 +674,7 @@
                     (if (r.subst.syntax/contains-cata-node? node)
                       `(try
                          [~form*]
-                         (catch Exception e#
+                         (catch ExceptionInfo e#
                            (if (r.subst.runtime/fail? e#)
                              r.match.runtime/FAIL
                              (throw e#))))
