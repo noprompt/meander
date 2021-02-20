@@ -15,8 +15,6 @@
 ;; ---------------------------------------------------------------------
 ;; Environment utilities
 
-(defmacro if-cljs [then & [else]] (if (:ns &env) then else))
-
 (defn stateful-memory-variables
   {:private true}
   [node]
@@ -676,7 +674,7 @@
                     (if (r.subst.syntax/contains-cata-node? node)
                       `(try
                          [~form*]
-                         (catch ~(if-cljs js/Error ExceptionInfo) e#
+                         (catch ExceptionInfo e#
                            (if (r.subst.runtime/fail? e#)
                              r.match.runtime/FAIL
                              (throw e#))))
