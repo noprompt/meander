@@ -41,6 +41,10 @@
   :extend-via-metadata true
   (children [this]))
 
+(defprotocol IGround
+  :extend-via-metadata true
+  (ground? [this environment]))
+
 (defn annotate [imeta & facts]
   (vary-meta imeta clojure/assoc ::annotations (clojure/set facts)))
 
