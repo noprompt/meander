@@ -1241,12 +1241,15 @@
                              arguments-pattern)]
      (->ApplyPattern function-pattern arguments-pattern return-pattern))))
 
-(defn predicate ([predicate-pattern]
+(defn predicate
+  {:style/indent 1}
+  ([predicate-pattern]
    (->PredicatePattern predicate-pattern (anything)))
   ([predicate-pattern x-pattern]
    (->PredicatePattern predicate-pattern x-pattern)))
 
 (defn project
+  {:style/indent 2}
   [yield-pattern query-pattern a-pattern]
   (->ProjectPattern yield-pattern query-pattern a-pattern))
 
