@@ -19,26 +19,6 @@
              :variable-id variable-id
              :variable-cache cache))))
 
-(defn invert-quote
-  {:private true}
-  [form]
-  (m.util/prewalk
-   (fn f [x]
-     (if (seq? x)
-       (cond
-         (= 'clojure.core/unquote (first x))
-         (reduced (second x))
-
-         (= 'quote (first x))
-         (reduced x)
-
-         :else
-         (reduced (cons `list (map (partial m.util/prewalk f) x))))
-       (if (symbol? x)
-         (reduced `(quote ~x))
-         x)))
-   form))
-
 (defprotocol IQuery
   (query [this object]))
 
