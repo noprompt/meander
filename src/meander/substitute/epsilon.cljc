@@ -674,7 +674,7 @@
                     (if (r.subst.syntax/contains-cata-node? node)
                       `(try
                          [~form*]
-                         (catch ExceptionInfo e#
+                         (catch ~(if (r.util/cljs-env? env) 'cljs.core/ExceptionInfo 'clojure.lang.ExceptionInfo) e#
                            (if (r.subst.runtime/fail? e#)
                              r.match.runtime/FAIL
                              (throw e#))))
