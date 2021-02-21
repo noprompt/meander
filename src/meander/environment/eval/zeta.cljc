@@ -157,6 +157,9 @@
   (letfn [(bind [f x]
             (if x (f x)))
 
+          (data [x]
+            x)
+
           (dual [a b]
             (if (and a b)
               nil
@@ -194,7 +197,7 @@
                     (f (assoc state :references new-references)))))]
     {:bind bind
      :call call
-     :code identity
+     :data data
      :dual dual
      :eval eval
      :find find-reference
@@ -238,7 +241,7 @@
             (f (reduce-kv (fn [m k v] (assoc m k v)) state mapping)))]
     {:bind mapcat
      :call call
-     :code identity
+     :data identity
      :dual dual
      :eval eval
      :fail fail

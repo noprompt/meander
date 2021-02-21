@@ -1,10 +1,11 @@
 (ns ^:no-doc meander.parse.zeta
   (:require [meander.core.zeta :as m]
-            [meander.environment.eval.zeta :as m.environment.eval]
+            [meander.environment.eval.zeta :as m.eval]
             [meander.util.zeta :as m.util]))
 
-
-(defn default-variable-id [sigil name]
+(defn default-variable-id
+  {:private true}
+  [sigil name]
   (symbol (str sigil name)))
 
 (defn special-symbol
@@ -14,13 +15,11 @@
         namespace-symbol (symbol namespace-name)
         name (name fully-qualified-symbol)
         ?alias (m/logic-variable)]
-    (m/one (m/symbol namespace-name name)
-           (m/project environment
-                      (m/assoc m/_ :requires (m/assoc m/_ (m/symbol ?alias) (m/symbol namespace-name)))
-                      (m/symbol ?alias name)))))
+    (m/one (m/data fully-qualified-symbol)
+           (m/project (m/data environment) (m/assoc m/_ (m/data :requires) (m/assoc m/_ (m/symbol ?alias) (m/data (symbol namespace-name))))
+             (m/symbol ?alias (m/data name))))))
 
-
-(defn special-form-rules
+(defn make-special-form-rules
   {:private true}
   [environment]
   (let [?f (m/logic-variable)
@@ -28,119 +27,128 @@
         arguments* (m/* [>arguments])]
     (m/one-system
      [(m/rule
-       (m/cons (m/symbol "clojure.core" "unquote") (m/cons >arguments m/_))
-       (m/apply m/constant [>arguments]))
+       (m/cons (m/data 'clojure.core/unquote) (m/cons >arguments m/_))
+       (m/apply (m/data m/code) [>arguments]))
 
       (m/rule
-       (m/cons (m/one (m/project m/all ?f (special-symbol `m/all environment))
-                      (m/project m/apply ?f (special-symbol `m/apply environment))
-                      (m/project m/again ?f (special-symbol `m/again environment))
-                      (m/project m/dual ?f (special-symbol `m/dual environment))
-                      (m/project m/some ?f (special-symbol `m/some environment))
-                      (m/project m/predicate ?f (special-symbol `m/predicate environment))
-                      (m/project m/project ?f (special-symbol `m/project environment))
-                      (m/project m/one ?f (special-symbol `m/one environment)))
+       (m/cons (m/one (m/project (m/data m/all) ?f
+                        (special-symbol `m/all environment))
+                      (m/project (m/data m/apply) ?f
+                        (special-symbol `m/apply environment))
+                      (m/project (m/data m/again) ?f
+                        (special-symbol `m/again environment))
+                      (m/project (m/data m/dual) ?f
+                        (special-symbol `m/dual environment))
+                      (m/project (m/data m/some) ?f
+                        (special-symbol `m/some environment))
+                      (m/project (m/data m/predicate) ?f
+                        (special-symbol `m/predicate environment))
+                      (m/project (m/data m/project) ?f
+                        (special-symbol `m/project environment))
+                      (m/project (m/data m/one) ?f
+                        (special-symbol `m/one environment)))
                (m/* [>arguments]))
        (m/apply ?f (m/* [(m/again >arguments)])))])))
 
-
-(defn make-variable-rules
+(defn make-special-symbol-rules
   {:private true}
   [environment]
   (let [?id (m/logic-variable)
-        ?name  (m/logic-variable) 
-        variable-id (get environment :variable-id)]
+        ?name (m/logic-variable) 
+        variable-id (m/data (get environment :variable-id))]
     (m/one-system
-     [;; Logic Variable
+     [;; Anything
+      (m/rule
+       (m/data '_)
+       (m/apply (m/data m/anything) []))
+
+      ;; Logic Variable
       (m/rule
        (m/all ?id (m/symbol nil (m/str "?" ?name)))
-       (m/apply m/logic-variable [(m/apply variable-id ["?" ?name])]))
+       (m/apply (m/data m/logic-variable) [(m/apply variable-id ["?" ?name])]))
 
       ;; Fifo Variable
       (m/rule
        (m/all ?id (m/symbol nil (m/str "<" ?name)))
-       (m/apply m/fifo-variable [(m/apply variable-id ["<" ?name])]))
+       (m/apply (m/data m/fifo-variable) [(m/apply variable-id ["<" ?name])]))
 
       ;; Filo Variable
       (m/rule
        (m/all ?id (m/symbol nil (m/str ">" ?name)))
-       (m/apply m/filo-variable [(m/apply variable-id [">" ?name])]))
+       (m/apply (m/data m/filo-variable) [(m/apply variable-id [">" ?name])]))
 
       ;; Mutable Variable
       (m/rule
-       (m/all ?id (m/symbol nil (m/str "*" ?name)))
-       (m/apply m/mutable-variable [(m/apply variable-id ["*" ?name])]))
+       (m/all ?id (m/symbol nil (m/str "!" ?name)))
+       (m/apply (m/data m/mutable-variable) [(m/apply variable-id ["!" ?name])]))
 
       ;; Reference
       (m/rule
        (m/all ?id (m/symbol nil (m/str "%" ?name)))
-       (m/apply m/reference [(m/apply variable-id ["%" ?name])]))])))
+       (m/apply (m/data m/reference) [(m/apply variable-id ["%" ?name])]))])))
 
-(defn make-symbol-rules
+
+(def ^{:private true}
+  %ampersand
+  (m/data '&))
+
+(def ^{:private true}
+  %greedy-plus
+  (m/data '+))
+
+(def ^{:private true}
+  %greedy-star
+  (m/data '*))
+
+(def ^{:private true}
+  %frugal-star
+  (m/data '*?))
+
+(def ^{:private true}
+  %regex-operator
+  (m/one %frugal-star
+         %greedy-plus
+         %greedy-star))
+
+(def ^{:private true}
+  %sequential-operator
+  (m/one %ampersand
+         %regex-operator))
+
+(defn base-sequential-rules
   {:private true}
-  [environment]
-  (m/one-system 
-   [(make-variable-rules environment)
-
-    (m/rule
-     (m/one (m/symbol nil "_")
-            (special-symbol `m/_ environment))
-     (m/apply m/anything []))
-
-    (let [?namespace (m/logic-variable)
-          ?name (m/logic-variable)]
-      (m/rule
-       (m/symbol ?namespace ?name)
-       (m/apply m/symbol [?namespace ?name])))]))
-
-(def ampersand
-  (m/symbol "&"))
-
-(def greedy-plus
-  (m/symbol "+"))
-
-(def greedy-star
-  (m/symbol "*"))
-
-(def frugal-star
-  (m/symbol "*?"))
-
-(def sequential-operator
-  (m/one ampersand
-         frugal-star
-         greedy-plus
-         greedy-star))
-
-(defn base-sequential-rules []
+  []
   (m/one-system
    [(m/rule
-     (m/one (m/rx-cat sequential-operator)
+     (m/one (m/rx-cat %sequential-operator)
             (m/rx-cat))
-     (m/rx-cat))
+     (m/apply (m/data m/rx-cat) []))
 
     (let [?1 (m/logic-variable)
-          ?2 (m/logic-variable)
-          ?3 (m/logic-variable)]
+          ?2 (m/logic-variable)]
       (m/rule
-       (m/rx-join ?1 (m/rx-cons ampersand (m/rx-cons ?2 ?3)))
-       (m/apply m/rx-join [(m/again ?1) (m/again ?2) (m/again ?3)])))
+       (m/rx-cons %ampersand (m/rx-cons ?1 ?2))
+       (m/apply (m/data m/rx-join) [(m/again ?1) (m/again ?2)])))
+
+    (let [<1 (m/fifo-variable)
+          ?2 (m/logic-variable)
+          ?regex-operator (m/logic-variable)]
+      (m/rule
+       (m/* [(m/dual <1 %sequential-operator)]
+            (m/rx-cons (m/all %regex-operator ?regex-operator) ?2))
+       (m/apply (m/one (m/project ?regex-operator %greedy-star (m/data m/*))
+                       (m/project ?regex-operator %greedy-plus (m/data m/+))
+                       (m/project ?regex-operator %frugal-star (m/data m/*?)))
+                [(m/* [(m/again <1)])
+                 (m/again ?2)])))
 
     (let [?1 (m/logic-variable)
-          ?2 (m/logic-variable)
-          ?f (m/logic-variable)]
+          ?2 (m/logic-variable)]
       (m/rule
-       (m/rx-join ?1 (m/rx-cons (m/one (m/project m/* ?f greedy-star)
-                                       (m/project m/*? ?f frugal-star)
-                                       (m/project m/+ ?f greedy-plus))
-                                ?2))
-       (m/apply ?f [(m/again ?1) (m/again ?2)])))
+       (m/rx-cons ?1 ?2)
+       (m/apply (m/data m/rx-cons) [(m/again ?1) (m/again ?2)])))]))
 
-    (let [<1 (m/fifo-variable)]
-      (m/rule
-       (m/* [(m/dual <1 sequential-operator)])
-       (m/apply m/rx-cat (m/* [(m/again <1)]))))]))
-
-(defn sequential-rules []
+(defn make-sequential-rules []
   (let [?x (m/logic-variable)
         ?f (m/logic-variable)
         %base-sequential-rules (base-sequential-rules)]
@@ -149,11 +157,11 @@
             (m/vec (m/project m/vec ?f %base-sequential-rules)))
      (m/apply ?f [%base-sequential-rules]))))
 
-(defn map-rules []
+(defn make-map-rules []
   (m/one-system
    [;; {} => (m/merge)
     (m/rule
-     {}
+     (m/data {})
      (m/apply m/merge []))
 
     ;; {(m/dual ?k '&) ?v & ?m} => (m/assoc ?m ?k ?v)
@@ -162,31 +170,38 @@
           ?v (m/logic-variable)]
       (m/rule
        (m/assoc ?m (m/dual ?k ampersand) ?v)
-       (m/apply m/assoc [(m/again ?m) (m/again ?k) (m/again ?v)])))
+       (m/apply (m/data m/assoc) [(m/again ?m) (m/again ?k) (m/again ?v)])))
 
     ;; {'& ?m} => (m/merge ?m)
     (let [?m (m/logic-variable)
           ?x (m/logic-variable)]
       (m/rule
-       (m/assoc {} ampersand ?x)
-       (m/apply m/merge [(m/again ?x)])))]))
+       (m/assoc (m/data {}) ampersand ?x)
+       (m/apply (m/data m/merge) [(m/again ?x)])))]))
 
 (defn make-rules
   {:private true}
   [environment]
   (let [?x (m/logic-variable)]
     (m/one-system
-     [(special-form-rules environment)
-      (make-symbol-rules environment)
-      (sequential-rules)
-      (map-rules)
+     [(make-special-form-rules environment)
+      (make-special-symbol-rules environment)
+      (make-sequential-rules)
+      (make-map-rules)
       ?x])))
 
 (defn parser [environment]
   (let [environment (update environment :variable-id (fnil identity default-variable-id))
         rules (make-rules environment)]
     (fn [x]
-      (m/run-system rules m.environment.eval/depth-first-one x))))
+      (m/run-system rules m.eval/depth-first-one x))))
 
 (defn parse [environment x]
   ((parser environment) x))
+
+(let [environment (m.util/canonical-ns)
+      environment (assoc environment :variable-id default-variable-id)
+      parse (parser environment)
+      pattern (parse '[?type ?value])]
+  [(m/run-query pattern m.eval/depth-first-all (list 1 2 3 4 5 6 7 8 9))
+   pattern])

@@ -37,7 +37,7 @@
   (= (:tag x) :identifier))
 
 (defn make-bind [expression-tree f]
-  (let [identifier (make-identifier)]
+  (let [identifier {:tag :identifier, :id (gensym "m__")}]
     {:tag :bind
      :identifier identifier
      :expression expression-tree
@@ -126,6 +126,14 @@
   (branch :pass
     {:state tree}))
 
+(defn make-scan [xs-tree f]
+  (let [identifier (make-identifier)]
+    {:tag :scan
+     :identifier identifier
+     :expression xs-tree
+     :body (f identifier)
+     :children [:expression :body]}))
+
 (defn make-seed [object]
   (with-meta {:tag :state
               :variables {:tag :map
@@ -155,21 +163,6 @@
 
 (def %none
   (leaf :eval :form ::none))
-
-(def %assoc
-  (leaf :eval :form `clojure/assoc))
-
-(def %find
-  (leaf :eval :form `clojure/find))
-
-(def %val
-  (leaf :eval :form `clojure/val))
-
-(def %variable-key
-  (leaf :eval :form :variables))
-
-(def %object-key
-  (leaf :eval :form :variables))
 
 (defn call-tree? [x]
   (= (:tag x) :call))
@@ -202,6 +195,10 @@
 (defn nil-leaf? [tree]
   (and (= (:tag tree) :eval)
        (= (:form tree) nil)))
+
+(def ^{:arglists '([tree])} falsey-tree?
+  (some-fn false-leaf?
+           nil-leaf?))
 
 (defn binding-tree? [tree]
   (or (bind? tree) (let? tree)))
@@ -248,8 +245,8 @@
   (letfn [(bind [f m]
             (make-bind m f))
 
-          (code [x]
-            (eval x))
+          (data [x]
+            (eval `(quote ~x)))
 
           (call [f & args]
             (make-call (cons f args)))
@@ -313,12 +310,7 @@
                         (fail state))))))
 
           (scan [f xs]
-            (let [identifier (make-identifier)]
-              {:tag :scan
-               :identifier identifier
-               :expression xs
-               :body (f identifier)
-               :children [:expression :body]}))
+            (make-scan xs f))
 
           (star [f & args]
             {:tag :star
@@ -341,7 +333,7 @@
              :f f})]
     {:bind bind
      :call call
-     :code code
+     :data data
      :dual dual
      :eval eval
      :fail fail
@@ -366,90 +358,98 @@
 (defn one-code* [node scope]
   (let [f one-code*]
     (case (:tag node)
-      (case (:tag node)
-        :bind
-        (let [expression (m.peval/peval (f (:expression node) scope))]
-          `(let* [~(f (:identifier node) scope) ~expression]
-             (if ~(f (:identifier node) scope)
-               ~(m.peval/peval (f (:body node) scope)))))
+      :bind
+      (let [expression (m.peval/peval (f (:expression node) scope))]
+        `(let* [~(f (:identifier node) scope) ~expression]
+           (if ~(f (:identifier node) scope)
+             ~(m.peval/peval (f (:body node) scope)))))
 
-        :call
-        (m.peval/peval `(~@(map (fn [node] (f node scope)) (map node (:children node)))))
+      :call
+      (m.peval/peval `(~@(map (fn [node] (f node scope)) (map node (:children node)))))
 
-        :eval
-        (:form node)
+      :eval
+      (:form node)
 
-        :give
-        (m.peval/peval `(assoc ~(f (:state node) scope) :object ~(f (:object node) scope)))
+      :give
+      (m.peval/peval `(assoc ~(f (:state node) scope) :object ~(f (:object node) scope)))
 
-        :getv
-        (let [inner (m.peval/peval `(get ~(f (:state node) scope) :variables))]
-          (m.peval/peval `(get ~inner
-                               ~(f (:variable-id node) scope)
-                               ~(f (:none node) scope))))
+      :getv
+      (let [inner (m.peval/peval `(get ~(f (:state node) scope) :variables))]
+        (m.peval/peval `(get ~inner
+                             ~(f (:variable-id node) scope)
+                             ~(f (:none node) scope))))
 
-        :fail
-        nil
+      :fail
+      nil
 
-        :identifier
-        (if-some [[_ x] (find scope node)]
-          x
-          (:id node))
+      :identifier
+      (if-some [[_ x] (find scope node)]
+        x
+        (:id node))
 
-        (:join :pick)
-        (let [x__ (x__)]
-          `(let* [~x__ ~(f (:ma node) scope)]
+      (:join :pick)
+      (let [x__ (gensym "j__")
+            form (f (:ma node) scope)]
+        (if (or (m.peval/truthy-constant-expression? form)
+                (::truthy? (meta form)))
+          form
+          `(let* [~x__ ~form]
              (if ~x__
                ~x__
-               ~(f (:mb node) scope))))
+               ~(f (:mb node) scope)))))
 
-        :let
-        (let [expression (m.peval/peval (f (:expression node) scope))]
-          (if (m.peval/constant-expression? expression)
-            (f (:body node) (assoc scope (:identifier node) expression))
-            `(let* [~(f (:identifier node) scope) ~expression]
-               ~(f (:body node) scope))))
+      :let
+      (let [expression (m.peval/peval (f (:expression node) scope))]
+        (if (m.peval/constant-expression? expression)
+          (f (:body node) (assoc scope (:identifier node) expression))
+          (let [return (f (:body node) scope)
+                form `(let* [~(f (:identifier node) scope) ~expression]
+                        ~return)
+                meta (if (find (meta return) ::truthy?)
+                       (meta return)
+                       {::truthy? (m.peval/truthy-constant-expression? return)})]
+            (with-meta form meta))))
 
-        :list
-        (m.peval/peval `(get ~(f (:state node) scope) :variables))
+      :list
+      (m.peval/peval `(get ~(f (:state node) scope) :variables))
 
-        :map
-        (into {} (map (fn [k] [(f k scope) (f (get node k) scope)])) (:children node))
+      :map
+      (into {} (map (fn [k] [(f k scope) (f (get node k) scope)])) (:children node))
 
-        :pass
-        (m.peval/peval (f (:state node) scope))
+      :pass
+      (m.peval/peval (f (:state node) scope))
 
-        :scan
-        (let [x__1 (x__)
-              x__2 (x__)]
-          `(reduce
-            (fn [~x__1 ~(f (:identifier node) scope)]
-              (let* [~x__2 ~(m.peval/peval (f (:body node) scope))]
-                (if ~x__2
-                  (reduced ~x__2)
-                  ~x__1)))
-            nil
-            ~(m.peval/peval (f (:expression node) scope))))
+      :scan
+      (let [x__1 (x__)
+            x__2 (x__)]
+        `(reduce
+          (fn [~x__1 ~(f (:identifier node) scope)]
+            (let* [~x__2 ~(m.peval/peval (f (:body node) scope))]
+              (if ~x__2
+                (reduced ~x__2)
+                ~x__1)))
+          nil
+          ~(m.peval/peval (f (:expression node) scope))))
 
-        :setv
-        (let [x--0 (m.peval/peval (f (:state node) scope))
-              x--1 (m.peval/peval `(get ~x--0 :variables))
-              x--2 (m.peval/peval `(assoc ~x--1 ~(f (:variable-id node) scope) ~(f (:expression node) scope)))]
-          (m.peval/peval `(assoc ~x--0 :variables ~x--2)))
+      :setv
+      (let [x--0 (m.peval/peval (f (:state node) scope))
+            x--1 (m.peval/peval `(get ~x--0 :variables))
+            x--2 (m.peval/peval `(assoc ~x--1 ~(f (:variable-id node) scope) ~(f (:expression node) scope)))]
+        (m.peval/peval `(assoc ~x--0 :variables ~x--2)))
 
-        :take
-        (m.peval/peval `(get ~(f (:state node) scope) :object))
+      :take
+      (m.peval/peval `(get ~(f (:state node) scope) :object))
 
-        :test
-        ;; else
-        (m.peval/peval
-         `(if ~(f (:test node) scope)
-            ~(f (:then node) scope)
-            ~(f (:else node) scope)))
+      :test
+      ;; else
+      (m.peval/peval
+       `(if ~(f (:test node) scope)
+          ~(f (:then node) scope)
+          ~(f (:else node) scope)))
 
-        :state
-        {:object (f (:object node) scope)
-         :variables (f (:variables node) scope)}))))
+      :state
+      {:object (f (:object node) scope)
+       :variables (f (:variables node) scope)})))
 
 (defn let-scope [loc]
   (into {}
@@ -493,18 +493,18 @@
      (let [node (zip/node loc)]
        (if (= (:tag node) :test)
          (let [test (:test node)
-               test (get (scope-map loc) test test)]
+               resolved (get (scope-map loc) test test)]
            (cond
-             (truthy-tree? test)
+             (truthy-tree? resolved)
              (zip/replace loc (:then node))
 
-             (or (false-leaf? test) (nil-leaf? test))
+             (falsey-tree? resolved)
              (zip/replace loc (:else node))
 
              :else
              ;; Eliminate duplicate tests by finding them on the path
              ;; to this node.
-             (if-some [parent-test (get (parent-test-map loc) test)]
+             (if-some [parent-test (get (parent-test-map loc) resolved)]
                ;; If this node is on the then branch of the parent
                ;; test, replace this node with its then
                ;; branch. Otherwise, replace it with its else branch.
@@ -572,6 +572,9 @@
             state (assoc state :object object)]
         state)
 
+      :pass
+      (assoc tree :state (:state state))
+
       ;; else
       tree)))
 
@@ -624,11 +627,23 @@
       :fail
       expression
 
+      :join
+      (branch :join
+        {:ma (assoc bind-tree :expression (:ma expression))
+         :mb (assoc bind-tree :expression (:mb expression))})
+
+      :pick
+      (branch :pick
+        {:ma (assoc bind-tree :expression (:ma expression))
+         :mb (assoc bind-tree :expression (:mb expression))})
+
       :pass
       (let [state (:state expression)]
         (case (:tag state)
           :state
           (make-let identifier state body)
+
+          ;; else
           bind-tree))
 
       :state
@@ -638,7 +653,14 @@
       (interpret-bind-to-test bind-tree)
 
       ;; else
-      bind-tree)))
+      (case (:tag body)
+        :pick
+        (branch :pick
+          {:ma (assoc bind-tree :body (:ma body))
+           :mb (assoc bind-tree :body (:mb body))})
+
+        ;;
+        bind-tree))))
 
 (defn pass-interpret-bind-one [tree]
   (top-down-pass
@@ -749,10 +771,46 @@
          loc)))
    tree))
 
+
+(defn pass-pick [tree]
+  (top-down-pass
+   (fn [loc]
+     (let [node (zip/node loc)]
+       (if (= (:tag node) :pick)
+         (let [ma (:ma node)
+               mb (:mb node)]
+           (cond
+             (= (:tag ma) :pass)
+             (zip/replace loc ma)
+
+             (= (:tag ma) :fail)
+             (zip/replace loc mb)
+
+             (= (:tag mb) :pass)
+             (zip/replace loc mb)
+
+             (= (:tag ma) (:tag mb) :test)
+             (if (= (:test ma) (:test mb))
+               (let [node* (make-test (:test ma)
+                             (branch :pick
+                               {:ma (:then ma)
+                                :mb (:then mb)})
+                             (branch :pick
+                               {:ma (:else ma)
+                                :mb (:else mb)}))]
+                 (zip/replace loc node*))
+               loc)
+
+             :else
+             loc))
+         loc)))
+   tree))
+
 (defn binding-pass [tree]
   ((m.util/fix (comp pass-interpret-let
                      pass-interpret-bind-one
-                     pass-call))
+                     pass-call
+                     pass-pick))
    tree))
 
 (defn interpretation-pass [tree]
@@ -775,197 +833,598 @@
 ;; Examples
 ;; ---------------------------------------------------------------------
 
-(comment
-  (let [tree* (run-passes test-tree)
-        code* (one-code* tree* {})]
-    [code*
-     tree*])
 
-  (def test-tree
-    '{:tag :bind,
-     :identifier {:tag :identifier, :id i__2352573},
-     :expression
-     {:tag :bind,
-      :identifier {:tag :identifier, :id i__2352554},
+
+#_
+(let [tree* (run-passes test-tree)
+      code* (one-code* tree* {})]
+  [code*
+   tree*])
+
+(def test-tree
+  '
+{:tag :bind,
+ :identifier {:tag :identifier, :id m__27748},
+ :expression
+ {:tag :bind,
+  :identifier {:tag :identifier, :id m__27658},
+  :expression
+  {:tag :bind,
+   :identifier {:tag :identifier, :id m__27639},
+   :expression
+   {:tag :bind,
+    :identifier {:tag :identifier, :id m__27620},
+    :expression
+    {:state
+     {:tag :state,
+      :variables {:tag :map, :children []},
+      :references {},
+      :object {:form nil, :tag :eval},
+      :children [:object :variables]},
+     :tag :pass,
+     :children [:state]},
+    :body
+    {:state
+     {:tag :let,
+      :identifier {:tag :identifier, :id i__27624},
       :expression
       {:state
-       {:tag :state,
-        :variables {:tag :map, :children []},
-        :references {},
-        :object {:form nil, :tag :eval},
-        :children [:object :variables]},
-       :tag :pass,
+       {:state {:tag :identifier, :id m__27620},
+        :object {:tag :eval, :form x__27615},
+        :tag :give,
+        :children [:state :object]},
+       :tag :take,
        :children [:state]},
       :body
-      {:state
-       {:tag :let,
-        :identifier {:tag :identifier, :id i__2352558},
-        :expression
-        {:state
-         {:state {:tag :identifier, :id i__2352554},
-          :object {:tag :eval, :form x__2352549},
-          :tag :give,
-          :children [:state :object]},
-         :tag :take,
-         :children [:state]},
-        :body
-        {:tag :let,
-         :identifier {:tag :identifier, :id i__2352560},
-         :expression
-         {:state
-          {:state {:tag :identifier, :id i__2352554},
-           :object {:tag :eval, :form x__2352549},
-           :tag :give,
-           :children [:state :object]},
-          :variable-id {:tag :eval, :form 'x__2352549},
-          :none {:form :meander.environment.data.zeta/none, :tag :eval},
-          :tag :getv,
-          :children [:state :variable-id :none]},
-         :body
-         {:test
-          {:a_0 {:tag :eval, :form clojure.core/=},
-           :a_1 {:tag :identifier, :id i__2352560},
-           :a_2 {:form :meander.environment.data.zeta/none, :tag :eval},
-           :tag :call,
-           :children [:a_0 :a_1 :a_2]},
-          :then
-          {:state
-           {:state
-            {:state {:tag :identifier, :id i__2352554},
-             :object {:tag :eval, :form x__2352549},
-             :tag :give,
-             :children [:state :object]},
-            :variable-id {:tag :eval, :form 'x__2352549},
-            :expression {:tag :identifier, :id i__2352558},
-            :tag :setv,
-            :children [:state :variable-id :expression]},
-           :tag :pass,
-           :children [:state]},
-          :else
-          {:test
-           {:a_0 {:tag :eval, :form clojure.core/=},
-            :a_1 {:tag :identifier, :id i__2352558},
-            :a_2 {:tag :identifier, :id i__2352560},
-            :tag :call,
-            :children [:a_0 :a_1 :a_2]},
-           :then
-           {:state
-            {:state
-             {:state {:tag :identifier, :id i__2352554},
-              :object {:tag :eval, :form x__2352549},
-              :tag :give,
-              :children [:state :object]},
-             :variable-id {:tag :eval, :form 'x__2352549},
-             :expression {:tag :identifier, :id i__2352560},
-             :tag :setv,
-             :children [:state :variable-id :expression]},
-            :tag :pass,
-            :children [:state]},
-           :else
-           {:state
-            {:state {:tag :identifier, :id i__2352554},
-             :object {:tag :eval, :form x__2352549},
-             :tag :give,
-             :children [:state :object]},
-            :tag :fail},
-           :tag :test,
-           :children [:test :then :else]},
-          :tag :test,
-          :children [:test :then :else]},
-         :children [:expression :body]},
-        :children [:expression :body]},
-       :object
-       {:state {:tag :identifier, :id i__2352554},
-        :tag :take,
-        :children [:state]},
-       :tag :give,
-       :children [:state :object]},
-      :children [:expression :body]},
-     :body
-     {:state
       {:tag :let,
-       :identifier {:tag :identifier, :id i__2352577},
+       :identifier {:tag :identifier, :id i__27626},
        :expression
        {:state
-        {:state {:tag :identifier, :id i__2352573},
-         :object {:tag :eval, :form x__2352550},
+        {:state {:tag :identifier, :id m__27620},
+         :object {:tag :eval, :form x__27615},
          :tag :give,
          :children [:state :object]},
-        :tag :take,
-        :children [:state]},
+        :variable-id {:tag :eval, :form '?__27614},
+        :none
+        {:form :meander.environment.data.zeta/none, :tag :eval},
+        :tag :getv,
+        :children [:state :variable-id :none]},
        :body
-       {:tag :let,
-        :identifier {:tag :identifier, :id i__2352579},
-        :expression
+       {:test
+        {:a_0 {:tag :eval, :form clojure.core/=},
+         :a_1 {:tag :identifier, :id i__27626},
+         :a_2
+         {:form :meander.environment.data.zeta/none, :tag :eval},
+         :tag :call,
+         :children [:a_0 :a_1 :a_2]},
+        :then
         {:state
-         {:state {:tag :identifier, :id i__2352573},
-          :object {:tag :eval, :form x__2352550},
-          :tag :give,
-          :children [:state :object]},
-         :variable-id {:tag :eval, :form 'x__2352550},
-         :none {:form :meander.environment.data.zeta/none, :tag :eval},
-         :tag :getv,
-         :children [:state :variable-id :none]},
-        :body
+         {:state
+          {:state {:tag :identifier, :id m__27620},
+           :object {:tag :eval, :form x__27615},
+           :tag :give,
+           :children [:state :object]},
+          :variable-id {:tag :eval, :form '?__27614},
+          :expression {:tag :identifier, :id i__27624},
+          :tag :setv,
+          :children [:state :variable-id :expression]},
+         :tag :pass,
+         :children [:state]},
+        :else
         {:test
          {:a_0 {:tag :eval, :form clojure.core/=},
-          :a_1 {:tag :identifier, :id i__2352579},
-          :a_2 {:form :meander.environment.data.zeta/none, :tag :eval},
+          :a_1 {:tag :identifier, :id i__27624},
+          :a_2 {:tag :identifier, :id i__27626},
           :tag :call,
           :children [:a_0 :a_1 :a_2]},
          :then
          {:state
           {:state
-           {:state {:tag :identifier, :id i__2352573},
-            :object {:tag :eval, :form x__2352550},
+           {:state {:tag :identifier, :id m__27620},
+            :object {:tag :eval, :form x__27615},
             :tag :give,
             :children [:state :object]},
-           :variable-id {:tag :eval, :form 'x__2352550},
-           :expression {:tag :identifier, :id i__2352577},
+           :variable-id {:tag :eval, :form '?__27614},
+           :expression {:tag :identifier, :id i__27626},
            :tag :setv,
            :children [:state :variable-id :expression]},
           :tag :pass,
           :children [:state]},
          :else
+         {:state
+          {:state {:tag :identifier, :id m__27620},
+           :object {:tag :eval, :form x__27615},
+           :tag :give,
+           :children [:state :object]},
+          :tag :fail},
+         :tag :test,
+         :children [:test :then :else]},
+        :tag :test,
+        :children [:test :then :else]},
+       :children [:expression :body]},
+      :children [:expression :body]},
+     :object
+     {:state {:tag :identifier, :id m__27620},
+      :tag :take,
+      :children [:state]},
+     :tag :give,
+     :children [:state :object]},
+    :children [:expression :body]},
+   :body
+   {:state
+    {:tag :let,
+     :identifier {:tag :identifier, :id i__27643},
+     :expression
+     {:state
+      {:state {:tag :identifier, :id m__27639},
+       :object {:tag :eval, :form x__27616},
+       :tag :give,
+       :children [:state :object]},
+      :tag :take,
+      :children [:state]},
+     :body
+     {:tag :let,
+      :identifier {:tag :identifier, :id i__27645},
+      :expression
+      {:state
+       {:state {:tag :identifier, :id m__27639},
+        :object {:tag :eval, :form x__27616},
+        :tag :give,
+        :children [:state :object]},
+       :variable-id {:tag :eval, :form '?__27613},
+       :none {:form :meander.environment.data.zeta/none, :tag :eval},
+       :tag :getv,
+       :children [:state :variable-id :none]},
+      :body
+      {:test
+       {:a_0 {:tag :eval, :form clojure.core/=},
+        :a_1 {:tag :identifier, :id i__27645},
+        :a_2 {:form :meander.environment.data.zeta/none, :tag :eval},
+        :tag :call,
+        :children [:a_0 :a_1 :a_2]},
+       :then
+       {:state
+        {:state
+         {:state {:tag :identifier, :id m__27639},
+          :object {:tag :eval, :form x__27616},
+          :tag :give,
+          :children [:state :object]},
+         :variable-id {:tag :eval, :form '?__27613},
+         :expression {:tag :identifier, :id i__27643},
+         :tag :setv,
+         :children [:state :variable-id :expression]},
+        :tag :pass,
+        :children [:state]},
+       :else
+       {:test
+        {:a_0 {:tag :eval, :form clojure.core/=},
+         :a_1 {:tag :identifier, :id i__27643},
+         :a_2 {:tag :identifier, :id i__27645},
+         :tag :call,
+         :children [:a_0 :a_1 :a_2]},
+        :then
+        {:state
+         {:state
+          {:state {:tag :identifier, :id m__27639},
+           :object {:tag :eval, :form x__27616},
+           :tag :give,
+           :children [:state :object]},
+          :variable-id {:tag :eval, :form '?__27613},
+          :expression {:tag :identifier, :id i__27645},
+          :tag :setv,
+          :children [:state :variable-id :expression]},
+         :tag :pass,
+         :children [:state]},
+        :else
+        {:state
+         {:state {:tag :identifier, :id m__27639},
+          :object {:tag :eval, :form x__27616},
+          :tag :give,
+          :children [:state :object]},
+         :tag :fail},
+        :tag :test,
+        :children [:test :then :else]},
+       :tag :test,
+       :children [:test :then :else]},
+      :children [:expression :body]},
+     :children [:expression :body]},
+    :object
+    {:state {:tag :identifier, :id m__27639},
+     :tag :take,
+     :children [:state]},
+    :tag :give,
+    :children [:state :object]},
+   :children [:expression :body]},
+  :body
+  {:ma
+   {:tag :bind,
+    :identifier {:tag :identifier, :id m__27661},
+    :expression
+    {:state
+     {:state {:tag :identifier, :id m__27658},
+      :object {:tag :eval, :form clojure.core/vec},
+      :tag :give,
+      :children [:state :object]},
+     :tag :pass,
+     :children [:state]},
+    :body
+    {:tag :bind,
+     :identifier {:tag :identifier, :id m__27696},
+     :expression
+     {:tag :bind,
+      :identifier {:tag :identifier, :id m__27691},
+      :expression
+      {:tag :bind,
+       :identifier {:tag :identifier, :id m__27676},
+       :expression
+       {:tag :bind,
+        :identifier {:tag :identifier, :id m__27671},
+        :expression
+        {:tag :let,
+         :identifier {:tag :identifier, :id i__27664},
+         :expression
+         {:state {:tag :identifier, :id m__27661},
+          :variable-id {:tag :eval, :form '?__27613},
+          :none
+          {:form :meander.environment.data.zeta/none, :tag :eval},
+          :tag :getv,
+          :children [:state :variable-id :none]},
+         :body
          {:test
           {:a_0 {:tag :eval, :form clojure.core/=},
-           :a_1 {:tag :identifier, :id i__2352577},
-           :a_2 {:tag :identifier, :id i__2352579},
+           :a_1 {:tag :identifier, :id i__27664},
+           :a_2
+           {:form :meander.environment.data.zeta/none, :tag :eval},
            :tag :call,
            :children [:a_0 :a_1 :a_2]},
           :then
-          {:state
-           {:state
-            {:state {:tag :identifier, :id i__2352573},
-             :object {:tag :eval, :form x__2352550},
-             :tag :give,
-             :children [:state :object]},
-            :variable-id {:tag :eval, :form 'x__2352550},
-            :expression {:tag :identifier, :id i__2352579},
-            :tag :setv,
-            :children [:state :variable-id :expression]},
-           :tag :pass,
-           :children [:state]},
+          {:state {:tag :identifier, :id m__27661}, :tag :fail},
           :else
           {:state
-           {:state {:tag :identifier, :id i__2352573},
-            :object {:tag :eval, :form x__2352550},
-            :tag :give,
-            :children [:state :object]},
-           :tag :fail},
+           {:state {:tag :identifier, :id m__27661},
+            :variable-id {:tag :eval, :form '?__27613},
+            :expression {:tag :identifier, :id i__27664},
+            :tag :setv,
+            :children [:state :variable-id :expression]},
+           :object {:tag :identifier, :id i__27664},
+           :tag :give,
+           :children [:state :object]},
           :tag :test,
           :children [:test :then :else]},
-         :tag :test,
-         :children [:test :then :else]},
+         :children [:expression :body]},
+        :body
+        {:state
+         {:state {:tag :identifier, :id m__27671},
+          :object
+          {:a_0 {:tag :eval, :form clojure.core/vector},
+           :a_1
+           {:state {:tag :identifier, :id m__27671},
+            :tag :take,
+            :children [:state]},
+           :tag :call,
+           :children [:a_0 :a_1]},
+          :tag :give,
+          :children [:state :object]},
+         :tag :pass,
+         :children [:state]},
+        :children [:expression :body]},
+       :body
+       {:tag :bind,
+        :identifier {:tag :identifier, :id m__27686},
+        :expression
+        {:tag :let,
+         :identifier {:tag :identifier, :id i__27679},
+         :expression
+         {:state {:tag :identifier, :id m__27676},
+          :variable-id {:tag :eval, :form '?__27614},
+          :none
+          {:form :meander.environment.data.zeta/none, :tag :eval},
+          :tag :getv,
+          :children [:state :variable-id :none]},
+         :body
+         {:test
+          {:a_0 {:tag :eval, :form clojure.core/=},
+           :a_1 {:tag :identifier, :id i__27679},
+           :a_2
+           {:form :meander.environment.data.zeta/none, :tag :eval},
+           :tag :call,
+           :children [:a_0 :a_1 :a_2]},
+          :then
+          {:state {:tag :identifier, :id m__27676}, :tag :fail},
+          :else
+          {:state
+           {:state {:tag :identifier, :id m__27676},
+            :variable-id {:tag :eval, :form '?__27614},
+            :expression {:tag :identifier, :id i__27679},
+            :tag :setv,
+            :children [:state :variable-id :expression]},
+           :object {:tag :identifier, :id i__27679},
+           :tag :give,
+           :children [:state :object]},
+          :tag :test,
+          :children [:test :then :else]},
+         :children [:expression :body]},
+        :body
+        {:state
+         {:state {:tag :identifier, :id m__27686},
+          :object
+          {:a_0 {:tag :eval, :form clojure.core/conj},
+           :a_1
+           {:state {:tag :identifier, :id m__27676},
+            :tag :take,
+            :children [:state]},
+           :a_2
+           {:state {:tag :identifier, :id m__27686},
+            :tag :take,
+            :children [:state]},
+           :tag :call,
+           :children [:a_0 :a_1 :a_2]},
+          :tag :give,
+          :children [:state :object]},
+         :tag :pass,
+         :children [:state]},
         :children [:expression :body]},
        :children [:expression :body]},
-      :object
-      {:state {:tag :identifier, :id i__2352573},
-       :tag :take,
+      :body
+      {:state
+       {:state {:tag :identifier, :id m__27691},
+        :object
+        {:a_0 {:tag :eval, :form clojure.core/vector},
+         :a_1
+         {:state {:tag :identifier, :id m__27691},
+          :tag :take,
+          :children [:state]},
+         :tag :call,
+         :children [:a_0 :a_1]},
+        :tag :give,
+        :children [:state :object]},
+       :tag :pass,
        :children [:state]},
+      :children [:expression :body]},
+     :body
+     {:tag :bind,
+      :identifier {:tag :identifier, :id m__27701},
+      :expression
+      {:state
+       {:state {:tag :identifier, :id m__27696},
+        :object
+        {:a_0 {:tag :eval, :form clojure.core/apply},
+         :a_1
+         {:state {:tag :identifier, :id m__27661},
+          :tag :take,
+          :children [:state]},
+         :a_2
+         {:state {:tag :identifier, :id m__27696},
+          :tag :take,
+          :children [:state]},
+         :tag :call,
+         :children [:a_0 :a_1 :a_2]},
+        :tag :give,
+        :children [:state :object]},
+       :tag :pass,
+       :children [:state]},
+      :body
+      {:state
+       {:state {:tag :identifier, :id m__27696},
+        :object
+        {:a_0 {:tag :eval, :form clojure.core/apply},
+         :a_1
+         {:state {:tag :identifier, :id m__27661},
+          :tag :take,
+          :children [:state]},
+         :a_2
+         {:state {:tag :identifier, :id m__27696},
+          :tag :take,
+          :children [:state]},
+         :tag :call,
+         :children [:a_0 :a_1 :a_2]},
+        :tag :give,
+        :children [:state :object]},
+       :tag :pass,
+       :children [:state]},
+      :children [:expression :body]},
+     :children [:expression :body]},
+    :children [:expression :body]},
+   :mb
+   {:tag :bind,
+    :identifier {:tag :identifier, :id m__27705},
+    :expression
+    {:state
+     {:state {:tag :identifier, :id m__27658},
+      :object {:tag :eval, :form clojure.core/vec},
       :tag :give,
       :children [:state :object]},
-     :children [:expression :body]}
+     :tag :pass,
+     :children [:state]},
+    :body
+    {:tag :bind,
+     :identifier {:tag :identifier, :id m__27740},
+     :expression
+     {:tag :bind,
+      :identifier {:tag :identifier, :id m__27735},
+      :expression
+      {:tag :bind,
+       :identifier {:tag :identifier, :id m__27720},
+       :expression
+       {:tag :bind,
+        :identifier {:tag :identifier, :id m__27715},
+        :expression
+        {:tag :let,
+         :identifier {:tag :identifier, :id i__27708},
+         :expression
+         {:state {:tag :identifier, :id m__27705},
+          :variable-id {:tag :eval, :form '?__27614},
+          :none
+          {:form :meander.environment.data.zeta/none, :tag :eval},
+          :tag :getv,
+          :children [:state :variable-id :none]},
+         :body
+         {:test
+          {:a_0 {:tag :eval, :form clojure.core/=},
+           :a_1 {:tag :identifier, :id i__27708},
+           :a_2
+           {:form :meander.environment.data.zeta/none, :tag :eval},
+           :tag :call,
+           :children [:a_0 :a_1 :a_2]},
+          :then
+          {:state {:tag :identifier, :id m__27705}, :tag :fail},
+          :else
+          {:state
+           {:state {:tag :identifier, :id m__27705},
+            :variable-id {:tag :eval, :form '?__27614},
+            :expression {:tag :identifier, :id i__27708},
+            :tag :setv,
+            :children [:state :variable-id :expression]},
+           :object {:tag :identifier, :id i__27708},
+           :tag :give,
+           :children [:state :object]},
+          :tag :test,
+          :children [:test :then :else]},
+         :children [:expression :body]},
+        :body
+        {:state
+         {:state {:tag :identifier, :id m__27715},
+          :object
+          {:a_0 {:tag :eval, :form clojure.core/vector},
+           :a_1
+           {:state {:tag :identifier, :id m__27715},
+            :tag :take,
+            :children [:state]},
+           :tag :call,
+           :children [:a_0 :a_1]},
+          :tag :give,
+          :children [:state :object]},
+         :tag :pass,
+         :children [:state]},
+        :children [:expression :body]},
+       :body
+       {:tag :bind,
+        :identifier {:tag :identifier, :id m__27730},
+        :expression
+        {:tag :let,
+         :identifier {:tag :identifier, :id i__27723},
+         :expression
+         {:state {:tag :identifier, :id m__27720},
+          :variable-id {:tag :eval, :form '?__27613},
+          :none
+          {:form :meander.environment.data.zeta/none, :tag :eval},
+          :tag :getv,
+          :children [:state :variable-id :none]},
+         :body
+         {:test
+          {:a_0 {:tag :eval, :form clojure.core/=},
+           :a_1 {:tag :identifier, :id i__27723},
+           :a_2
+           {:form :meander.environment.data.zeta/none, :tag :eval},
+           :tag :call,
+           :children [:a_0 :a_1 :a_2]},
+          :then
+          {:state {:tag :identifier, :id m__27720}, :tag :fail},
+          :else
+          {:state
+           {:state {:tag :identifier, :id m__27720},
+            :variable-id {:tag :eval, :form '?__27613},
+            :expression {:tag :identifier, :id i__27723},
+            :tag :setv,
+            :children [:state :variable-id :expression]},
+           :object {:tag :identifier, :id i__27723},
+           :tag :give,
+           :children [:state :object]},
+          :tag :test,
+          :children [:test :then :else]},
+         :children [:expression :body]},
+        :body
+        {:state
+         {:state {:tag :identifier, :id m__27730},
+          :object
+          {:a_0 {:tag :eval, :form clojure.core/conj},
+           :a_1
+           {:state {:tag :identifier, :id m__27720},
+            :tag :take,
+            :children [:state]},
+           :a_2
+           {:state {:tag :identifier, :id m__27730},
+            :tag :take,
+            :children [:state]},
+           :tag :call,
+           :children [:a_0 :a_1 :a_2]},
+          :tag :give,
+          :children [:state :object]},
+         :tag :pass,
+         :children [:state]},
+        :children [:expression :body]},
+       :children [:expression :body]},
+      :body
+      {:state
+       {:state {:tag :identifier, :id m__27735},
+        :object
+        {:a_0 {:tag :eval, :form clojure.core/vector},
+         :a_1
+         {:state {:tag :identifier, :id m__27735},
+          :tag :take,
+          :children [:state]},
+         :tag :call,
+         :children [:a_0 :a_1]},
+        :tag :give,
+        :children [:state :object]},
+       :tag :pass,
+       :children [:state]},
+      :children [:expression :body]},
+     :body
+     {:tag :bind,
+      :identifier {:tag :identifier, :id m__27745},
+      :expression
+      {:state
+       {:state {:tag :identifier, :id m__27740},
+        :object
+        {:a_0 {:tag :eval, :form clojure.core/apply},
+         :a_1
+         {:state {:tag :identifier, :id m__27705},
+          :tag :take,
+          :children [:state]},
+         :a_2
+         {:state {:tag :identifier, :id m__27740},
+          :tag :take,
+          :children [:state]},
+         :tag :call,
+         :children [:a_0 :a_1 :a_2]},
+        :tag :give,
+        :children [:state :object]},
+       :tag :pass,
+       :children [:state]},
+      :body
+      {:state
+       {:state {:tag :identifier, :id m__27740},
+        :object
+        {:a_0 {:tag :eval, :form clojure.core/apply},
+         :a_1
+         {:state {:tag :identifier, :id m__27705},
+          :tag :take,
+          :children [:state]},
+         :a_2
+         {:state {:tag :identifier, :id m__27740},
+          :tag :take,
+          :children [:state]},
+         :tag :call,
+         :children [:a_0 :a_1 :a_2]},
+        :tag :give,
+        :children [:state :object]},
+       :tag :pass,
+       :children [:state]},
+      :children [:expression :body]},
+     :children [:expression :body]},
+    :children [:expression :body]},
+   :tag :pick,
+   :children [:ma :mb]},
+  :children [:expression :body]},
+ :body
+ {:state
+  {:state {:tag :identifier, :id m__27748},
+   :tag :take,
+   :children [:state]},
+  :tag :pass,
+  :children [:state]},
+ :children [:expression :body]}
 
 
-    ))
+  )
