@@ -38,6 +38,14 @@
                (set? x))
            (every? constant-expression? x))))
 
+(defn truthy-constant-expression? [x]
+  (or (truthy-constant-value? x)
+      (map? x)
+      (vector? x)
+      (set? x)
+      (and (seq? x)
+           (contains? #{`assoc} (first x)))))
+
 (defmulti peval-seq
   {:arglists '([seq])}
   (fn [xs]
