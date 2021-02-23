@@ -1866,7 +1866,7 @@
     (if (r.matrix/empty? matrix)
       nil
       (let [expr (get search-analysis :expr)
-            symbol-target? (symbol? expr)
+            symbol-target? (simple-symbol? expr)
             contains-cata? (get search-analysis :contains-cata?)
             target (if symbol-target?
                      expr
@@ -1999,7 +1999,7 @@
     (if (r.matrix/empty? matrix)
       nil
       (let [expr (get find-analysis :expr)
-            symbol-target? (symbol? expr)
+            symbol-target? (simple-symbol? expr)
             contains-cata? (get find-analysis :contains-cata?)
             target (if symbol-target?
                      expr
