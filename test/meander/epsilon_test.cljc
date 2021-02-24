@@ -2573,4 +2573,16 @@
 (t/deftest gh-151
   (t/is (instance? GH151 (r/rewrite (->GH151 :a) (r/$ ?ctx :a) (r/app ?ctx :b)))))
 
+(t/deftest gh-170
+  (let [q? (fn [m k v]
+             (r/find m
+               (r/or {~k ~v}
+                     {:a {~k ~v}}
+                     {:b {~k ~v}})
+               true
 
+               _
+               false))]
+    (t/is (q? {:b :c} :b :c))
+    (t/is (q? {:a {:b :c}} :b :c))
+    (t/is (q? {:b {:c :d}} :c :d))))
