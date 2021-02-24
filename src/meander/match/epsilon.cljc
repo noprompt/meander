@@ -698,7 +698,7 @@
         literal-key-codes (map compile-ground literal-key-nodes)
         sub_targets `[~rest_target ~@targets]
         ir-target (r.ir/op-eval target)]
-    [(r.ir/op-check-map (r.ir/op-eval target)
+    [(r.ir/op-check-map ir-target
        (reduce
         (fn [ir [value_target key-code]]
           (r.ir/op-bind value_target (r.ir/op-lookup ir-target (r.ir/op-eval key-code))
@@ -815,11 +815,34 @@
              (compile-k-map-specialized-matrix k targets s-matrix)))
           matrices)))
 
+(defn partition-map-matrix-by-literal-keys
+  "Partition map-matrix into two separate matrices: one containing
+  only the rows of map-matrix such that the first column is a :map
+  node containing key from literal-key-nodes, and one containing only
+  the rows of the map-matrix such that the first column is a :map node
+  containing no key from literal-key-nodes."
+  {:private true}
+  [literal-key-nodes map-matrix]
+  (reduce
+   (fn [[a b] row]
+     (let [node (first (:cols row))
+           the-map (or (get node :map) {})]
+       (if (seq (filter the-map literal-key-nodes))
+         [(conj a row) b]
+         [a (conj b row)])))
+   [[] []]
+   map-matrix))
+
 (defmethod compile-specialized-matrix :map
   [_  targets map-matrix]
   (let [literal-key-nodes (map-matrix-all-literal-keys map-matrix)]
     (if (seq literal-key-nodes)
-      (compile-literal-key-map-matrix literal-key-nodes targets map-matrix)
+      (let [[map-matrix-a map-matrix-b] (partition-map-matrix-by-literal-keys literal-key-nodes map-matrix)
+            ir-a (compile-literal-key-map-matrix literal-key-nodes targets map-matrix-a)]
+        (if (seq map-matrix-b)
+          (let [ir-b (compile-non-literal-key-map-matrix targets map-matrix-b)]
+            (into ir-a ir-b))
+          ir-a))
       (compile-non-literal-key-map-matrix targets map-matrix))))
 
 (defmethod compile-specialized-matrix :mut
