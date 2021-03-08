@@ -399,7 +399,7 @@
             (fn pred-query [target bindings]
               (let [predicate (eval form)]
                 (if (predicate target)
-                  (pass bindings)
+                  (and-pq target bindings)
                   fail))))
           (throw (ex-info "eval not provided" {:runtime runtime}))))
       (fn pred-make-yield [runtime]
