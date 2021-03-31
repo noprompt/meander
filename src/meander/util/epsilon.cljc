@@ -428,7 +428,8 @@
   ;;     [[\"a\"] [\"b\"] []]
   ;;     [[\"ab\"] [] []])
   "
-  [n str]
+  [n #?(:clj  ^String str
+        :cljs str)]
   {:pre [(nat-int? n)]}
   (case n
     0 (list [])
@@ -697,5 +698,15 @@
    :cljs
    (defn make-js-value [x] x))
 
+#?(:clj
+   (defmacro val-op
+     {:private true}
+     [x]
+     (try
+       (let [c (Class/forName "cljs.tagged_literals.JSValue")]
+         `(.val ^"cljs.tagged_literals.JSValue" ~x))
+       (catch ClassNotFoundException _
+         `(.val ~x)))))
+
 (defn val-of-js-value [x]
-  (if (js-value? x) (.val x) x))
+  (if (js-value? x) (val-op x) x))

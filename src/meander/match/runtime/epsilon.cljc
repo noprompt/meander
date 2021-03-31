@@ -156,57 +156,60 @@
         nil
         (then-f rets)))))
 
-(defn run-star-js-array
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (loop [coll coll
-         rets rets]
-    (let [xs (.slice coll 0 (min (.-length coll) n))]
-      (if (= (count xs) n)
-        (let [rets (body-f rets xs)]
-          (if (fail? rets)
-            FAIL
-            (recur (.slice coll n) rets)))
-        (if (seq coll)
-          FAIL
-          (then-f rets))))))
+#?(:cljs
+   (defn run-star-js-array
+     {:style/indent :defn}
+     [coll rets n body-f then-f]
+     (loop [coll coll
+            rets rets]
+       (let [xs (.slice coll 0 (min (.-length coll) n))]
+         (if (= (count xs) n)
+           (let [rets (body-f rets xs)]
+             (if (fail? rets)
+               FAIL
+               (recur (.slice coll n) rets)))
+           (if (seq coll)
+             FAIL
+             (then-f rets)))))))
 
-(defn run-star-js-array-search
-  {:style/indent :defn}
-  [coll rets n body-f then-f]
-  (let [xs (.slice coll 0 (min n (count coll)))]
-    (if (= (count xs) n)
-      (mapcat
-       (fn [rets]
-         (if (fail? rets)
+#?(:cljs
+   (defn run-star-js-array-search
+     {:style/indent :defn}
+     [coll rets n body-f then-f]
+     (let [xs (.slice coll 0 (min n (count coll)))]
+       (if (= (count xs) n)
+         (mapcat
+          (fn [rets]
+            (if (fail? rets)
+              nil
+              (run-star-js-array-search (.slice coll n) rets n body-f then-f)))
+          (body-f rets xs))
+         (if (seq coll)
            nil
-           (run-star-js-array-search (.slice coll n) rets n body-f then-f)))
-       (body-f rets xs))
-      (if (seq coll)
-        nil
-        (then-f rets)))))
+           (then-f rets))))))
 
-(defn run-plus-js-array-search
-  {:style/indent :defn}
-  [coll rets n m body-f then-f]
-  (let [m*n (* m n)
-        xs (.slice coll 0 (min m*n (count coll)))]
-    (if (= (count xs) m*n)
-      (let [ys (.slice coll m*n)]
-        (mapcat
-         (fn [rets]
-           (if (fail? rets)
-             nil
-             (run-star-js-array-search ys rets n body-f then-f)))
-         (sequence
-          (apply comp
-                 (map (fn [chunk]
-                        (mapcat (fn [rets]
-                                  (if (fail? rets)
-                                    nil
-                                    (body-f rets chunk)))))
-                      (partition n xs)))
-          [rets])))
-      (if (seq coll)
-        nil
-        (then-f rets)))))
+#?(:cljs
+   (defn run-plus-js-array-search
+     {:style/indent :defn}
+     [coll rets n m body-f then-f]
+     (let [m*n (* m n)
+           xs (.slice coll 0 (min m*n (count coll)))]
+       (if (= (count xs) m*n)
+         (let [ys (.slice coll m*n)]
+           (mapcat
+            (fn [rets]
+              (if (fail? rets)
+                nil
+                (run-star-js-array-search ys rets n body-f then-f)))
+            (sequence
+             (apply comp
+                    (map (fn [chunk]
+                           (mapcat (fn [rets]
+                                     (if (fail? rets)
+                                       nil
+                                       (body-f rets chunk)))))
+                         (partition n xs)))
+             [rets])))
+         (if (seq coll)
+           nil
+           (then-f rets))))))

@@ -232,6 +232,8 @@
 
 
 (def ^{:doc "Node tags ordered from highest precedence to lowest."
+       :tag #?(:clj clojure.lang.PersistentVector
+               :cljs nil)
        :private true}
   tag-ranking
   [:mut
