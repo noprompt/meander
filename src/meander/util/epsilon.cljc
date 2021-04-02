@@ -7,6 +7,7 @@
                                __dissoc
                                __nth]])))
 
+#?(:clj (set! *warn-on-reflection* true))
 
 (defn cljs-env?
   "true if compiling ClojureScript or in a ClojureScript setting,
@@ -703,10 +704,11 @@
      {:private true}
      [x]
      (try
-       (let [c (Class/forName "cljs.tagged_literals.JSValue")]
-         `(.val ^"cljs.tagged_literals.JSValue" ~x))
+       (Class/forName "cljs.tagged_literals.JSValue")
+       `(.val ^"cljs.tagged_literals.JSValue" ~x)
        (catch ClassNotFoundException _
          `(.val ~x)))))
 
-(defn val-of-js-value [x]
-  (if (js-value? x) (val-op x) x))
+#?(:clj
+   (defn val-of-js-value [x]
+     (if (js-value? x) (val-op x) x)))

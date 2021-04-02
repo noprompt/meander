@@ -32,7 +32,7 @@ function cljs-test () {
   echo 'Running ClojureScript tests'
   color default
   echo '---------------------------'
-  clojure -A:cljs-test
+  clojure -A:cljs:cljs-test
 }
 
 case $1 in
