@@ -101,7 +101,7 @@ Here we can use *memory variables*.
 (defn grab-all-foods [user]
   (m/find user
     {:favorite-foods [{:name !foods} ...]
-     :special-food !food
+     :special-food !foods
      :recipes [{:title !foods} ...]
      :meal-plan {:breakfast [{:food !foods} ...]
                  :lunch [{:food !foods} ...]
