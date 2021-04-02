@@ -161,7 +161,9 @@
   [f matrix]
   (if (empty? matrix)
     {}
-    (let [matrix (vec matrix)
+    (let [#?(:clj  ^clojure.lang.PersistentVector matrix
+             :cljs matrix)
+          (vec matrix)
           grouped (group-by (comp f first :cols) matrix)]
       (into
        (sorted-map-by
