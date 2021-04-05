@@ -10,9 +10,9 @@
                                eftest/eftest {:mvn/version "0.5.8"}}
                   :main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]])"
                               "-e" "(run-tests,(find-tests,\"test\"))"]}
+           :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.439"}}}
            :cljs-test {:extra-paths ["test"]
                        :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
-                                    org.clojure/clojurescript {:mvn/version "1.10.439"}
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
                        :main-opts ["-m" "cljs-test-runner.main"]}
            :make-defproject {:extra-paths ["bin"]
