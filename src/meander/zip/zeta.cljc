@@ -12,12 +12,14 @@
         (recur next-loc)))))
 
 (defn top-down [f loc]
-  (let [loc* (f loc)]
-    (if-some [next-loc (zip/next loc*)]
-      (if (zip/end? next-loc)
-        loc*
-        (recur f (f next-loc)))
-      loc)))
+  (loop [loc (f loc)]
+    (if (zip/end? loc)
+      loc
+      (let [loc* (f loc)]
+        (if-some [next-loc (zip/next loc*)]
+          (recur next-loc)
+          loc*))
+     )))
 
 (defn bottom-up [f loc]
   (loop [loc (rightmost-loc loc)]

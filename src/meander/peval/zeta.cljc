@@ -1,4 +1,5 @@
-(ns meander.peval.zeta)
+(ns meander.peval.zeta
+  (:require [meander.algorithms.zeta :as m.algorithms]))
 
 (defn constant-value? [x]
   (or (number? x)
@@ -40,11 +41,10 @@
 
 (defn truthy-constant-expression? [x]
   (or (truthy-constant-value? x)
-      (map? x)
-      (vector? x)
-      (set? x)
       (and (seq? x)
-           (contains? #{`assoc} (first x)))))
+           (contains? #{`assoc
+                        `list}
+                      (first x)))))
 
 (defmulti peval-seq
   {:arglists '([seq])}
@@ -108,9 +108,17 @@
       (peval-seq `(~g ~@(butlast args) ~@(last args)))
       form)))
 
+(defmethod peval-seq `any? [[f g]]
+  true)
+
 (defmethod peval-seq `assoc [[f m k v :as form]]
   (if (map? m)
     (assoc m k v)
+    form))
+
+(defmethod peval-seq `conj [[f xs & args :as form]]
+  (if (vector? xs)
+    (apply conj xs args)
     form))
 
 (defmethod peval-seq `get [[f m k v :as form]]
@@ -124,9 +132,11 @@
           form)))
     form))
 
-(defmethod peval-seq `conj [[f xs & args :as form]]
-  (if (vector? xs)
-    (apply conj xs args)
+(defmethod peval-seq `nth [[f x i :as form]]
+  (if (and (vector? x)
+           (nat-int? i)
+           (< i (count x)))
+    (nth x i)
     form))
 
 (defmethod peval-seq `vec [[f x :as xs]]
@@ -137,3 +147,32 @@
 
 (defmethod peval-seq `vector [[f & args]]
   (vec args))
+
+(defmethod peval-seq `vector? [[f x :as form]]
+  (if (or (vector? x)
+          (and (seq? x)
+               (= 'quote (first x))
+               (vector? (second x))))
+    true
+    form))
+
+(defmethod peval-seq `seq [[f x :as form]]
+  (if (vector? x)
+    (if (seq x)
+      (cons `list (seq x))
+      nil)
+    form))
+
+(defmethod peval-seq `sequential? [[f x :as form]]
+  (if (or (vector? x)
+          (and (seq? x)
+               (= 'quote (first x))
+               (sequential? (second x))))
+    true
+    form))
+
+
+(defmethod peval-seq `m.algorithms/tail [[f x :as form]]
+  (if (vector? x)
+    (m.algorithms/tail x)
+    form))

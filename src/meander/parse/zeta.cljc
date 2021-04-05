@@ -1,6 +1,6 @@
 (ns ^:no-doc meander.parse.zeta
   (:require [meander.core.zeta :as m]
-            [meander.environment.eval.zeta :as m.eval]
+            [meander.runtime.eval.zeta :as m.rt.eval]
             [meander.util.zeta :as m.util]))
 
 (defn default-variable-id
@@ -120,9 +120,9 @@
   []
   (m/one-system
    [(m/rule
-     (m/one (m/rx-cat %sequential-operator)
-            (m/rx-cat))
-     (m/apply (m/data m/rx-cat) []))
+     (m/one (m/rx-cat [%sequential-operator])
+            (m/rx-cat []))
+     (m/apply (m/data m/rx-cat) [[]]))
 
     (let [?1 (m/logic-variable)
           ?2 (m/logic-variable)]
@@ -146,16 +146,21 @@
           ?2 (m/logic-variable)]
       (m/rule
        (m/rx-cons ?1 ?2)
-       (m/apply (m/data m/rx-cons) [(m/again ?1) (m/again ?2)])))]))
+       (m/apply (m/data m/rx-cons) [(m/again ?1) (m/again (m/list `regex ?2))])))]))
 
 (defn make-sequential-rules []
   (let [?x (m/logic-variable)
         ?f (m/logic-variable)
         %base-sequential-rules (base-sequential-rules)]
-    (m/rule
-     (m/one (m/seq (m/project m/seq ?f %base-sequential-rules))
-            (m/vec (m/project m/vec ?f %base-sequential-rules)))
-     (m/apply ?f [%base-sequential-rules]))))
+    (m/one-system
+     [(m/rule
+       (m/list `regex %base-sequential-rules)
+       %base-sequential-rules)
+
+      (m/rule
+       (m/one (m/seq (m/project m/seq ?f %base-sequential-rules))
+              (m/vec (m/project m/vec ?f %base-sequential-rules)))
+       (m/apply ?f [%base-sequential-rules]))])))
 
 (defn make-map-rules []
   (m/one-system
@@ -169,39 +174,61 @@
           ?k (m/logic-variable)
           ?v (m/logic-variable)]
       (m/rule
-       (m/assoc ?m (m/dual ?k ampersand) ?v)
+       (m/assoc ?m (m/dual ?k %ampersand) ?v)
        (m/apply (m/data m/assoc) [(m/again ?m) (m/again ?k) (m/again ?v)])))
 
     ;; {'& ?m} => (m/merge ?m)
     (let [?m (m/logic-variable)
           ?x (m/logic-variable)]
       (m/rule
-       (m/assoc (m/data {}) ampersand ?x)
+       (m/assoc (m/data {}) %ampersand ?x)
        (m/apply (m/data m/merge) [(m/again ?x)])))]))
+
+(defn rx [p]
+  (m/rx-cat [(m/data `rx) p]))
 
 (defn make-rules
   {:private true}
   [environment]
-  (let [?x (m/logic-variable)]
+  (let [_ (m/anything)
+        ?head (m/logic-variable)
+        ?tail (m/logic-variable)
+        ?xs (m/logic-variable)
+        rx-empty (m/apply (m/data m/rx-empty) [])]
     (m/one-system
-     [(make-special-form-rules environment)
-      (make-special-symbol-rules environment)
-      (make-sequential-rules)
-      (make-map-rules)
-      ?x])))
+     [(make-special-symbol-rules environment)
+      
+      ;; (rx ()) | (rx (?x & ?y))
+      (m/rule
+       (rx (m/one (m/data ()) (m/data [])))
+       (m/apply (m/data m/rx-empty) []))
+
+      (m/rule
+       (m/rx-cat [?xs (m/data '*)] ?tail)
+       (m/again (rx ?tail)))
+
+      (m/rule
+       (rx (m/rx-cons ?head ?tail))
+       (m/apply (m/data m/rx-cons) [(m/again ?head) (m/again (rx ?tail))]))
+
+      (m/rule
+       (m/seq ?xs)
+       (m/apply (m/data m/seq) [(m/again (rx ?xs))]))
+
+      (m/rule
+       (m/vec ?xs)
+       (m/apply (m/data m/vec) [(m/again (rx ?xs))]))
+      
+
+      ;; Default
+      (let [?x (m/logic-variable)]
+        (m/rule ?x (m/apply m/data [?x])))])))
 
 (defn parser [environment]
   (let [environment (update environment :variable-id (fnil identity default-variable-id))
         rules (make-rules environment)]
     (fn [x]
-      (m/run-system rules m.eval/depth-first-one x))))
+      (m/run-system rules (m.rt.eval/df-one) x))))
 
 (defn parse [environment x]
   ((parser environment) x))
-
-(let [environment (m.util/canonical-ns)
-      environment (assoc environment :variable-id default-variable-id)
-      parse (parser environment)
-      pattern (parse '[?type ?value])]
-  [(m/run-query pattern m.eval/depth-first-all (list 1 2 3 4 5 6 7 8 9))
-   pattern])

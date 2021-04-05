@@ -1,4 +1,6 @@
 (ns meander.algorithms.zeta
+  (:refer-clojure :exclude [drop])
+  (:require [#?(:clj clojure.core :cljs cljs.core) :as clojure])
   #?(:clj
      (:import (clojure.lang PersistentList
                             PersistentVector
@@ -43,6 +45,14 @@
       []
       (subvec x 1))
     (rest x)))
+
+(defn drop
+  "Like `clojure.core/drop` but returns a vector when given a vector."
+  [n coll]
+  {:pre [(sequential? coll)]}
+  (if (vector? coll)
+    (subvec coll (min n (count coll)))
+    (clojure/drop n coll)))
 
 ;; Permutations
 ;; ---------------------------------------------------------------------
@@ -188,7 +198,7 @@
     1 (map-indexed
        (fn [i x]
          (let [j (inc i)]
-           [[x] (concat (take i s) (drop j s))]))
+           [[x] (concat (take i s) (clojure/drop j s))]))
        s)
 
     ;; else
@@ -199,7 +209,7 @@
          (map-indexed
           (fn [i x]
             (let [j (inc i)]
-              [(conj xs x) (concat (take i s-xs) (drop j s-xs))]))
+              [(conj xs x) (concat (take i s-xs) (clojure/drop j s-xs))]))
           s-xs)))
      (seq-k-permutations-with-unselected s (dec k)))))
 
@@ -379,3 +389,44 @@
 
     :else
     (seq-partitions n coll)))
+
+(defn mix*
+  "Same as `mix` but accepts a sequence of colls."
+  [colls]
+  (lazy-seq
+   (if (seq colls)
+     (if (seq (first colls))
+       (cons (ffirst colls)
+             (mix* (lazy-cat (next colls) (list (next (first colls))))))
+       (mix* (next colls)))
+     ())))
+
+(defn mix
+  "Like clojure.core/interleave but exhausts each supplied
+  collection.
+
+    (interleave [1 2 3] [\"a\" \"b\"] [:w :x :y :z])
+    ;; =>
+    (1 \"a\" :w 2 \"b\" :x)
+
+    (mix [1 2 3] [\"a\" \"b\"] [:w :x :y :z])
+    ;; =>
+    (1 \"a\" :w 2 \"b\" :x 3 :y :z)"
+  {:arglists '([coll1 coll2 & more-colls])}
+  ([coll1 coll2]
+   (lazy-seq
+    (if (seq coll1)
+      (cons (first coll1) (mix coll2 (rest coll1)))
+      coll2)))
+  ([coll1 coll2 coll3]
+   (lazy-seq
+    (if (seq coll1)
+      (cons (first coll1) (mix coll2 coll3 (rest coll1)))
+      (mix coll2 coll3))))
+  ([coll1 coll2 coll3 coll4]
+   (lazy-seq
+    (if (seq coll1)
+      (cons (first coll1) (mix coll2 coll3 coll4 (rest coll1)))
+      (mix coll2 coll3 coll4))))
+  ([coll1 coll2 coll3 coll4 & more-colls]
+   (mix* (concat (list coll1 coll2 coll3 coll4) more-colls))))
