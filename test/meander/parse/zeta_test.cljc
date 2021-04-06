@@ -31,20 +31,20 @@
 (t/deftest parse-sequential-test
   (with-parse parse
     (t/testing "parse seq"
-      (t/is (= (m/seq (m/data ()))
+      (t/is (= (m/seq (m/rx-empty))
                (parse ())))
 
-      (t/is (= (m/seq (m/rx-cat [1]))
+      (t/is (= (m/seq (m/rx-cat [(m/data 1)]))
                (parse '(1)))))
 
-    #_
     (t/testing "parse vector"
-      (t/is (= (m/vec (m/data []))
+      (t/is (= (m/vec (m/rx-empty))
                (parse [])))
 
-      (t/is (= (m/vec (m/rx-cat [1]))
+      (t/is (= (m/vec (m/rx-cat [(m/data 1)]))
                (parse [1]))))))
 
+#_
 (t/deftest parse-map-test
   (t/is (= (m/merge)
            (parse {})))
