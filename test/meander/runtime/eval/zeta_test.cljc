@@ -211,7 +211,7 @@
                       (pass (mint state))))))))
 
      (t/testing "star"
-       (t/is (= (seed 3)
+       (t/is (= (pass (seed 3))
                 (star (seed 1)
                   (fn [again state]
                     (take state
