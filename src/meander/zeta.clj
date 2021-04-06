@@ -1,6 +1,5 @@
 (ns meander.zeta
   (:require [meander.core.zeta :as m.core]
-            [meander.environment.data.zeta :as m.data]
             [meander.parse.zeta :as m.parse]
             [meander.util.zeta :as m.util]))
 
