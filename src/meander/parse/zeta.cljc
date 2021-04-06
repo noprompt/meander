@@ -226,9 +226,14 @@
 
 (defn parser [environment]
   (let [environment (update environment :variable-id (fnil identity default-variable-id))
-        rules (make-rules environment)]
+        rules (make-rules environment)
+        rt (m.rt.eval/df-one)
+        bind (get rt :bind)
+        pass (get rt :pass)
+        take (get rt :take)]
     (fn [x]
-      (m/run-system rules (m.rt.eval/df-one) x))))
+      (bind (fn [state] (take state pass))
+            (m/run-system rules rt x)))))
 
 (defn parse [environment x]
   ((parser environment) x))
