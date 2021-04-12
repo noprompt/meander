@@ -1,7 +1,11 @@
 (ns meander.peval.zeta
   (:require [meander.algorithms.zeta :as m.algorithms]))
 
-(defn constant-value? [x]
+(defn constant-value?
+  "true if x is `number?`, `keyword?`, `string?`, `boolean?`, `nil?`,
+  a collection of `constant-value?`, or a quoted form, false
+  otherwise."
+  [x]
   (or (number? x)
       (keyword? x)
       (string? x)
@@ -31,7 +35,10 @@
   (or (false? x)
       (nil? x)))
 
-(defn constant-expression? [x]
+(defn constant-expression?
+  "true if x is a `symbol?`, `constant-value?`, or a collection of
+  `constant-expression?`, false otherwise."
+  [x]
   (or (symbol? x)
       (constant-value? x)
       (and (or (map? x)
@@ -86,6 +93,23 @@
     :else
     form))
 
+(defn definitely-heterogeneous?
+  "true if it can be deduced that two or more elements in xs are not
+  of the same type, false otherwise."
+  [xs]
+  (let [tags (into #{} (map (fn [x]
+                              (cond
+                                (boolean? x) :boolean
+                                (keyword? x) :keyword
+                                (string? x) :string
+                                (number? x) :number
+                                (map? x) :map
+                                (set? x) :set
+                                (vector? x) :vector
+                                :else :unknown)))
+                   xs)]
+    (< 1 (count (disj tags :unknown)))))
+
 (defmethod peval-seq `= [[f & args]]
   (let [distinct-args (distinct args)]
     (if (= (count distinct-args) 1)
@@ -99,7 +123,9 @@
                 (=-form constant-value-args)
                 (=-form distinct-args)))
             false)
-          (=-form distinct-args))))))
+          (if (definitely-heterogeneous? args)
+            false
+            (=-form distinct-args)))))))
 
 (defmethod peval-seq `apply [[f g & args :as form]]
   (let [last-arg (last args)]

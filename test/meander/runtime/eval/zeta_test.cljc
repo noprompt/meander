@@ -3,7 +3,8 @@
    [clojure.test :as t]
    [clojure.template :as template]
    [meander.core.zeta :as m.core]
-   [meander.runtime.eval.zeta :as m.rt.eval]))
+   [meander.runtime.eval.zeta :as m.rt.eval]
+   [meander.runtime.tree.zeta :as m.rt.tree]))
 
 (defmacro using-runtime
   {:style/indent 1}
