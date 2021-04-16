@@ -1708,12 +1708,13 @@
         none (get environment :none)
         test (get environment :test)
         = (eval `clojure/=)
-        cons (eval `clojure/cons)]
+        cons (eval `clojure/cons)
+        list (eval `clojure/list)]
     (fn [old new pass fail]
       (call = old none
         (fn [truth]
           (test truth
-            (fn [] (pass (clojure/list new)))
+            (fn [] (call list new pass))
             (fn [] (call cons new old pass))))))))
 
 (defn filo-unfold-function [environment]
