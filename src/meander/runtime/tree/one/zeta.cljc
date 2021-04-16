@@ -34,46 +34,33 @@
 (extend-protocol IClojure
   Arguments
   (clojure [this]
-    (let [meta (meta this)]
-      (doall
-       (map (fn [argument]
-              (clojure (with-meta argument meta)))
-            (:arguments this)))))
+    (map clojure (.-arguments this)))
 
   Bind
-  (clojure [this]
-    (let [meta (meta this)
-          identifier (clojure (:identifier this))
-          expression (clojure (with-meta (:expression this) meta))
-          body (clojure (with-meta (:body this) (update meta :bindings assoc identifier expression)))]
-      (if (m.peval/constant-expression? expression)
-        body
-        (if (and (seq? body) (= (first body) 'let*))
-          `(let* [~identifier ~expression
-                  ~@(nth body 1)]
-             ~@(drop 2 body))
-          `(let* [~identifier ~expression]
-             ~body)))))
+  (-clojure [this]
+    (let [identifier (clojure (.-identifier this))
+          expression (clojure (.-expression this))
+          body (clojure (.-body this))]
+      `(let* [~identifier ~expression]
+         ~body)))
 
   Bindings
   (clojure [this]
-    (let [meta (meta this)]
-      (into {} (map (fn [[k-node v-node]]
-                      (let [k (clojure (with-meta k-node meta))
-                            v (clojure (with-meta v-node meta))]
-                        [`(quote ~k) v]))
-                    (:bindings this)))))
+    (into {} (map (fn [[k-node v-node]]
+                    (let [k (clojure k-node)
+                          v (clojure v-node)]
+                      [`(quote ~k) v])))
+          (.-bindings this)))
 
   Call
   (clojure [this]
-    (let [meta (meta this)
-          f (clojure (with-meta (:f this) meta))
-          arguments (clojure (with-meta (:arguments this) meta))]
-      (m.peval/peval `(~f ~@arguments))))
+    (let [f (clojure (.-f this))
+          arguments (clojure (.-arguments this))]
+      `(~f ~@arguments)))
 
   Code
   (clojure [this]
-    (:code this))
+    (.-code this))
 
   Data
   (clojure [this]
@@ -85,34 +72,29 @@
 
   GetBindings
   (clojure [this]
-    (let [state (clojure (with-meta (:state this) (meta this)))]
+    (let [state (clojure (.-state this))]
       `(get ~state :bindings)))
 
   GetBinding
   (clojure [this]
-    (let [meta (meta this)
-          state (clojure (with-meta (.-state this) meta))
-          none (clojure (with-meta (.-none this) meta))]
-      `(get ~state (quote ~(clojure (.-identifier this))) ~none)))
+    (let [identifier (.-identifier this)
+          state (clojure (.-state this))
+          none (clojure (.-none this))]
+      `(get ~state (quote ~(clojure identifier)) ~none)))
 
   GetObject
   (clojure [this]
-    `(get ~(clojure (with-meta (:state this) (meta this))) :object))
+    `(get ~(clojure (.-state this)) :object))
 
   Identifier
   (clojure [this]
-    (if-some [[_ expression] (find (get (meta this) :bindings) this)]
-      (if (m.peval/constant-expression? expression)
-        expression
-        (:symbol this))
-      (:symbol this)))
+    (.-symbol this))
 
   Join
   (clojure [this]
-    (let [meta (meta this)
-          x__0 (gensym "x__")
-          x--0 (clojure (with-meta (.-ma this) meta))
-          x--1 (clojure (with-meta (.-mb this) meta))]
+    (let [x__0 (gensym "x__")
+          x--0 (clojure (.-ma this))
+          x--1 (clojure (.-mb this))]
       `(let* [~x__0 ~x--0]
          (if ~x__0
            ~x__0
@@ -120,74 +102,60 @@
 
   Let
   (clojure [this]
-    (let [meta (meta this)
-          identifier (clojure (:identifier this))
-          expression (clojure (with-meta (:expression this) meta))
-          body (clojure (with-meta (:body this) (update meta :bindings assoc (:identifier this) expression)))]
-      (if (m.peval/constant-expression? expression)
-        body
-        (if (and (seq? body) (= (first body) 'let*))
-          `(let* [~identifier ~expression
-                  ~@(nth body 1)]
-             ~@(drop 2 body))
-          `(let* [~identifier ~expression]
-             ~body)))))
+    (let [identifier (clojure (.-identifier this))
+          expression (clojure (.-expression this))
+          body (clojure (.-body this))]
+      `(let* [~identifier ~expression]
+         ~body)))
 
   Pass
   (clojure [this]
-    (clojure (with-meta (:state this) (meta this))))
+    (clojure (.-state this)))
 
   Pick
   (clojure [this]
-    (let [meta (meta this)
-          x--0 (clojure (with-meta (:ma this) meta))]
-      (if (m.peval/truthy-constant-value? x--0)
-        x--0
-        (let [x__0 (gensym "x__")]
-          `(let* [~x__0 ~x--0]
-             (if ~x__0
-               ~x__0
-               ~(clojure (with-meta (:mb this) meta))))))))
+    (let [x__0 (gensym "x__")
+          x--0 (clojure (.-ma this))
+          x--1 (clojure (.-mb this))]
+      `(let* [~x__0 ~x--0]
+         (if ~x__0
+           ~x__0
+           ~x--1))))
 
   SetBinding
   (clojure [this]
     (let [x__0 (gensym "x__")
           x__1 (gensym "x__")
-          meta (meta this)
-          state (clojure (with-meta (.-state this) meta))
-          value (clojure (with-meta (.-value this) meta))]
+          state (clojure (.-state this))
+          identifier (clojure (.-identifier this))
+          value (clojure (.-value this))]
       `(let* [~x__0 ~state
               ~x__1 (get ~x__0 :bindings)]
-         (assoc ~x__0 :bindings (assoc ~x__1  (quote ~(clojure (.-identifier this))) ~value)))))
+         (assoc ~x__0 :bindings (assoc ~x__1  (quote ~identifier) ~value)))))
 
   SetObject
   (clojure [this]
-    (let [meta (meta this)
-          state (clojure (with-meta (.-state this) meta))
-          value (clojure (with-meta (.-value this) meta))]
+    (let [state (clojure (.-state this))
+          value (clojure (.-value this))]
       `(assoc ~state :object ~value)))
 
   State
   (clojure [this]
     (let [meta (meta this)
-          object (clojure (with-meta (:object this) meta))
-          bindings (clojure (with-meta (:bindings this) meta))]
+          object (clojure (.-object this))
+          bindings (clojure (.-bindings this))]
       `{:bindings ~bindings
         :object ~object}))
 
   Test
   (clojure [this]
-    (let [meta (meta this)
-          test (clojure (with-meta (:test this) meta))
-          then (clojure (with-meta (:then this) meta))
-          else (clojure (with-meta (:else this) meta))]
+    (let [test (clojure (.-test this))
+          then (clojure (.-then this))
+          else (clojure (.-else this))]
       (m.peval/peval `(if ~test ~then ~else)))))
 
 ;; Interpretation
 ;; ---------------------------------------------------------------------
-
-(defprotocol IInterpret
-  (-interpret [this loc]))
 
 (defprotocol IGetBinding
   (get-binding [this identifier none]))
