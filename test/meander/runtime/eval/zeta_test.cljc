@@ -3,8 +3,7 @@
    [clojure.test :as t]
    [clojure.template :as template]
    [meander.core.zeta :as m.core]
-   [meander.runtime.eval.zeta :as m.rt.eval]
-   [meander.runtime.tree.zeta :as m.rt.tree]))
+   [meander.runtime.eval.zeta :as m.rt.eval]))
 
 (defmacro using-runtime
   {:style/indent 1}
@@ -236,11 +235,11 @@
 (t/deftest df-all-runtime-test
   (runtime-tests (m.rt.eval/df-all)))
 
-(t/deftest df-one-integration-test
-  (let [rt (m.rt.eval/df-all)
-        query (fn [p x] (m.core/run-query p rt x))
-        yield (fn [p] (m.core/run-yield p rt))
-        rewrite (fn [p x] (m.core/run-rule p rt x))]
+(def integration-test-template
+  '(let [rt $runtime
+         query (fn [p x] (m.core/run-query p rt x))
+         yield (fn [p] (m.core/run-yield p rt))
+         rewrite (fn [p x] (m.core/run-rule p rt x))]
     (using-runtime rt 
       (t/testing "anything"
         (let [x (rand)]
@@ -455,6 +454,13 @@
         (let [>x (m.core/filo-variable '>x)
               Reverse (m.core/rule (m.core/rx-cat [>x >x]) (m.core/rx-cat [>x >x]))]
           (t/is (= (pass {:object [2 1] :bindings {'>x ()} :references {}})
-                   (rewrite Reverse [1 2]))))
+                   (rewrite Reverse [1 2]))))))))
 
-        ))))
+(defmacro integration-tests [runtime]
+  (template/apply-template '[$runtime] integration-test-template [runtime]))
+
+(t/deftest df-one-integration-test
+  (integration-tests (m.rt.eval/df-one)))
+
+(t/deftest df-all-integration-test
+  (integration-tests (m.rt.eval/df-all)))
