@@ -175,13 +175,6 @@
 ;; Helpers
 ;; -------
 
-(defn pass [f]
-  (fn [node]
-    (zip/root (m.zip/top-down (fn [loc] (zip/edit loc f loc)) (m.tree/zipper node)))))
-
-(defn interpret [node]
-  ((pass -interpret) node))
-
 (defn scope-from-path [path]
   (reduce
    (fn [scope node]
@@ -199,28 +192,6 @@
        scope))
    {}
    path))
-
-(defn scope [loc]
-  (let [parent-loc (zip/up loc)
-        loc (if (and (some? parent-loc)
-                     (let [parent-node (zip/node parent-loc)]
-                       (and (m.tree/let? parent-node)
-                            (= (.-expression ^Let parent-node)
-                               (zip/node loc)))))
-              parent-loc
-              loc)]
-    (scope-from-path (zip/path loc))))
-
-(defn test-scope [loc]
-  (let [parent-loc (zip/up loc)
-        loc (if (and (some? parent-loc)
-                     (let [parent-node (zip/node parent-loc)]
-                       (and (m.tree/test? parent-node)
-                            (= (.-test ^Test parent-node)
-                               (zip/node loc)))))
-              parent-loc
-              loc)]
-    (test-scope-from-path (zip/path loc))))
 
 (defn resolve
   ([node scope]
@@ -245,18 +216,18 @@
             identifier))
           scope))
 
-(defn test-resolve [node loc]
-  (get (test-scope loc) node))
+(defn test-resolve [node test-scope]
+  (get test-scope node))
 
-;; Implementation
-;; --------------
+;; Passes
+;; ------
 
 ;; pass-interpret
 ;; ---------------------------------------------------------------------
 
-(defn rule-interpret-pass [node path]
+(defn rule-interpret-pass [node scope]
   (if (instance? Pass node)
-    (if-some [state (resolve (.-state ^Pass node) (scope-from-path path) nil)]
+    (if-some [state (resolve (.-state ^Pass node) scope nil)]
       (m.tree/pass state))))
 
 (extend-protocol IGetObject
@@ -274,11 +245,10 @@
   (get-object [this]
     (.-object this)))
 
-(defn rule-interpret-get-object
-  [node path]
+(defn rule-interpret-get-object [node scope]
   (if (instance? GetObject node)
     (let [state (.-state ^GetObject node)
-          resolved-state (resolve state (scope-from-path path) state)]
+          resolved-state (resolve state scope state)]
       (if (satisfies? IGetObject resolved-state)
         (get-object resolved-state)))))
 
@@ -305,10 +275,10 @@
     (m.tree/state new-object (.-bindings this))))
 
 (defn rule-interpret-set-object
-  [node path]
+  [node scope]
   (if (instance? SetObject node)
     (let [state (.-state ^SetObject node)
-          resolved-state (resolve state (scope-from-path path) state)]
+          resolved-state (resolve state scope state)]
       (if (satisfies? ISetObject resolved-state)
         (set-object resolved-state (.-value ^SetObject node))))))
 
@@ -333,17 +303,17 @@
   (get-binding [this identifier none]
     (get-binding (.bindings this) identifier none)))
 
-(defn rule-interpret-get-binding [node path]
+(defn rule-interpret-get-binding [node scope]
   (if (instance? GetBinding node)
     (let [state (.-state ^GetBinding node)
-          resolved-state (resolve state (scope-from-path path) state)]
+          resolved-state (resolve state scope state)]
       (if (satisfies? IGetBinding resolved-state)
         (get-binding resolved-state (.-identifier ^GetBinding node) (.-none ^GetBinding node))))))
 
-(defn rule-interpret-get-bindings [node path]
+(defn rule-interpret-get-bindings [node scope]
   (if (instance? GetBindings node)
     (let [state (.-state ^GetBindings node)
-          resolved-state (resolve state (scope-from-path path) state)]
+          resolved-state (resolve state scope state)]
       (if (instance? State resolved-state)
         (.-bindings ^State resolved-state)))))
 
@@ -372,22 +342,22 @@
     (m.tree/state (.object this) (m.tree/set-binding (.bindings this) identifier value))))
 
 (defn rule-interpret-set-binding
-  [node path]
+  [node scope]
   (if (instance? SetBinding node)
     (let [state (.-state ^SetBinding node)
-          resolved-state (resolve state (scope-from-path path) state)]
+          resolved-state (resolve state scope state)]
       (if (satisfies? ISetBinding resolved-state)
         (set-binding resolved-state (.-identifier ^SetBinding node) (.-value ^SetBinding node))))))
 
-(defn rule-interpret-identifier [node path]
+(defn rule-interpret-identifier [node scope]
   (if (instance? Identifier node)
-    (if-some [node (resolve node (scope-from-path path) nil)]
+    (if-some [node (resolve node scope nil)]
       (if (or (m.tree/data? node)
               (m.tree/code? node)
               (m.tree/state? node))
         node))))
 
-(defn rule-interpret-bind [node path]
+(defn rule-interpret-bind [node scope]
   (if (instance? Bind node)
     (let [expression (.-expression ^Bind node)
           body (.-body ^Bind node)]
@@ -404,7 +374,7 @@
 ;; (pick (fail e1) e2)
 ;; ------------------- 
 ;;         e2
-(defn rule-interpret-pick [node path]
+(defn rule-interpret-pick [node scope]
   (if (instance? Pick node)
     (let [ma (.-ma ^Pick node)]
       (if (m.tree/pass? ma)
@@ -419,7 +389,7 @@
 ;; (join (fail e1) e2)
 ;; ------------------- 
 ;;         e2
-(defn rule-interpret-join [node path]
+(defn rule-interpret-join [node scope]
   (if (instance? Join node)
     (let [ma (.-ma ^Join node)]
       (if (m.tree/pass? ma)
@@ -427,20 +397,28 @@
         (if (m.tree/fail? ma)
           (.-mb ^Join node))))))
 
+(defn system-interpret [node scope]
+  (or (rule-interpret-pass node scope)
+      (rule-interpret-bind node scope)
+      (rule-interpret-pick node scope)
+      (rule-interpret-join node scope)
+      (rule-interpret-identifier node scope)
+      (rule-interpret-get-object node scope)
+      (rule-interpret-get-binding node scope)
+      (rule-interpret-get-bindings node scope)
+      (rule-interpret-set-object node scope)
+      (rule-interpret-set-binding node scope)
+      node))
+
 (defn pass-interpret [node]
   (m.tree/top-down-pass
    (fn [node path]
-     (or (rule-interpret-pass node path)
-         (rule-interpret-bind node path)
-         (rule-interpret-set-object node path)
-         (rule-interpret-get-object node path)
-         (rule-interpret-set-binding node path)
-         (rule-interpret-get-binding node path)
-         (rule-interpret-get-bindings node path)
-         (rule-interpret-identifier node path)
-         (rule-interpret-pick node path)
-         (rule-interpret-join node path)
-         node))
+     (let [scope (scope-from-path path)]
+       (loop [node node]
+         (let [node* (system-interpret node scope)]
+           (if (= node node*)
+             node
+             (recur node*))))))
    node))
 
 
@@ -459,8 +437,8 @@
             (.-body ^Bind node)))))))
 
 ;;      (bind x (test e1 e2 e3) e4)
-;; -------------------------------------- BindTest
-;; (test e1 (bind x e2 e4) (bind x e3 e4)
+;; --------------------------------------- BindTest
+;; (test e1 (bind x e2 e4) (bind x e3 e4))
 (defn rule-bind-test [node path]
   (if (instance? Bind node)
     (let [expression (.-expression node)]
@@ -501,14 +479,21 @@
         nil))
     nil))
 
+(defn system-commute [node path]
+  (or (rule-bind-let node path)
+      (rule-bind-test node path)
+      (rule-let-let node path)
+      (rule-let-test node path)
+      node))
+
 (defn pass-commute [node]
   (m.tree/top-down-pass
    (fn [node path]
-     (or (rule-bind-let node path)
-         (rule-bind-test node path)
-         (rule-let-let node path)
-         (rule-let-test node path)
-         node))
+     (loop [node node]
+       (let [node* (system-commute node path)]
+         (if (= node node*)
+           node
+           (recur node*)))))
    node))
 
 
@@ -518,35 +503,29 @@
 (defprotocol IPrune
   (-prune [this loc]))
 
-(defn prune [node]
-  ((m.util/fix (pass -prune)) node))
-
-(extend-protocol IPrune
-  Let
-  (-prune [this loc]
-    (let [this-identifier (.-identifier this)
-          this-expression (.-expression this)
-          this-body (.-body this)]
+(defn rule-prune-let [node scope]
+  (if (instance? Let node)
+    (let [this-identifier (.-identifier ^Let node)
+          this-expression (.-expression ^Let node)
+          this-body (.-body ^Let node)]
       (if (instance? Identifier this-expression)
         (m.tree/postwalk-replace {this-identifier this-expression} this-body)
-        (if-some [identifier (reverse-resolve this-expression (scope loc))]
+        (if-some [identifier (reverse-resolve this-expression scope)]
           (m.tree/postwalk-replace {this-identifier identifier} this-body)
           (let [uses (count (filter #{this-identifier} (m.tree/subnodes this-body)))]
-            (case uses
-              0 this-body
+            (if (zero? uses)
+              this-body)))))))
 
-              ;; else
-              this))))))
 
-  Test
-  (-prune [this loc]
-    (let [test (.-test this)
-          then (.-then this)
-          else (.-else this)]
+(defn rule-prune-test [node test-scope]
+  (if (instance? Test node)
+    (let [test (.-test ^Test node)
+          then (.-then ^Test node)
+          else (.-else ^Test node)]
       (if (= then else)
         then
-        (if-some [parent-test (test-resolve test loc)]
-          (if (some #{this} (m.tree/subnodes (.-then ^Test parent-test)))
+        (if-some [parent-test (get test-scope test)]
+          (if (some #{node} (m.tree/subnodes (.-then ^Test parent-test)))
             then
             else)
           (let [form (m.peval/peval (clojure test))]
@@ -555,12 +534,18 @@
               then
 
               (m.peval/falsey-constant-value? form)
-              else
+              else)))))))
 
-              :else
-              this))))))
-
-
-  #?(:clj Object, :cljs default)
-  (-prune [this loc]
-    this))
+(defn prune [node]
+  (m.tree/top-down-pass
+   (fn [node path]
+     (let [scope (scope-from-path path)
+           test-scope (test-scope-from-path path)]
+       (loop [node node]
+         (let [node* (or #_(rule-prune-let node scope)
+                         (rule-prune-test node test-scope)
+                         node)]
+           (if (= node node*)
+             node
+             (recur node*))))))
+   node))
