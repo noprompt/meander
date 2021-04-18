@@ -1480,9 +1480,9 @@
 
 (defn rx-join
   ([]
-   (rx-join () ()))
+   (rx-empty))
   ([x-pattern]
-   (rx-join x-pattern ()))
+   (rx-join x-pattern (rx-empty)))
   ([x-pattern y-pattern]
    (->RegexJoin x-pattern y-pattern))
   ([x-pattern y-pattern & more-patterns]
@@ -1490,11 +1490,12 @@
 
 (defn *
   ([subsequence-pattern]
-   (* subsequence-pattern ()))
+   (* subsequence-pattern (rx-empty)))
   ([subsequence-pattern rest-pattern]
-   (let [subsequence-pattern (if (sequential? subsequence-pattern)
-                               (rx-cat subsequence-pattern)
-                               subsequence-pattern)]
+   (if (sequential? subsequence-pattern)
+     (if (clojure/seq subsequence-pattern)
+       (->GreedyStar (rx-cat subsequence-pattern) rest-pattern)
+       (rx-empty))
      (->GreedyStar subsequence-pattern rest-pattern))))
 
 (defn +
