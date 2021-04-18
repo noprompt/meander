@@ -2078,7 +2078,8 @@
         yield (yield-function system environment)]
     ((fn again [state]
        (bind (fn [state]
-               (yield state)) (with (mint state) {(:id %again) again} query)))
+               (yield state))
+             (with (mint state) {(:id %again) again} query)))
      (seed x))))
 
 ;; Local Variables:
