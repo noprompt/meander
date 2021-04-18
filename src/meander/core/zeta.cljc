@@ -270,8 +270,8 @@
           query-a (query-function pattern-a environment)
           query-b (query-function pattern-b environment)]
       (fn [state]
-        (pick (query-a state)
-              (query-b state)))))
+        (pick (fn [] (query-a state))
+              (fn [] (query-b state))))))
 
   IYieldFunction
   (yield-function [this environment]
@@ -279,8 +279,8 @@
           yield-a (yield-function pattern-a environment)
           yield-b (yield-function pattern-b environment)]
       (fn [state]
-        (pick (yield-a state)
-              (yield-b state))))))
+        (pick (fn [] (yield-a state))
+              (fn [] (yield-b state)))))))
 
 (defrecord SomePattern [pattern-a pattern-b]
   IChildren
@@ -932,6 +932,7 @@
           zero (data 0)
           one (data 1)
           two (data 2)]
+
       (fn [state]
         (take state
           (fn [object]
@@ -946,7 +947,7 @@
                                   (fn [x]
                                     (call nth partition one
                                       (fn [y]
-                                        (bind (fn [x-state]
+                                        (bind (fn  [x-state]
                                                 (give x-state y y-query))
                                           (give state x x-query)))))))
                           partitions))))
@@ -1026,10 +1027,9 @@
                   (fn []
                     (star state
                       (fn [rec state]
-                            (take state
-                              (fn [object]
-                                (pick
-                                  (fn []
+                        (take state
+                          (fn [object]
+                            (pick (fn []
                                     (call partitions two object
                                       (fn [partitions]
                                         (call rest partitions
@@ -1039,10 +1039,11 @@
                                                       (fn [a]
                                                         (call nth partition one
                                                           (fn [b]
+
                                                             (bind (fn [subsequence-state]
                                                                     (give subsequence-state b
-                                                                          (fn [state]
-                                                                            (call rec state identity))))
+                                                                      (fn [state]
+                                                                        (call rec state identity))))
                                                                   (give state a subsequence-query)))))))
                                                   rest-partitions))))))
                                   (fn []
@@ -1073,10 +1074,9 @@
               (fn [rec state]
                     (take state
                       (fn [a]
-                        (pick
-                          (fn []
-                            (bind (fn [subsequence-state]
-                                    (take subsequence-state
+                        (pick (fn []
+                                (bind (fn [subsequence-state]
+                                        (take subsequence-state
                                           (fn [b]
                                             (call sequential? b
                                               (fn [truth]
@@ -1085,14 +1085,14 @@
                                                     (call concat a b
                                                       (fn [ab]
                                                         (give subsequence-state ab
-                                                              (fn [state]
-                                                                (call rec state identity))))))
+                                                          (fn [state]
+                                                            (call rec state identity))))))
                                                   (fn []
                                                     (fail state))))))))
-                                  (give state () subsequence-yield)))
-                          (fn []
-                            (bind (fn [rest-state]
-                                    (take rest-state
+                                      (give state () subsequence-yield)))
+                              (fn []
+                                (bind (fn [rest-state]
+                                        (take rest-state
                                           (fn [b]
                                             (call sequential? b
                                               (fn [truth]
@@ -1103,7 +1103,7 @@
                                                         (give rest-state ab pass))))
                                                   (fn []
                                                     (fail rest-state))))))))
-                                  (rest-yield state))))))))))))))
+                                      (rest-yield state))))))))))))))
 
 (defrecord FrugalStar [subsequence-pattern rest-pattern]
   IQueryFunction

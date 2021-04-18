@@ -48,13 +48,16 @@
 
 (defn pick-all
   {:private true}
-  [a b]
-  (if (seq a) a b))
+  [thunk-a thunk-b]
+  (let [a (thunk-a)]
+    (if (seq a) a (thunk-b))))
 
 (defn pick-one
   {:private true}
-  [a b]
-  (if (some? a) a b))
+  [thunk-a thunk-b]
+  (if-some [a (thunk-a)]
+    a
+    (thunk-b)))
 
 (defn join-all
   {:private true}
