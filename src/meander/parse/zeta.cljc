@@ -88,80 +88,6 @@
        (m/apply (m/data m/reference) [(m/apply variable-id ["%" ?name])]))])))
 
 
-(def ^{:private true}
-  %ampersand
-  (m/data '&))
-
-(def ^{:private true}
-  %greedy-plus
-  (m/data '+))
-
-(def ^{:private true}
-  %greedy-star
-  (m/data '*))
-
-(def ^{:private true}
-  %frugal-star
-  (m/data '*?))
-
-(def ^{:private true}
-  %regex-operator
-  (m/one %frugal-star
-         %greedy-plus
-         %greedy-star))
-
-(def ^{:private true}
-  %sequential-operator
-  (m/one %ampersand
-         %regex-operator))
-
-(defn base-sequential-rules
-  {:private true}
-  []
-  (m/one-system
-   [(m/rule
-     (m/one (m/rx-cat [%sequential-operator])
-            (m/rx-cat []))
-     (m/apply (m/data m/rx-cat) [[]]))
-
-    (let [?1 (m/logic-variable)
-          ?2 (m/logic-variable)]
-      (m/rule
-       (m/rx-cons %ampersand (m/rx-cons ?1 ?2))
-       (m/apply (m/data m/rx-join) [(m/again ?1) (m/again ?2)])))
-
-    (let [<1 (m/fifo-variable)
-          ?2 (m/logic-variable)
-          ?regex-operator (m/logic-variable)]
-      (m/rule
-       (m/* [(m/dual <1 %sequential-operator)]
-            (m/rx-cons (m/all %regex-operator ?regex-operator) ?2))
-       (m/apply (m/one (m/project ?regex-operator %greedy-star (m/data m/*))
-                       (m/project ?regex-operator %greedy-plus (m/data m/+))
-                       (m/project ?regex-operator %frugal-star (m/data m/*?)))
-                [(m/* [(m/again <1)])
-                 (m/again ?2)])))
-
-    (let [?1 (m/logic-variable)
-          ?2 (m/logic-variable)]
-      (m/rule
-       (m/rx-cons ?1 ?2)
-       (m/apply (m/data m/rx-cons) [(m/again ?1) (m/again (m/list `regex ?2))])))]))
-
-(defn make-sequential-rules []
-  (let [?x (m/logic-variable)
-        ?f (m/logic-variable)
-        %base-sequential-rules (base-sequential-rules)]
-    (m/one-system
-     [(m/rule
-       (m/list `regex %base-sequential-rules)
-       %base-sequential-rules)
-
-      (m/rule
-       (m/one (m/seq (m/project m/seq ?f %base-sequential-rules))
-              (m/vec (m/project m/vec ?f %base-sequential-rules)))
-       (m/apply ?f [%base-sequential-rules]))])))
-
 (defn make-map-rules []
   (m/one-system
    [;; {} => (m/merge)
@@ -184,8 +110,23 @@
        (m/assoc (m/data {}) %ampersand ?x)
        (m/apply (m/data m/merge) [(m/again ?x)])))]))
 
-(defn rx [p]
-  (m/rx-cat [(m/data `rx) p]))
+(defn rx
+  {:private true}
+  [%pattern]
+  (m/rx-cat [(m/data `rx) %pattern]))
+
+(defn rx-quantifier-rule
+  "Matches and yields objects of the form
+
+      (`rx (,,,))
+      (`rx [,,,])
+
+  This rule helps to avoid redundant calls to `m/seq` or `m/vec`."
+  {:private true}
+  [%head %host]
+  (let [?tail (m/logic-variable)]
+    (m/rule (m/seq (m/rx-cons %head ?tail))
+            (m/apply %host [(m/again (rx ?tail))]))))
 
 (defn make-rules
   {:private true}
@@ -193,23 +134,41 @@
   (let [_ (m/anything)
         ?head (m/logic-variable)
         ?tail (m/logic-variable)
+        ?x (m/logic-variable)
         ?xs (m/logic-variable)
         rx-empty (m/apply (m/data m/rx-empty) [])]
     (m/one-system
      [(make-special-symbol-rules environment)
       
-      ;; (rx ()) | (rx (?x & ?y))
+      (make-special-form-rules environment)
+
+      ;; (rx ())
       (m/rule
        (rx (m/one (m/data ()) (m/data [])))
        (m/apply (m/data m/rx-empty) []))
 
+      ;; (rx (& ?a '& ?b)
       (m/rule
-       (m/rx-cat [?xs (m/data '*)] ?tail)
-       (m/again (rx ?tail)))
-
+       (rx (m/rx-join ?head (m/rx-cat [(m/data '&) ?x] ?tail)))
+       (m/apply (m/data m/rx-join) [(m/again (rx ?head)) (m/apply (m/data m/rx-join) [(m/again ?x) (m/again (rx ?tail))])]))
+                                        ;
+      ;; (rx (?head & ?tail))
       (m/rule
        (rx (m/rx-cons ?head ?tail))
        (m/apply (m/data m/rx-cons) [(m/again ?head) (m/again (rx ?tail))]))
+
+      ;; ('meander.core.zeta/+ & ?rest)
+      ;; ('meander.core.zeta/* & ?rest)
+      ;; ('meander.core.zeta/*? & ?rest)
+      ;; ('meander.core.zeta/+? & ?rest)
+      (let [?host (m/logic-variable)]
+        (m/rule
+         (m/seq (m/rx-cons (m/one (m/project (m/data m/*) ?host (special-symbol `m/* environment))
+                                  (m/project (m/data m/+) ?host (special-symbol `m/+ environment))
+                                  (m/project (m/data m/*?) ?host (special-symbol `m/*? environment))
+                                  (m/project (m/data m/+?) ?host (special-symbol `m/+? environment)))
+                           ?tail))
+         (m/apply ?host [(m/again (rx ?tail))])))
 
       (m/rule
        (m/seq ?xs)

@@ -1489,6 +1489,8 @@
    (rx-join x-pattern (clojure/apply rx-join y-pattern more-patterns))))
 
 (defn *
+  "Return a pattern which represents a greedy subsequence, given by
+  subsequence-pattern, which repeats zero or more times."
   ([subsequence-pattern]
    (* subsequence-pattern (rx-empty)))
   ([subsequence-pattern rest-pattern]
@@ -1499,8 +1501,10 @@
      (->GreedyStar subsequence-pattern rest-pattern))))
 
 (defn +
+  "Return a pattern which represents a greedy subsequence, given by
+  subsequence-pattern, which repeats one or more times."
   ([subsequence-pattern]
-   (+ subsequence-pattern ()))
+   (+ subsequence-pattern (rx-empty)))
   ([subsequence-pattern rest-pattern]
    (let [subsequence-pattern (if (sequential? subsequence-pattern)
                                (rx-cat subsequence-pattern)
@@ -1509,13 +1513,26 @@
 
 
 (defn *?
+  "Return a pattern which represents a frugal subsequence, given by
+  subsequence-pattern, which repeats zero or more times."
   ([subsequence-pattern]
-   (*? subsequence-pattern ()))
+   (*? subsequence-pattern (rx-empty)))
   ([subsequence-pattern rest-pattern]
    (let [subsequence-pattern (if (sequential? subsequence-pattern)
                                (rx-cat subsequence-pattern)
                                subsequence-pattern)]
      (->FrugalStar subsequence-pattern rest-pattern))))
+
+(defn +?
+  "Return a pattern which represents a frugal subsequence, given by
+  subsequence-pattern, which repeats one or more times."
+  ([subsequence-pattern]
+   (+ subsequence-pattern (rx-empty)))
+  ([subsequence-pattern rest-pattern]
+   (let [subsequence-pattern (if (sequential? subsequence-pattern)
+                               (rx-cat subsequence-pattern)
+                               subsequence-pattern)]
+     (rx-join subsequence-pattern (*? subsequence-pattern rest-pattern)))))
 
 
 (defn rule [query-pattern yield-pattern]

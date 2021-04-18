@@ -44,6 +44,42 @@
       (t/is (= (m/vec (m/rx-cat [(m/data 1)]))
                (parse [1]))))))
 
+(t/deftest parse-special-form-test
+  (with-parse parse
+    (t/testing "all"
+      (t/is (= (m/all (m/data 1) (m/data 2))
+               (parse '(m/all 1 2)))))
+
+    (t/testing "greedy repeated subsequences"
+      (t/testing "*"
+        (t/is (= (m/* (m/rx-empty) (m/rx-empty))
+                 (parse '(m/*))))
+
+        (t/is (= (m/* [(m/data 1)])
+                 (parse '(m/* 1)))))
+
+      (t/testing "+"
+        (t/is (= (m/+ (m/rx-empty) (m/rx-empty))
+                 (parse '(m/+))))
+
+        (t/is (= (m/+ [(m/data 1)])
+                 (parse '(m/+ 1))))))
+
+    (t/testing "frugal repeated subsequences"
+      (t/testing "*?"
+        (t/is (= (m/+ (m/rx-empty) (m/rx-empty))
+                 (parse '(m/+))))
+
+        (t/is (= (m/+ [(m/data 1)])
+                 (parse '(m/+ 1)))))
+
+      (t/testing "+?"
+        (t/is (= (m/+ (m/rx-empty) (m/rx-empty))
+                 (parse '(m/+))))
+
+        (t/is (= (m/+ [(m/data 1)])
+                 (parse '(m/+ 1))))))))
+
 #_
 (t/deftest parse-map-test
   (t/is (= (m/merge)
