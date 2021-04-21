@@ -1449,9 +1449,7 @@
 (extend-type #?(:clj Object, :cljs :default)
   IRegexCons
   (regex-cons [this pattern]
-    (annotate (->RegexConcatenation [pattern] this)
-              `clojure/seqable?
-              `clojure/sequential?)))
+    (->RegexConcatenation [pattern] this)))
 
 (defn rx-empty []
   (->RegexEmpty))
