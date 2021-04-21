@@ -578,3 +578,17 @@
 
 (defn top-down-pass [f node]
   (top-down-pass* f node ()))
+
+(defn bottom-up-pass*
+  {:private true}
+  [f node path]
+  (if (branch? node)
+    (clojure/let [path* (cons node path)
+                  children* (mapv (fn [child-node]
+                                    (bottom-up-pass* f child-node path*))
+                                  (m.protocols/children node))]
+      (f (m.protocols/make-node node children*) path))
+    (f node path)))
+
+(defn bottom-up-pass [f node]
+  (bottom-up-pass* f node ()))
