@@ -26,7 +26,8 @@
         >arguments (m/fifo-variable)
         arguments* (m/* [>arguments])]
     (m/one-system
-     [(m/rule
+     [;; ('clojure.core/unquote & _)
+      (m/rule
        (m/cons (m/data 'clojure.core/unquote) (m/cons >arguments m/_))
        (m/apply (m/data m/code) [>arguments]))
 
@@ -100,14 +101,14 @@
           ?k (m/logic-variable)
           ?v (m/logic-variable)]
       (m/rule
-       (m/assoc ?m (m/dual ?k %ampersand) ?v)
+       (m/assoc ?m (m/dual ?k (m/data '&)) ?v)
        (m/apply (m/data m/assoc) [(m/again ?m) (m/again ?k) (m/again ?v)])))
 
     ;; {'& ?m} => (m/merge ?m)
     (let [?m (m/logic-variable)
           ?x (m/logic-variable)]
       (m/rule
-       (m/assoc (m/data {}) %ampersand ?x)
+       (m/assoc (m/data {}) (m/data '&) ?x)
        (m/apply (m/data m/merge) [(m/again ?x)])))]))
 
 (defn rx
@@ -178,7 +179,6 @@
        (m/vec ?xs)
        (m/apply (m/data m/vec) [(m/again (rx ?xs))]))
       
-
       ;; Default
       (let [?x (m/logic-variable)]
         (m/rule ?x (m/apply m/data [?x])))])))
