@@ -426,6 +426,12 @@
   {:pre [(identifier? identifier)]}
   (->Bind identifier expression body))
 
+(defn do-bind
+  {:style/indent 1}
+  [expression f]
+  (clojure/let [identifier (identifier)]
+    (bind identifier expression (f identifier))))
+
 (defn bind? [x]
   (instance? Bind x))
 
@@ -444,6 +450,12 @@
   [identifier expression body]
   {:pre [(identifier? identifier)]}
   (->Let identifier expression body))
+
+(defn do-let
+  {:style/indent 1}
+  [expression f]
+  (clojure/let [identifier (identifier)]
+    (let identifier expression (f identifier))))
 
 (defn let?
   [x]
