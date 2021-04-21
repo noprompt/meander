@@ -1,10 +1,8 @@
 (ns meander.runtime.tree.one.zeta
   (:refer-clojure :exclude [resolve test])
-  (:require [clojure.zip :as zip]
-            [meander.peval.zeta :as m.peval]
+  (:require [meander.peval.zeta :as m.peval]
             [meander.util.zeta :as m.util]
-            [meander.tree.zeta :as m.tree]
-            [meander.zip.zeta :as m.zip])
+            [meander.tree.zeta :as m.tree])
   (:import (meander.tree.zeta Arguments
                               Bind
                               Bindings
