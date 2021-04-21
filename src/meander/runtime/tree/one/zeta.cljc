@@ -159,7 +159,7 @@
     (let [test (clojure (.-test this))
           then (clojure (.-then this))
           else (clojure (.-else this))]
-      (m.peval/peval `(if ~test ~then ~else)))))
+      `(if ~test ~then ~else))))
 
 ;; Interpretation
 ;; ---------------------------------------------------------------------
