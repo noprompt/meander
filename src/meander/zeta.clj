@@ -47,9 +47,7 @@
         ;; tree (f tree)
         clojure (m.rt.tree.one/clojure tree)
         form `(fn [~input] ~clojure)]
-    form
-    #_
-    (with-meta form {::tree (m.tree/form tree)})))
+    form))
 
 (defmacro query-all [pattern]
   (let [options (meta &form)
