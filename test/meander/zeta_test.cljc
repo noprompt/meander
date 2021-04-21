@@ -27,25 +27,32 @@
   (t/is (= nil
            ((m/query-one [?a]) [])))
 
-  (t/is (= {'?a 1}
-           ((m/query-one [?a ?a]) [1 1])))
+  (t/testing "logic pair pass (one, not optimized)"
+    (t/is (= {'?a 1}
+             (^{::m/optimize? false}
+              (m/query-one [?a ?a]) [1 1]))))
 
-  (t/is (= [{'?a 1}]
-           ((m/query-all [?a ?a]) [1 1])))
+  (t/testing "logic-pair pass (one, optimized)"
+    (t/is (= {'?a 1}
+             ((m/query-one [?a ?a]) [1 1]))))
 
-  (t/is (= {'?a 1}
-           (^{::m/optimize? false}
-            (m/query-one [?a ?a]) [1 1])))
+  (t/testing "logic pair pass (all, not optimized)"
+    (t/is (= [{'?a 1}]
+             ((m/query-all [?a ?a]) [1 1]))))
 
-  (t/is (= nil
-           ((m/query-one [?a ?a]) [1 2])))
+  (t/testing "logic pair pass (all, optimized)"
+    (t/is (= [{'?a 1}]
+             ((m/query-all [?a ?a]) [1 1]))))
 
-  (t/is (= ()
-           ((m/query-all [?a ?a]) [1 2])))
+  (t/testing "logic pair fail (one, not optimized)"
+    (t/is (= nil
+             (^{::m/optimize? false}
+              (m/query-one [?a ?a]) [1 2]))))
 
-  (t/is (= {'?a 1 '?b 2}
-           ((m/query-one [?a ?b ?a]) [1 2 1])))
+  (t/testing "logic pair fail (one, optimized)"
+    (t/is (= nil
+             ((m/query-one [?a ?a]) [1 2]))))
 
-  (t/is (= [{'?a 1 '?b 2}]
-           ((m/query-all [?a ?b ?a ?b]) [1 2 1 2]))))
-
+  (t/testing "logic pair fail (all, optimized)"
+    (t/is (= ()
+             ((m/query-all [?a ?a]) [1 2])))))
