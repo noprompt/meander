@@ -1624,7 +1624,7 @@
                 (fn [truth]
                   (test truth
                     (fn []
-                      (pass old))
+                      (pass new))
                     (fn []
                       (fail old))))))))))))
 
