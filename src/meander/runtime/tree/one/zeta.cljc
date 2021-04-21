@@ -29,18 +29,28 @@
 (defprotocol IClojure
   (clojure [tree]))
 
+(defn flat-let*
+  {:style/indent 2
+   :private true}
+  [binding expression body]
+  (if (and (seq? body) (= (first body) 'let*))
+    `(let* [~binding ~expression ~@(nth body 1)]
+       ~@(drop 2 body))
+    `(let* [~binding ~expression] ~body)))
+
 (extend-protocol IClojure
   Arguments
   (clojure [this]
     (map clojure (.-arguments this)))
 
   Bind
-  (-clojure [this]
+  (clojure [this]
     (let [identifier (clojure (.-identifier this))
           expression (clojure (.-expression this))
           body (clojure (.-body this))]
       `(let* [~identifier ~expression]
-         ~body)))
+         (if ~identifier
+           ~body))))
 
   Bindings
   (clojure [this]
@@ -103,8 +113,7 @@
     (let [identifier (clojure (.-identifier this))
           expression (clojure (.-expression this))
           body (clojure (.-body this))]
-      `(let* [~identifier ~expression]
-         ~body)))
+      (flat-let* identifier expression body)))
 
   Pass
   (clojure [this]
