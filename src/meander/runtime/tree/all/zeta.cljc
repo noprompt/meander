@@ -108,6 +108,4 @@
   (clojure [this]
     `(if ~(clojure (.-test this))
        ~(clojure (.-then this))
-       ~(clojure (.-else this))))
-
-  )
+       ~(clojure (.-else this)))))
