@@ -72,23 +72,22 @@
 
   Data
   (clojure [this]
-    (:data this))
+    (.-data this))
 
   Fail
   (clojure [this]
     nil)
 
+  GetBinding
+  (clojure [this]
+    `(get (get ~(clojure (.-state this)) :bindings)
+          (quote ~(clojure (.-identifier this)))
+          ~(clojure (.-none this))))
+
   GetBindings
   (clojure [this]
     (let [state (clojure (.-state this))]
       `(get ~state :bindings)))
-
-  GetBinding
-  (clojure [this]
-    (let [identifier (.-identifier this)
-          state (clojure (.-state this))
-          none (clojure (.-none this))]
-      `(get ~state (quote ~(clojure identifier)) ~none)))
 
   GetObject
   (clojure [this]
