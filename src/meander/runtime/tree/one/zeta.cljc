@@ -41,7 +41,7 @@
 (extend-protocol IClojure
   Arguments
   (clojure [this]
-    (map clojure (.-arguments this)))
+    (mapv clojure (.-arguments this)))
 
   Bind
   (clojure [this]
