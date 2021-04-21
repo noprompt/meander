@@ -272,7 +272,11 @@
   ;; (set-binding (set-object state e1) e2)
   SetBinding
   (set-object [this new-object]
-    (m.tree/set-binding (set-object (.-state this) new-object) (.-identifier this) (.-value this)))
+    (let [state (.-state this)]
+      (m.tree/set-binding (if (satisfies? ISetObject state)
+                            (set-object state new-object)
+                            state)
+          (.-identifier this) (.-value this))))
 
   ;; (set-object (state e1 bindings) e2)
   ;; ----------------------------------- SetObjectState
@@ -304,7 +308,10 @@
 
   SetObject
   (get-binding [this identifier none]
-    (get-binding (.-state this) identifier none))
+    (let [state (.-state this)]
+      (if (satisfies? IGetBinding state)
+        (get-binding state identifier none)
+        (m.tree/get-binding this identifier none))))
 
   State
   (get-binding [this identifier none]
@@ -404,17 +411,25 @@
         (if (m.tree/fail? ma)
           (.-mb ^Join node))))))
 
+(defn rule-interpret-call [node scope]
+  (if (instance? Call node)
+    (let [x (m.peval/peval (clojure node))]
+      (if (m.peval/constant-value? x)
+        (m.tree/data x)))))
+
 (defn system-interpret [node scope]
-  (or (rule-interpret-pass node scope)
-      (rule-interpret-bind node scope)
-      (rule-interpret-pick node scope)
-      (rule-interpret-join node scope)
-      (rule-interpret-identifier node scope)
-      (rule-interpret-get-object node scope)
-      (rule-interpret-get-binding node scope)
-      (rule-interpret-get-bindings node scope)
-      (rule-interpret-set-object node scope)
-      (rule-interpret-set-binding node scope)
+  (or (some-> node
+              (rule-interpret-pass scope)
+              (rule-interpret-bind scope)
+              (rule-interpret-pick scope)
+              (rule-interpret-join scope)
+              (rule-interpret-identifier scope)
+              (rule-interpret-get-object scope)
+              (rule-interpret-get-binding scope)
+              (rule-interpret-get-bindings scope)
+              (rule-interpret-set-object scope)
+              (rule-interpret-set-binding scope)
+              (rule-interpret-call scope))
       node))
 
 (defn pass-interpret [node]
@@ -487,10 +502,11 @@
     nil))
 
 (defn system-commute [node path]
-  (or (rule-bind-let node path)
-      (rule-bind-test node path)
-      (rule-let-let node path)
-      (rule-let-test node path)
+  (or (some-> node
+              (rule-bind-let path)
+              (rule-bind-test path)
+              (rule-let-let path)
+              (rule-let-test path))
       node))
 
 (defn pass-commute [node]
@@ -507,22 +523,30 @@
 ;; Prune
 ;; ---------------------------------------------------------------------
 
-(defprotocol IPrune
-  (-prune [this loc]))
-
-(defn rule-prune-let [node scope]
+(defn rule-prune-let-already-bound [node scope]
   (if (instance? Let node)
     (let [this-identifier (.-identifier ^Let node)
           this-expression (.-expression ^Let node)
           this-body (.-body ^Let node)]
-      (if (instance? Identifier this-expression)
-        (m.tree/postwalk-replace {this-identifier this-expression} this-body)
-        (if-some [identifier (reverse-resolve this-expression scope)]
-          (m.tree/postwalk-replace {this-identifier identifier} this-body)
-          (let [uses (count (filter #{this-identifier} (m.tree/subnodes this-body)))]
-            (if (zero? uses)
-              this-body)))))))
+      (if-some [identifier (reverse-resolve this-expression scope)]
+        (m.tree/postwalk-replace {this-identifier identifier} this-body)))))
 
+(defn rule-prune-let-unused [node scope]
+  (if (instance? Let node)
+    (let [identifier (.-identifier ^Let node)
+          expression (.-expression ^Let node)
+          body (.-body ^Let node)]
+      (let [uses (count (filter #{identifier} (m.tree/subnodes body)))]
+        (if (zero? uses)
+          body)))))
+
+(defn rule-prune-let-redundant [node scope]
+  (if (instance? Let node)
+    (let [identifier (.-identifier ^Let node)
+          expression (.-expression ^Let node)
+          body (.-body ^Let node)]
+      (if (instance? Identifier expression)
+        (m.tree/postwalk-replace {identifier expression} body)))))
 
 (defn rule-prune-test [node test-scope]
   (if (instance? Test node)
@@ -543,16 +567,18 @@
               (m.peval/falsey-constant-value? form)
               else)))))))
 
-(defn prune [node]
+(defn pass-prune [node]
   (m.tree/top-down-pass
    (fn [node path]
      (let [scope (scope-from-path path)
            test-scope (test-scope-from-path path)]
        (loop [node node]
-         (let [node* (or #_(rule-prune-let node scope)
+         (let [node* (or (rule-prune-let-redundant node scope)
+                         (rule-prune-let-unused node scope)
                          (rule-prune-test node test-scope)
                          node)]
            (if (= node node*)
              node
              (recur node*))))))
    node))
+
