@@ -22,7 +22,7 @@
   (let [identifier (m.tree/identifier)]
     (m.tree/let identifier (m.tree/get-object state) (then identifier))))
 
-(defn set-object
+(defn give
   {:style/indent 2}
   [state object then]
   (let [identifier (m.tree/identifier)]
@@ -33,7 +33,7 @@
   {:style/indent 2}
   [state id unfold pass fail]
   (let [unfold-pass (fn [x new]
-                      (set-object (assoc state id new) x pass))
+                      (give (assoc state id new) x pass))
         unfold-fail (fn [x]
                       (fail state))
         entry (find state id)
@@ -309,7 +309,7 @@
      :eval m.tree/code
      :fail m.tree/fail
      ;; :find m.runtime.eval.common/resolve-reference
-     :give set-object
+     :give give
      :list m.tree/get-bindings
      :load dispense
      :make m.tree/fabricate
