@@ -491,6 +491,9 @@
 (defn set-object [state object]
   (->SetObject state object))
 
+(defn set-object? [x]
+  (instance? SetObject x))
+
 (defn set-binding
   {:style/indent 2}
   [state identifier value]
