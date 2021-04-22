@@ -28,9 +28,10 @@
   (m.parse/parser (make-parse-environment)))
 
 (def optimize
-  (m.util/fix (comp m.rt.tree.one/pass-prune
-                    m.rt.tree.one/pass-commute
-                    m.rt.tree.one/pass-interpret)))
+  (m.util/fix
+   (comp m.rt.tree.one/pass-prune
+         m.rt.tree.one/pass-commute
+         m.rt.tree.one/pass-interpret)))
 
 (defmacro query-one [pattern]
   (let [options (meta &form)
@@ -44,10 +45,9 @@
         tree (bind (fn [state] (pass (list state)))
                        (m.core/run-query (parse pattern) rt (code input)))
         f (if (false? (::optimize? options)) identity optimize)
-        ;; tree (f tree)
-        clojure (m.rt.tree.one/clojure tree)
-        form `(fn [~input] ~clojure)]
-    form))
+        tree (f tree)
+        clojure (m.rt.tree.one/clojure tree)]
+    `(fn [~input] ~clojure)))
 
 (defmacro query-all [pattern]
   (let [options (meta &form)
@@ -61,6 +61,6 @@
         tree (bind (fn [state] (pass (list state)))
                    (m.core/run-query (parse pattern) rt (code input)))
         f (if (false? (::optimize? options)) identity optimize)
-        ;; tree (f tree)
+        tree (f tree)
         clojure (m.rt.tree.all/clojure tree)]
     `(fn [~input] ~clojure)))

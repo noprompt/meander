@@ -22,6 +22,15 @@
                               SetObject
                               State
                               Test)))
+(defmacro try->
+  {:style/indent 1
+   :private true}
+  ([expr] expr)
+  ([expr [f & rest] & more]
+   `(let [x# ~expr
+          y# (~f x# ~@rest)]
+      (try-> (if (some? y#) y# x#)
+        ~@more))))
 
 ;; Code generation
 ;; ---------------------------------------------------------------------
@@ -38,6 +47,16 @@
        ~@(drop 2 body))
     `(let* [~binding ~expression] ~body)))
 
+(defn do-let*
+  {:style/indent 1
+   :private true}
+  [expression f]
+  (if (symbol? expression)
+    (f expression)
+    (let [x__ (gensym "x__")]
+      `(let* [~x__ ~expression]
+         ~(f x__)))))
+
 (extend-protocol IClojure
   Arguments
   (clojure [this]
@@ -49,8 +68,7 @@
           expression (clojure (.-expression this))
           body (clojure (.-body this))]
       `(let* [~identifier ~expression]
-         (if ~identifier
-           ~body))))
+         (if ~identifier ~body))))
 
   Bindings
   (clojure [this]
@@ -99,13 +117,9 @@
 
   Join
   (clojure [this]
-    (let [x__0 (gensym "x__")
-          x--0 (clojure (.-ma this))
-          x--1 (clojure (.-mb this))]
-      `(let* [~x__0 ~x--0]
-         (if ~x__0
-           ~x__0
-           ~x--1))))
+    (do-let* (clojure (.-ma this))
+      (fn [a]
+        `(if ~a ~a ~(clojure (.-mb this))))))
 
   Let
   (clojure [this]
@@ -417,19 +431,18 @@
         (m.tree/data x)))))
 
 (defn system-interpret [node scope]
-  (or (some-> node
-              (rule-interpret-pass scope)
-              (rule-interpret-bind scope)
-              (rule-interpret-pick scope)
-              (rule-interpret-join scope)
-              (rule-interpret-identifier scope)
-              (rule-interpret-get-object scope)
-              (rule-interpret-get-binding scope)
-              (rule-interpret-get-bindings scope)
-              (rule-interpret-set-object scope)
-              (rule-interpret-set-binding scope)
-              (rule-interpret-call scope))
-      node))
+  (try-> node
+    (rule-interpret-pass scope)
+    (rule-interpret-bind scope)
+    (rule-interpret-pick scope)
+    (rule-interpret-join scope)
+    (rule-interpret-identifier scope)
+    (rule-interpret-get-object scope)
+    (rule-interpret-get-binding scope)
+    (rule-interpret-get-bindings scope)
+    (rule-interpret-set-object scope)
+    (rule-interpret-set-binding scope)
+    (rule-interpret-call scope)))
 
 (defn pass-interpret [node]
   (m.tree/top-down-pass
@@ -468,9 +481,7 @@
           (m.tree/bind (.-identifier ^Bind node) (.-then ^Test expression)
             (.-body ^Bind node))
           (m.tree/bind (.-identifier ^Bind node) (.-else ^Test expression)
-            (.-body ^Bind node)))
-        nil))
-    nil))
+            (.-body ^Bind node)))))))
 
 ;; (let x (let y e1 e2) e3)
 ;; ------------------------ LetLet
@@ -481,9 +492,7 @@
       (if (instance? Let expression)
         (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
           (m.tree/let (.-identifier ^Let node) (.-body ^Let expression)
-            (.-body ^Let node))))
-      nil)
-    nil))
+            (.-body ^Let node)))))))
 
 ;;     (let x (test e1 e2 e3) e4)
 ;; ------------------------------------ LetTest
@@ -496,17 +505,14 @@
           (m.tree/let (.-identifier ^Let node) (.-then ^Test expression)
             (.-body ^Let node))
           (m.tree/let (.-identifier ^Let node) (.-else ^Test expression)
-            (.-body ^Let node)))
-        nil))
-    nil))
+            (.-body ^Let node)))))))
 
 (defn system-commute [node path]
-  (or (some-> node
-              (rule-bind-let path)
-              (rule-bind-test path)
-              (rule-let-let path)
-              (rule-let-test path))
-      node))
+  (try-> node
+    (rule-bind-let path)
+    (rule-bind-test path)
+    (rule-let-let path)
+    (rule-let-test path)))
 
 (defn pass-commute [node]
   (m.tree/top-down-pass
@@ -580,4 +586,3 @@
              node
              (recur node*))))))
    node))
-

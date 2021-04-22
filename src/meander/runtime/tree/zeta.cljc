@@ -192,10 +192,10 @@
     ;; (bind x (let y e1 e2) e3)
     ;; ------------------------- CommuteBindLet
     ;; (let y e1 (bind x e2 e3))
-    ;; (m.tree/let? (:expression m-state))
-    ;; (let [let-node (:expression m-state)]
-    ;;   (m.tree/let (:identifier let-node) (:expression let-node)
-    ;;     (smart-bind f (:body let-node))))
+    (m.tree/let? (:expression m-state))
+    (let [let-node (:expression m-state)]
+      (m.tree/let (:identifier let-node) (:expression let-node)
+        (smart-bind f (:body let-node))))
 
     ;;      (bind x (test e1 e2 e3) e4)
     ;; --------------------------------------- CommuteBindTest
