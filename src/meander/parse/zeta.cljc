@@ -152,7 +152,7 @@
       (m/rule
        (rx (m/rx-join ?head (m/rx-cat [(m/data '&) ?x] ?tail)))
        (m/apply (m/data m/rx-join) [(m/again (rx ?head)) (m/apply (m/data m/rx-join) [(m/again ?x) (m/again (rx ?tail))])]))
-                                        ;
+
       ;; (rx (?head & ?tail))
       (m/rule
        (rx (m/rx-cons ?head ?tail))
