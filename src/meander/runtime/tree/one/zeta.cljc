@@ -134,7 +134,7 @@
 
   Pick
   (clojure [this]
-    (let [x__0 (gensym "x__")
+    (let [x__0 (gensym "m__")
           x--0 (clojure (.-ma this))
           x--1 (clojure (.-mb this))]
       `(let* [~x__0 ~x--0]
