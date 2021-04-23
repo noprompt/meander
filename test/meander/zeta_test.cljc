@@ -6,6 +6,12 @@
   (t/is (= {}
            ((m/query-one 1) 1)))
 
+  (t/is (= {}
+           ((m/query-one (m/one [1] [2])) [2])))
+
+  (t/is (= [{'?a 2}]
+           ((m/query-all (m/one [?a] [?b])) [2])))
+
   (t/is (= [{}]
            ((m/query-all 1) 1)))
 

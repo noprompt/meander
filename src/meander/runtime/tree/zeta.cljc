@@ -206,6 +206,11 @@
         (fn [] (smart-bind f (:then test-node)))
         (fn [] (smart-bind f (:else test-node)))))
 
+    (m.tree/pick? (:expression m-state))
+    (let [pick-node (:expression m-state)]
+      (m.tree/pick (smart-bind f (:ma pick-node))
+                   (smart-bind f (:mb pick-node))))
+
     :else
     (bind f m-state)))
 
@@ -295,7 +300,29 @@
       a
 
       :else
-      (m.tree/pick a (thunk-b)))))
+      (let [b (thunk-b)]
+        (or (if (and (m.tree/let? a) (m.tree/let? b))
+              (let [expression-a (:expression a)
+                    expression-b (:expression b)]
+                (if (= expression-a expression-b)
+                  (m.tree/do-let expression-a
+                    (fn [identifier]
+                      (smart-pick
+                       (fn []
+                         (m.tree/postwalk-replace {(:identifier a) identifier} (:body a)))
+                       (fn []
+                         (m.tree/postwalk-replace {(:identifier b) identifier} (:body b)))))))))
+            ;; (pick (test a b c) (test a d e))
+            ;; --------------------------------
+            ;;  (test a (pick b d) (pick c e))
+            (if (and (m.tree/test? a) (m.tree/test? b))
+              (let [test-a (:test a)
+                    test-b (:test b)]
+                (if (= test-a test-b)
+                  (m.tree/test test-a
+                    (smart-pick (fn [] (:then a)) (fn [] (:then b)))
+                    (smart-pick (fn [] (:else a)) (fn [] (:else b)))))))
+            (m.tree/pick a b))))))
 
 ;; Runtimes
 ;; ---------------------------------------------------------------------

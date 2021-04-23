@@ -33,9 +33,21 @@
          m.rt.tree.one/pass-commute
          m.rt.tree.one/pass-interpret)))
 
+(defn extra-rules [environment]
+  (m.core/one-system
+   [(let [<args (m.core/fifo-variable)]
+      (m.core/rule
+       (m.core/seq (m.core/cons (m.parse/special-symbol `one environment) (m.core/* [<args])))
+       (m.core/apply (m.core/data m.core/one) (m.core/* [(m.core/again <args)]))))]))
+
+(defn parse-query [pattern]
+  (let [environment (m.util/cljs-ns-from-clj-ns *ns*)
+        environment (assoc environment :extra-rules (extra-rules environment))
+        parse (m.parse/parser environment)]
+    (parse pattern)))
+
 (defmacro query-one [pattern]
   (let [options (meta &form)
-        parse (m.parse/parser (m.util/cljs-ns-from-clj-ns *ns*))
         rt (m.rt.tree/df-one options)
         bind (:bind rt)
         code (:eval rt)
@@ -43,7 +55,7 @@
         pass (:pass rt)
         input (gensym "X__")
         tree (bind (fn [state] (pass (list state)))
-                       (m.core/run-query (parse pattern) rt (code input)))
+                   (m.core/run-query (parse-query pattern) rt (code input)))
         f (if (false? (::optimize? options)) identity optimize)
         tree (f tree)
         clojure (m.rt.tree.one/clojure tree)]
@@ -51,7 +63,6 @@
 
 (defmacro query-all [pattern]
   (let [options (meta &form)
-        parse (m.parse/parser (m.util/cljs-ns-from-clj-ns *ns*))
         rt (m.rt.tree/df-one options)
         bind (:bind rt)
         code (:eval rt)
@@ -59,7 +70,7 @@
         pass (:pass rt)
         input (gensym "X__")
         tree (bind (fn [state] (pass (list state)))
-                   (m.core/run-query (parse pattern) rt (code input)))
+                   (m.core/run-query (parse-query pattern) rt (code input)))
         f (if (false? (::optimize? options)) identity optimize)
         tree (f tree)
         clojure (m.rt.tree.all/clojure tree)]

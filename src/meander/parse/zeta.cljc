@@ -9,7 +9,11 @@
   (symbol (str sigil name)))
 
 (defn special-symbol
-  {:private true}
+  "Builds the pattern
+
+      (one ~fully-qualified-symbol
+        (project ~environment {_ {:requires {(symbol ?alias) (symbol ~namespace-name)}}}
+        (symbol ?alias ~name)))"
   [fully-qualified-symbol environment]
   (let [namespace-name (namespace fully-qualified-symbol)
         namespace-symbol (symbol namespace-name)
@@ -139,7 +143,9 @@
         ?xs (m/logic-variable)
         rx-empty (m/apply (m/data m/rx-empty) [])]
     (m/one-system
-     [(make-special-symbol-rules environment)
+     [(get environment :extra-rules (m/nothing))
+
+      (make-special-symbol-rules environment)
       
       (make-special-form-rules environment)
 
