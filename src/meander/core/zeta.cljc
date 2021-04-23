@@ -1509,7 +1509,6 @@
                                subsequence-pattern)]
      (rx-join subsequence-pattern (* subsequence-pattern rest-pattern)))))
 
-
 (defn *?
   "Return a pattern which represents a frugal subsequence, given by
   subsequence-pattern, which repeats zero or more times."
@@ -2093,9 +2092,7 @@
         query (query-function system environment)
         yield (yield-function system environment)]
     ((fn again [state]
-       (bind (fn [state]
-               (yield state))
-             (with (mint state) {(:id %again) again} query)))
+       (bind yield (with (mint state) {(:id %again) again} query)))
      (seed x))))
 
 ;; Local Variables:
