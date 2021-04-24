@@ -2,6 +2,7 @@
   (:require [meander.core.zeta :as m.core]
             [meander.parse.zeta :as m.parse]
             [meander.tree.zeta :as m.tree]
+            [meander.tree.rewrite.zeta :as m.tree.rewrite]
             [meander.runtime.tree.zeta :as m.rt.tree]
             [meander.runtime.tree.one.zeta :as m.rt.tree.one]
             [meander.runtime.tree.all.zeta :as m.rt.tree.all]
@@ -29,9 +30,9 @@
 
 (def optimize
   (m.util/fix
-   (comp m.rt.tree.one/pass-prune
-         m.rt.tree.one/pass-commute
-         m.rt.tree.one/pass-interpret)))
+   (comp m.tree.rewrite/pass-prune
+         m.tree.rewrite/pass-commute
+         m.tree.rewrite/pass-interpret)))
 
 (defn extra-rules [environment]
   (m.core/one-system
