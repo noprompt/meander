@@ -18,6 +18,9 @@
 (def %false-state
   (m.tree/state %true %empty-bindings))
 
+;; Bind tests
+;; ---------------------------------------------------------------------
+
 (t/deftest rule-bind-pass-test
   (t/testing "Rule
 
@@ -77,14 +80,20 @@
                   (m.tree/pass %true-state))))))))
 
 (t/deftest bind-pass-test
-  (let [%i__1 (m.tree/identifier)
-        %i__2 (m.tree/identifier)]
-    (= (m.tree/test %i__2
-         (m.tree/let %i__1 %true-state (m.tree/pass %true-state))
-         (m.tree/fail %true-state))
-       (m.tree.rewrite/bind-pass 
-        (m.tree/bind %i__1 (m.tree/test %i__2 (m.tree/pass %true-state) (m.tree/fail %true-state))
-          (m.tree/pass %true-state))))))
+  (t/testing "Rule
+
+        (bind x (pass e1) e2)
+        ---------------------
+            (let x e1 e2)"
+    (let [%i__1 (m.tree/identifier)]
+      (= (m.tree/let %i__1 %true-state
+           (m.tree/pass %true-state))
+         (m.tree.rewrite/pass-bind 
+          (m.tree/bind %i__1 (m.tree/pass %true-state)
+            (m.tree/pass %true-state)))))))
+
+;; Let tests
+;; ---------------------------------------------------------------------
 
 (t/deftest rule-let-let-test
   (t/testing "Rule
@@ -100,6 +109,66 @@
                (m.tree.rewrite/rule-let-let
                 (m.tree/let %i__1 (m.tree/let %i__2 %false (m.tree/pass %false-state))
                   (m.tree/pass %true))))))))
+
+;; Pick tests
+;; ---------------------------------------------------------------------
+
+(t/deftest rule-pick-test
+  (t/testing "Rule
+
+    (pick (pass e1) e2)
+    ------------------- PickPass
+         (pass e1)"
+    (t/is (= (m.tree/pass %true-state)
+             (m.tree.rewrite/rule-pick
+              (m.tree/pick (m.tree/pass %true-state)
+                           (m.tree/pass %false-state))))))
+
+  (t/testing "Rule
+
+    (pick (fail e1) e2)
+    ------------------- PickFail
+           e2"
+    (t/is (= (m.tree/pass %false-state)
+             (m.tree.rewrite/rule-pick
+              (m.tree/pick (m.tree/fail %true-state)
+                           (m.tree/pass %false-state)))))))
+
+;; Join tests
+;; ---------------------------------------------------------------------
+
+(t/deftest rule-join-test
+  (t/is (= nil
+           (m.tree.rewrite/rule-join
+            (m.tree/join (m.tree/pass %true-state)
+                         (m.tree/pass %false-state)))))
+
+  (t/testing "Rule
+
+    (join (fail e1) e2)
+    ------------------- JoinFail
+           e2"
+    (t/is (= (m.tree/pass %false-state)
+             (m.tree.rewrite/rule-join
+              (m.tree/join (m.tree/fail %true-state)
+                           (m.tree/pass %false-state)))))))
+
+;; Pick tests
+;; ---------------------------------------------------------------------
+
+(t/deftest rule-pick-pass-test
+  (t/testing "Rule
+
+    (pick (pass e1) e2)
+    ------------------- 
+         (pass e1)"
+    (t/is (= (m.tree/pass %true-state)
+             (m.tree.rewrite/rule-pick
+              (m.tree/pick (m.tree/pass %true-state)
+                           (m.tree/pass %false-state)))))))
+
+;; SetObject tests
+;; ---------------------------------------------------------------------
 
 (t/deftest set-object-test
   (t/is (= (m.tree/state (m.tree/data 10) (m.tree/bindings))

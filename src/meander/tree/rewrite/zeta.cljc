@@ -34,6 +34,121 @@
       (try-> (if (some? y#) y# x#)
         ~@more))))
 
+;; Rewrite Rules
+;; ---------------------------------------------------------------------
+
+;; (bind x (pass e1) e2)
+;; ---------------------
+;;     (let x e1 e2)
+(defn rule-bind-pass [node]
+  (if (instance? Bind node)
+    (let [expression (.-expression ^Bind node)
+          body (.-body ^Bind node)]
+      (if (m.tree/pass? expression)
+        (m.tree/let (.-identifier ^Bind node) (.-state expression)
+          (.-body ^Bind node))))))
+
+;; (bind x (fail e1) e2)
+;; ---------------------
+;;      (fail e1)
+(defn rule-bind-fail [node]
+  (if (instance? Bind node)
+    (let [expression (.-expression ^Bind node)
+          body (.-body ^Bind node)]
+      (if (m.tree/fail? expression)
+        expression))))
+
+;; (bind x (let y e1 e2) e3)
+;; ------------------------- BindLet
+;; (let y e1 (bind x e2 e3))
+(defn rule-bind-let
+  ([node path]
+   (rule-bind-let node))
+  ([node]
+   (if (instance? Bind node)
+     (let [expression (.-expression ^Bind node)]
+       (if (instance? Let expression)
+         (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
+           (m.tree/bind (.-identifier ^Bind node) (.-body ^Let expression)
+             (.-body ^Bind node))))))))
+
+;;      (bind x (test e1 e2 e3) e4)
+;; --------------------------------------- BindTest
+;; (test e1 (bind x e2 e4) (bind x e3 e4))
+(defn rule-bind-test
+  ([node path]
+   (rule-bind-test node))
+  ([node]
+   (if (instance? Bind node)
+     (let [expression (.-expression node)]
+       (if (instance? Test expression)
+         (m.tree/test (.-test ^Test expression)
+           (m.tree/bind (.-identifier ^Bind node) (.-then ^Test expression)
+             (.-body ^Bind node))
+           (m.tree/bind (.-identifier ^Bind node) (.-else ^Test expression)
+             (.-body ^Bind node))))))))
+
+(defn system-bind [node]
+  (try-> node
+    (rule-bind-fail)
+    (rule-bind-pass)
+    (rule-bind-let)
+    (rule-bind-test)))
+
+(defn pass-bind [node]
+  (m.tree/top-down-pass
+   (fn [node path]
+     (system-bind node))
+   node))
+
+;; (join (fail e1) e2)
+;; ------------------- 
+;;         e2
+(defn rule-join [node]
+  (if (instance? Join node)
+    (let [ma (.-ma ^Join node)]
+      (if (m.tree/fail? ma)
+        (.-mb ^Join node)))))
+
+;; (pick (pass e1) e2)
+;; ------------------- 
+;;         e1
+;;
+;; (pick (fail e1) e2)
+;; ------------------- 
+;;         e2
+(defn rule-pick [node]
+  (if (instance? Pick node)
+    (let [ma (.-ma ^Pick node)]
+      (if (m.tree/pass? ma)
+        ma
+        (if (m.tree/fail? ma)
+          (.-mb ^Pick node))))))
+
+;; (let x (let y e1 e2) e3)
+;; ------------------------ LetLet
+;; (let y e1 (let x e2 e3))
+(defn rule-let-let [node]
+  (if (instance? Let node)
+    (let [expression (.-expression node)]
+      (if (instance? Let expression)
+        (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
+          (m.tree/let (.-identifier ^Let node) (.-body ^Let expression)
+            (.-body ^Let node)))))))
+
+;;     (let x (test e1 e2 e3) e4)
+;; ------------------------------------ LetTest
+;; (test e1 (let x e2 e4) (let x e3 e4)
+(defn rule-let-test [node]
+  (if (instance? Let node)
+    (let [expression (.-expression ^Let node)]
+      (if (instance? Test expression)
+        (m.tree/test (.-test ^Test expression)
+          (m.tree/let (.-identifier ^Let node) (.-then ^Test expression)
+            (.-body ^Let node))
+          (m.tree/let (.-identifier ^Let node) (.-else ^Test expression)
+            (.-body ^Let node)))))))
+
 ;; Interpretation
 ;; ---------------------------------------------------------------------
 
@@ -244,50 +359,6 @@
               (m.tree/state? node))
         node))))
 
-(defn rule-bind-pass [node]
-  (if (instance? Bind node)
-    (let [expression (.-expression ^Bind node)
-          body (.-body ^Bind node)]
-      (if (m.tree/pass? expression)
-        (m.tree/let (.-identifier ^Bind node) (.-state expression)
-          (.-body ^Bind node))))))
-
-(defn rule-bind-fail [node]
-  (if (instance? Bind node)
-    (let [expression (.-expression ^Bind node)
-          body (.-body ^Bind node)]
-      (if (m.tree/fail? expression)
-        expression))))
-
-;; (pick (pass e1) e2)
-;; ------------------- 
-;;         e1
-;;
-;; (pick (fail e1) e2)
-;; ------------------- 
-;;         e2
-(defn rule-interpret-pick [node scope]
-  (if (instance? Pick node)
-    (let [ma (.-ma ^Pick node)]
-      (if (m.tree/pass? ma)
-        ma
-        (if (m.tree/fail? ma)
-          (.-mb ^Pick node))))))
-
-;; (join (pass e1) e2)
-;; ------------------- 
-;;         e1
-;;
-;; (join (fail e1) e2)
-;; ------------------- 
-;;         e2
-(defn rule-interpret-join [node scope]
-  (if (instance? Join node)
-    (let [ma (.-ma ^Join node)]
-      (if (m.tree/pass? ma)
-        ma
-        (if (m.tree/fail? ma)
-          (.-mb ^Join node))))))
 
 (defn rule-interpret-call [node scope]
   #_
@@ -298,10 +369,10 @@
 
 (defn system-interpret [node scope]
   (try-> node
+    (system-bind)
+    (rule-pick)
+    (rule-join)
     (rule-interpret-pass scope)
-    (rule-bind-pass)
-    (rule-interpret-pick scope)
-    (rule-interpret-join scope)
     (rule-interpret-identifier scope)
     (rule-interpret-get-object scope)
     (rule-interpret-get-binding scope)
@@ -325,70 +396,12 @@
 ;; pass-commute
 ;; ---------------------------------------------------------------------
 
-;; (bind x (let y e1 e2) e3)
-;; ------------------------- BindLet
-;; (let y e1 (bind x e2 e3))
-(defn rule-bind-let
-  ([node path]
-   (rule-bind-let node))
-  ([node]
-   (if (instance? Bind node)
-     (let [expression (.-expression ^Bind node)]
-       (if (instance? Let expression)
-         (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
-           (m.tree/bind (.-identifier ^Bind node) (.-body ^Let expression)
-             (.-body ^Bind node))))))))
-
-;;      (bind x (test e1 e2 e3) e4)
-;; --------------------------------------- BindTest
-;; (test e1 (bind x e2 e4) (bind x e3 e4))
-
-(defn rule-bind-test
-  ([node path]
-   (rule-bind-test node))
-  ([node]
-   (if (instance? Bind node)
-     (let [expression (.-expression node)]
-       (if (instance? Test expression)
-         (m.tree/test (.-test ^Test expression)
-           (m.tree/bind (.-identifier ^Bind node) (.-then ^Test expression)
-             (.-body ^Bind node))
-           (m.tree/bind (.-identifier ^Bind node) (.-else ^Test expression)
-             (.-body ^Bind node))))))))
-
-;; (let x (let y e1 e2) e3)
-;; ------------------------ LetLet
-;; (let y e1 (let x e2 e3))
-(defn rule-let-let
-  ([node path]
-   (rule-let-let node))
-  ([node]
-   (if (instance? Let node)
-     (let [expression (.-expression node)]
-       (if (instance? Let expression)
-         (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
-           (m.tree/let (.-identifier ^Let node) (.-body ^Let expression)
-             (.-body ^Let node))))))))
-
-;;     (let x (test e1 e2 e3) e4)
-;; ------------------------------------ LetTest
-;; (test e1 (let x e2 e4) (let x e3 e4)
-(defn rule-let-test [node path]
-  (if (instance? Let node)
-    (let [expression (.-expression ^Let node)]
-      (if (instance? Test expression)
-        (m.tree/test (.-test ^Test expression)
-          (m.tree/let (.-identifier ^Let node) (.-then ^Test expression)
-            (.-body ^Let node))
-          (m.tree/let (.-identifier ^Let node) (.-else ^Test expression)
-            (.-body ^Let node)))))))
-
 (defn system-commute [node path]
   (try-> node
-    (rule-bind-let path)
-    (rule-bind-test path)
-    (rule-let-let path)
-    (rule-let-test path)))
+    (rule-bind-let)
+    (rule-bind-test)
+    (rule-let-let)
+    (rule-let-test)))
 
 (defn pass-commute [node]
   (m.tree/top-down-pass
@@ -465,12 +478,3 @@
              (recur node*))))))
    node))
 
-(defn bind-pass [node]
-  (m.tree/top-down-pass
-   (fn [node path]
-     (try-> node
-       (rule-bind-fail)
-       (rule-bind-pass)
-       (rule-bind-let)
-       (rule-bind-test)))
-   node))
