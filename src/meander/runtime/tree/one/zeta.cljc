@@ -18,6 +18,7 @@
                               Let
                               Pass
                               Pick
+                              Scan
                               SetBinding
                               SetObject
                               State
@@ -131,6 +132,20 @@
          (if ~x__0
            ~x__0
            ~x--1))))
+
+  Scan
+  (clojure [this]
+    (let [x__0 (clojure (.-identifier this))
+          x__1 (gensym "x__")
+          x__2 (gensym "x__")]
+      `(reduce
+        (fn [~x__2 ~x__0]
+          (let* [~x__1 ~(clojure (.-body this))]
+            (if ~x__1
+              (reduced ~x__1)
+              ~x__2)))
+        nil
+        ~(clojure (.-expression this)))))
 
   SetBinding
   (clojure [this]
