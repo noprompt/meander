@@ -30,9 +30,13 @@
 
 (def optimize
   (m.util/fix
-   (comp m.tree.rewrite/pass-prune
-         m.tree.rewrite/pass-commute
-         m.tree.rewrite/pass-interpret)))
+   (comp m.tree.rewrite/pass-prune-test
+         m.tree.rewrite/pass-prune-let
+         m.tree.rewrite/pass-interpret
+         m.tree.rewrite/pass-test
+         m.tree.rewrite/pass-pick
+         m.tree.rewrite/pass-bind
+         m.tree.rewrite/pass-let)))
 
 (defn extra-rules [environment]
   (m.core/one-system
@@ -47,32 +51,30 @@
         parse (m.parse/parser environment)]
     (parse pattern)))
 
-(defmacro query-one [pattern]
-  (let [options (meta &form)
-        rt (m.rt.tree/df-one options)
+(defn query-tree [input-symbol pattern options]
+  (let [rt (m.rt.tree/df-one options)
         bind (:bind rt)
         code (:eval rt)
         list (:list rt)
         pass (:pass rt)
-        input (gensym "X__")
         tree (bind (fn [state] (pass (list state)))
-                   (m.core/run-query (parse-query pattern) rt (code input)))
-        f (if (false? (::optimize? options)) identity optimize)
-        tree (f tree)
+                   (m.core/run-query (parse-query pattern) rt (code input-symbol)))
+        f (if (false? (::optimize-post-construct? options))
+            identity
+            optimize)
+        tree (f tree)]
+    tree))
+
+(defmacro query-one [pattern]
+  (let [options (meta &form)
+        input-symbol (gensym "t__")
+        tree (query-tree input-symbol pattern options)
         clojure (m.rt.tree.one/clojure tree)]
-    `(fn [~input] ~clojure)))
+    `(fn [~input-symbol] ~clojure)))
 
 (defmacro query-all [pattern]
   (let [options (meta &form)
-        rt (m.rt.tree/df-one options)
-        bind (:bind rt)
-        code (:eval rt)
-        list (:list rt)
-        pass (:pass rt)
-        input (gensym "X__")
-        tree (bind (fn [state] (pass (list state)))
-                   (m.core/run-query (parse-query pattern) rt (code input)))
-        f (if (false? (::optimize? options)) identity optimize)
-        tree (f tree)
+        input-symbol (gensym "t__")
+        tree (query-tree input-symbol pattern options)
         clojure (m.rt.tree.all/clojure tree)]
-    `(fn [~input] ~clojure)))
+    `(fn [~input-symbol] ~clojure)))

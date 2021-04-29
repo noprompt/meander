@@ -43,7 +43,8 @@
 (defn rule-bind-pass [node]
   (if (instance? Bind node)
     (let [expression (.-expression ^Bind node)
-          body (.-body ^Bind node)]
+          body (.-body ^Bind node)
+          identifier (m.tree/identifier)]
       (if (m.tree/pass? expression)
         (m.tree/let (.-identifier ^Bind node) (.-state expression)
           (.-body ^Bind node))))))
@@ -61,39 +62,48 @@
 ;; (bind x (let y e1 e2) e3)
 ;; ------------------------- BindLet
 ;; (let y e1 (bind x e2 e3))
-(defn rule-bind-let
-  ([node path]
-   (rule-bind-let node))
-  ([node]
-   (if (instance? Bind node)
-     (let [expression (.-expression ^Bind node)]
-       (if (instance? Let expression)
-         (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
-           (m.tree/bind (.-identifier ^Bind node) (.-body ^Let expression)
-             (.-body ^Bind node))))))))
+(defn rule-bind-let [node]
+  (if (instance? Bind node)
+    (let [expression (.-expression ^Bind node)]
+      (if (instance? Let expression)
+        (m.tree/let (.-identifier ^Let expression) (.-expression ^Let expression)
+          (m.tree/bind (.-identifier ^Bind node) (.-body ^Let expression)
+            (.-body ^Bind node)))))))
 
 ;;      (bind x (test e1 e2 e3) e4)
 ;; --------------------------------------- BindTest
 ;; (test e1 (bind x e2 e4) (bind x e3 e4))
-(defn rule-bind-test
-  ([node path]
-   (rule-bind-test node))
-  ([node]
-   (if (instance? Bind node)
-     (let [expression (.-expression node)]
-       (if (instance? Test expression)
-         (m.tree/test (.-test ^Test expression)
-           (m.tree/bind (.-identifier ^Bind node) (.-then ^Test expression)
-             (.-body ^Bind node))
-           (m.tree/bind (.-identifier ^Bind node) (.-else ^Test expression)
-             (.-body ^Bind node))))))))
+(defn rule-bind-test [node]
+  (if (instance? Bind node)
+    (let [expression (.-expression node)]
+      (if (instance? Test expression)
+        (m.tree/test (.-test ^Test expression)
+          (m.tree/bind (.-identifier ^Bind node) (.-then ^Test expression)
+            (.-body ^Bind node))
+          (m.tree/bind (.-identifier ^Bind node) (.-else ^Test expression)
+            (.-body ^Bind node)))))))
+
+;;       (bind i (pick e1 e2) e3)
+;; ------------------------------------ BindPick
+;; (pick (bind i e1 e3) (bind i e2 e3))
+(defn rule-bind-pick [node]
+  (if (instance? Bind node)
+    (let [expression (.-expression node)]
+      (if (instance? Pick expression)
+        (let [identifier (.-identifier ^Bind node)
+              body (.-body ^Bind node)
+              ma (.-ma ^Pick expression)
+              mb (.-mb ^Pick expression)]
+          (m.tree/pick (m.tree/bind identifier ma body)
+                       (m.tree/bind identifier mb body)))))))
 
 (defn system-bind [node]
   (try-> node
     (rule-bind-fail)
     (rule-bind-pass)
     (rule-bind-let)
-    (rule-bind-test)))
+    (rule-bind-test)
+    (rule-bind-pick)))
 
 (defn pass-bind [node]
   (m.tree/top-down-pass
@@ -110,6 +120,9 @@
       (if (m.tree/fail? ma)
         (.-mb ^Join node)))))
 
+;; Pick rules
+;; ----------
+
 ;; (pick (pass e1) e2)
 ;; ------------------- 
 ;;         e1
@@ -124,6 +137,45 @@
         ma
         (if (m.tree/fail? ma)
           (.-mb ^Pick node))))))
+
+
+;; (pick (let x e1 e2) e3)
+;; -----------------------
+;; (let x e1 (pick e2 e3))
+(defn rule-pick-let [node]
+  (if (instance? Pick node)
+    (let [ma (.-ma ^Pick node)]
+      (if (instance? Let ma)
+        (let [mb (.-mb ^Pick node)]
+          (m.tree/let (.-identifier ^Let ma) (.-expression ^Let ma)
+            (m.tree/pick (.-body ^Let ma) mb)))))))
+
+;;     (pick (test e1 e2 e3) e4)
+;; -----------------------------------
+;; (test e1 (pick e2 e4) (pick e3 e4))
+(defn rule-pick-test [node]
+  (if (instance? Pick node)
+    (let [ma (.-ma ^Pick node)]
+      (if (instance? Test ma)
+        (let [mb (.-mb ^Pick node)]
+          (m.tree/test (.-test ^Test ma)
+            (m.tree/pick (.-then ma) mb)
+            (m.tree/pick (.-else ma) mb)))))))
+
+(defn system-pick [node]
+  (try-> node
+    (rule-pick)
+    (rule-pick-let)
+    (rule-pick-test)))
+
+(defn pass-pick [node]
+  (m.tree/top-down-pass
+   (fn [node path]
+     (system-pick node))
+   node))
+
+;; Let rules
+;; ---------
 
 ;; (let x (let y e1 e2) e3)
 ;; ------------------------ LetLet
@@ -148,6 +200,49 @@
             (.-body ^Let node))
           (m.tree/let (.-identifier ^Let node) (.-else ^Test expression)
             (.-body ^Let node)))))))
+
+(defn system-let [node]
+  (try-> node
+    (rule-let-let)
+    (rule-let-test)))
+
+(defn pass-let [node]
+  (m.tree/top-down-pass
+   (fn [node path]
+     (system-let node))
+   node))
+
+;; Test rules
+;; ----------
+
+;; (test (data true) e1 e2)
+;; ------------------------
+;;            e1
+(defn rule-test-true [node]
+  (if (instance? Test node)
+    (let [test (.-test ^Test node)]
+      (if (= test m.tree/$true)
+        (.-then ^Test node)))))
+
+;; (test (data false) e1 e2)
+;; ------------------------
+;;            e1
+(defn rule-test-false [node]
+  (if (instance? Test node)
+    (let [test (.-test ^Test node)]
+      (if (= test m.tree/$false)
+        (.-else ^Test node)))))
+
+(defn system-test [node]
+  (try-> node
+    (rule-test-true)
+    (rule-test-false)))
+
+(defn pass-test [node]
+  (m.tree/top-down-pass
+   (fn [node path]
+     (system-test node))
+   node))
 
 ;; Interpretation
 ;; ---------------------------------------------------------------------
@@ -213,12 +308,6 @@
 
 (defn test-resolve [node test-scope]
   (get test-scope node))
-
-;; Passes
-;; ------
-
-;; pass-interpret
-;; ---------------------------------------------------------------------
 
 (defn rule-interpret-pass [node scope]
   (if (instance? Pass node)
@@ -359,19 +448,19 @@
               (m.tree/state? node))
         node))))
 
-
 (defn rule-interpret-call [node scope]
-  #_
   (if (instance? Call node)
-    (let [x (m.peval/peval (clojure node))]
-      (if (m.peval/constant-value? x)
-        (m.tree/data x)))))
+    (let [function (.-f ^Call node)
+          arguments (.-arguments ^Arguments (.-arguments ^Call node))]
+      (if (= function m.tree/$any?)
+        m.tree/$true
+        (if (and (= function m.tree/$=)
+                 (apply = arguments))
+          m.tree/$true)))))
+;; => #'meander.tree.rewrite.zeta/rule-interpret-call
 
 (defn system-interpret [node scope]
   (try-> node
-    (system-bind)
-    (rule-pick)
-    (rule-join)
     (rule-interpret-pass scope)
     (rule-interpret-identifier scope)
     (rule-interpret-get-object scope)
@@ -391,28 +480,6 @@
              node
              (recur node*))))))
    node))
-
-
-;; pass-commute
-;; ---------------------------------------------------------------------
-
-(defn system-commute [node path]
-  (try-> node
-    (rule-bind-let)
-    (rule-bind-test)
-    (rule-let-let)
-    (rule-let-test)))
-
-(defn pass-commute [node]
-  (m.tree/top-down-pass
-   (fn [node path]
-     (loop [node node]
-       (let [node* (system-commute node path)]
-         (if (= node node*)
-           node
-           (recur node*)))))
-   node))
-
 
 ;; Prune
 ;; ---------------------------------------------------------------------
@@ -442,39 +509,58 @@
       (if (instance? Identifier expression)
         (m.tree/postwalk-replace {identifier expression} body)))))
 
-(defn rule-prune-test [node test-scope]
+(defn system-prune-let [node scope]
+  (try-> node
+    (rule-prune-let-redundant scope)
+    (rule-prune-let-already-bound scope)
+    (rule-prune-let-unused scope)))
+
+(defn pass-prune-let [node]
+  (m.tree/top-down-pass
+   (fn [node path]
+     (let [scope (scope-from-path path)]
+       (system-prune-let node scope)))
+   node))
+
+(defn rule-prune-nested-test [node]
   (if (instance? Test node)
     (let [test (.-test ^Test node)
           then (.-then ^Test node)
           else (.-else ^Test node)]
-      (if (= then else)
-        then
-        (if-some [parent-test (get test-scope test)]
-          (if (some #{node} (m.tree/subnodes (.-then ^Test parent-test)))
-            then
-            else)
-          #_
-          (let [form (m.peval/peval (clojure test))]
-            (cond
-              (m.peval/truthy-constant-expression? form)
-              then
+      (m.tree/test test
+        (m.tree/top-down-pass
+         (fn [node path]
+           (if (instance? Test node)
+             (let [nested-test (.-test ^Test node)]
+               (if (= nested-test test)
+                 (.-then ^Test node)
+                 node))
+             node))
+         then)
+        (m.tree/top-down-pass
+         (fn [node path]
+           (if (instance? Test node)
+             (let [nested-test (.-test ^Test node)]
+               (if (= nested-test test)
+                 (.-else ^Test node)
+                 node))
+             node))
+         else)))))
 
-              (m.peval/falsey-constant-value? form)
-              else)))))))
+(defn rule-prune-test-redundant [node]
+  (if (instance? Test node)
+    (let [test (.-test ^Test node)
+          then (.-then ^Test node)
+          else (.-else ^Test node)]
+      (if (or (= then else)
+              (and (m.tree/fail? then)
+                   (m.tree/fail? else)))
+        then))))
 
-(defn pass-prune [node]
+(defn pass-prune-test [node]
   (m.tree/top-down-pass
    (fn [node path]
-     (let [scope (scope-from-path path)
-           test-scope (test-scope-from-path path)]
-       (loop [node node]
-         (let [node* (or (rule-prune-let-redundant node scope)
-                         (rule-prune-let-already-bound node scope)
-                         (rule-prune-let-unused node scope)
-                         (rule-prune-test node test-scope)
-                         node)]
-           (if (= node node*)
-             node
-             (recur node*))))))
+     (try-> node
+       (rule-prune-test-redundant)
+       (rule-prune-nested-test)))
    node))
-

@@ -592,3 +592,19 @@
 
 (defn bottom-up-pass [f node]
   (bottom-up-pass* f node ()))
+
+(def $true
+  "Tree node representing `true`."
+  (data true))
+
+(def $false
+  "Tree node representing `false`."
+  (data false))
+
+(def $=
+  "Tree node representing the host function `=`."
+  (code `=))
+
+(def $any?
+  "Tree node representing the host function `any?`."
+  (code `any?))

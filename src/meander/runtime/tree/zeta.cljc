@@ -1,7 +1,8 @@
 (ns meander.runtime.tree.zeta
   (:refer-clojure :exclude [test
                             resolve])
-  (:require [meander.tree.zeta :as m.tree]))
+  (:require [meander.tree.zeta :as m.tree]
+            [meander.tree.rewrite.zeta :as m.tree.rewrite] ))
 
 (defn none []
   (m.tree/data :meander.zeta/none))
@@ -126,31 +127,15 @@
             identifier))
           *bindings*))
 
-(def %true
-  "Tree node representing `true`."
-  (m.tree/data true))
-
-(def %false
-  "Tree node representing `false`."
-  (m.tree/data false))
-
-(def %=
-  "Tree node representing the host function `=`."
-  (m.tree/code `=))
-
-(def %any?
-  "Tree node representing the host function `any?`."
-  (m.tree/code `any?))
-
 (defn smart-call
   ([f then]
    (do-let (m.tree/call f []) then))
   ([f a & rest]
    (let [then (last rest)
          args (into [a] (butlast rest))]
-     (if (or (= f %any?)
-             (and (= f %=) (apply = args)))
-       (then %true)
+     (if (or (= f m.tree/$any?)
+             (and (= f m.tree/$=) (apply = args)))
+       (then m.tree/$true)
        (do-let (m.tree/call f args) then)))))
 
 (def ^{:dynamic true}
@@ -164,10 +149,10 @@
   [test then else]
   (let [resolved-test (resolve test test)]
     (cond
-      (= resolved-test %true)
+      (= resolved-test m.tree/$true)
       (then)
 
-      (= resolved-test %false)
+      (= resolved-test m.tree/$false)
       (else)
 
       :else
@@ -176,43 +161,7 @@
           (m.tree/test identifier (then) (else)))))))
 
 (defn smart-bind [f m-state]
-  (cond
-    ;; (bind x (pass state) e)
-    ;; ----------------------- BindPass
-    ;;     (let x state e)
-    (m.tree/pass? m-state)
-    (do-let (:state m-state) f)
-
-    ;; (bind x (fail state) e)
-    ;; ----------------------- BindFail
-    ;;      (fail state)
-    (m.tree/fail? m-state)
-    m-state
-
-    ;; (bind x (let y e1 e2) e3)
-    ;; ------------------------- CommuteBindLet
-    ;; (let y e1 (bind x e2 e3))
-    (m.tree/let? (:expression m-state))
-    (let [let-node (:expression m-state)]
-      (m.tree/let (:identifier let-node) (:expression let-node)
-        (smart-bind f (:body let-node))))
-
-    ;;      (bind x (test e1 e2 e3) e4)
-    ;; --------------------------------------- CommuteBindTest
-    ;; (test e1 (bind x e2 e4) (bind x e3 e4))
-    (m.tree/test? (:expression m-state))
-    (let [test-node (:expression m-state)]
-      (smart-test (:test test-node)
-        (fn [] (smart-bind f (:then test-node)))
-        (fn [] (smart-bind f (:else test-node)))))
-
-    (m.tree/pick? (:expression m-state))
-    (let [pick-node (:expression m-state)]
-      (m.tree/pick (smart-bind f (:ma pick-node))
-                   (smart-bind f (:mb pick-node))))
-
-    :else
-    (bind f m-state)))
+  (m.tree.rewrite/system-bind (bind f m-state)))
 
 (defn smart-list [state]
   (let [resolved-state (or (reverse-resolve state) (resolve state state))]
@@ -327,8 +276,8 @@
 ;; Runtimes
 ;; ---------------------------------------------------------------------
 
-(defn df-one [{:keys [meander.zeta/optimize?]}]
-  (if (false? optimize?)
+(defn df-one [{:keys [meander.zeta/optimize-on-construct?]}]
+  (if (false? optimize-on-construct?)
     {:bind bind
      :call call
      :data m.tree/data
