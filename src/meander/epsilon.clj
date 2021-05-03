@@ -115,7 +115,8 @@
   {:style/indent :defn}
   [x & clauses]
   (assert (even? (count clauses)) "search requires an even number of clauses")
-  `(meander.match.epsilon/search ~x ~@clauses))
+  (with-meta `(meander.match.epsilon/search ~x ~@clauses)
+    (meta &form)))
 
 (defmacro breadth-first-search
   "Like `search` but traverses the search space in breadth first
