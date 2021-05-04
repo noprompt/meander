@@ -2586,3 +2586,16 @@
     (t/is (q? {:b :c} :b :c))
     (t/is (q? {:a {:b :c}} :b :c))
     (t/is (q? {:b {:c :d}} :c :d))))
+
+(t/deftest gh-176
+  (let [db {:ivan  {:name   "Ivan"
+                    :friend [:db/id :petr]}
+            :petr  {:name   "Petr"
+                    :friend [[:db/id :smith] [:db/id :ivan]]}
+            :smith {:name   "Smith"
+                    :friend [:db/id :petr]}}]
+    (t/is (= [[:ivan :db/id :petr "Petr"]]
+             (r/search db
+               {?e {:name "Ivan", :friend (r/or (r/scan [?t ?f]) [?t ?f])},
+                ?f {:name ?name}}
+               [?e ?t ?f ?name])))))
