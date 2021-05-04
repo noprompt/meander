@@ -486,10 +486,10 @@
      (r.syntax/postwalk
       (fn [node]
         (case (r.syntax/tag node)
-          ::or
-          (if abstract-disjunction?
-            (r.syntax/abstract node)
-            node)
+          ;; ::or
+          ;; (if abstract-disjunction?
+          ;;   (r.syntax/abstract node)
+          ;;   node)
 
           :rp+
           (let [n (get node :n)]
@@ -517,7 +517,8 @@
    (-> (expand-ast-top-down node env)
        (expand-ast-bottom-up env)
        (r.syntax/rename-refs)
-       #_(r.syntax/consolidate-with))
+       #_
+       (r.syntax/consolidate-with))
    #_
    (let [node* (-> (expand-ast-top-down node env)
                    (expand-ast-bottom-up env)
