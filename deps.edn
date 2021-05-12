@@ -5,7 +5,7 @@
  :aliases
  {:dev
   {:extra-deps {fipp/fipp {:mvn/version "0.6.21"}
-                meander/epsilon {:mvn/version "0.0.479"}
+                meander/epsilon {:mvn/version "0.0.602"}
                 org.clojure/test.check {:mvn/version "0.10.0"}}
    :extra-paths ["dev" "test"]}
 
