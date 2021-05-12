@@ -40,10 +40,14 @@
 
 (defn extra-rules [environment]
   (m.core/one-system
-   [(let [<args (m.core/fifo-variable)]
+   (let [<args (m.core/fifo-variable)
+         *args (m.core/* [<args])]
+     [(m.core/rule
+       (m.core/seq (m.core/cons (m.parse/special-symbol `all environment) *args))
+       (m.core/apply (m.core/data m.core/all) (m.core/* [(m.core/again <args)])))
       (m.core/rule
-       (m.core/seq (m.core/cons (m.parse/special-symbol `one environment) (m.core/* [<args])))
-       (m.core/apply (m.core/data m.core/one) (m.core/* [(m.core/again <args)]))))]))
+       (m.core/seq (m.core/cons (m.parse/special-symbol `one environment) *args))
+       (m.core/apply (m.core/data m.core/one) (m.core/* [(m.core/again <args)])))])))
 
 (defn parse-query [pattern]
   (let [environment (m.util/cljs-ns-from-clj-ns *ns*)
