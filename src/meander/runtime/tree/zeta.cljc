@@ -1,5 +1,6 @@
 (ns meander.runtime.tree.zeta
-  (:refer-clojure :exclude [test
+  (:refer-clojure :exclude [load
+                            test
                             resolve])
   (:require [meander.tree.zeta :as m.tree]
             [meander.tree.rewrite.zeta :as m.tree.rewrite] ))
@@ -30,16 +31,16 @@
     (m.tree/let identifier object
       (then (m.tree/set-object state identifier)))))
 
-(defn dispense
+(defn load
   {:style/indent 2}
   [state id unfold pass fail]
   (let [unfold-pass (fn [x new]
-                      (give (assoc state id new) x pass))
+                      (give (m.tree/set-binding state id new) x pass))
         unfold-fail (fn [x]
-                      (fail state))
-        entry (find state id)
-        old (if entry (val entry) (none))]
-    (unfold old unfold-pass unfold-fail)))
+                      (fail state))]
+    (m.tree/do-let (m.tree/get-binding state id (none))
+      (fn [old]
+        (unfold old unfold-pass unfold-fail)))))
 
 (defn join
   [a thunk-b]
@@ -250,28 +251,18 @@
 
       :else
       (let [b (thunk-b)]
-        (or (if (and (m.tree/let? a) (m.tree/let? b))
-              (let [expression-a (:expression a)
-                    expression-b (:expression b)]
-                (if (= expression-a expression-b)
-                  (m.tree/do-let expression-a
-                    (fn [identifier]
-                      (smart-pick
-                       (fn []
-                         (m.tree/postwalk-replace {(:identifier a) identifier} (:body a)))
-                       (fn []
-                         (m.tree/postwalk-replace {(:identifier b) identifier} (:body b)))))))))
-            ;; (pick (test a b c) (test a d e))
-            ;; --------------------------------
-            ;;  (test a (pick b d) (pick c e))
-            (if (and (m.tree/test? a) (m.tree/test? b))
-              (let [test-a (:test a)
-                    test-b (:test b)]
-                (if (= test-a test-b)
-                  (m.tree/test test-a
-                    (smart-pick (fn [] (:then a)) (fn [] (:then b)))
-                    (smart-pick (fn [] (:else a)) (fn [] (:else b)))))))
-            (m.tree/pick a b))))))
+        (m.tree.rewrite/system-pick (m.tree/pick a b))))))
+
+(defn smart-load
+  {:style/indent 2}
+  [state id unfold pass fail]
+  (let [unfold-pass (fn [x new]
+                      (smart-give (smart-set-binding state id new) x pass))
+        unfold-fail (fn [x]
+                      (fail state))]
+    (do-let (smart-get-binding state id (none))
+      (fn [old]
+        (unfold old unfold-pass unfold-fail)))))
 
 ;; Runtimes
 ;; ---------------------------------------------------------------------
@@ -287,7 +278,7 @@
      ;; :find m.runtime.eval.common/resolve-reference
      :give give
      :list m.tree/get-bindings
-     :load dispense
+     :load load
      :make m.tree/fabricate
      :mint m.tree/mint
      :none (none)
@@ -311,7 +302,7 @@
      ;; :find m.runtime.eval.common/resolve-reference
      :give smart-give
      :list smart-list
-     :load dispense
+     :load smart-load
      :make m.tree/fabricate
      :mint m.tree/mint
      :none (none)
