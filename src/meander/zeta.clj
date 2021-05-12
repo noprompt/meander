@@ -55,14 +55,15 @@
         parse (m.parse/parser environment)]
     (parse pattern)))
 
-(defn query-tree [input-symbol pattern options]
+(defn query-tree [input-symbol form options]
   (let [rt (m.rt.tree/df-one options)
         bind (:bind rt)
         code (:eval rt)
         list (:list rt)
         pass (:pass rt)
+        pattern (parse-query form)
         tree (bind (fn [state] (pass (list state)))
-                   (m.core/run-query (parse-query pattern) rt (code input-symbol)))
+                   (m.core/run-query pattern rt (code input-symbol)))
         f (if (false? (::optimize-post-construct? options))
             identity
             optimize)
