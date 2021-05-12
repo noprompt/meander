@@ -557,6 +557,11 @@
                    (m.tree/fail? else)))
         then))))
 
+(defn system-prune-test [node]
+  (try-> node
+    (rule-prune-test-redundant)
+    (rule-prune-nested-test)))
+
 (defn pass-prune-test [node]
   (m.tree/top-down-pass
    (fn [node path]
