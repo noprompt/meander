@@ -34,7 +34,8 @@
 (defn load
   {:style/indent 2}
   [state id unfold pass fail]
-  (let [unfold-pass (fn [x new]
+  (let [id (m.tree/identifier id)
+        unfold-pass (fn [x new]
                       (give (m.tree/set-binding state id new) x pass))
         unfold-fail (fn [x]
                       (fail state))]
@@ -256,7 +257,8 @@
 (defn smart-load
   {:style/indent 2}
   [state id unfold pass fail]
-  (let [unfold-pass (fn [x new]
+  (let [id (m.tree/identifier id)
+        unfold-pass (fn [x new]
                       (smart-give (smart-set-binding state id new) x pass))
         unfold-fail (fn [x]
                       (fail state))]
