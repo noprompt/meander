@@ -1,4 +1,5 @@
 (ns meander.pattern.zeta
+  (:require [meander.algorithms.zeta :as m.algorithms])
   (:refer-clojure :exclude [apply some])
   #?(:clj
      (:require [clojure.core :as clojure])
@@ -22,7 +23,7 @@
     (let [give (get kernel :give)
           make (get kernel :make)]
       (fn [pass fail state]
-        (give state (make) pass)))))
+        (give state (make state) pass)))))
 
 (defrecord Nothing []
   QueryFunction
@@ -192,20 +193,20 @@
              state))))))
 
   YieldFunction
-  (yield-function [this environment]
-    (let [call (get environment :call)
-          host (get environment :eval)
-          fail (get environment :fail)
-          give (get environment :give)
-          pass (get environment :pass)
-          take (get environment :take)
-          test (get environment :test)
+  (yield-function [this kernel]
+    (let [call (get kernel :call)
+          host (get kernel :eval)
+          fail (get kernel :fail)
+          give (get kernel :give)
+          pass (get kernel :pass)
+          take (get kernel :take)
+          test (get kernel :test)
           host-apply (host `clojure/apply)
           host-seqable? (host `clojure/seqable?)
           host-fn? (host `clojure/fn?)
-          function-yield (yield-function function-pattern environment)
-          arguments-yield (yield-function arguments-pattern environment)
-          return-query (query-function return-pattern environment)]
+          function-yield (yield-function function-pattern kernel)
+          arguments-yield (yield-function arguments-pattern kernel)
+          return-query (query-function return-pattern kernel)]
       (fn [pass fail state]
         (function-yield
          (fn [function-state]
@@ -339,6 +340,273 @@
          fail
          state)))))
 
+;; Regular Expression Patterns
+;; ---------------------------------------------------------------------
+
+(defrecord RegexEmpty []
+  QueryFunction
+  (query-function [this kernel]
+    (let [call (get kernel :call)
+          host (get kernel :eval)
+          take (get kernel :take)
+          test (get kernel :test)
+          host-seq (host `clojure/seq)
+          host-sequential? (if (get kernel [this sequential?])
+                             (host `clojure/any?)
+                             (host `clojure/sequential?))]
+      (fn [pass fail state]
+        (take state
+          (fn [object]
+            (call host-sequential? object
+              (fn [truth]
+                (test truth
+                  (fn []
+                    (call host-seq object
+                      (fn [truth]
+                        (test truth 
+                          (fn [] (fail state))
+                          (fn [] (pass state))))))
+                  (fn []
+                    (fail state))))))))))
+
+  YieldFunction
+  (yield-function [this kernel]
+    (let [data (get kernel :data)
+          give (get kernel :give)
+          empty-vector (data [])]
+      (fn [pass fail state]
+        (give state empty-vector pass)))))
+
+(defrecord RegexCons [head-pattern tail-pattern]
+  QueryFunction
+  (query-function [this kernel]
+    (let [call (get kernel :call)
+          data (get kernel :data)
+          host (get kernel :eval)
+          give (get kernel :give)
+          take (get kernel :take)
+          test (get kernel :test)
+          head-query (query-function head-pattern kernel)
+          tail-query (query-function tail-pattern (assoc kernel [tail-pattern sequential?] true))
+          host-nth (host `clojure/nth)
+          host-tail (host `m.algorithms/tail)
+          host-seq (host `clojure/seq)
+          host-sequential? (if (get kernel [this sequential?])
+                             (host `clojure/any?)
+                             (host `clojure/sequential?))
+          data-0 (data 0)]
+      (fn [pass fail state]
+        (take state
+          (fn [object]
+            (call host-sequential? object
+              (fn [truth]
+                (test truth
+                  (fn []
+                    (call host-seq object
+                      (fn [truth]
+                        (test truth 
+                          (fn []
+                            (call host-nth object data-0
+                              (fn [head-object]
+                                (call host-tail object
+                                  (fn [tail-object]
+                                    (give state head-object
+                                      (fn [state]
+                                        (head-query (fn [head-state]
+                                                      (give head-state tail-object
+                                                        (fn [state]
+                                                          (tail-query pass fail state))))
+                                                    fail
+                                                    state))))))))
+                          (fn []
+                            (fail state))))))
+                  (fn []
+                    (fail state))))))))))
+
+
+  YieldFunction
+  (yield-function [this kernel]
+    (let [call (get kernel :call)
+          host (get kernel :eval)
+          give (get kernel :give)
+          take (get kernel :take)
+          test (get kernel :test)
+          head-yield (yield-function head-pattern kernel)
+          tail-yield (yield-function tail-pattern kernel)
+          host-cons (host `clojure/cons)
+          host-sequential? (host `clojure/sequential?)]
+      (fn [pass fail state]
+        (head-yield
+         (fn [head-state]
+           (take head-state
+             (fn [head-object]
+               (tail-yield
+                (fn [tail-state]
+                  (take tail-state
+                    (fn [tail-object]
+                      (call host-sequential? tail-object
+                        (fn [truth]
+                          (test truth
+                            (fn []
+                              (call host-cons head-object tail-object
+                                (fn [sequential-object]
+                                  (give tail-state sequential-object pass))))
+                            (fn []
+                              (fail tail-state))))))))
+                fail
+                head-state))))
+         fail
+         state)))))
+
+(defrecord RegexConcatenation [initial-patterns tail-pattern]
+  QueryFunction
+  (query-function [this kernel]
+    (let [bind (get kernel :bind)
+          call (get kernel :call)
+          data (get kernel :data)
+          host (get kernel :eval)
+          give (get kernel :give)
+          take (get kernel :take)
+          test (get kernel :test)
+          initial-queries (map (fn [pattern]
+                                 (query-function pattern kernel))
+                               initial-patterns)
+          indexed-queries (map-indexed (fn [index query]
+                                         [(data index) query])
+                                       initial-queries)
+          tail-query (query-function tail-pattern (assoc kernel [tail-pattern clojure/sequential?] true))
+          n* (count initial-patterns)
+          m* (inc n*)
+          n (data n*)
+          m (data m*)
+          <= (host `clojure/<=)
+          nth (host `clojure/nth)
+          bounded-count (host `clojure/bounded-count)
+          drop (host `m.algorithms/drop)
+          sequential? (if (get kernel [this clojure/sequential?])
+                        (host `clojure/any?) 
+                        (host `clojure/sequential?))]
+      (fn [pass fail state]
+        (take state
+          (fn [object]
+            (call sequential? object
+              (fn [truth]
+                (test truth 
+                  (fn []
+                    (call bounded-count m object
+                      (fn [m]
+                        (call <= n m
+                          (fn [truth]
+                            (test truth 
+                              (fn []
+                                (call drop n object
+                                  (fn [tail]
+                                    (reduce
+                                     (fn [ma [index query]]
+                                       (call nth object index
+                                         (fn [x]
+                                           (bind (fn [state]
+                                                   (give state x
+                                                     (fn [state]
+                                                       (query pass fail state))))
+                                                 ma))))
+                                     (pass state)
+                                     indexed-queries))))
+                              (fn []
+                                (fail state))))))))
+                  (fn []
+                    (fail state))))))))))
+
+  YieldFunction
+  (yield-function [this kernel]
+    (let [bind (get kernel :bind)
+          call (get kernel :call)
+          host (get kernel :eval)
+          give (get kernel :give)
+          take (get kernel :take)
+          n (count initial-patterns)
+          initial-yields (map (fn [pattern]
+                                (yield-function pattern kernel))
+                              initial-patterns)
+          tail-yield (yield-function tail-pattern kernel)
+          conj (host `clojure/conj)
+          into (host `clojure/into)
+          vec (host `clojure/vec)
+          vector (host `clojure/vector)]
+      (case n
+        0
+        tail-yield
+
+        1
+        (let [yield (nth initial-yields 0)]
+          (fn [pass fail state]
+            (yield (fn [state]
+                     (take state
+                       (fn [object]
+                         (call vector object
+                           (fn [xs]
+                             (tail-yield
+                              (fn [state]
+                                (take state
+                                  (fn [tail]
+                                    (call into xs tail
+                                      (fn [ys]
+                                        (give state ys pass))))))
+                              fail
+                              state))))))
+                   fail
+                   state)))
+
+        ;; else
+        (let [first-yield (nth initial-yields 0)
+              rest-yields (rest initial-yields)]
+          (fn [pass fail state]
+            (bind (fn [state]
+                    (take state
+                      (fn [object]
+                        (call vec object
+                          (fn [xs]
+                            (tail-yield
+                             (fn [state]
+                               (take state
+                                 (fn [tail]
+                                   (call into xs tail
+                                     (fn [ys]
+                                       (give state ys pass))))))
+                             fail
+                             state))))))
+                  (reduce (fn [m yield]
+                            (bind (fn [state]
+                                    (take state
+                                      (fn [xs]
+                                        (yield (fn [x-state]
+                                                 (take x-state
+                                                   (fn [x]
+                                                     (call conj xs x
+                                                       (fn [ys]
+                                                         (give x-state ys pass))))))
+                                               fail
+                                               state)
+                                        #_
+                                        (bind (fn [x-state]
+                                                (take x-state
+                                                  (fn [x]
+                                                    (call conj xs x
+                                                      (fn [ys]
+                                                        (give x-state ys pass))))))
+                                              (yield state)))))
+                                  m))
+                          (first-yield
+                           (fn [state]
+                             (take state
+                               (fn [x]
+                                 (call vector x
+                                   (fn [xs]
+                                     (give state xs pass))))))
+                           fail
+                           state)
+                          rest-yields))))))))
+
 ;; Atomic patterns
 ;; ---------------------------------------------------------------------
 
@@ -395,7 +663,7 @@
         (fn [truth]
           (test truth
             (fn [] (fail old))
-            (fn [] (pass old))))))))
+            (fn [] (pass old old))))))))
 
 (defn logic-variable
   ([]
@@ -434,6 +702,22 @@
   [function-pattern object-pattern]
   (->Predicate function-pattern object-pattern))
 
+;; Regular Expression Pattern Construction API
+;; ---------------------------------------------------------------------
+
+(defn regex-empty []
+  (->RegexEmpty))
+
+(defn regex-cons [head-pattern tail-pattern]
+  (->RegexCons head-pattern tail-pattern))
+
+(defn regex-concatenation [[:as initial-patterns] tail-pattern]
+  (->RegexConcatenation initial-patterns tail-pattern))
+
+
+;; API
+;; ---------------------------------------------------------------------
+
 (defn run-query [pattern kernel object]
   (let [query (query-function pattern kernel)
         data (get kernel :data)
@@ -444,7 +728,22 @@
 
 (defn run-yield [pattern kernel]
   (let [yield (yield-function pattern kernel)
+        data (get kernel :data)
         fail (get kernel :fail)
         pass (get kernel :pass)
         seed (get kernel :seed)]
     (yield pass fail (seed (data nil)))))
+
+(comment
+  (require '[meander.tree.zeta :as m.ir])
+  (require '[meander.runtime.tree.zeta :as m.kernel.ir])
+  (require '[meander.runtime.tree.one.zeta :as m.kernel.ir.one])
+  (require '[meander.runtime.eval.zeta :as m.kernel.eval])
+  (let [ir-kernel (m.kernel.ir/df-one {:meander.zeta/optimize-on-construct? true})
+        eval-kernel (m.kernel.eval/df-one)
+        pattern (project (data 10) (logic-variable 'X) (logic-variable 'X))]
+    [(run-query pattern eval-kernel 20)
+     (m.kernel.ir.one/clojure (run-query pattern ir-kernel 20))]
+   
+    ))
+

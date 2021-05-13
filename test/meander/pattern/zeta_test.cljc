@@ -24,17 +24,46 @@
 (def %nothing
   (m.pattern/nothing))
 
+(def %empty
+  (m.pattern/regex-empty))
+
 ;; Tests
 ;; ---------------------------------------------------------------------
 
 
 (t/deftest anything-test
   (let [x (reify)]
-    (t/is (= {:object x, :bindings {}, :references {}}
-             (host-match (m.pattern/anything) x)))
+    (t/testing "anything query"
+      (t/is (= {:object x, :bindings {}, :references {}}
+               (host-match %anything x)))
 
-    (t/is (= [{:object x, :bindings {}, :references {}}]
-             (host-search (m.pattern/anything) x)))))
+      (t/is (= [{:object x, :bindings {}, :references {}}]
+               (host-search %anything x))))
+
+    (t/testing "anything yield"
+      (let [state (host-build %anything)]
+        (t/is (map? state))
+
+        (t/is (contains? state :object))
+
+        (t/is (= {}
+                 (get state :bindings)))
+
+        (t/is (= {}
+                 (get state :references))))
+
+      (let [[state & rest-states] (host-stream %anything)]
+        (t/is (not (seq rest-states)))
+
+        (t/is (map? state))
+
+        (t/is (contains? state :object))
+
+        (t/is (= {}
+                 (get state :bindings)))
+
+        (t/is (= {}
+                 (get state :references)))))))
 
 (t/deftest nothing-test
   (let [x (reify)]
@@ -389,3 +418,111 @@
 
         (t/is (= []
                  (host-stream (m.pattern/predicate %even? (m.pattern/data 1)))))))))
+
+(t/deftest regex-empty-test
+  (t/testing "regex-empty query"
+    (t/testing "regex-empty match"
+      (t/is (= {:object [], :bindings {}, :references {}}
+               (host-match (m.pattern/regex-empty) [])))
+
+      (t/is (= {:object [], :bindings {}, :references {}}
+               (host-match (m.pattern/regex-empty) ())))
+
+      (t/is (= nil
+               (host-match (m.pattern/regex-empty) nil)))
+
+      (t/is (= nil
+               (host-match (m.pattern/regex-empty) [1]))))
+
+    (t/testing "regex-empty search"
+      (t/is (= [{:object [], :bindings {}, :references {}}]
+               (host-search (m.pattern/regex-empty) [])))
+
+      (t/is (= [{:object [], :bindings {}, :references {}}]
+               (host-search (m.pattern/regex-empty) ())))
+
+      (t/is (= []
+               (host-search (m.pattern/regex-empty) nil)))
+
+      (t/is (= []
+               (host-search (m.pattern/regex-empty) [1])))))
+
+  (t/testing "regex-empty yield"
+    (t/testing "regex-empty build"
+      (t/is (= {:object [], :bindings {}, :references {}}
+               (host-build (m.pattern/regex-empty))))
+
+      (t/is (= {:object [], :bindings {}, :references {}}
+               (host-build (m.pattern/regex-empty)))))
+
+    (t/testing "regex-empty stream"
+      (t/is (= [{:object [], :bindings {}, :references {}}]
+               (host-stream (m.pattern/regex-empty))))
+
+      (t/is (= [{:object [], :bindings {}, :references {}}]
+               (host-stream (m.pattern/regex-empty)))))))
+
+
+(t/deftest regex-cons-test
+  (let [x (reify)]
+    (t/testing "regex-cons query"
+      (t/testing "regex-cons match"
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-cons %anything %empty) [x])))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-cons %anything %empty) (list x))))
+
+        (t/is (= nil
+                 (host-match (m.pattern/regex-cons %anything %empty) [])))
+
+        (t/is (= nil
+                 (host-match (m.pattern/regex-cons %anything %empty) ())))))
+
+    (t/testing "regex-cons yield"
+      (t/testing "regex-cons build"
+        (t/is (= {:object [x], :bindings {}, :references {}}
+                 (host-build (m.pattern/regex-cons (m.pattern/data x) %empty))))
+
+        (t/is (= nil
+                 (host-build (m.pattern/regex-cons %nothing %empty))))
+
+        (t/is (= nil
+                 (host-build (m.pattern/regex-cons %anything %nothing))))))))
+
+(t/deftest regex-concatenation-test
+  (let [x (reify)
+        y (reify)]
+    (t/testing "regex-concatenation query"
+      (t/testing "regex-concatenation match"
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-concatenation [%anything] %empty) [x])))
+
+        (t/is (= {:object y, :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-concatenation [%anything %anything] %empty) [x y])))
+
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-concatenation [%anything] %empty) (list x))))
+
+        (t/is (= {:object y, :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-concatenation [%anything %anything] %empty) (list x y))))
+
+        (t/is (= nil
+                 (host-match (m.pattern/regex-concatenation [%anything] %empty) [])))
+
+        (t/is (= nil
+                 (host-match (m.pattern/regex-concatenation [%anything] %empty) ())))))
+
+    (t/testing "regex-concatenation yield"
+      (t/testing "regex-concatenation build"
+        (t/is (= {:object [x], :bindings {}, :references {}}
+                 (host-build (m.pattern/regex-concatenation [(m.pattern/data x)] %empty))))
+
+        (t/is (= {:object [x y], :bindings {}, :references {}}
+                 (host-build (m.pattern/regex-concatenation [(m.pattern/data x) (m.pattern/data y)] %empty))))
+
+        (t/is (= nil
+                 (host-build (m.pattern/regex-concatenation [%nothing] %empty))))
+
+        (t/is (= nil
+                 (host-build (m.pattern/regex-concatenation [%anything] %nothing))))))))
