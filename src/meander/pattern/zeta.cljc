@@ -733,17 +733,3 @@
         pass (get kernel :pass)
         seed (get kernel :seed)]
     (yield pass fail (seed (data nil)))))
-
-(comment
-  (require '[meander.tree.zeta :as m.ir])
-  (require '[meander.runtime.tree.zeta :as m.kernel.ir])
-  (require '[meander.runtime.tree.one.zeta :as m.kernel.ir.one])
-  (require '[meander.runtime.eval.zeta :as m.kernel.eval])
-  (let [ir-kernel (m.kernel.ir/df-one {:meander.zeta/optimize-on-construct? true})
-        eval-kernel (m.kernel.eval/df-one)
-        pattern (project (data 10) (logic-variable 'X) (logic-variable 'X))]
-    [(run-query pattern eval-kernel 20)
-     (m.kernel.ir.one/clojure (run-query pattern ir-kernel 20))]
-   
-    ))
-

@@ -20,7 +20,9 @@
          args (into [a] (butlast rest))]
      (then (m.tree/call f args)))))
 
-(defn get-object [state then]
+(defn get-object
+  {:style/indent 1}
+  [state then]
   (let [identifier (m.tree/identifier)]
     (m.tree/let identifier (m.tree/get-object state) (then identifier))))
 
@@ -54,16 +56,17 @@
 (defn save
   {:style/indent 2}
   [state id fold pass fail]
-  (get-object state
-              (fn [new]
-                (let [fold-pass (fn [new]
-                                  (m.tree/do-let (m.tree/set-binding state (m.tree/identifier id) new)
-                                    pass))
-                      fold-fail (fn [x]
-                                  (fail state))]
-                  (m.tree/do-let (m.tree/get-binding state (m.tree/identifier id) (none))
-                    (fn [old]
-                      (fold old new fold-pass fold-fail)))))))
+  (let [id (m.tree/identifier id)]
+    (get-object state
+      (fn [new]
+        (let [fold-pass (fn [new]
+                          (m.tree/do-let (m.tree/set-binding state id new)
+                            pass))
+              fold-fail (fn [x]
+                          (fail state))]
+          (m.tree/do-let (m.tree/get-binding state id (none))
+            (fn [old]
+              (fold old new fold-pass fold-fail))))))))
 
 (defn scan
   [f xs]
@@ -196,10 +199,11 @@
   [state object then]
   (do-let object
     (fn [x]
-      (do-let (if (m.tree/state? state)
+      (do-let (if false #_(m.tree/state? state) ;; FIXME: This can cause breakage.
                 (assoc state :object x)
                 (m.tree/set-object state x))
         then))))
+
 
 (defn smart-get-binding [state identifier none]
   (cond
@@ -233,7 +237,9 @@
     (smart-take state
       (fn [new]
         (let [fold-pass (fn [new]
-                          (do-let (smart-set-binding state id new) pass))
+                          ;; TODO: Investigate why using `do-let` here is problematic.
+                          (do-let (smart-set-binding state id new)
+                            pass))
               fold-fail (fn [x]
                           (fail state))]
           (do-let (smart-get-binding state id (none))
