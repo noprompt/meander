@@ -675,29 +675,32 @@
             %y (m.pattern/data y)
             %x·y|E|E (m.pattern/regex-join (m.pattern/regex-concatenation [%x %y] %empty) %empty)
             %E|x·y|E (m.pattern/regex-join %empty (m.pattern/regex-concatenation [%x %y] %empty))
-            %E|ε|y|E (m.pattern/regex-join (m.pattern/regex-concatenation [%x] %empty)
-                                           (m.pattern/regex-concatenation [%y] %empty))]
+            %x|E|y|E (m.pattern/regex-join (m.pattern/regex-concatenation [%x] %empty)
+                                           (m.pattern/regex-concatenation [%y] %empty))
+            %¡|E (m.pattern/regex-join %nothing %empty)
+            %E|¡ (m.pattern/regex-join %empty %nothing)]
         (t/testing "regex-join build"
           (t/is (= {:object [x y], :bindings {}, :references {}}
                    (host-build %x·y|E|E)))
 
-          #_
           (t/is (= {:object [x y], :bindings {}, :references {}}
                    (host-build %E|x·y|E)))
 
-          #_
           (t/is (= {:object [x y], :bindings {}, :references {}}
-                   (host-build %x|E|y|E))))
+                   (host-build %x|E|y|E)))
+
+          (t/is (= nil
+                   (host-build %E|¡))))
 
         (t/testing "regex-join stream"
-          #_
           (t/is (= [{:object [x y], :bindings {}, :references {}}]
                    (host-stream %x·y|E|E)))
 
-          #_
           (t/is (= [{:object [x y], :bindings {}, :references {}}]
                    (host-stream %E|x·y|E)))
 
-          #_
           (t/is (= [{:object [x y], :bindings {}, :references {}}]
-                   (host-stream %x|E|y|E))))))))
+                   (host-stream %x|E|y|E)))
+
+          (t/is (= []
+                   (host-stream %E|¡))))))))
