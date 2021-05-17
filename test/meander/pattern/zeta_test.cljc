@@ -542,34 +542,162 @@
         y (reify)]
     (t/testing "regex-concatenation query"
       (t/testing "regex-concatenation match"
-        (t/is (= {:object x, :bindings {}, :references {}}
+        (t/is (= {:object [], :bindings {}, :references {}}
                  (host-match (m.pattern/regex-concatenation [%anything] %empty) [x])))
 
-        (t/is (= {:object y, :bindings {}, :references {}}
+        (t/is (= {:object [], :bindings {}, :references {}}
                  (host-match (m.pattern/regex-concatenation [%anything %anything] %empty) [x y])))
 
-        (t/is (= {:object x, :bindings {}, :references {}}
+        (t/is (= {:object [], :bindings {}, :references {}}
                  (host-match (m.pattern/regex-concatenation [%anything] %empty) (list x))))
 
-        (t/is (= {:object y, :bindings {}, :references {}}
+        (t/is (= {:object [], :bindings {}, :references {}}
                  (host-match (m.pattern/regex-concatenation [%anything %anything] %empty) (list x y))))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match (m.pattern/regex-concatenation [%anything] (m.pattern/regex-concatenation [%anything] %empty))
+                             (list x y))))
 
         (t/is (= nil
                  (host-match (m.pattern/regex-concatenation [%anything] %empty) [])))
 
         (t/is (= nil
-                 (host-match (m.pattern/regex-concatenation [%anything] %empty) ())))))
+                 (host-match (m.pattern/regex-concatenation [%anything] %empty) ()))))
+
+      (t/testing "regex-concatenation search"
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search (m.pattern/regex-concatenation [%anything] %empty) [x])))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search (m.pattern/regex-concatenation [%anything %anything] %empty) [x y])))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search (m.pattern/regex-concatenation [%anything] %empty) (list x))))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search (m.pattern/regex-concatenation [%anything %anything] %empty) (list x y))))
+
+        (t/is (= []
+                 (host-search (m.pattern/regex-concatenation [%anything] %empty) [])))
+
+        (t/is (= []
+                 (host-search (m.pattern/regex-concatenation [%anything] %empty) ())))))
 
     (t/testing "regex-concatenation yield"
-      (t/testing "regex-concatenation build"
-        (t/is (= {:object [x], :bindings {}, :references {}}
-                 (host-build (m.pattern/regex-concatenation [(m.pattern/data x)] %empty))))
+      (let [%x (m.pattern/data x)
+            %y (m.pattern/data y)
+            %x|Ε (m.pattern/regex-concatenation [%x] %empty)
+            %x·y|Ε₁ (m.pattern/regex-concatenation [%x %y] %empty)
+            %x·y|Ε₂ (m.pattern/regex-concatenation [%x] (m.pattern/regex-concatenation [%y] %empty))
+            %¡|E (m.pattern/regex-concatenation [%nothing] %empty)
+            %_|¡ (m.pattern/regex-concatenation [%anything] %nothing)]
+        (t/testing "regex-concatenation build"
+          (t/is (= {:object [x], :bindings {}, :references {}}
+                   (host-build %x|Ε)))
 
-        (t/is (= {:object [x y], :bindings {}, :references {}}
-                 (host-build (m.pattern/regex-concatenation [(m.pattern/data x) (m.pattern/data y)] %empty))))
+          (t/is (= {:object [x y], :bindings {}, :references {}}
+                   (host-build %x·y|Ε₁)))
 
-        (t/is (= nil
-                 (host-build (m.pattern/regex-concatenation [%nothing] %empty))))
+          (t/is (= {:object [x y], :bindings {}, :references {}}
+                   (host-build %x·y|Ε₂)))
 
-        (t/is (= nil
-                 (host-build (m.pattern/regex-concatenation [%anything] %nothing))))))))
+          (t/is (= nil
+                   (host-build %¡|E)))
+
+          (t/is (= nil
+                   (host-build %_|¡))))
+
+        (t/testing "regex-concatenation build"
+          (t/is (= [{:object [x], :bindings {}, :references {}}]
+                   (host-stream %x|Ε)))
+
+          (t/is (= [{:object [x y], :bindings {}, :references {}}]
+                   (host-stream %x·y|Ε₁)))
+
+          (t/is (= [{:object [x y], :bindings {}, :references {}}]
+                   (host-stream %x·y|Ε₂)))
+
+          (t/is (= []
+                   (host-stream %¡|E)))
+
+          (t/is (= []
+                   (host-stream %_|¡))))))))
+
+(t/deftest regex-join-test
+  (let [x (reify)
+        y (reify)]
+    
+    (t/testing "regex-join query"
+      (let [%_·_|E|E (m.pattern/regex-join (m.pattern/regex-concatenation [%anything %anything] %empty) %empty)
+            %E|_·_|E (m.pattern/regex-join %empty (m.pattern/regex-concatenation [%anything %anything] %empty))
+            %_|E|_|E (m.pattern/regex-join (m.pattern/regex-concatenation [%anything] %empty)
+                                           (m.pattern/regex-concatenation [%anything] %empty))]
+        (t/testing "regex-join match"
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %_·_|E|E [x y])))
+
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %E|_·_|E [x y])))
+
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %_|E|_|E [x y])))
+
+          (t/is (= nil
+                   (host-match %_·_|E|E [x])))
+
+          (t/is (= nil
+                   (host-match %E|_·_|E [x])))
+
+          (t/is (= nil
+                   (host-match %_|E|_|E [x]))))
+
+        (t/testing "regex-join search"
+          (t/is (= [{:object [], :bindings {}, :references {}}]
+                   (host-search %_·_|E|E [x y])))
+
+          (t/is (= [{:object [], :bindings {}, :references {}}]
+                   (host-search %E|_·_|E [x y])))
+
+          (t/is (= [{:object [], :bindings {}, :references {}}]
+                   (host-search %_|E|_|E [x y])))
+
+          (t/is (= []
+                   (host-search %_·_|E|E [x])))
+
+          (t/is (= []
+                   (host-search %E|_·_|E [x])))
+
+          (t/is (= []
+                   (host-search %_|E|_|E [x]))))))
+
+    (t/testing "regex-join yield"
+      (let [%x (m.pattern/data x)
+            %y (m.pattern/data y)
+            %x·y|E|E (m.pattern/regex-join (m.pattern/regex-concatenation [%x %y] %empty) %empty)
+            %E|x·y|E (m.pattern/regex-join %empty (m.pattern/regex-concatenation [%x %y] %empty))
+            %E|ε|y|E (m.pattern/regex-join (m.pattern/regex-concatenation [%x] %empty)
+                                           (m.pattern/regex-concatenation [%y] %empty))]
+        (t/testing "regex-join build"
+          (t/is (= {:object [x y], :bindings {}, :references {}}
+                   (host-build %x·y|E|E)))
+
+          #_
+          (t/is (= {:object [x y], :bindings {}, :references {}}
+                   (host-build %E|x·y|E)))
+
+          #_
+          (t/is (= {:object [x y], :bindings {}, :references {}}
+                   (host-build %x|E|y|E))))
+
+        (t/testing "regex-join stream"
+          #_
+          (t/is (= [{:object [x y], :bindings {}, :references {}}]
+                   (host-stream %x·y|E|E)))
+
+          #_
+          (t/is (= [{:object [x y], :bindings {}, :references {}}]
+                   (host-stream %E|x·y|E)))
+
+          #_
+          (t/is (= [{:object [x y], :bindings {}, :references {}}]
+                   (host-stream %x|E|y|E))))))))

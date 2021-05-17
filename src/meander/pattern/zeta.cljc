@@ -468,6 +468,7 @@
           give (get kernel :give)
           take (get kernel :take)
           test (get kernel :test)
+          pass (get kernel :pass)
           initial-queries (map (fn [pattern]
                                  (query-function pattern kernel))
                                initial-patterns)
@@ -486,7 +487,7 @@
           sequential? (if (get kernel [this clojure/sequential?])
                         (host `clojure/any?) 
                         (host `clojure/sequential?))]
-      (fn [pass fail state]
+      (fn [resolve reject state]
         (take state
           (fn [object]
             (call sequential? object
@@ -501,21 +502,117 @@
                               (fn []
                                 (call drop n object
                                   (fn [tail]
-                                    (reduce
-                                     (fn [ma [index query]]
-                                       (call nth object index
-                                         (fn [x]
-                                           (bind (fn [state]
-                                                   (give state x
-                                                     (fn [state]
-                                                       (query pass fail state))))
-                                                 ma))))
-                                     (pass state)
-                                     indexed-queries))))
+                                    (bind (fn [state]
+                                            (give state tail
+                                              (fn [state]
+                                                (tail-query resolve reject state))))
+                                          (reduce
+                                           (fn [ma [index query]]
+                                             (call nth object index
+                                               (fn [x]
+                                                 (bind (fn [state]
+                                                         (give state x
+                                                           (fn [state]
+                                                             (query pass reject state))))
+                                                       ma))))
+                                           (pass state)
+                                           indexed-queries)))))
                               (fn []
-                                (fail state))))))))
+                                (reject state))))))))
                   (fn []
-                    (fail state))))))))))
+                    (reject state))))))))))
+
+  YieldFunction
+  (yield-function [this kernel]
+    (let [bind (get kernel :bind)
+          call (get kernel :call)
+          data (get kernel :data)
+          host (get kernel :eval)
+          give (get kernel :give)
+          take (get kernel :take)
+          pass (get kernel :pass)
+          initial-yields (map (fn [pattern]
+                                (yield-function pattern kernel))
+                              initial-patterns)
+          tail-yield (yield-function tail-pattern kernel)
+          empty-vector (data [])
+          conj (host `clojure/conj)
+          concat (host `clojure/concat)]
+      (fn [resolve reject state]
+        (bind (fn [xs-state]
+                (take xs-state
+                  (fn [xs]
+                    (tail-yield (fn [ys-state]
+                                  (take ys-state
+                                    (fn [ys]
+                                      (call concat xs ys
+                                        (fn [xs+ys]
+                                          (give ys-state xs+ys resolve))))))
+                                reject
+                                xs-state))))
+              (reduce
+               (fn [m x-yield]
+                 (bind (fn [state]
+                         (take state
+                           (fn [xs]
+                             (x-yield (fn [x-state]
+                                        (take x-state
+                                          (fn [x]
+                                            (call conj xs x
+                                              (fn [xs+x]
+                                                (give x-state xs+x pass))))))
+                                      reject
+                                      state))))
+                       m))
+               (give state empty-vector pass)
+               initial-yields))))))
+
+(defrecord RegexJoin [x-pattern y-pattern]
+  QueryFunction
+  (query-function [this kernel]
+    (let [bind (get kernel :bind)
+          call (get kernel :call)
+          data (get kernel :data)
+          host (get kernel :eval)
+          give (get kernel :give)
+          test (get kernel :test)
+          take (get kernel :take)
+          scan (get kernel :scan)
+          x-query (query-function x-pattern (assoc kernel [x-pattern clojure/sequential?] true))
+          y-query (query-function y-pattern (assoc kernel [y-pattern clojure/sequential?] true))
+          nth (host `clojure/nth)
+          sequential? (if (get kernel [this clojure/sequential?])
+                        (host `clojure/any?)
+                        (host `clojure/sequential?))
+          partitions (host `meander.algorithms.zeta/partitions)
+          zero (data 0)
+          one (data 1)
+          two (data 2)]
+      (fn [resolve reject state]
+        (take state
+          (fn [object]
+            (call sequential? object
+              (fn [truth]
+                (test truth
+                  (fn []
+                    (call partitions two object
+                      (fn [partitions]
+                        (scan (fn [partition]
+                                (call nth partition zero
+                                  (fn [x]
+                                    (call nth partition one
+                                      (fn [y]
+                                        (give state x
+                                          (fn [state]
+                                            (x-query (fn [x-state]
+                                                       (give x-state y
+                                                         (fn [x-state]
+                                                           (y-query resolve reject x-state))))
+                                                     reject
+                                                     state))))))))
+                              partitions))))
+                  (fn []
+                    (reject state))))))))))
 
   YieldFunction
   (yield-function [this kernel]
@@ -523,89 +620,42 @@
           call (get kernel :call)
           host (get kernel :eval)
           give (get kernel :give)
+          give (get kernel :give)
           take (get kernel :take)
-          n (count initial-patterns)
-          initial-yields (map (fn [pattern]
-                                (yield-function pattern kernel))
-                              initial-patterns)
-          tail-yield (yield-function tail-pattern kernel)
-          conj (host `clojure/conj)
-          into (host `clojure/into)
-          vec (host `clojure/vec)
-          vector (host `clojure/vector)]
-      (case n
-        0
-        tail-yield
+          test (get kernel :test)
+          x-yield (yield-function x-pattern kernel)
+          y-yield (yield-function y-pattern kernel)
+          concat (host `clojure/concat)
+          x-coll? (host `clojure/coll?)
+          y-coll? (host `clojure/coll?)]
+      (fn [resolve reject state]
+        (x-yield
+         (fn [x-state]
+           (take x-state
+             (fn [x]
+               (call x-coll? x
+                 (fn [truth]
+                   (test truth
+                     (fn []
+                       (y-yield (fn [y-state]
+                                  (take y-state
+                                    (fn [y]
+                                      (call y-coll? y
+                                        (fn [truth]
+                                          (test truth
+                                            (fn []
+                                              (call concat x y
+                                                (fn [xy]
+                                                  (give y-state xy resolve))))
+                                            (fn []
+                                              (reject y-state))))))))
+                                reject
+                                x-state))
+                     (fn []
+                       (reject x-state))))))))
+         reject
+         state)))))
 
-        1
-        (let [yield (nth initial-yields 0)]
-          (fn [pass fail state]
-            (yield (fn [state]
-                     (take state
-                       (fn [object]
-                         (call vector object
-                           (fn [xs]
-                             (tail-yield
-                              (fn [state]
-                                (take state
-                                  (fn [tail]
-                                    (call into xs tail
-                                      (fn [ys]
-                                        (give state ys pass))))))
-                              fail
-                              state))))))
-                   fail
-                   state)))
-
-        ;; else
-        (let [first-yield (nth initial-yields 0)
-              rest-yields (rest initial-yields)]
-          (fn [pass fail state]
-            (bind (fn [state]
-                    (take state
-                      (fn [object]
-                        (call vec object
-                          (fn [xs]
-                            (tail-yield
-                             (fn [state]
-                               (take state
-                                 (fn [tail]
-                                   (call into xs tail
-                                     (fn [ys]
-                                       (give state ys pass))))))
-                             fail
-                             state))))))
-                  (reduce (fn [m yield]
-                            (bind (fn [state]
-                                    (take state
-                                      (fn [xs]
-                                        (yield (fn [x-state]
-                                                 (take x-state
-                                                   (fn [x]
-                                                     (call conj xs x
-                                                       (fn [ys]
-                                                         (give x-state ys pass))))))
-                                               fail
-                                               state)
-                                        #_
-                                        (bind (fn [x-state]
-                                                (take x-state
-                                                  (fn [x]
-                                                    (call conj xs x
-                                                      (fn [ys]
-                                                        (give x-state ys pass))))))
-                                              (yield state)))))
-                                  m))
-                          (first-yield
-                           (fn [state]
-                             (take state
-                               (fn [x]
-                                 (call vector x
-                                   (fn [xs]
-                                     (give state xs pass))))))
-                           fail
-                           state)
-                          rest-yields))))))))
 
 ;; Atomic patterns
 ;; ---------------------------------------------------------------------
@@ -711,8 +761,12 @@
 (defn regex-cons [head-pattern tail-pattern]
   (->RegexCons head-pattern tail-pattern))
 
-(defn regex-concatenation [[:as initial-patterns] tail-pattern]
+(defn regex-concatenation [initial-patterns tail-pattern]
+  {:pre [(clojure/sequential? initial-patterns)]}
   (->RegexConcatenation initial-patterns tail-pattern))
+
+(defn regex-join [x-pattern y-pattern]
+  (->RegexJoin x-pattern y-pattern))
 
 
 ;; API
