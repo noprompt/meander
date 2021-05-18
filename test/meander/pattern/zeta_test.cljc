@@ -626,7 +626,6 @@
 (t/deftest regex-join-test
   (let [x (reify)
         y (reify)]
-    
     (t/testing "regex-join query"
       (let [%_·_|E|E (m.pattern/regex-join (m.pattern/regex-concatenation [%anything %anything] %empty) %empty)
             %E|_·_|E (m.pattern/regex-join %empty (m.pattern/regex-concatenation [%anything %anything] %empty))
@@ -704,3 +703,112 @@
 
           (t/is (= []
                    (host-stream %E|¡))))))))
+
+(t/deftest greedy-star-test
+  (t/testing "greedy-star query"
+    (let [x (reify)
+          y (reify)
+          z (reify)
+          %x (m.pattern/data x)
+          %y (m.pattern/data y)
+          %z (m.pattern/data z)
+          %x·y*|E (m.pattern/greedy-star [%x %y] %empty)
+          %x·y*·z|E (m.pattern/greedy-star [%x %y] (m.pattern/regex-concatenation [%z] %empty))]
+      (t/testing "greedy-star match"
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*|E [])))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*|E [x y])))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*|E (take 100 (cycle [x y])))))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*·z|E (concat (take 100 (cycle [x y])) [z]))))
+
+        (t/is (= nil
+                 (host-match %x·y*|E [x])))
+        
+        (t/is (= nil
+                 (host-match %x·y*|E (take 99 (cycle [x y]))))))
+
+      (t/testing "greedy-star search"
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*|E [])))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*|E [x y])))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*|E (take 100 (cycle [x y])))))
+
+        (t/is (= []
+                 (host-search %x·y*|E [x])))
+        
+        (t/is (= []
+                 (host-search %x·y*|E (take 99 (cycle [x y]))))))))
+
+  ;; TODO: Fill these in once fifo/filo variables have tests.
+  (t/testing "greedy-star yield"
+    (t/testing "greedy-star build")
+    (t/testing "greedy-star stream")))
+
+(t/deftest frugal-star-test
+  (t/testing "frugal-star query"
+    (let [x (reify)
+          y (reify)
+          z (reify)
+          %x (m.pattern/data x)
+          %y (m.pattern/data y)
+          %z (m.pattern/data z)
+          %x·y*?|E (m.pattern/frugal-star [%x %y] %empty)
+          %x·y*?|_ (m.pattern/frugal-star [%x %y] %anything)
+          %x·y*?·z|E (m.pattern/frugal-star [%x %y] (m.pattern/regex-concatenation [%z] %empty))]
+      (t/testing "frugal-star match"
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*?|E [])))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*?|E [x y])))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*?|E (take 100 (cycle [x y])))))
+
+        (t/is (= {:object [], :bindings {}, :references {}}
+                 (host-match %x·y*?·z|E [x y x y z])))
+
+        (t/is (= {:object [x y x y], :bindings {}, :references {}}
+                 (host-match %x·y*?|_ [x y x y])))
+
+        (t/is (= nil
+                 (host-match %x·y*?|E [x])))
+        
+        (t/is (= nil
+                 (host-match %x·y*?|E [x y x]))))
+
+      (t/testing "frugal-star search"
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*?|E [])))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*?|E [x y])))
+
+        (t/is (= [{:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*?|E [x y x y])))
+
+        (t/is (= [{:object [x y x y], :bindings {}, :references {}}
+                  {:object [x y], :bindings {}, :references {}}
+                  {:object [], :bindings {}, :references {}}]
+                 (host-search %x·y*?|_ [x y x y])))
+
+        (t/is (= []
+                 (host-search %x·y*?|E [x])))
+        
+        (t/is (= []
+                 (host-search %x·y*?|E [x y x]))))))
+
+  ;; TODO: Fill these in once fifo/filo variables have tests.
+  (t/testing "frugal-star yield"
+    (t/testing "frugal-star build")
+    (t/testing "frugal-star stream")))
