@@ -959,9 +959,9 @@
         host (get kernel :eval)
         none (get kernel :none)
         test (get kernel :test)
-        host-equals (host `clojure/=)]
+        = (host `clojure/=)]
     (fn [old pass fail]
-      (call host-equals old none
+      (call = old none
         (fn [truth]
           (test truth
             (fn [] (fail old))
@@ -973,6 +973,29 @@
   ([symbol]
    {:pre [(symbol? symbol)]}
    (->Variable symbol logic-fold-function logic-unfold-function)))
+
+(defn mutable-fold-function [kernel]
+  (fn [old new pass fail]
+    (pass new)))
+
+(defn mutable-unfold-function [kernel]
+  (let [call (get kernel :call)
+        host (get kernel :eval)
+        none (get kernel :none)
+        test (get kernel :test)
+        = (host `clojure/=)]
+    (fn [old pass fail]
+      (call = old none
+        (fn [truth]
+          (test truth
+            (fn [] (fail old))
+            (fn [] (pass old old))))))))
+
+(defn mutable-variable
+  ([]
+   (mutable-variable (gensym "!__")))
+  ([id]
+   (->Variable id mutable-fold-function mutable-unfold-function)))
 
 ;; Compound patterns
 ;; ---------------------------------------------------------------------

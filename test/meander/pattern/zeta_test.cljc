@@ -115,6 +115,29 @@
       (t/testing "logic variable search"
         (t/is (= []
                  (host-stream ?x)))))))
+
+(t/deftest mutable-variable-test
+  (t/testing "mutable variable query"
+    (let [x (reify)
+          *x (m.pattern/mutable-variable '*x)]
+      (t/testing "mutable variable match"
+        (t/is (= {:object x, :bindings {'*x x}, :references {}}
+                 (host-match *x x))))
+
+      (t/testing "mutable variable search"
+        (t/is (= [{:object x, :bindings {'*x x}, :references {}}]
+                 (host-search *x x))))))
+
+  (t/testing "mutable variable yield"
+    (let [*x (m.pattern/mutable-variable '*x)]
+      (t/testing "mutable variable build"
+        (t/is (= nil
+                 (host-build *x))))
+
+      (t/testing "mutable variable search"
+        (t/is (= []
+                 (host-stream *x)))))))
+
 #?(:clj
    (t/deftest host-test
      (t/testing "host query"
@@ -305,6 +328,7 @@
   (let [x (reify)
         y (reify)
         ?x (m.pattern/logic-variable '?x)
+        *x (m.pattern/mutable-variable '*x)
         %x (m.pattern/data x)
         %y (m.pattern/data y)]
     (t/testing "project query"
@@ -326,7 +350,17 @@
                    (host-match (m.pattern/project %x ?x %y) y)))
 
           (t/is (= nil
-                   (host-match (m.pattern/project %x ?x ?x) y)))))
+                   (host-match (m.pattern/project %x ?x ?x) y))))
+
+        (t/testing "project match with mutable variable"
+          (t/is (= {:object x, :bindings {'*x x}, :references {}}
+                   (host-match (m.pattern/project %x *x %x) x)))
+
+          (t/is (= {:object y, :bindings {'*x y}, :references {}}
+                   (host-match (m.pattern/project %x *x *x) y)))
+
+          (t/is (= {:object y, :bindings {'*x x}, :references {}}
+                   (host-match (m.pattern/project %x *x %y) y)))))
 
       (t/testing "project search"
         (t/is (= [{:object y, :bindings {}, :references {}}]
@@ -346,7 +380,17 @@
                    (host-search (m.pattern/project %x ?x %y) y)))
 
           (t/is (= []
-                   (host-search (m.pattern/project %x ?x ?x) y))))))
+                   (host-search (m.pattern/project %x ?x ?x) y))))
+
+        (t/testing "project search with mutable variable"
+          (t/is (= [{:object x, :bindings {'*x x}, :references {}}]
+                   (host-search (m.pattern/project %x *x %x) x)))
+
+          (t/is (= [{:object y, :bindings {'*x y}, :references {}}]
+                   (host-search (m.pattern/project %x *x *x) y)))
+
+          (t/is (= [{:object y, :bindings {'*x x}, :references {}}]
+                   (host-search (m.pattern/project %x *x %y) y))))))
 
     (t/testing "project yield"
       (t/testing "project build"
@@ -370,7 +414,20 @@
                    (host-build (m.pattern/project %x ?x ?x))))
 
           (t/is (= nil
-                   (host-build (m.pattern/project %x ?x %nothing))))))
+                   (host-build (m.pattern/project %x ?x %nothing)))))
+
+        (t/testing "project build with mutable variable"
+          (t/is (= {:object x, :bindings {'*x x}, :references {}}
+                   (host-build (m.pattern/project %x *x %x))))
+
+          (t/is (= {:object y, :bindings {'*x x}, :references {}}
+                   (host-build (m.pattern/project %x *x %y))))
+
+          (t/is (= {:object x, :bindings {'*x x}, :references {}}
+                   (host-build (m.pattern/project %x *x *x))))
+
+          (t/is (= nil
+                   (host-build (m.pattern/project %x *x %nothing))))))
 
       (t/testing "project stream"
         (t/is (= [{:object y, :bindings {}, :references {}}]
@@ -393,7 +450,20 @@
                    (host-stream (m.pattern/project %x ?x ?x))))
 
           (t/is (= []
-                   (host-stream (m.pattern/project %x ?x %nothing)))))))))
+                   (host-stream (m.pattern/project %x ?x %nothing)))))
+
+        (t/testing "project stream with mutable variable"
+          (t/is (= [{:object x, :bindings {'*x x}, :references {}}]
+                   (host-stream (m.pattern/project %x *x %x))))
+
+          (t/is (= [{:object y, :bindings {'*x x}, :references {}}]
+                   (host-stream (m.pattern/project %x *x %y))))
+
+          (t/is (= [{:object x, :bindings {'*x x}, :references {}}]
+                   (host-stream (m.pattern/project %x *x *x))))
+
+          (t/is (= []
+                   (host-stream (m.pattern/project %x *x %nothing)))))))))
 
 (t/deftest apply-test
   (let [?x (m.pattern/logic-variable '?x)
