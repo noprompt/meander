@@ -94,6 +94,7 @@
     (t/is (= [{:object 1, :bindings {}, :references {}}]
              (host-stream (m.pattern/data 1))))))
 
+;; NOTE: See `project-test` for additional examples of behavior.
 (t/deftest logic-variable-test
   (t/testing "logic variable query"
     (let [x (reify)
@@ -116,6 +117,7 @@
         (t/is (= []
                  (host-stream ?x)))))))
 
+;; NOTE: See `project-test` for additional examples of behavior.
 (t/deftest mutable-variable-test
   (t/testing "mutable variable query"
     (let [x (reify)
@@ -137,6 +139,29 @@
       (t/testing "mutable variable search"
         (t/is (= []
                  (host-stream *x)))))))
+
+;; NOTE: See `project-test` for additional examples of behavior.
+(t/deftest fifo-variable-test
+  (t/testing "fifo variable query"
+    (let [x (reify)
+          <x (m.pattern/fifo-variable '<x)]
+      (t/testing "fifo variable match"
+        (t/is (= {:object x, :bindings {'<x [x]}, :references {}}
+                 (host-match <x x))))
+
+      (t/testing "fifo variable search"
+        (t/is (= [{:object x, :bindings {'<x [x]}, :references {}}]
+                 (host-search <x x))))))
+
+  (t/testing "fifo variable yield"
+    (let [<x (m.pattern/fifo-variable '<x)]
+      (t/testing "fifo variable build"
+        (t/is (= nil
+                 (host-build <x))))
+
+      (t/testing "fifo variable search"
+        (t/is (= []
+                 (host-stream <x)))))))
 
 #?(:clj
    (t/deftest host-test
@@ -329,6 +354,7 @@
         y (reify)
         ?x (m.pattern/logic-variable '?x)
         *x (m.pattern/mutable-variable '*x)
+        <x (m.pattern/fifo-variable '<x)
         %x (m.pattern/data x)
         %y (m.pattern/data y)]
     (t/testing "project query"
@@ -360,7 +386,17 @@
                    (host-match (m.pattern/project %x *x *x) y)))
 
           (t/is (= {:object y, :bindings {'*x x}, :references {}}
-                   (host-match (m.pattern/project %x *x %y) y)))))
+                   (host-match (m.pattern/project %x *x %y) y))))
+
+        (t/testing "project match with fifo variable"
+          (t/is (= {:object x, :bindings {'<x [x]}, :references {}}
+                   (host-match (m.pattern/project %x <x %x) x)))
+
+          (t/is (= {:object y, :bindings {'<x [x y]}, :references {}}
+                   (host-match (m.pattern/project %x <x <x) y)))
+
+          (t/is (= {:object y, :bindings {'<x [x]}, :references {}}
+                   (host-match (m.pattern/project %x <x %y) y)))))
 
       (t/testing "project search"
         (t/is (= [{:object y, :bindings {}, :references {}}]
@@ -390,7 +426,17 @@
                    (host-search (m.pattern/project %x *x *x) y)))
 
           (t/is (= [{:object y, :bindings {'*x x}, :references {}}]
-                   (host-search (m.pattern/project %x *x %y) y))))))
+                   (host-search (m.pattern/project %x *x %y) y))))
+
+        (t/testing "project search with fifo variable"
+          (t/is (= [{:object x, :bindings {'<x [x]}, :references {}}]
+                   (host-search (m.pattern/project %x <x %x) x)))
+
+          (t/is (= [{:object y, :bindings {'<x [x y]}, :references {}}]
+                   (host-search (m.pattern/project %x <x <x) y)))
+
+          (t/is (= [{:object y, :bindings {'<x [x]}, :references {}}]
+                   (host-search (m.pattern/project %x <x %y) y))))))
 
     (t/testing "project yield"
       (t/testing "project build"
@@ -427,7 +473,20 @@
                    (host-build (m.pattern/project %x *x *x))))
 
           (t/is (= nil
-                   (host-build (m.pattern/project %x *x %nothing))))))
+                   (host-build (m.pattern/project %x *x %nothing)))))
+
+        (t/testing "project build with fifo variable"
+          (t/is (= {:object x, :bindings {'<x [x]}, :references {}}
+                   (host-build (m.pattern/project %x <x %x))))
+
+          (t/is (= {:object y, :bindings {'<x [x]}, :references {}}
+                   (host-build (m.pattern/project %x <x %y))))
+
+          (t/is (= {:object x, :bindings {'<x []}, :references {}}
+                   (host-build (m.pattern/project %x <x <x))))
+
+          (t/is (= nil
+                   (host-build (m.pattern/project %x <x %nothing))))))
 
       (t/testing "project stream"
         (t/is (= [{:object y, :bindings {}, :references {}}]
@@ -463,7 +522,20 @@
                    (host-stream (m.pattern/project %x *x *x))))
 
           (t/is (= []
-                   (host-stream (m.pattern/project %x *x %nothing)))))))))
+                   (host-stream (m.pattern/project %x *x %nothing))))))
+
+      (t/testing "project stream with fifo variable"
+        (t/is (= [{:object x, :bindings {'<x [x]}, :references {}}]
+                 (host-stream (m.pattern/project %x <x %x))))
+
+        (t/is (= [{:object y, :bindings {'<x [x]}, :references {}}]
+                 (host-stream (m.pattern/project %x <x %y))))
+
+        (t/is (= [{:object x, :bindings {'<x []}, :references {}}]
+                 (host-stream (m.pattern/project %x <x <x))))
+
+        (t/is (= []
+                 (host-stream (m.pattern/project %x <x %nothing))))))))
 
 (t/deftest apply-test
   (let [?x (m.pattern/logic-variable '?x)
@@ -654,13 +726,15 @@
                  (host-search (m.pattern/regex-concatenation [%anything] %empty) ())))))
 
     (t/testing "regex-concatenation yield"
-      (let [%x (m.pattern/data x)
+      (let [<x (m.pattern/fifo-variable '<x)
+            %x (m.pattern/data x)
             %y (m.pattern/data y)
             %x|Ε (m.pattern/regex-concatenation [%x] %empty)
             %x·y|Ε₁ (m.pattern/regex-concatenation [%x %y] %empty)
             %x·y|Ε₂ (m.pattern/regex-concatenation [%x] (m.pattern/regex-concatenation [%y] %empty))
             %¡|E (m.pattern/regex-concatenation [%nothing] %empty)
-            %_|¡ (m.pattern/regex-concatenation [%anything] %nothing)]
+            %_|¡ (m.pattern/regex-concatenation [%anything] %nothing)
+            %<x·<x|E (m.pattern/regex-concatenation [<x <x] %empty)]
         (t/testing "regex-concatenation build"
           (t/is (= {:object [x], :bindings {}, :references {}}
                    (host-build %x|Ε)))
@@ -670,6 +744,12 @@
 
           (t/is (= {:object [x y], :bindings {}, :references {}}
                    (host-build %x·y|Ε₂)))
+
+          (t/is (= {:object [x y], :bindings {'<x []}, :references {}}
+                   (host-build (m.pattern/project %x <x (m.pattern/project %y <x %<x·<x|E)))))
+
+          (t/is (= nil
+                   (host-build %<x·<x|E)))
 
           (t/is (= nil
                    (host-build %¡|E)))
@@ -686,6 +766,9 @@
 
           (t/is (= [{:object [x y], :bindings {}, :references {}}]
                    (host-stream %x·y|Ε₂)))
+
+          (t/is (= [{:object [x y], :bindings {'<x []}, :references {}}]
+                   (host-stream (m.pattern/project %x <x (m.pattern/project %y <x %<x·<x|E)))))
 
           (t/is (= []
                    (host-stream %¡|E)))
@@ -799,7 +882,7 @@
 
         (t/is (= nil
                  (host-match %x·y*|E [x])))
-        
+
         (t/is (= nil
                  (host-match %x·y*|E (take 99 (cycle [x y]))))))
 
@@ -815,14 +898,21 @@
 
         (t/is (= []
                  (host-search %x·y*|E [x])))
-        
+
         (t/is (= []
                  (host-search %x·y*|E (take 99 (cycle [x y]))))))))
 
-  ;; TODO: Fill these in once fifo/filo variables have tests.
   (t/testing "greedy-star yield"
-    (t/testing "greedy-star build")
-    (t/testing "greedy-star stream")))
+    (let [x (reify)
+          %x (m.pattern/data x)
+          <x (m.pattern/fifo-variable '<x)
+          %<x*|E (m.pattern/greedy-star [<x] (m.pattern/regex-empty))]
+      (t/testing "greedy-star build"
+        (t/is (= {:object [x], :bindings {'<x []}, :references {}}
+                 (host-build (m.pattern/project %x <x %<x*|E)))))
+      (t/testing "greedy-star stream"
+        (t/is (= [{:object [x x], :bindings {'<x []}, :references {}}]
+                 (host-stream (m.pattern/project %x (m.pattern/each <x <x) %<x*|E))))))))
 
 (t/deftest frugal-star-test
   (t/testing "frugal-star query"
@@ -853,7 +943,7 @@
 
         (t/is (= nil
                  (host-match %x·y*?|E [x])))
-        
+
         (t/is (= nil
                  (host-match %x·y*?|E [x y x]))))
 
@@ -874,11 +964,22 @@
 
         (t/is (= []
                  (host-search %x·y*?|E [x])))
-        
+
         (t/is (= []
                  (host-search %x·y*?|E [x y x]))))))
 
-  ;; TODO: Fill these in once fifo/filo variables have tests.
   (t/testing "frugal-star yield"
-    (t/testing "frugal-star build")
-    (t/testing "frugal-star stream")))
+    (let [x (reify)
+          %x (m.pattern/data x)
+          <x (m.pattern/fifo-variable '<x)
+          %<x&<x (m.pattern/each <x <x)
+          %<x*?|E (m.pattern/frugal-star [<x] (m.pattern/regex-empty))]
+      (t/testing "frugal-star build"
+        (t/is (= {:object [], :bindings {'<x [x x]}, :references {}}
+                 (host-build (m.pattern/project %x %<x&<x %<x*?|E)))))
+
+      (t/testing "frugal-star stream"
+        (t/is (= [{:object [], :bindings {'<x [x x]}, :references {}}
+                  {:object [x], :bindings {'<x [x]}, :references {}}
+                  {:object [x x], :bindings {'<x []}, :references {}}]
+                 (host-stream (m.pattern/project %x %<x&<x %<x*?|E))))))))

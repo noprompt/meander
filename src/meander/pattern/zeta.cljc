@@ -656,7 +656,7 @@
          reject
          state)))))
 
-(defrecord GreedyStar [subsequence-pattern rest-pattern]
+(defrecord GreedyStar [subsequence-pattern tail-pattern]
   QueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -671,7 +671,7 @@
           take (get environment :take)
           test (get environment :test)
           subsequence-query (query-function subsequence-pattern (assoc environment [subsequence-pattern clojure/sequential?] true))
-          rest-query (query-function rest-pattern (assoc environment [rest-pattern clojure/sequential?] true))
+          tail-query (query-function tail-pattern (assoc environment [tail-pattern clojure/sequential?] true))
           partitions (eval `m.algorithms/partitions)
           nth (eval `clojure/nth)
           rest (eval `clojure/rest)
@@ -695,7 +695,7 @@
                                     (call partitions two object
                                       (fn [partitions]
                                         (call rest partitions
-                                          (fn [rest-partitions]
+                                          (fn [tail-partitions]
                                             (scan (fn [partition]
                                                     (call nth partition zero
                                                       (fn [a]
@@ -708,18 +708,18 @@
                                                                   (give state a
                                                                     (fn [a-state]
                                                                       (subsequence-query pass fail a-state)))))))))
-                                                  rest-partitions))))))
+                                                  tail-partitions))))))
                                   (fn []
-                                    (rest-query resolve reject state))))))))
+                                    (tail-query resolve reject state))))))))
                   (fn []
                     (fail state))))))))))
 
   YieldFunction
   (yield-function [this environment]
-    #_
     (let [bind (get environment :bind)
           call (get environment :call)
-          eval (get environment :eval)
+          data (get environment :data)
+          host (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
           pass (get environment :pass)
@@ -728,48 +728,57 @@
           take (get environment :take)
           test (get environment :test)
           subsequence-yield (yield-function subsequence-pattern environment)
-          rest-yield (yield-function rest-pattern environment)
-          concat (eval `clojure/concat)
-          sequential? (eval `clojure/sequential?)]
+          tail-yield (yield-function tail-pattern environment)
+          concat (host `clojure/concat)
+          subsequence-sequential? (if (get environment [subsequence-pattern sequential?])
+                                    (host `clojure/any?)
+                                    (host `clojure/sequential?))
+          tail-sequential? (if (get environment [tail-pattern sequential?])
+                             (host `clojure/any?)
+                             (host `clojure/sequential?))
+          empty-list (data ())]
       (fn [resolve reject state]
-        (give state ()
+        (give state empty-list
           (fn [initial-state]
             (star initial-state
               (fn [rec state]
                     (take state
                       (fn [a]
                         (pick (fn []
-                                (bind (fn [subsequence-state]
-                                        (take subsequence-state
-                                          (fn [b]
-                                            (call sequential? b
-                                              (fn [truth]
-                                                (test truth
-                                                  (fn []
-                                                    (call concat a b
-                                                      (fn [ab]
-                                                        (give subsequence-state ab
-                                                          (fn [state]
-                                                            (call rec state identity))))))
-                                                  (fn []
-                                                    (fail state))))))))
-                                      (give state () subsequence-yield)))
+                                (subsequence-yield
+                                 (fn [subsequence-state]
+                                   (take subsequence-state
+                                     (fn [b]
+                                       (call subsequence-sequential? b
+                                         (fn [truth]
+                                           (test truth
+                                             (fn []
+                                               (call concat a b
+                                                 (fn [ab]
+                                                   (give subsequence-state ab
+                                                     (fn [state]
+                                                       (call rec state identity))))))
+                                             (fn []
+                                               (reject state))))))))
+                                 reject
+                                 state))
                               (fn []
-                                (bind (fn [rest-state]
-                                        (take rest-state
-                                          (fn [b]
-                                            (call sequential? b
-                                              (fn [truth]
-                                                (test truth
-                                                  (fn []
-                                                    (call concat a b
-                                                      (fn [ab]
-                                                        (give rest-state ab pass))))
-                                                  (fn []
-                                                    (fail rest-state))))))))
-                                      (rest-yield state))))))))))))))
+                                (tail-yield (fn [tail-state]
+                                              (take tail-state
+                                                (fn [b]
+                                                  (call tail-sequential? b
+                                                    (fn [truth]
+                                                      (test truth
+                                                        (fn []
+                                                          (call concat a b
+                                                            (fn [ab]
+                                                              (give tail-state ab resolve))))
+                                                        (fn []
+                                                          (reject tail-state))))))))
+                                            reject
+                                            state)))))))))))))
 
-(defrecord FrugalStar [subsequence-pattern rest-pattern]
+(defrecord FrugalStar [subsequence-pattern tail-pattern]
   QueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
@@ -785,7 +794,7 @@
           take (get environment :take)
           test (get environment :test)
           subsequence-query (query-function subsequence-pattern environment)
-          rest-query (query-function rest-pattern environment)
+          tail-query (query-function tail-pattern environment)
           partitions (host `m.algorithms/partitions)
           nth (host `clojure/nth)
           rest (host `clojure/rest)
@@ -811,12 +820,12 @@
                                 (test truth 
                                   (fn []
                                     (join (fn []
-                                            (rest-query resolve reject state))
+                                            (tail-query resolve reject state))
                                           (fn []
                                             (call partitions two object
                                               (fn [partitions]
                                                 (call rest partitions
-                                                  (fn [rest-partitions]
+                                                  (fn [tail-partitions]
                                                     (scan (fn [x]
                                                             (call nth x zero
                                                               (fn [a]
@@ -831,7 +840,7 @@
                                                                                (call rec a-state* identity))))
                                                                          fail
                                                                          state))))))))
-                                                          rest-partitions))))))))
+                                                          tail-partitions))))))))
                                   (fn []
                                     (resolve state))))))))))
                   (fn []
@@ -839,11 +848,10 @@
 
   YieldFunction
   (yield-function [this environment]
-    #_
     (let [bind (get environment :bind)
           call (get environment :call)
           data (get environment :data)
-          eval (get environment :eval)
+          host (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
           join (get environment :join)
@@ -852,23 +860,27 @@
           take (get environment :take)
           test (get environment :test)
           subsequence-yield (yield-function subsequence-pattern environment)
-          rest-yield (yield-function rest-pattern environment)
-          concat (eval `clojure/concat)
-          sequential? (eval `clojure/sequential?)
-          empty-list (data ()) ]
-      (fn [state]
+          tail-yield (yield-function tail-pattern environment)
+          concat (host `clojure/concat)
+          subsequence-sequential? (if (get environment [subsequence-pattern sequential?])
+                                    (host `clojure/any?)
+                                    (host `clojure/sequential?))
+          tail-sequential? (if (get environment [tail-pattern sequential?])
+                             (host `clojure/any?)
+                             (host `clojure/sequential?))
+          empty-list (data ())]
+      (fn [resolve reject state]
         (join (fn []
-                (bind (fn [rest-state]
-                        (take rest-state
-                          (fn [as]
-                            (call sequential? as
-                              (fn [truth]
-                                (test truth
-                                  (fn []
-                                    (pass rest-state))
-                                  (fn []
-                                    (fail rest-state))))))))
-                      (rest-yield state)))
+                (tail-yield (fn [tail-state]
+                              (take tail-state
+                                (fn [as]
+                                  (call sequential? as
+                                    (fn [truth]
+                                      (test truth
+                                        (fn [] (resolve tail-state))
+                                        (fn [] (reject tail-state))))))))
+                            reject
+                            state))
               (fn [] 
                 (give state empty-list
                   (fn [state]
@@ -876,37 +888,40 @@
                       (fn [rec state]
                         (take state
                           (fn [as]
-                            (bind (fn [subsequence-state]
-                                    (take subsequence-state
-                                      (fn [bs]
-                                        (call sequential? bs
-                                          (fn [truth]
-                                            (test truth
-                                              (fn []
-                                                (bind (fn [rest-state]
-                                                        (take rest-state
-                                                          (fn [rest]
-                                                            (call sequential? rest
-                                                              (fn [truth]
-                                                                (test truth
-                                                                  (fn []
-                                                                    (call concat as bs
-                                                                      (fn [cs]
-                                                                        (call concat cs rest
-                                                                          (fn [ds]
-                                                                            (join
-                                                                             (fn [] 
-                                                                               (give rest-state ds pass))
-                                                                             (fn []
-                                                                               (give subsequence-state cs
-                                                                                 (fn [next-state]
-                                                                                   (call rec next-state identity))))))))))
-                                                                  (fn []
-                                                                    (fail state))))))))
-                                                      (rest-yield subsequence-state)))
-                                              (fn []
-                                                (fail state))))))))
-                                  (subsequence-yield state))))))))))))))
+                            (subsequence-yield
+                             (fn [subsequence-state]
+                               (take subsequence-state
+                                 (fn [bs]
+                                   (call subsequence-sequential? bs
+                                     (fn [truth]
+                                       (test truth
+                                         (fn []
+                                           (tail-yield
+                                            (fn [tail-state]
+                                              (take tail-state
+                                                (fn [tail]
+                                                  (call tail-sequential? tail
+                                                    (fn [truth]
+                                                      (test truth
+                                                        (fn []
+                                                          (call concat as bs
+                                                            (fn [cs]
+                                                              (call concat cs tail
+                                                                (fn [ds]
+                                                                  (join (fn [] 
+                                                                          (give tail-state ds resolve))
+                                                                        (fn []
+                                                                          (give subsequence-state cs
+                                                                            (fn [next-state]
+                                                                              (call rec next-state identity))))))))))
+                                                        (fn []
+                                                          (fail state))))))))
+                                            fail
+                                            subsequence-state))
+                                         (fn []
+                                           (fail state))))))))
+                             reject
+                             state)))))))))))))
 
 
 ;; Atomic patterns
@@ -996,6 +1011,54 @@
    (mutable-variable (gensym "!__")))
   ([id]
    (->Variable id mutable-fold-function mutable-unfold-function)))
+
+
+(defn fifo-fold-function [environment]
+  (let [call (get environment :call)
+        host (get environment :eval)
+        none (get environment :none)
+        test (get environment :test)
+        = (host `clojure/=)
+        vector (host `clojure/vector)
+        conj (host `clojure/conj)]
+    (fn [old new pass fail]
+      (call = old none
+        (fn [truth]
+          (test truth
+            (fn [] (call vector new pass))
+            (fn [] (call conj old new pass))))))))
+
+(defn fifo-unfold-function [environment]
+  (let [call (get environment :call)
+        host (get environment :eval)
+        none (get environment :none)
+        test (get environment :test)
+        = (host `clojure/=)
+        nth (host `clojure/nth)
+        seq (host `clojure/seq)
+        subvec (host `clojure/subvec)]
+    (fn [old pass fail]
+      (call = old none
+        (fn [truth]
+          (test truth
+            (fn [] (fail old))
+            (fn []
+              (call seq old
+                (fn [truth]
+                  (test truth
+                    (fn []
+                      (call nth old 0
+                        (fn [x]
+                          (call subvec old 1
+                            (fn [new] (pass x new))))))
+                    (fn []
+                      (fail none))))))))))))
+
+(defn fifo-variable
+  ([]
+   (fifo-variable (gensym "<__")))
+  ([id]
+   (->Variable id fifo-fold-function fifo-unfold-function)))
 
 ;; Compound patterns
 ;; ---------------------------------------------------------------------
