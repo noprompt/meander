@@ -6,11 +6,36 @@
      :cljs
      (:require [cljs.core :as clojure])))
 
+;; Environment helpers
+;; ---------------------------------------------------------------------
+
+(defn set-sequential [environment pattern]
+  (clojure/assoc environment [pattern sequential?] true))
+
+(defn host-sequential-predicate [environment pattern]
+  (let [host (get environment :eval)]
+    (if (true? (get environment [pattern sequential?]))
+      (host `clojure/any?)
+      (host `clojure/sequential?))))
+
+(defn host-coll-predicate [environment pattern]
+  (let [host (get environment :eval)]
+    (if (or (true? (get environment [pattern coll?]))
+            (true? (get environment [pattern sequential?])))
+      (host `clojure/any?)
+      (host `clojure/coll?))))
+
+;; Protocols
+;; ---------------------------------------------------------------------
+
 (defprotocol QueryFunction
   (query-function [this kernel]))
 
 (defprotocol YieldFunction
   (yield-function [this kernel]))
+
+;; Classes
+;; ---------------------------------------------------------------------
 
 (defrecord Anything []
   QueryFunction
@@ -351,9 +376,7 @@
           take (get kernel :take)
           test (get kernel :test)
           host-seq (host `clojure/seq)
-          host-sequential? (if (get kernel [this sequential?])
-                             (host `clojure/any?)
-                             (host `clojure/sequential?))]
+          host-sequential? (host-sequential-predicate kernel this)]
       (fn [pass fail state]
         (take state
           (fn [object]
@@ -387,13 +410,11 @@
           take (get kernel :take)
           test (get kernel :test)
           head-query (query-function head-pattern kernel)
-          tail-query (query-function tail-pattern (assoc kernel [tail-pattern sequential?] true))
+          tail-query (query-function tail-pattern (set-sequential kernel tail-pattern))
           host-nth (host `clojure/nth)
           host-tail (host `m.algorithms/tail)
           host-seq (host `clojure/seq)
-          host-sequential? (if (get kernel [this sequential?])
-                             (host `clojure/any?)
-                             (host `clojure/sequential?))
+          host-sequential? (host-sequential-predicate kernel this)
           data-0 (data 0)]
       (fn [pass fail state]
         (take state
@@ -434,7 +455,7 @@
           head-yield (yield-function head-pattern kernel)
           tail-yield (yield-function tail-pattern kernel)
           host-cons (host `clojure/cons)
-          host-sequential? (host `clojure/sequential?)]
+          tail-sequential? (host-sequential-predicate kernel tail-pattern)]
       (fn [pass fail state]
         (head-yield
          (fn [head-state]
@@ -444,7 +465,7 @@
                 (fn [tail-state]
                   (take tail-state
                     (fn [tail-object]
-                      (call host-sequential? tail-object
+                      (call tail-sequential? tail-object
                         (fn [truth]
                           (test truth
                             (fn []
@@ -475,7 +496,7 @@
           indexed-queries (map-indexed (fn [index query]
                                          [(data index) query])
                                        initial-queries)
-          tail-query (query-function tail-pattern (assoc kernel [tail-pattern clojure/sequential?] true))
+          tail-query (query-function tail-pattern (set-sequential kernel tail-pattern))
           n* (count initial-patterns)
           m* (inc n*)
           n (data n*)
@@ -484,9 +505,7 @@
           nth (host `clojure/nth)
           bounded-count (host `clojure/bounded-count)
           drop (host `m.algorithms/drop)
-          sequential? (if (get kernel [this clojure/sequential?])
-                        (host `clojure/any?) 
-                        (host `clojure/sequential?))]
+          sequential? (host-sequential-predicate kernel this)]
       (fn [resolve reject state]
         (take state
           (fn [object]
@@ -578,12 +597,10 @@
           test (get kernel :test)
           take (get kernel :take)
           scan (get kernel :scan)
-          x-query (query-function x-pattern (assoc kernel [x-pattern clojure/sequential?] true))
-          y-query (query-function y-pattern (assoc kernel [y-pattern clojure/sequential?] true))
+          x-query (query-function x-pattern (set-sequential kernel x-pattern))
+          y-query (query-function y-pattern (set-sequential kernel y-pattern))
           nth (host `clojure/nth)
-          sequential? (if (get kernel [this clojure/sequential?])
-                        (host `clojure/any?)
-                        (host `clojure/sequential?))
+          sequential? (host-sequential-predicate kernel this)
           partitions (host `meander.algorithms.zeta/partitions)
           zero (data 0)
           one (data 1)
@@ -626,8 +643,8 @@
           x-yield (yield-function x-pattern kernel)
           y-yield (yield-function y-pattern kernel)
           concat (host `clojure/concat)
-          x-coll? (host `clojure/coll?)
-          y-coll? (host `clojure/coll?)]
+          x-coll? (host-coll-predicate kernel x-pattern)
+          y-coll? (host-coll-predicate kernel y-pattern)]
       (fn [resolve reject state]
         (x-yield
          (fn [x-state]
@@ -661,7 +678,8 @@
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
-          eval (get environment :eval)
+          data (get environment :data)
+          host (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
           pass (get environment :pass)
@@ -670,16 +688,16 @@
           star (get environment :star)
           take (get environment :take)
           test (get environment :test)
-          subsequence-query (query-function subsequence-pattern (assoc environment [subsequence-pattern clojure/sequential?] true))
-          tail-query (query-function tail-pattern (assoc environment [tail-pattern clojure/sequential?] true))
-          partitions (eval `m.algorithms/partitions)
-          nth (eval `clojure/nth)
-          rest (eval `clojure/rest)
-          seq (eval `clojure/seq)
-          sequential? (eval `clojure/sequential?)
-          zero (eval 0)
-          one (eval 1)
-          two (eval 2)]
+          subsequence-query (query-function subsequence-pattern (set-sequential environment subsequence-pattern))
+          tail-query (query-function tail-pattern (set-sequential environment tail-pattern))
+          partitions (host `m.algorithms/partitions)
+          nth (host `clojure/nth)
+          rest (host `clojure/rest)
+          seq (host `clojure/seq)
+          sequential? (host-sequential-predicate environment this)
+          zero (data 0)
+          one (data 1)
+          two (data 2)]
       (fn [resolve reject state]
         (take state
           (fn [object]
@@ -730,12 +748,8 @@
           subsequence-yield (yield-function subsequence-pattern environment)
           tail-yield (yield-function tail-pattern environment)
           concat (host `clojure/concat)
-          subsequence-sequential? (if (get environment [subsequence-pattern sequential?])
-                                    (host `clojure/any?)
-                                    (host `clojure/sequential?))
-          tail-sequential? (if (get environment [tail-pattern sequential?])
-                             (host `clojure/any?)
-                             (host `clojure/sequential?))
+          subsequence-sequential? (host-sequential-predicate environment subsequence-pattern)
+          tail-sequential? (host-sequential-predicate environment tail-pattern)
           empty-list (data ())]
       (fn [resolve reject state]
         (give state empty-list
@@ -799,7 +813,7 @@
           nth (host `clojure/nth)
           rest (host `clojure/rest)
           seq (host `clojure/seq)
-          sequential? (host `clojure/sequential?)
+          sequential? (host-sequential-predicate environment this)
           identity (host `clojure/identity)
           zero (data 0)
           one (data 1)
@@ -862,19 +876,15 @@
           subsequence-yield (yield-function subsequence-pattern environment)
           tail-yield (yield-function tail-pattern environment)
           concat (host `clojure/concat)
-          subsequence-sequential? (if (get environment [subsequence-pattern sequential?])
-                                    (host `clojure/any?)
-                                    (host `clojure/sequential?))
-          tail-sequential? (if (get environment [tail-pattern sequential?])
-                             (host `clojure/any?)
-                             (host `clojure/sequential?))
+          subsequence-sequential? (host-sequential-predicate environment subsequence-pattern)
+          tail-sequential? (host-sequential-predicate environment tail-pattern)
           empty-list (data ())]
       (fn [resolve reject state]
         (join (fn []
                 (tail-yield (fn [tail-state]
                               (take tail-state
                                 (fn [as]
-                                  (call sequential? as
+                                  (call tail-sequential? as
                                     (fn [truth]
                                       (test truth
                                         (fn [] (resolve tail-state))
@@ -922,6 +932,7 @@
                                            (fail state))))))))
                              reject
                              state)))))))))))))
+
 
 
 ;; Atomic patterns

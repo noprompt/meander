@@ -778,7 +778,9 @@
 
 (t/deftest regex-join-test
   (let [x (reify)
-        y (reify)]
+        y (reify)
+        %x (m.pattern/data x)
+        %invalid (m.pattern/regex-join %x %anything)]
     (t/testing "regex-join query"
       (let [%_·_|E|E (m.pattern/regex-join (m.pattern/regex-concatenation [%anything %anything] %empty) %empty)
             %E|_·_|E (m.pattern/regex-join %empty (m.pattern/regex-concatenation [%anything %anything] %empty))
@@ -795,13 +797,19 @@
                    (host-match %_|E|_|E [x y])))
 
           (t/is (= nil
+                   (host-match %_·_|E|E x)))
+
+          (t/is (= nil
                    (host-match %_·_|E|E [x])))
 
           (t/is (= nil
                    (host-match %E|_·_|E [x])))
 
           (t/is (= nil
-                   (host-match %_|E|_|E [x]))))
+                   (host-match %_|E|_|E [x])))
+
+          (t/is (= nil
+                   (host-match %invalid [10]))))
 
         (t/testing "regex-join search"
           (t/is (= [{:object [], :bindings {}, :references {}}]
@@ -820,7 +828,10 @@
                    (host-search %E|_·_|E [x])))
 
           (t/is (= []
-                   (host-search %_|E|_|E [x]))))))
+                   (host-search %_|E|_|E [x])))
+
+          (t/is (= []
+                   (host-search %invalid [10]))))))
 
     (t/testing "regex-join yield"
       (let [%x (m.pattern/data x)
@@ -842,7 +853,10 @@
                    (host-build %x|E|y|E)))
 
           (t/is (= nil
-                   (host-build %E|¡))))
+                   (host-build %E|¡)))
+
+          (t/is (= nil
+                   (host-build %invalid))))
 
         (t/testing "regex-join stream"
           (t/is (= [{:object [x y], :bindings {}, :references {}}]
@@ -855,64 +869,82 @@
                    (host-stream %x|E|y|E)))
 
           (t/is (= []
-                   (host-stream %E|¡))))))))
+                   (host-stream %E|¡)))
+
+          (t/is (= []
+                   (host-stream %invalid))))))))
+
 
 (t/deftest greedy-star-test
-  (t/testing "greedy-star query"
-    (let [x (reify)
-          y (reify)
-          z (reify)
-          %x (m.pattern/data x)
-          %y (m.pattern/data y)
-          %z (m.pattern/data z)
-          %x·y*|E (m.pattern/greedy-star [%x %y] %empty)
-          %x·y*·z|E (m.pattern/greedy-star [%x %y] (m.pattern/regex-concatenation [%z] %empty))]
-      (t/testing "greedy-star match"
-        (t/is (= {:object [], :bindings {}, :references {}}
-                 (host-match %x·y*|E [])))
+  (let [x (reify)
+        y (reify)
+        z (reify)
+        %x (m.pattern/data x)
+        %y (m.pattern/data y)
+        %z (m.pattern/data z)]
+    (t/testing "greedy-star query"
+      (let [%x·y*|E (m.pattern/greedy-star [%x %y] %empty)
+            %x·y*·z|E (m.pattern/greedy-star [%x %y] (m.pattern/regex-concatenation [%z] %empty))
+             %invalid (m.pattern/greedy-star [%x %y] %x)]
+        (t/testing "greedy-star match"
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %x·y*|E [])))
 
-        (t/is (= {:object [], :bindings {}, :references {}}
-                 (host-match %x·y*|E [x y])))
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %x·y*|E [x y])))
 
-        (t/is (= {:object [], :bindings {}, :references {}}
-                 (host-match %x·y*|E (take 100 (cycle [x y])))))
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %x·y*|E (take 100 (cycle [x y])))))
 
-        (t/is (= {:object [], :bindings {}, :references {}}
-                 (host-match %x·y*·z|E (concat (take 100 (cycle [x y])) [z]))))
+          (t/is (= {:object [], :bindings {}, :references {}}
+                   (host-match %x·y*·z|E (concat (take 100 (cycle [x y])) [z]))))
 
-        (t/is (= nil
-                 (host-match %x·y*|E [x])))
+          (t/is (= nil
+                   (host-match %x·y*|E [x])))
 
-        (t/is (= nil
-                 (host-match %x·y*|E (take 99 (cycle [x y]))))))
+          (t/is (= nil
+                   (host-match %x·y*|E (take 99 (cycle [x y])))))
 
-      (t/testing "greedy-star search"
-        (t/is (= [{:object [], :bindings {}, :references {}}]
-                 (host-search %x·y*|E [])))
+          (t/is (= nil
+                   (host-match %invalid [x y]))))
 
-        (t/is (= [{:object [], :bindings {}, :references {}}]
-                 (host-search %x·y*|E [x y])))
+        (t/testing "greedy-star search"
+          (t/is (= [{:object [], :bindings {}, :references {}}]
+                   (host-search %x·y*|E [])))
 
-        (t/is (= [{:object [], :bindings {}, :references {}}]
-                 (host-search %x·y*|E (take 100 (cycle [x y])))))
+          (t/is (= [{:object [], :bindings {}, :references {}}]
+                   (host-search %x·y*|E [x y])))
 
-        (t/is (= []
-                 (host-search %x·y*|E [x])))
+          (t/is (= [{:object [], :bindings {}, :references {}}]
+                   (host-search %x·y*|E (take 100 (cycle [x y])))))
 
-        (t/is (= []
-                 (host-search %x·y*|E (take 99 (cycle [x y]))))))))
+          (t/is (= []
+                   (host-search %x·y*|E [x])))
 
-  (t/testing "greedy-star yield"
-    (let [x (reify)
-          %x (m.pattern/data x)
-          <x (m.pattern/fifo-variable '<x)
-          %<x*|E (m.pattern/greedy-star [<x] (m.pattern/regex-empty))]
-      (t/testing "greedy-star build"
-        (t/is (= {:object [x], :bindings {'<x []}, :references {}}
-                 (host-build (m.pattern/project %x <x %<x*|E)))))
-      (t/testing "greedy-star stream"
-        (t/is (= [{:object [x x], :bindings {'<x []}, :references {}}]
-                 (host-stream (m.pattern/project %x (m.pattern/each <x <x) %<x*|E))))))))
+          (t/is (= []
+                   (host-search %x·y*|E (take 99 (cycle [x y])))))
+
+          (t/is (= []
+                   (host-search %invalid [x y]))))))
+
+    (t/testing "greedy-star yield"
+      (let [%x (m.pattern/data x)
+            <x (m.pattern/fifo-variable '<x)
+            %<x*|E (m.pattern/greedy-star [<x] (m.pattern/regex-empty))
+            %invalid (m.pattern/greedy-star [<x] %x)]
+        (t/testing "greedy-star build"
+          (t/is (= {:object [x], :bindings {'<x []}, :references {}}
+                   (host-build (m.pattern/project %x <x %<x*|E))))
+
+          (t/is (= nil
+                   (host-build (m.pattern/project %x <x %invalid)))))
+
+        (t/testing "greedy-star stream"
+          (t/is (= [{:object [x x], :bindings {'<x []}, :references {}}]
+                   (host-stream (m.pattern/project %x (m.pattern/each <x <x) %<x*|E))))
+
+          (t/is (= []
+                   (host-stream (m.pattern/project %x <x %invalid)))))))))
 
 (t/deftest frugal-star-test
   (t/testing "frugal-star query"
