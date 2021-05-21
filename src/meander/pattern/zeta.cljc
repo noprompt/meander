@@ -1,5 +1,7 @@
 (ns meander.pattern.zeta
-  (:refer-clojure :exclude [apply some])
+  (:refer-clojure :exclude [apply
+                            assoc
+                            some])
   #?(:clj
      (:require [clojure.core :as clojure]
                [meander.algorithms.zeta :as m.algorithms])
@@ -935,9 +937,107 @@
                              state)))))))))))))
 
 
+(defrecord Assoc [map-pattern key-pattern val-pattern]
+  QueryFunction
+  (query-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          eval (get environment :eval)
+          fail (get environment :fail)
+          give (get environment :give)
+          pass (get environment :pass)
+          scan (get environment :scan)
+          take (get environment :take)
+          test (get environment :test)
+          map-query (query-function map-pattern environment)
+          key-query (query-function key-pattern environment)
+          val-query (query-function val-pattern environment)
+          dissoc (eval `clojure/dissoc)
+          get (eval `clojure/get)
+          key (eval `clojure/key)
+          map? (eval `clojure/map?)
+          seq (eval `clojure/seq)
+          val (eval `clojure/val)]
+      (fn [resolve reject state]
+        (take state
+          (fn [object]
+            (call map? object
+              (fn [truth]
+                (test truth 
+                  (fn []
+                    (call seq object
+                      (fn [entries]
+                        (scan (fn [entry]
+                                (call key entry
+                                  (fn [k]
+                                    (call val entry
+                                      (fn [v]
+                                        (call dissoc object k
+                                          (fn [m]
+                                            (give state k
+                                              (fn [k-state]
+                                                (key-query (fn [key-state]
+                                                             (give key-state v
+                                                               (fn [v-state]
+                                                                 (val-query (fn [val-state]
+                                                                              (give val-state m
+                                                                                (fn [m-state]
+                                                                                  (map-query resolve reject m-state))))
+                                                                            reject
+                                                                            v-state))))
+                                                           reject
+                                                           k-state))))))))))
+                              entries))))
+                  (fn []
+                    (fail state))))))))))
+
+  YieldFunction
+  (yield-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          eval (get environment :eval)
+          fail (get environment :fail)
+          give (get environment :give)
+          pass (get environment :pass)
+          scan (get environment :scan)
+          take (get environment :take)
+          test (get environment :test)
+          map-yield (yield-function map-pattern environment)
+          key-yield (yield-function key-pattern environment)
+          val-yield (yield-function val-pattern environment)
+          assoc (eval `clojure/assoc)
+          map? (eval `clojure/map?)]
+      (fn [resolve reject state]
+        (map-yield (fn [map-state]
+                     (take map-state
+                       (fn [m]
+                         (call map? m
+                           (fn [truth]
+                             (test truth
+                               (fn []
+                                 (key-yield (fn [key-state]
+                                              (take key-state
+                                                (fn [k]
+                                                  (val-yield (fn [val-state]
+                                                               (take val-state
+                                                                 (fn [v]
+                                                                   (call assoc m k v
+                                                                     (fn [m*]
+                                                                       (give val-state m* resolve))))))
+                                                             reject
+                                                             key-state))))
+                                            reject
+                                            map-state))
+                               (fn []
+                                 (fail map-state))))))))
+                   reject
+                   state)))))
+
+;; Constructors
+;; ---------------------------------------------------------------------
 
 ;; Atomic patterns
-;; ---------------------------------------------------------------------
+;; ---------------
 
 (defn anything
   "Pattern which represents any object in the universe."
@@ -1102,8 +1202,8 @@
   [function-pattern object-pattern]
   (->Predicate function-pattern object-pattern))
 
-;; Regular Expression Pattern Construction API
-;; ---------------------------------------------------------------------
+;; Regular Expression Constructors
+;; -------------------------------
 
 (defn regex-empty []
   (->RegexEmpty))
@@ -1128,7 +1228,15 @@
     (->FrugalStar (regex-concatenation subsequence-pattern (regex-empty)) tail-pattern)
     (->FrugalStar subsequence-pattern tail-pattern)))
 
-;; API
+;; Associative Constructors
+;; ------------------------
+
+(defn assoc [map-pattern key-pattern val-pattern]
+  (->Assoc map-pattern key-pattern val-pattern))
+
+
+
+;; Query/Yield API
 ;; ---------------------------------------------------------------------
 
 (defn run-query [pattern kernel object]

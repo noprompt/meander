@@ -1015,3 +1015,77 @@
                   {:object [x], :bindings {'<x [x]}, :references {}}
                   {:object [x x], :bindings {'<x []}, :references {}}]
                  (host-stream (m.pattern/project %x %<x&<x %<x*?|E))))))))
+
+(t/deftest assoc-test
+  (let [w (reify)
+        x (reify)
+        y (reify)
+        z (reify)
+        %w (m.pattern/data w)
+        %x (m.pattern/data x)
+        %y (m.pattern/data y)
+        %z (m.pattern/data z)]
+    (t/testing "assoc query"
+      (let [%w=>x (m.pattern/assoc %anything %w %x)]
+        (t/testing "assoc match"
+          (t/is (= {:object {}, :bindings {}, :references {}}
+                   (host-match %w=>x {w x})))
+
+          (t/is (= {:object {y z}, :bindings {}, :references {}}
+                   (host-match %w=>x {w x, y z})))
+
+          (t/is (= {:object {y z}, :bindings {}, :references {}}
+                   (host-match %w=>x {w x, y z})))
+
+          (t/is (= {:object {}, :bindings {}, :references {}}
+                   (host-match (m.pattern/assoc %w=>x %y %z) {w x, y z})))
+
+          (t/is (= {:object {}, :bindings {}, :references {}}
+                   (host-match (m.pattern/assoc %w=>x %y %z) {w x, y z})))
+
+          (t/is (= nil
+                   (host-match %w=>x {})))
+
+          (t/is (= nil
+                   (host-match %w=>x {y z}))))
+
+        (t/testing "assoc search"
+          (t/is (= [{:object {}, :bindings {}, :references {}}]
+                   (host-search %w=>x {w x})))
+
+          (t/is (= [{:object {y z}, :bindings {}, :references {}}]
+                   (host-search %w=>x {w x, y z})))
+
+          (t/is (= [{:object {y z}, :bindings {}, :references {}}]
+                   (host-search %w=>x {w x, y z})))
+
+          (t/is (= [{:object {}, :bindings {}, :references {}}]
+                   (host-search (m.pattern/assoc %w=>x %y %z) {w x, y z})))
+
+          (t/is (= [{:object {}, :bindings {}, :references {}}]
+                   (host-search (m.pattern/assoc %w=>x %y %z) {w x, y z})))
+
+          (t/is (= []
+                   (host-search %w=>x {})))
+
+          (t/is (= []
+                   (host-search %w=>x {y z}))))))
+
+    (t/testing "assoc yield"
+      (let [%w=>x (m.pattern/assoc (m.pattern/data {}) %w %x)]
+        (t/testing "assoc build"
+          (t/is (= {:object {w x}, :bindings {}, :references {}}
+                   (host-build %w=>x)))
+
+          (t/is (= {:object {w x}, :bindings {}, :references {}}
+                   (host-build %w=>x)))
+
+          (t/is (= {:object {w x, y z}, :bindings {}, :references {}}
+                   (host-build (m.pattern/assoc %w=>x %y %z) ))))
+
+        (t/testing "assoc stream"
+          (t/is (= [{:object {w x}, :bindings {}, :references {}}]
+                   (host-stream %w=>x)))
+
+          (t/is (= [{:object {w x, y z}, :bindings {}, :references {}}]
+                   (host-stream (m.pattern/assoc %w=>x %y %z)))))))))
