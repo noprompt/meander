@@ -1,6 +1,7 @@
 (ns meander.pattern.zeta
   (:refer-clojure :exclude [apply
                             assoc
+                            merge
                             some])
   #?(:clj
      (:require [clojure.core :as clojure]
@@ -14,6 +15,15 @@
 
 (defn set-sequential [environment pattern]
   (clojure/assoc environment [pattern sequential?] true))
+
+(defn set-associative [environment pattern]
+  (clojure/assoc environment [pattern associative?] true))
+
+(defn host-associative-predicate [environment pattern]
+  (let [host (get environment :eval)]
+    (if (true? (get environment [pattern associative?]))
+      (host `clojure/any?)
+      (host `clojure/associative?))))
 
 (defn host-sequential-predicate [environment pattern]
   (let [host (get environment :eval)]
@@ -942,26 +952,26 @@
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
-          eval (get environment :eval)
+          host (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
           pass (get environment :pass)
           scan (get environment :scan)
           take (get environment :take)
           test (get environment :test)
-          map-query (query-function map-pattern environment)
+          map-query (query-function map-pattern (set-associative environment this))
           key-query (query-function key-pattern environment)
           val-query (query-function val-pattern environment)
-          dissoc (eval `clojure/dissoc)
-          get (eval `clojure/get)
-          key (eval `clojure/key)
-          map? (eval `clojure/map?)
-          seq (eval `clojure/seq)
-          val (eval `clojure/val)]
+          dissoc (host `clojure/dissoc)
+          get (host `clojure/get)
+          key (host `clojure/key)
+          associative? (host-associative-predicate environment this)
+          seq (host `clojure/seq)
+          val (host `clojure/val)]
       (fn [resolve reject state]
         (take state
           (fn [object]
-            (call map? object
+            (call associative? object
               (fn [truth]
                 (test truth 
                   (fn []
@@ -995,7 +1005,7 @@
   (yield-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
-          eval (get environment :eval)
+          host (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
           pass (get environment :pass)
@@ -1005,8 +1015,8 @@
           map-yield (yield-function map-pattern environment)
           key-yield (yield-function key-pattern environment)
           val-yield (yield-function val-pattern environment)
-          assoc (eval `clojure/assoc)
-          map? (eval `clojure/map?)]
+          assoc (host `clojure/assoc)
+          map? (host `clojure/map?)]
       (fn [resolve reject state]
         (map-yield (fn [map-state]
                      (take map-state
@@ -1029,9 +1039,100 @@
                                             reject
                                             map-state))
                                (fn []
-                                 (fail map-state))))))))
+                                 (reject map-state))))))))
                    reject
                    state)))))
+
+(defrecord Merge [map-patterns]
+  QueryFunction
+  (query-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          fail (get environment :fail)
+          give (get environment :give)
+          pass (get environment :pass)
+          scan (get environment :scan)
+          take (get environment :take)
+          test (get environment :test)
+          queries (map (fn [map-pattern]
+                         (query-function map-pattern (set-associative environment map-pattern)))
+                       map-patterns)
+          indexed-queries (map-indexed (fn [index query]
+                                         [(data index) query])
+                                       queries)
+          associative? (host-associative-predicate environment this)
+          map-partitions (host `m.algorithms/map-partitions)
+          nth (host `clojure/nth)
+          n (data (count queries))]
+      (fn [resolve reject state]
+        (take state
+          (fn [object]
+            (call associative? object
+              (fn [truth]
+                (test truth 
+                  (fn []
+                    (call map-partitions object n
+                      (fn [partitions]
+                        (bind resolve
+                              (scan (fn [partition]
+                                      (reduce
+                                       (fn [ma [index query]]
+                                         (call nth partition index
+                                           (fn [m]
+                                             (bind (fn [state]
+                                                     (give state m
+                                                       (fn [m-state]
+                                                         (query pass reject m-state))))
+                                                   ma))))
+                                       (pass state)
+                                       indexed-queries))
+                                    partitions)))))
+                  (fn []
+                    (reject state))))))))))
+
+  YieldFunction
+  (yield-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          fail (get environment :fail)
+          give (get environment :give)
+          pass (get environment :pass)
+          scan (get environment :scan)
+          take (get environment :take)
+          test (get environment :test)
+          yields (map (fn [map-pattern]
+                        [(yield-function map-pattern environment)
+                         (host-associative-predicate environment map-pattern)])
+                      map-patterns)
+          merge (host `clojure/merge)
+          empty-map (data {})]
+      (fn [resolve reject state]
+        (reduce
+         (fn [ma [yield associative?]]
+           (bind (fn [state]
+                   (take state
+                     (fn [m1]
+                       (yield (fn [yield-state]
+                                (take yield-state
+                                  (fn [m2]
+                                    (call associative? m2
+                                      (fn [truth]
+                                        (test truth
+                                          (fn []
+                                            (call merge m1 m2
+                                              (fn [m3]
+                                                (give state m3 pass))))
+                                          (fn []
+                                            (reject state))))))))
+                              reject
+                              state))))
+                 ma))
+         (give state empty-map pass)
+         yields)))))
 
 ;; Constructors
 ;; ---------------------------------------------------------------------
@@ -1234,7 +1335,8 @@
 (defn assoc [map-pattern key-pattern val-pattern]
   (->Assoc map-pattern key-pattern val-pattern))
 
-
+(defn merge [map-pattern-a map-pattern-b]
+  (->Merge [map-pattern-a map-pattern-b]))
 
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------

@@ -1024,9 +1024,12 @@
         %w (m.pattern/data w)
         %x (m.pattern/data x)
         %y (m.pattern/data y)
-        %z (m.pattern/data z)]
+        %z (m.pattern/data z)
+        ?x (m.pattern/logic-variable '?x)
+        ?y (m.pattern/logic-variable '?y)]
     (t/testing "assoc query"
-      (let [%w=>x (m.pattern/assoc %anything %w %x)]
+      (let [%w=>x (m.pattern/assoc %anything %w %x)
+            %?x=>?y (m.pattern/assoc %anything ?x ?y)]
         (t/testing "assoc match"
           (t/is (= {:object {}, :bindings {}, :references {}}
                    (host-match %w=>x {w x})))
@@ -1042,6 +1045,11 @@
 
           (t/is (= {:object {}, :bindings {}, :references {}}
                    (host-match (m.pattern/assoc %w=>x %y %z) {w x, y z})))
+
+          ;; This test relies on the property that key order is
+          ;; preserved for `PersistentArrayMap`.
+          (t/is (= {:object {y z}, :bindings {'?x w, '?y x}, :references {}}
+                   (host-match %?x=>?y {w x, y z})))
 
           (t/is (= nil
                    (host-match %w=>x {})))
@@ -1062,8 +1070,11 @@
           (t/is (= [{:object {}, :bindings {}, :references {}}]
                    (host-search (m.pattern/assoc %w=>x %y %z) {w x, y z})))
 
-          (t/is (= [{:object {}, :bindings {}, :references {}}]
-                   (host-search (m.pattern/assoc %w=>x %y %z) {w x, y z})))
+          ;; This test relies on the property that key order is
+          ;; preserved for `PersistentArrayMap`.
+          (t/is (= [{:object {y z}, :bindings {'?x w, '?y x}, :references {}}
+                    {:object {w x}, :bindings {'?x y, '?y z}, :references {}}]
+                   (host-search %?x=>?y {w x, y z})))
 
           (t/is (= []
                    (host-search %w=>x {})))
@@ -1089,3 +1100,40 @@
 
           (t/is (= [{:object {w x, y z}, :bindings {}, :references {}}]
                    (host-stream (m.pattern/assoc %w=>x %y %z)))))))))
+
+(t/deftest merge-test
+  (let [w (reify)
+        x (reify)
+        y (reify)
+        z (reify)
+        %w (m.pattern/data w)
+        %x (m.pattern/data x)
+        %y (m.pattern/data y)
+        %z (m.pattern/data z)]
+    (t/testing "merge query"
+      (let [%w=>x (m.pattern/assoc %anything %w %x)
+            %y=>z (m.pattern/assoc %anything %y %z)]
+        (t/testing "merge match"
+          (t/is (= {:object {}, :bindings, {}, :references {}}
+                   (host-match (m.pattern/merge %w=>x %y=>z) {w x, y z})))
+
+          (t/is (= nil
+                   (host-match (m.pattern/merge %w=>x %y=>z) {w x}))))
+
+        (t/testing "merge search"
+          (t/is (= [{:object {}, :bindings, {}, :references {}}]
+                   (host-search (m.pattern/merge %w=>x %y=>z) {w x, y z})))
+
+          (t/is (= []
+                   (host-search (m.pattern/merge %w=>x %y=>z) {w x}))))))
+
+    (t/testing "merge yield"
+      (let [%w=>x (m.pattern/assoc (m.pattern/data {}) %w %x)
+            %y=>z (m.pattern/assoc (m.pattern/data {}) %y %z)]
+        (t/testing "merge build"
+          (t/is (= {:object {w x, y z}, :bindings, {}, :references {}}
+                   (host-build (m.pattern/merge %w=>x %y=>z)))))
+
+        (t/testing "merge stream"
+          (t/is (= [{:object {w x, y z}, :bindings, {}, :references {}}]
+                   (host-stream (m.pattern/merge %w=>x %y=>z)))))))))
