@@ -2,27 +2,53 @@
   {:no-doc true}
   (:refer-clojure :exclude [resolve
                             test])
-  (:require [meander.peval.zeta :as m.peval]
-            [meander.tree.zeta :as m.tree])
-  (:import (meander.tree.zeta Arguments
-                              Bind
-                              Bindings
-                              Code
-                              Call
-                              Data
-                              Fail
-                              GetBinding
-                              GetBindings
-                              GetObject
-                              Identifier
-                              Join
-                              Let
-                              Pass
-                              Pick
-                              SetBinding
-                              SetObject
-                              State
-                              Test)))
+  #?(:clj
+     (:require [meander.peval.zeta :as m.peval]
+               [meander.tree.zeta :as m.tree])
+     :cljs
+     (:require [meander.peval.zeta :as m.peval]
+               [meander.tree.zeta :as m.tree
+                :refer [Arguments
+                        Bind
+                        Bindings
+                        Code
+                        Call
+                        Data
+                        Fail
+                        GetBinding
+                        GetBindings
+                        GetObject
+                        Identifier
+                        Join
+                        Let
+                        Pass
+                        Pick
+                        SetBinding
+                        SetObject
+                        State
+                        Test]]))
+  #?(:clj
+     (:import (meander.tree.zeta Arguments
+                                 Bind
+                                 Bindings
+                                 Code
+                                 Call
+                                 Data
+                                 Fail
+                                 GetBinding
+                                 GetBindings
+                                 GetObject
+                                 Identifier
+                                 Join
+                                 Let
+                                 Pass
+                                 Pick
+                                 SetBinding
+                                 SetObject
+                                 State
+                                 Test)))
+  #?(:cljs
+     (:require-macros [meander.tree.rewrite.zeta :refer [try->]])))
 
 (defmacro try->
   {:style/indent 1

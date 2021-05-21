@@ -1,10 +1,11 @@
 (ns meander.pattern.zeta
-  (:require [meander.algorithms.zeta :as m.algorithms])
   (:refer-clojure :exclude [apply some])
   #?(:clj
-     (:require [clojure.core :as clojure])
+     (:require [clojure.core :as clojure]
+               [meander.algorithms.zeta :as m.algorithms])
      :cljs
-     (:require [cljs.core :as clojure])))
+     (:require [cljs.core :as clojure]
+               [meander.algorithms.zeta :as m.algorithms])))
 
 ;; Environment helpers
 ;; ---------------------------------------------------------------------

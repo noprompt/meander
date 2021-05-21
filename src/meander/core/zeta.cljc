@@ -68,8 +68,8 @@
   IClassifier
   (classifier [this] this)
 
-  IGround
-  (ground? [this] false)
+  ;; IGround
+  ;; (ground? [this] false)
 
   IMaxLength
   (max-length [this unknown]
@@ -116,6 +116,7 @@
 (defrecord AnythingPattern []
   IClassifier
   (classifier [this]
+    #_
     (class this))
 
   IGround
@@ -257,6 +258,7 @@
 
   IClassifier
   (classifier [this]
+    #_
     (let [c (class this)]
       (tree-seq (fn [x] (instance? c x)) children this)))
 
@@ -289,6 +291,7 @@
 
   IClassifier
   (classifier [this]
+    #_
     (let [c (class this)]
       (tree-seq (fn [x] (instance? c x)) children this)))
 
@@ -652,6 +655,7 @@
 (defrecord RegexConcatenation [initial-patterns tail-pattern]
   IClassifier
   (classifier [this]
+    #_
     [(class this) (count initial-patterns)])
 
   IMaxLength
@@ -816,6 +820,7 @@
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
+          data (get environment :data)
           eval (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
@@ -830,7 +835,7 @@
           sequential? (if (annotated-with? this `clojure/sequential?)
                         (eval `clojure/any?)
                         (eval `clojure/sequential?))
-          zero (eval 0)]
+          zero (data 0)]
       (fn [state]
         (take state
           (fn [object]
@@ -892,6 +897,7 @@
 (defrecord RegexJoin [x-pattern y-pattern]
   IClassifier
   (classifier [this]
+    #_
     [(class this) (classifier x-pattern)])
 
   IMaxLength
@@ -999,6 +1005,7 @@
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
+          data (get environment :data)
           eval (get environment :eval)
           fail (get environment :fail)
           give (get environment :give)
@@ -1015,9 +1022,9 @@
           rest (eval `clojure/rest)
           seq (eval `clojure/seq)
           sequential? (eval `clojure/sequential?)
-          zero (eval 0)
-          one (eval 1)
-          two (eval 2)]
+          zero (data 0)
+          one (data 1)
+          two (data 2)]
       (fn [state]
         (take state
           (fn [object]
@@ -1446,7 +1453,7 @@
 ;; API
 ;; ---------------------------------------------------------------------
 
-(extend-type #?(:clj Object, :cljs :default)
+(extend-type #?(:clj Object, :cljs default)
   IRegexCons
   (regex-cons [this pattern]
     (->RegexConcatenation [pattern] this)))
@@ -1680,13 +1687,16 @@
 
 (defn fifo-unfold-function [environment]
   (let [call (get environment :call)
+        data (get environment :data)
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
         = (eval `clojure/=)
         nth (eval `clojure/nth)
         seq (eval `clojure/seq)
-        subvec (eval `clojure/subvec)]
+        subvec (eval `clojure/subvec)
+        zero (data 0)
+        one (data 1)]
     (fn [old pass fail]
       (call = old none
         (fn [truth]
@@ -1697,9 +1707,9 @@
                 (fn [truth]
                   (test truth
                     (fn []
-                      (call nth old 0
+                      (call nth old zero
                         (fn [x]
-                          (call subvec old 1
+                          (call subvec old one
                             (fn [new] (pass x new))))))
                     (fn []
                       (fail none))))))))))))
@@ -1707,15 +1717,6 @@
 (defn fifo-variable
   ([] (fifo-variable (gensym "<__")))
   ([id] (variable id fifo-fold-function fifo-unfold-function)))
-
-
-#_
-(meander.environment.data.zeta/compile-one-no-optimization
- (run-query
-  (* [(fifo-variable '<x) (fifo-variable '<y)])
-  meander.environment.data.zeta/environment
-  'TARGET))
-
 
 (defn filo-fold-function [environment]
   (let [call (get environment :call)
@@ -1734,13 +1735,15 @@
 
 (defn filo-unfold-function [environment]
   (let [call (get environment :call)
+        data (get environment :data)
         eval (get environment :eval)
         none (get environment :none)
         test (get environment :test)
         = (eval `clojure/=)
         nth (eval `clojure/nth)
         seq (eval `clojure/seq)
-        rest (eval `clojure/rest)]
+        rest (eval `clojure/rest)
+        zero (data 0)]
     (fn [old pass fail]
       (call = old none
         (fn [truth]
@@ -1751,7 +1754,7 @@
                 (fn [truth]
                   (test truth
                     (fn []
-                      (call nth old 0
+                      (call nth old zero
                         (fn [x]
                           (call rest old
                             (fn [new] (pass x new))))))
@@ -1971,7 +1974,7 @@
                  (all (apply %fn-count [] ?count)
                       (all (project (apply - [?count (count x-pattern)]) ?total _)
                            (apply %fn-subs [?total] y-pattern)
-                           (apply %fn-subs [0 ?total] x-pattern)))))
+                           (apply %fn-subs [(data 0) ?total] x-pattern)))))
 
              [false false]
              (let [%fn-string-partitions (code `m.algorithms/string-partitions)]

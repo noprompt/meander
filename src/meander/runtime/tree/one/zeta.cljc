@@ -2,27 +2,51 @@
   {:no-doc true}
   (:require [meander.peval.zeta :as m.peval]
             [meander.util.zeta :as m.util]
-            [meander.tree.zeta :as m.tree])
-  (:import (meander.tree.zeta Arguments
-                              Bind
-                              Bindings
-                              Code
-                              Call
-                              Data
-                              Fail
-                              GetBinding
-                              GetBindings
-                              GetObject
-                              Identifier
-                              Join
-                              Let
-                              Pass
-                              Pick
-                              Scan
-                              SetBinding
-                              SetObject
-                              State
-                              Test)))
+            [meander.tree.zeta :as m.tree
+             #?@(:cljs [:refer
+                        [Arguments
+                         Bind
+                         Bindings
+                         Code
+                         Call
+                         Data
+                         Fail
+                         GetBinding
+                         GetBindings
+                         GetObject
+                         Identifier
+                         Join
+                         Let
+                         Pass
+                         Pick
+                         Scan
+                         SetBinding
+                         SetObject
+                         State
+                         Test]
+                        ])
+             ])
+  #?(:clj
+     (:import (meander.tree.zeta Arguments
+                                 Bind
+                                 Bindings
+                                 Code
+                                 Call
+                                 Data
+                                 Fail
+                                 GetBinding
+                                 GetBindings
+                                 GetObject
+                                 Identifier
+                                 Join
+                                 Let
+                                 Pass
+                                 Pick
+                                 Scan
+                                 SetBinding
+                                 SetObject
+                                 State
+                                 Test))))
 ;; Code generation
 ;; ---------------------------------------------------------------------
 

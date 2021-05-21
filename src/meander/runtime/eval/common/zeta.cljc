@@ -98,6 +98,8 @@
    (def cljs-symbol-table
      {'cljs.core/- cljs.core/-
       'cljs.core/= cljs.core/=
+      'cljs.core/<= cljs.core/<=
+      'cljs.core/any? cljs.core/any?
       'cljs.core/apply cljs.core/apply
       'cljs.core/assoc cljs.core/assoc
       'cljs.core/bounded-count cljs.core/bounded-count
@@ -108,6 +110,8 @@
       'cljs.core/count cljs.core/count
       'cljs.core/dissoc cljs.core/dissoc
       'cljs.core/fn? cljs.core/fn?
+      'cljs.core/identity cljs.core/identity
+      'cljs.core/into cljs.core/into
       'cljs.core/key cljs.core/key
       'cljs.core/keyword cljs.core/keyword
       'cljs.core/keyword? cljs.core/keyword?
@@ -121,6 +125,7 @@
       'cljs.core/rest cljs.core/rest
       'cljs.core/seq cljs.core/seq
       'cljs.core/seq? cljs.core/seq?
+      'cljs.core/seqable? cljs.core/seqable?
       'cljs.core/sequential? cljs.core/sequential?
       'cljs.core/str cljs.core/str
       'cljs.core/string? cljs.core/string?
@@ -130,7 +135,9 @@
       'cljs.core/symbol? cljs.core/symbol?
       'cljs.core/val cljs.core/val
       'cljs.core/vec cljs.core/vec
+      'cljs.core/vector cljs.core/vector
       'cljs.core/vector? cljs.core/vector?
+      'meander.algorithms.zeta/drop meander.algorithms.zeta/drop
       'meander.algorithms.zeta/map-partitions meander.algorithms.zeta/map-partitions
       'meander.algorithms.zeta/partitions meander.algorithms.zeta/partitions
       'meander.algorithms.zeta/string-partitions meander.algorithms.zeta/string-partitions
@@ -142,14 +149,8 @@
 
    :cljs
    (defn platform-eval [form]
-     (cond
-       (or (keyword? form) (number? form) (string? form))
-       form
-
-       (symbol? form)
+     (if (symbol? form)
        (if-some [x (get cljs-symbol-table form)]
          x
-         (throw (ex-info "Unable to evaluate symbol" {:symbol form})))
-
-       :else
-       (throw (ex-info "Unable to evaluate form" {:form form})))))
+         (throw (ex-info "Unable to resolve symbol" {:symbol form})))
+       (throw (ex-info "Host form must be a symbol" {:form form})))))

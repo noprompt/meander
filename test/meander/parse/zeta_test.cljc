@@ -2,7 +2,9 @@
   (:require [clojure.test :as t]
             [meander.core.zeta :as m]
             [meander.util.zeta :as m.util :include-macros true]
-            [meander.parse.zeta :as m.parse]))
+            [meander.parse.zeta :as m.parse])
+  #?(:cljs
+     (:require-macros [meander.parse.zeta-test :refer [with-parse]])))
 
 (defn with-parse* [f]
   (f (m.parse/parser (m.util/canonical-ns))))
