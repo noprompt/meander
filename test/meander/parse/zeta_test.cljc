@@ -1,17 +1,26 @@
 (ns meander.parse.zeta-test
   (:require [clojure.test :as t]
-            [meander.core.zeta :as m]
-            [meander.util.zeta :as m.util :include-macros true]
-            [meander.parse.zeta :as m.parse])
-  #?(:cljs
-     (:require-macros [meander.parse.zeta-test :refer [with-parse]])))
+            [meander.parse.zeta :as m.parse]
+            [meander.pattern.zeta :as m.pattern]
+            [meander.util.zeta :as m.util :include-macros true]))
 
+
+
+(t/deftest parse-test
+  (let [x (reify)]
+    (t/testing "data parse"
+      (t/is (= (m.pattern/data x)
+               (m.parse/parse x))))))
+
+#_
 (defn with-parse* [f]
   (f (m.parse/parser (m.util/canonical-ns))))
 
+#_
 (defmacro with-parse [symbol & body]
   `(with-parse* (fn [~symbol] ~@body)))
 
+#_
 (t/deftest parse-variable-test
   (with-parse parse
     (t/testing "parse logic variable"
@@ -30,6 +39,7 @@
       (t/is (= (m/mutable-variable '!x)
                (parse '!x))))))
 
+#_
 (t/deftest parse-sequential-test
   (with-parse parse
     (t/testing "parse seq"
@@ -46,6 +56,7 @@
       (t/is (= (m/vec (m/rx-cat [(m/data 1)]))
                (parse [1]))))))
 
+#_
 (t/deftest parse-special-form-test
   (with-parse parse
     (t/testing "all"
