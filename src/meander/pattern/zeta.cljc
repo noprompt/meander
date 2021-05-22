@@ -1132,6 +1132,18 @@
          (give state empty-map pass)
          yields)))))
 
+;; Rule
+;; ----
+
+(defrecord Rule [query-pattern yield-pattern]
+  IQueryFunction
+  (query-function [this environment]
+    (query-function query-pattern environment))
+
+  IYieldFunction
+  (yield-function [this environment]
+    (yield-function yield-pattern environment)))
+
 ;; Constructors
 ;; ---------------------------------------------------------------------
 
@@ -1336,6 +1348,12 @@
 (defn merge [map-pattern-a map-pattern-b]
   (->Merge [map-pattern-a map-pattern-b]))
 
+;; Rule Constructors
+;; -----------------
+
+(defn rule [query-pattern yield-pattern]
+  (->Rule query-pattern yield-pattern))
+
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------
 
@@ -1354,6 +1372,19 @@
         pass (get kernel :pass)
         seed (get kernel :seed)]
     (yield pass fail (seed (data nil)))))
+
+(defn run-rule [rule kernel object]
+  (let [bind (get kernel :bind)
+        pass (get kernel :pass)
+        fail (get kernel :fail)
+        seed (get kernel :seed)
+        take (get kernel :take)
+        query (query-function rule kernel)
+        yield (yield-function rule kernel)]
+    (query (fn [state]
+             (yield pass fail state))
+           fail
+           (seed object))))
 
 ;; Local Variables:
 ;; eval: (put-clojure-indent 'call :defn)

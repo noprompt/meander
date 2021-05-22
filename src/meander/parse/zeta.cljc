@@ -3,9 +3,22 @@
             [meander.runtime.eval.zeta :as m.kernel.eval]
             [meander.util.zeta :as m.util]))
 
+(def rule-default
+  (let [?x (m.pattern/logic-variable)]
+    (m.pattern/rule
+     ?x
+     (m.pattern/apply (m.pattern/data m.pattern/data)
+                      (m.pattern/regex-cons ?x (m.pattern/regex-empty))
+                      (m.pattern/anything)))))
+
 (defn parse [form]
-  (let [kernel (m.kernel.eval/df-one)]
-    (m.pattern/data form)))
+  (let [kernel (m.kernel.eval/df-one)
+        bind (get kernel :bind)
+        take (get kernel :take)
+        pass (get kernel :pass)]
+    (bind (fn [state]
+            (take state pass))
+          (m.pattern/run-rule rule-default kernel form))))
 
 ;; (defn default-variable-id
 ;;   {:private true}
