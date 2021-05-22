@@ -41,22 +41,22 @@
 ;; Protocols
 ;; ---------------------------------------------------------------------
 
-(defprotocol QueryFunction
+(defprotocol IQueryFunction
   (query-function [this kernel]))
 
-(defprotocol YieldFunction
+(defprotocol IYieldFunction
   (yield-function [this kernel]))
 
 ;; Classes
 ;; ---------------------------------------------------------------------
 
 (defrecord Anything []
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (fn [pass fail state]
       (pass state)))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [give (get kernel :give)
           make (get kernel :make)]
@@ -64,18 +64,18 @@
         (give state (make state) pass)))))
 
 (defrecord Nothing []
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (fn [pass fail state]
       (fail state)))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (fn [pass fail state]
       (fail state))))
 
 (defrecord Data [value]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [call (get kernel :call)
           data (get kernel :data)
@@ -93,7 +93,7 @@
                   (fn [] (pass state))
                   (fn [] (fail state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [data (get kernel :data)
           give (get kernel :give)
@@ -102,7 +102,7 @@
         (give state data-value pass)))))
 
 (defrecord Host [form]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [call (get kernel :call)
           data (get kernel :data)
@@ -119,7 +119,7 @@
                   (fn [] (pass state))
                   (fn [] (fail state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [give (get kernel :give)
           host (get kernel :eval)]
@@ -127,14 +127,14 @@
         (give state (host form) pass)))))
 
 (defrecord Variable [symbol fold-function unfold-function]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [save (get kernel :save)
           fold (fold-function kernel)]
       (fn [pass fail state]
         (save state symbol fold pass fail))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [load (get kernel :load)
           unfold (unfold-function kernel)]
@@ -142,14 +142,14 @@
         (load state symbol unfold pass fail)))))
 
 (defrecord Pick [pattern-a pattern-b]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [query-a (query-function pattern-a kernel)
           query-b (query-function pattern-b kernel)]
       (fn [pass fail state]
         (query-a pass (fn [_] (query-b pass fail state)) state))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [yield-a (yield-function pattern-a kernel)
           yield-b (yield-function pattern-b kernel)]
@@ -157,7 +157,7 @@
         (yield-a pass (fn [_] (yield-b pass fail state)) state)))))
 
 (defrecord Some [pattern-a pattern-b]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [query-a (query-function pattern-a kernel)
           query-b (query-function pattern-b kernel)
@@ -166,7 +166,7 @@
         (join (fn [] (query-a pass fail state))
               (fn [] (query-b pass fail state))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [yield-a (yield-function pattern-a kernel)
           yield-b (yield-function pattern-b kernel)
@@ -176,14 +176,14 @@
               (fn [] (yield-b pass fail state)))))))
 
 (defrecord Each [pattern-a pattern-b]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [query-a (query-function pattern-a kernel)
           query-b (query-function pattern-b kernel)]
       (fn [pass fail state]
         (query-a (fn [state] (query-b pass fail state)) fail state))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [join (get kernel :join)
           yield-a (yield-function pattern-a kernel)
@@ -195,7 +195,7 @@
               (fn [] (yield-b (fn [state] (query-a pass fail state)) fail state)))))))
 
 (defrecord Apply [function-pattern arguments-pattern return-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [call (get kernel :call)
           host (get kernel :eval)
@@ -230,7 +230,7 @@
              fail
              state))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [call (get kernel :call)
           host (get kernel :eval)
@@ -277,7 +277,7 @@
          state)))))
 
 (defrecord Predicate [predicate-pattern x-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [call (get kernel :call)
           fail (get kernel :fail)
@@ -301,7 +301,7 @@
              fail
              state))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [call (get kernel :call)
           fail (get kernel :fail)
@@ -330,7 +330,7 @@
          state)))))
 
 (defrecord Project [a-pattern b-pattern c-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [give (get kernel :give)
           pass (get kernel :pass)
@@ -356,7 +356,7 @@
              fail
              state))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [give (get kernel :give)
           take (get kernel :take)
@@ -382,7 +382,7 @@
 ;; ---------------------------------------------------------------------
 
 (defrecord RegexEmpty []
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [call (get kernel :call)
           host (get kernel :eval)
@@ -405,7 +405,7 @@
                   (fn []
                     (fail state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [data (get kernel :data)
           give (get kernel :give)
@@ -414,7 +414,7 @@
         (give state empty-vector pass)))))
 
 (defrecord RegexCons [head-pattern tail-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [call (get kernel :call)
           data (get kernel :data)
@@ -458,7 +458,7 @@
                     (fail state))))))))))
 
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [call (get kernel :call)
           host (get kernel :eval)
@@ -493,7 +493,7 @@
          state)))))
 
 (defrecord RegexConcatenation [initial-patterns tail-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [bind (get kernel :bind)
           call (get kernel :call)
@@ -554,7 +554,7 @@
                   (fn []
                     (reject state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [bind (get kernel :bind)
           call (get kernel :call)
@@ -600,7 +600,7 @@
                initial-yields))))))
 
 (defrecord RegexJoin [x-pattern y-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this kernel]
     (let [bind (get kernel :bind)
           call (get kernel :call)
@@ -644,7 +644,7 @@
                   (fn []
                     (reject state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this kernel]
     (let [bind (get kernel :bind)
           call (get kernel :call)
@@ -687,7 +687,7 @@
          state)))))
 
 (defrecord GreedyStar [subsequence-pattern tail-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -745,7 +745,7 @@
                   (fn []
                     (fail state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -806,7 +806,7 @@
                                             state)))))))))))))
 
 (defrecord FrugalStar [subsequence-pattern tail-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -873,7 +873,7 @@
                   (fn []
                     (reject state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -948,7 +948,7 @@
 
 
 (defrecord Assoc [map-pattern key-pattern val-pattern]
-  QueryFunction
+  IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -1001,7 +1001,7 @@
                   (fn []
                     (fail state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -1044,7 +1044,7 @@
                    state)))))
 
 (defrecord Merge [map-patterns]
-  QueryFunction
+  IQueryFunction
   (query-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
@@ -1091,7 +1091,7 @@
                   (fn []
                     (reject state))))))))))
 
-  YieldFunction
+  IYieldFunction
   (yield-function [this environment]
     (let [bind (get environment :bind)
           call (get environment :call)
