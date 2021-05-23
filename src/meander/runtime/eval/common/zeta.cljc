@@ -111,6 +111,7 @@
       'cljs.core/count cljs.core/count
       'cljs.core/dissoc cljs.core/dissoc
       'cljs.core/fn? cljs.core/fn?
+      'cljs.core/get cljs.core/get
       'cljs.core/identity cljs.core/identity
       'cljs.core/into cljs.core/into
       'cljs.core/key cljs.core/key
