@@ -12,8 +12,7 @@
       [meander.runtime.eval.zeta :as m.rt.eval]))
   #?(:cljs
      (:require-macros [meander.runtime.eval.zeta-test :refer [using-runtime
-                                                              runtime-tests
-                                                              integration-tests]])))
+                                                              runtime-tests]])))
 
 (defmacro using-runtime
   {:style/indent 1}
