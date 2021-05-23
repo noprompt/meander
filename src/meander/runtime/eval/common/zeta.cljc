@@ -102,6 +102,7 @@
       'cljs.core/any? cljs.core/any?
       'cljs.core/apply cljs.core/apply
       'cljs.core/assoc cljs.core/assoc
+      'cljs.core/associative? cljs.core/associative?
       'cljs.core/bounded-count cljs.core/bounded-count
       'cljs.core/coll? cljs.core/coll?
       'cljs.core/concat cljs.core/concat
