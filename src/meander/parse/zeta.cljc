@@ -11,14 +11,18 @@
                       (m.pattern/regex-cons ?x (m.pattern/regex-empty))
                       (m.pattern/anything)))))
 
-(defn parse [form]
-  (let [kernel (m.kernel.eval/df-one)
+(defn parser [options]
+  (let [kernel (get options :kernel)
         bind (get kernel :bind)
         take (get kernel :take)
         pass (get kernel :pass)]
-    (bind (fn [state]
-            (take state pass))
-          (m.pattern/run-rule rule-default kernel form))))
+    (fn [form]
+      (bind (fn [state] (take state pass))
+            (m.pattern/run-rule rule-default kernel form)))))
+
+(defn parse [form]
+  (let [parse (parser {:kernel (m.kernel.eval/df-one)})]
+    (parse form)))
 
 ;; (defn default-variable-id
 ;;   {:private true}
