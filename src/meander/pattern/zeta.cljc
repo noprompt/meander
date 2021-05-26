@@ -1,8 +1,12 @@
 (ns meander.pattern.zeta
   (:refer-clojure :exclude [apply
                             assoc
+                            keyword
                             merge
-                            some])
+                            seq
+                            some
+                            symbol
+                            vec])
   #?(:clj
      (:require [clojure.core :as clojure]
                [meander.algorithms.zeta :as m.algorithms])
@@ -13,17 +17,26 @@
 ;; Environment helpers
 ;; ---------------------------------------------------------------------
 
-(defn set-sequential [environment pattern]
-  (clojure/assoc environment [pattern sequential?] true))
-
 (defn set-associative [environment pattern]
   (clojure/assoc environment [pattern associative?] true))
+
+(defn set-ifn [environment pattern]
+  (clojure/assoc environment [pattern ifn?] true))
+
+(defn set-sequential [environment pattern]
+  (clojure/assoc environment [pattern sequential?] true))
 
 (defn host-associative-predicate [environment pattern]
   (let [host (get environment :eval)]
     (if (true? (get environment [pattern associative?]))
       (host `clojure/any?)
       (host `clojure/associative?))))
+
+(defn host-ifn-predicate [environment pattern]
+  (let [host (get environment :eval)]
+    (if (true? (get environment [pattern ifn?]))
+      (host `clojure/any?)
+      (host `clojure/ifn?))))
 
 (defn host-sequential-predicate [environment pattern]
   (let [host (get environment :eval)]
@@ -178,10 +191,19 @@
 (defrecord Each [pattern-a pattern-b]
   IQueryFunction
   (query-function [this kernel]
-    (let [query-a (query-function pattern-a kernel)
+    (let [take (get kernel :take)
+          give (get kernel :give)
+          query-a (query-function pattern-a kernel)
           query-b (query-function pattern-b kernel)]
       (fn [pass fail state]
-        (query-a (fn [state] (query-b pass fail state)) fail state))))
+        (take state
+          (fn [object]
+            (query-a (fn [state]
+                       (give state object
+                         (fn [state]
+                           (query-b pass fail state))))
+                     fail
+                     state))))))
 
   IYieldFunction
   (yield-function [this kernel]
@@ -1353,6 +1375,67 @@
 
 (defn rule [query-pattern yield-pattern]
   (->Rule query-pattern yield-pattern))
+
+(defn edit-environment
+  {:style/indent 1
+   :private true}
+  [pattern f & args]
+  (reify
+    IQueryFunction
+    (query-function [this environment]
+      (query-function pattern (clojure/apply f environment pattern args)))
+
+    IYieldFunction
+    (yield-function [this environment]
+      (yield-function pattern (clojure/apply f environment pattern args)))))
+
+(defn host-fn [symbol]
+  {:pre [(symbol? symbol)]}
+  (edit-environment (host symbol) set-ifn))
+
+(defn symbol
+  ([name-pattern]
+   (rule (predicate (host-fn `clojure/symbol)
+                    (apply (host-fn `clojure/name) (regex-empty) name-pattern))
+         (apply (host `clojure/symbol)
+                (regex-cons (predicate (host-fn `clojure/string?) name-pattern) (regex-empty))
+                (anything))))
+  ([namespace-pattern name-pattern]
+   (rule (predicate (host `clojure/symbol?)
+                    (each (apply (host-fn `clojure/namespace) (regex-empty) namespace-pattern)
+                          (apply (host-fn `clojure/name) (regex-empty) name-pattern)))
+         (apply (host `clojure/symbol)
+                (regex-cons (predicate (host-fn `clojure/string?) namespace-pattern)
+                            (regex-cons (predicate (host-fn `clojure/string?) name-pattern) (regex-empty)))
+                (anything)))))
+
+(defn keyword
+  ([name-pattern]
+   (rule (predicate (host-fn `clojure/keyword?)
+                    (apply (host-fn `clojure/name) (regex-empty) name-pattern))
+         (apply (host-fn `clojure/keyword)
+                (regex-cons (predicate (host-fn `clojure/string?) name-pattern) (regex-empty))
+                (anything))))
+  ([namespace-pattern name-pattern]
+   (rule (predicate (host `clojure/keyword?)
+                    (each (apply (host-fn `clojure/namespace) (regex-empty) namespace-pattern)
+                          (apply (host-fn `clojure/name) (regex-empty) name-pattern)))
+         (apply (host-fn `clojure/keyword)
+                (regex-cons (predicate (host-fn `clojure/string?) namespace-pattern)
+                            (regex-cons (predicate (host-fn `clojure/string?) name-pattern) (regex-empty)))
+                (anything)))))
+
+(defn vec [pattern]
+  (rule (predicate (host-fn `clojure/vector?) pattern)
+        (apply (host-fn `clojure/vector)
+               pattern
+               (anything))))
+
+(defn seq [pattern]
+  (rule (predicate (host-fn `clojure/seq?) pattern)
+        (apply (host-fn `clojure/list) ;; TODO: 
+               pattern
+               (anything))))
 
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------

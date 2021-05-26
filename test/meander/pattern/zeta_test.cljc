@@ -1137,3 +1137,141 @@
         (t/testing "merge stream"
           (t/is (= [{:object {w x, y z}, :bindings, {}, :references {}}]
                    (host-stream (m.pattern/merge %w=>x %y=>z)))))))))
+
+(t/deftest symbol-test
+  (t/testing "symbol query"
+    (t/testing "symbol match"
+      (t/is (= {:object "foo", :bindings {}, :references {}}
+               (host-match (m.pattern/symbol (m.pattern/data "foo")) 'foo)))
+
+      (t/is (= {:object "bar", :bindings {}, :references {}}
+               (host-match (m.pattern/symbol (m.pattern/data "bar")) 'foo/bar)))
+
+      (t/is (= {:object "bar", :bindings {}, :references {}}
+               (host-match (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'foo/bar)))
+
+      (t/is (= nil
+               (host-match (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'foo/baz)))
+
+      (t/is (= nil
+               (host-match (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'bar/baz))))
+
+    (t/testing "symbol search"
+      (t/is (= [{:object "foo", :bindings {}, :references {}}]
+               (host-search (m.pattern/symbol (m.pattern/data "foo")) 'foo)))
+
+      (t/is (= [{:object "bar", :bindings {}, :references {}}]
+               (host-search (m.pattern/symbol (m.pattern/data "bar")) 'foo/bar)))
+
+      (t/is (= [{:object "bar", :bindings {}, :references {}}]
+               (host-search (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'foo/bar)))
+
+      (t/is (= []
+               (host-search (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'foo/baz)))
+
+      (t/is (= []
+               (host-search (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'bar/baz)))))
+
+  (t/testing "symbol yield"
+    (t/testing "symbol build"
+      (t/is (= {:object 'foo, :bindings {}, :references {}}
+               (host-build (m.pattern/symbol (m.pattern/data "foo")))))
+
+      (t/is (= {:object 'foo/bar, :bindings {}, :references {}}
+               (host-build (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar"))))))
+
+    (t/testing "symbol stream"
+      (t/is (= [{:object 'foo, :bindings {}, :references {}}]
+               (host-stream (m.pattern/symbol (m.pattern/data "foo")))))
+
+      (t/is (= [{:object 'foo/bar, :bindings {}, :references {}}]
+               (host-stream (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar"))))))))
+
+(t/deftest keyword-test
+  (t/testing "keyword query"
+    (t/testing "keyword match"
+      (t/is (= {:object "foo", :bindings {}, :references {}}
+               (host-match (m.pattern/keyword (m.pattern/data "foo")) :foo)))
+
+      (t/is (= {:object "bar", :bindings {}, :references {}}
+               (host-match (m.pattern/keyword (m.pattern/data "bar")) :foo/bar)))
+
+      (t/is (= {:object "bar", :bindings {}, :references {}}
+               (host-match (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :foo/bar)))
+
+      (t/is (= nil
+               (host-match (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :foo/baz)))
+
+      (t/is (= nil
+               (host-match (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :bar/baz))))
+
+    (t/testing "keyword search"
+      (t/is (= [{:object "foo", :bindings {}, :references {}}]
+               (host-search (m.pattern/keyword (m.pattern/data "foo")) :foo)))
+
+      (t/is (= [{:object "bar", :bindings {}, :references {}}]
+               (host-search (m.pattern/keyword (m.pattern/data "bar")) :foo/bar)))
+
+      (t/is (= [{:object "bar", :bindings {}, :references {}}]
+               (host-search (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :foo/bar)))
+
+      (t/is (= []
+               (host-search (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :foo/baz)))
+
+      (t/is (= []
+               (host-search (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :bar/baz)))))
+
+  (t/testing "keyword yield"
+    (t/testing "keyword build"
+      (t/is (= {:object :foo, :bindings {}, :references {}}
+               (host-build (m.pattern/keyword (m.pattern/data "foo")))))
+
+      (t/is (= {:object :foo/bar, :bindings {}, :references {}}
+               (host-build (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar"))))))
+
+    (t/testing "keyword stream"
+      (t/is (= [{:object :foo, :bindings {}, :references {}}]
+               (host-stream (m.pattern/keyword (m.pattern/data "foo")))))
+
+      (t/is (= [{:object :foo/bar, :bindings {}, :references {}}]
+               (host-stream (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar"))))))))
+
+(t/deftest vec-test
+  (t/testing "vec query"
+    (t/testing "vec match"
+      (t/is (= {:object [], :bindings {}, :references {}}
+               (host-match (m.pattern/vec %empty) [])))
+
+      (t/is (= nil
+               (host-match (m.pattern/vec %empty) ())))
+
+      (t/is (= nil
+               (host-match (m.pattern/vec (m.pattern/data 1)) [])))))
+
+  (t/testing "vec yield"
+    (t/testing "vec build"
+      (t/is (= {:object [], :bindings {}, :references {}}
+               (host-build (m.pattern/vec %empty))))
+
+      (t/is (= nil
+               (host-build (m.pattern/vec (m.pattern/data 1))))))))
+
+(t/deftest seq-test
+  (t/testing "seq query"
+    (t/testing "seq match"
+      (t/is (= {:object (), :bindings {}, :references {}}
+               (host-match (m.pattern/seq %empty) ())))
+
+      (t/is (= nil
+               (host-match (m.pattern/seq %empty) [])))
+
+      (t/is (= nil
+               (host-match (m.pattern/seq (m.pattern/data 1)) ())))))
+
+  (t/testing "seq yield"
+    (t/testing "seq build"
+      (t/is (= {:object (), :bindings {}, :references {}}
+               (host-build (m.pattern/seq %empty))))
+
+      (t/is (= nil
+               (host-build (m.pattern/seq (m.pattern/data 1))))))))
