@@ -1246,7 +1246,17 @@
                (host-match (m.pattern/vec %empty) ())))
 
       (t/is (= nil
-               (host-match (m.pattern/vec (m.pattern/data 1)) [])))))
+               (host-match (m.pattern/vec (m.pattern/data 1)) []))))
+
+    (t/testing "vec search"
+      (t/is (= [{:object [], :bindings {}, :references {}}]
+               (host-search (m.pattern/vec %empty) [])))
+
+      (t/is (= []
+               (host-search (m.pattern/vec %empty) ())))
+
+      (t/is (= []
+               (host-search (m.pattern/vec (m.pattern/data 1)) [])))))
 
   (t/testing "vec yield"
     (t/testing "vec build"
@@ -1254,7 +1264,14 @@
                (host-build (m.pattern/vec %empty))))
 
       (t/is (= nil
-               (host-build (m.pattern/vec (m.pattern/data 1))))))))
+               (host-build (m.pattern/vec (m.pattern/data 1))))))
+
+    (t/testing "vec stream"
+      (t/is (= [{:object [], :bindings {}, :references {}}]
+               (host-stream (m.pattern/vec %empty))))
+
+      (t/is (= []
+               (host-stream (m.pattern/vec (m.pattern/data 1))))))))
 
 (t/deftest seq-test
   (t/testing "seq query"
@@ -1266,7 +1283,17 @@
                (host-match (m.pattern/seq %empty) [])))
 
       (t/is (= nil
-               (host-match (m.pattern/seq (m.pattern/data 1)) ())))))
+               (host-match (m.pattern/seq (m.pattern/data 1)) ()))))
+
+    (t/testing "seq search"
+      (t/is (= [{:object (), :bindings {}, :references {}}]
+               (host-search (m.pattern/seq %empty) ())))
+
+      (t/is (= []
+               (host-search (m.pattern/seq %empty) [])))
+
+      (t/is (= []
+               (host-search (m.pattern/seq (m.pattern/data 1)) ())))))
 
   (t/testing "seq yield"
     (t/testing "seq build"
@@ -1274,4 +1301,11 @@
                (host-build (m.pattern/seq %empty))))
 
       (t/is (= nil
-               (host-build (m.pattern/seq (m.pattern/data 1))))))))
+               (host-build (m.pattern/seq (m.pattern/data 1))))))
+
+    (t/testing "seq stream"
+      (t/is (= [{:object (), :bindings {}, :references {}}]
+               (host-stream (m.pattern/seq %empty))))
+
+      (t/is (= []
+               (host-stream (m.pattern/seq (m.pattern/data 1))))))))
