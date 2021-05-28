@@ -74,41 +74,43 @@
              (host-search (m.pattern/nothing) x)))))
 
 (t/deftest data-test
-  (t/testing "data query"
-    (t/is (= {:object 1, :bindings {}, :references {}}
-             (host-match (m.pattern/data 1) 1)))
+  (let [x (reify)
+        y (reify)
+        %x (m.pattern/data x)]
+    (t/testing "data query"
+      (t/is (= {:object x, :bindings {}, :references {}}
+               (host-match %x x)))
 
-    (t/is (= [{:object 1, :bindings {}, :references {}}]
-             (host-search (m.pattern/data 1) 1)))
+      (t/is (= [{:object x, :bindings {}, :references {}}]
+               (host-search %x x)))
 
-    (t/is (= nil
-             (host-match (m.pattern/data 1) 2)))
+      (t/is (= nil
+               (host-match %x y)))
 
-    (t/is (= ()
-             (host-search (m.pattern/data 1) 2))))
+      (t/is (= ()
+               (host-search %x y))))
 
-  (t/testing "data yield"
-    (t/is (= {:object 1, :bindings {}, :references {}}
-             (host-build (m.pattern/data 1))))
+    (t/testing "data yield"
+      (t/is (= {:object x, :bindings {}, :references {}}
+               (host-build %x)))
 
-    (t/is (= [{:object 1, :bindings {}, :references {}}]
-             (host-stream (m.pattern/data 1))))))
+      (t/is (= [{:object x, :bindings {}, :references {}}]
+               (host-stream %x))))))
 
 ;; NOTE: See `project-test` for additional examples of behavior.
 (t/deftest logic-variable-test
-  (t/testing "logic variable query"
-    (let [x (reify)
-          ?x (m.pattern/logic-variable '?x)]
-      (t/testing "logic variable match"
-        (t/is (= {:object x, :bindings {'?x x}, :references {}}
-                 (host-match ?x x))))
+  (let [?x (m.pattern/logic-variable '?x)]
+    (t/testing "logic variable query"
+      (let [x (reify)]
+        (t/testing "logic variable match"
+          (t/is (= {:object x, :bindings {'?x x}, :references {}}
+                   (host-match ?x x))))
 
-      (t/testing "logic variable search"
-        (t/is (= [{:object x, :bindings {'?x x}, :references {}}]
-                 (host-search ?x x))))))
+        (t/testing "logic variable search"
+          (t/is (= [{:object x, :bindings {'?x x}, :references {}}]
+                   (host-search ?x x))))))
 
-  (t/testing "logic variable yield"
-    (let [?x (m.pattern/logic-variable '?x)]
+    (t/testing "logic variable yield"
       (t/testing "logic variable build"
         (t/is (= nil
                  (host-build ?x))))
@@ -119,19 +121,18 @@
 
 ;; NOTE: See `project-test` for additional examples of behavior.
 (t/deftest mutable-variable-test
-  (t/testing "mutable variable query"
-    (let [x (reify)
-          *x (m.pattern/mutable-variable '*x)]
-      (t/testing "mutable variable match"
-        (t/is (= {:object x, :bindings {'*x x}, :references {}}
-                 (host-match *x x))))
+  (let [*x (m.pattern/mutable-variable '*x)]
+    (t/testing "mutable variable query"
+      (let [x (reify)]
+        (t/testing "mutable variable match"
+          (t/is (= {:object x, :bindings {'*x x}, :references {}}
+                   (host-match *x x))))
 
-      (t/testing "mutable variable search"
-        (t/is (= [{:object x, :bindings {'*x x}, :references {}}]
-                 (host-search *x x))))))
+        (t/testing "mutable variable search"
+          (t/is (= [{:object x, :bindings {'*x x}, :references {}}]
+                   (host-search *x x))))))
 
-  (t/testing "mutable variable yield"
-    (let [*x (m.pattern/mutable-variable '*x)]
+    (t/testing "mutable variable yield"
       (t/testing "mutable variable build"
         (t/is (= nil
                  (host-build *x))))
@@ -142,26 +143,26 @@
 
 ;; NOTE: See `project-test` for additional examples of behavior.
 (t/deftest fifo-variable-test
-  (t/testing "fifo variable query"
-    (let [x (reify)
-          <x (m.pattern/fifo-variable '<x)]
-      (t/testing "fifo variable match"
-        (t/is (= {:object x, :bindings {'<x [x]}, :references {}}
-                 (host-match <x x))))
+  (let [<x (m.pattern/fifo-variable '<x)]
+    (t/testing "fifo variable query"
+      (let [x (reify)]
+        (t/testing "fifo variable match"
+          (t/is (= {:object x, :bindings {'<x [x]}, :references {}}
+                   (host-match <x x))))
 
-      (t/testing "fifo variable search"
-        (t/is (= [{:object x, :bindings {'<x [x]}, :references {}}]
-                 (host-search <x x))))))
+        (t/testing "fifo variable search"
+          (t/is (= [{:object x, :bindings {'<x [x]}, :references {}}]
+                   (host-search <x x))))))
 
-  (t/testing "fifo variable yield"
-    (let [<x (m.pattern/fifo-variable '<x)]
-      (t/testing "fifo variable build"
-        (t/is (= nil
-                 (host-build <x))))
+    (t/testing "fifo variable yield"
+      (let [<x (m.pattern/fifo-variable '<x)]
+        (t/testing "fifo variable build"
+          (t/is (= nil
+                   (host-build <x))))
 
-      (t/testing "fifo variable search"
-        (t/is (= []
-                 (host-stream <x)))))))
+        (t/testing "fifo variable search"
+          (t/is (= []
+                   (host-stream <x))))))))
 
 #?(:clj
    (t/deftest host-test
@@ -179,8 +180,11 @@
                 (host-search (m.pattern/host `inc) dec))))))
 
 (t/deftest pick-test
-  (t/testing "pick query"
-    (let [x (reify)]
+  (let [x (reify)
+        y (reify)
+        %x (m.pattern/data x)
+        %y (m.pattern/data y)]
+    (t/testing "pick query"
       (t/testing "pick match"
         (t/is (= {:object x, :bindings {}, :references {}}
                  (host-match (m.pattern/pick %anything %anything) x)))
@@ -205,13 +209,10 @@
                  (host-search (m.pattern/pick %nothing %anything) x)))
 
         (t/is (= []
-                 (host-search (m.pattern/pick %nothing %nothing) x))))))
+                 (host-search (m.pattern/pick %nothing %nothing) x)))))
 
-  (t/testing "pick yield"
-    (let [x (reify)
-          y (reify)
-          %x (m.pattern/data x)
-          %y (m.pattern/data y)]
+    (t/testing "pick yield"
+      
       (t/testing "pick build"
         (t/is (= {:object x, :bindings {}, :references {}}
                  (host-build (m.pattern/pick %x %y))))
@@ -239,7 +240,10 @@
                  (host-stream (m.pattern/pick %nothing %nothing))))))))
 
 (t/deftest some-test
-  (let [x (reify)]
+  (let [x (reify)
+        y (reify)
+        %x (m.pattern/data x)
+        %y (m.pattern/data y)]
     (t/testing "some query"
       (t/testing "some match"
         (t/is (= {:object x, :bindings {}, :references {}}
@@ -268,41 +272,40 @@
         (t/is (= []
                  (host-search (m.pattern/some %nothing %nothing) x)))))
 
-    (t/testing "some yield"
-      (let [x (reify)
-            y (reify)
-            %x (m.pattern/data x)
-            %y (m.pattern/data y)]
-        (t/testing "some build"
-          (t/is (= {:object x, :bindings {}, :references {}}
-                   (host-build (m.pattern/some %x %y))))
+    (t/testing "some yield" 
+      (t/testing "some build"
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-build (m.pattern/some %x %y))))
 
-          (t/is (= {:object x, :bindings {}, :references {}}
-                   (host-build (m.pattern/some %x %nothing))))
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-build (m.pattern/some %x %nothing))))
 
-          (t/is (= {:object x, :bindings {}, :references {}}
-                   (host-build (m.pattern/some %nothing %x))))
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-build (m.pattern/some %nothing %x))))
 
-          (t/is (= nil
-                   (host-build (m.pattern/some %nothing %nothing)))))
+        (t/is (= nil
+                 (host-build (m.pattern/some %nothing %nothing)))))
 
-        (t/testing "some stream"
-          (t/is (= [{:object x, :bindings {}, :references {}}
-                    {:object y, :bindings {}, :references {}}]
-                   (host-stream (m.pattern/some %x %y))))
+      (t/testing "some stream"
+        (t/is (= [{:object x, :bindings {}, :references {}}
+                  {:object y, :bindings {}, :references {}}]
+                 (host-stream (m.pattern/some %x %y))))
 
-          (t/is (= [{:object x, :bindings {}, :references {}}]
-                   (host-stream (m.pattern/some %x %nothing))))
+        (t/is (= [{:object x, :bindings {}, :references {}}]
+                 (host-stream (m.pattern/some %x %nothing))))
 
-          (t/is (= [{:object x, :bindings {}, :references {}}]
-                   (host-stream (m.pattern/some %nothing %x))))
+        (t/is (= [{:object x, :bindings {}, :references {}}]
+                 (host-stream (m.pattern/some %nothing %x))))
 
-          (t/is (= []
-                   (host-stream (m.pattern/some %nothing %nothing)))))))))
+        (t/is (= []
+                 (host-stream (m.pattern/some %nothing %nothing))))))))
 
 (t/deftest each-test
-  (t/testing "each query"
-    (let [x (reify)]
+  (let [x (reify)
+        y (reify)
+        %x (m.pattern/data x)
+        %y (m.pattern/data y)]
+    (t/testing "each query"
       (t/testing "each match"
         (t/is (= {:object x, :bindings {}, :references {}}
                  (host-match (m.pattern/each %anything %anything) x)))
@@ -321,13 +324,9 @@
                  (host-search (m.pattern/each %anything %nothing) x)))
 
         (t/is (= []
-                 (host-search (m.pattern/each %nothing %anything) x))))))
+                 (host-search (m.pattern/each %nothing %anything) x)))))
 
-  (t/testing "each yield"
-    (let [x (reify)
-          y (reify)
-          %x (m.pattern/data x)
-          %y (m.pattern/data y)]
+    (t/testing "each yield"
       (t/testing "each build"
         (t/is (= {:object x, :bindings {}, :references {}}
                  (host-build (m.pattern/each %x %x))))
@@ -873,7 +872,6 @@
 
           (t/is (= []
                    (host-stream %invalid))))))))
-
 
 (t/deftest greedy-star-test
   (let [x (reify)

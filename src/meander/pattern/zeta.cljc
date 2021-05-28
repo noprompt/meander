@@ -5,6 +5,7 @@
                             merge
                             seq
                             some
+                            str
                             symbol
                             vec])
   #?(:clj
@@ -55,46 +56,46 @@
 ;; ---------------------------------------------------------------------
 
 (defprotocol IQueryFunction
-  (query-function [this kernel]))
+  (query-function [this environment]))
 
 (defprotocol IYieldFunction
-  (yield-function [this kernel]))
+  (yield-function [this environment]))
 
 ;; Classes
 ;; ---------------------------------------------------------------------
 
 (defrecord Anything []
   IQueryFunction
-  (query-function [this kernel]
+  (query-function [this environment]
     (fn [pass fail state]
       (pass state)))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [give (get kernel :give)
-          make (get kernel :make)]
+  (yield-function [this environment]
+    (let [give (get environment :give)
+          make (get environment :make)]
       (fn [pass fail state]
         (give state (make state) pass)))))
 
 (defrecord Nothing []
   IQueryFunction
-  (query-function [this kernel]
+  (query-function [this environment]
     (fn [pass fail state]
       (fail state)))
 
   IYieldFunction
-  (yield-function [this kernel]
+  (yield-function [this environment]
     (fn [pass fail state]
       (fail state))))
 
 (defrecord Data [value]
   IQueryFunction
-  (query-function [this kernel]
-    (let [call (get kernel :call)
-          data (get kernel :data)
-          host (get kernel :eval)
-          take (get kernel :take)
-          test (get kernel :test)
+  (query-function [this environment]
+    (let [call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          take (get environment :take)
+          test (get environment :test)
           data-value (data value)
           host-equal (host `=)]
       (fn [pass fail state]
@@ -107,21 +108,21 @@
                   (fn [] (fail state))))))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [data (get kernel :data)
-          give (get kernel :give)
+  (yield-function [this environment]
+    (let [data (get environment :data)
+          give (get environment :give)
           data-value (data value)]
       (fn [pass fail state]
         (give state data-value pass)))))
 
 (defrecord Host [form]
   IQueryFunction
-  (query-function [this kernel]
-    (let [call (get kernel :call)
-          data (get kernel :data)
-          host (get kernel :eval)
-          take (get kernel :take)
-          test (get kernel :test)
+  (query-function [this environment]
+    (let [call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          take (get environment :take)
+          test (get environment :test)
           host-equal (host `clojure/=)]
       (fn [pass fail state]
         (take state
@@ -133,68 +134,69 @@
                   (fn [] (fail state))))))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [give (get kernel :give)
-          host (get kernel :eval)]
+  (yield-function [this environment]
+    (let [give (get environment :give)
+          host (get environment :eval)]
       (fn [pass fail state]
         (give state (host form) pass)))))
 
 (defrecord Variable [symbol fold-function unfold-function]
   IQueryFunction
-  (query-function [this kernel]
-    (let [save (get kernel :save)
-          fold (fold-function kernel)]
+  (query-function [this environment]
+    (let [save (get environment :save)
+          fold (fold-function environment)]
       (fn [pass fail state]
         (save state symbol fold pass fail))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [load (get kernel :load)
-          unfold (unfold-function kernel)]
+  (yield-function [this environment]
+    (let [load (get environment :load)
+          unfold (unfold-function environment)]
       (fn [pass fail state]
         (load state symbol unfold pass fail)))))
 
 (defrecord Pick [pattern-a pattern-b]
   IQueryFunction
-  (query-function [this kernel]
-    (let [query-a (query-function pattern-a kernel)
-          query-b (query-function pattern-b kernel)]
+  (query-function [this environment]
+    (let [query-a (query-function pattern-a environment)
+          query-b (query-function pattern-b environment)]
       (fn [pass fail state]
         (query-a pass (fn [_] (query-b pass fail state)) state))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [yield-a (yield-function pattern-a kernel)
-          yield-b (yield-function pattern-b kernel)]
+  (yield-function [this environment]
+    (let [yield-a (yield-function pattern-a environment)
+          yield-b (yield-function pattern-b environment)]
       (fn [pass fail state]
         (yield-a pass (fn [_] (yield-b pass fail state)) state)))))
 
 (defrecord Some [pattern-a pattern-b]
   IQueryFunction
-  (query-function [this kernel]
-    (let [query-a (query-function pattern-a kernel)
-          query-b (query-function pattern-b kernel)
-          join (get kernel :join)]
+  (query-function [this environment]
+    (let [query-a (query-function pattern-a environment)
+          query-b (query-function pattern-b environment)
+          join (get environment :join)]
       (fn [pass fail state]
         (join (fn [] (query-a pass fail state))
               (fn [] (query-b pass fail state))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [yield-a (yield-function pattern-a kernel)
-          yield-b (yield-function pattern-b kernel)
-          join (get kernel :join)]
+  (yield-function [this environment]
+    (let [yield-a (yield-function pattern-a environment)
+          yield-b (yield-function pattern-b environment)
+          join (get environment :join)]
       (fn [pass fail state]
         (join (fn [] (yield-a pass fail state))
               (fn [] (yield-b pass fail state)))))))
 
+
 (defrecord Each [pattern-a pattern-b]
   IQueryFunction
-  (query-function [this kernel]
-    (let [take (get kernel :take)
-          give (get kernel :give)
-          query-a (query-function pattern-a kernel)
-          query-b (query-function pattern-b kernel)]
+  (query-function [this environment]
+    (let [take (get environment :take)
+          give (get environment :give)
+          query-a (query-function pattern-a environment)
+          query-b (query-function pattern-b environment)]
       (fn [pass fail state]
         (take state
           (fn [object]
@@ -206,28 +208,28 @@
                      state))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [join (get kernel :join)
-          yield-a (yield-function pattern-a kernel)
-          yield-b (yield-function pattern-b kernel)
-          query-a (query-function pattern-a kernel)
-          query-b (query-function pattern-b kernel)]
+  (yield-function [this environment]
+    (let [join (get environment :join)
+          yield-a (yield-function pattern-a environment)
+          yield-b (yield-function pattern-b environment)
+          query-a (query-function pattern-a environment)
+          query-b (query-function pattern-b environment)]
       (fn [pass fail state]
         (join (fn [] (yield-a (fn [state] (query-b pass fail state)) fail state))
               (fn [] (yield-b (fn [state] (query-a pass fail state)) fail state)))))))
 
 (defrecord Apply [function-pattern arguments-pattern return-pattern]
   IQueryFunction
-  (query-function [this kernel]
-    (let [call (get kernel :call)
-          host (get kernel :eval)
-          pass (get kernel :pass)
-          give (get kernel :give)
-          take (get kernel :take)
+  (query-function [this environment]
+    (let [call (get environment :call)
+          host (get environment :eval)
+          pass (get environment :pass)
+          give (get environment :give)
+          take (get environment :take)
           host-apply (host `clojure/apply)
-          function-yield (yield-function function-pattern kernel)
-          arguments-yield (yield-function arguments-pattern kernel)
-          return-query (query-function return-pattern kernel)]
+          function-yield (yield-function function-pattern environment)
+          arguments-yield (yield-function arguments-pattern environment)
+          return-query (query-function return-pattern environment)]
       (fn [pass fail state]
         (take state
           (fn [object]
@@ -253,20 +255,20 @@
              state))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [call (get kernel :call)
-          host (get kernel :eval)
-          fail (get kernel :fail)
-          give (get kernel :give)
-          pass (get kernel :pass)
-          take (get kernel :take)
-          test (get kernel :test)
+  (yield-function [this environment]
+    (let [call (get environment :call)
+          host (get environment :eval)
+          fail (get environment :fail)
+          give (get environment :give)
+          pass (get environment :pass)
+          take (get environment :take)
+          test (get environment :test)
           host-apply (host `clojure/apply)
           host-seqable? (host `clojure/seqable?)
           host-fn? (host `clojure/fn?)
-          function-yield (yield-function function-pattern kernel)
-          arguments-yield (yield-function arguments-pattern kernel)
-          return-query (query-function return-pattern kernel)]
+          function-yield (yield-function function-pattern environment)
+          arguments-yield (yield-function arguments-pattern environment)
+          return-query (query-function return-pattern environment)]
       (fn [pass fail state]
         (function-yield
          (fn [function-state]
@@ -300,14 +302,14 @@
 
 (defrecord Predicate [predicate-pattern x-pattern]
   IQueryFunction
-  (query-function [this kernel]
-    (let [call (get kernel :call)
-          fail (get kernel :fail)
-          pass (get kernel :pass)
-          take (get kernel :take)
-          test (get kernel :test)
-          predicate-yield (yield-function predicate-pattern kernel)
-          x-query (query-function x-pattern kernel)]
+  (query-function [this environment]
+    (let [call (get environment :call)
+          fail (get environment :fail)
+          pass (get environment :pass)
+          take (get environment :take)
+          test (get environment :test)
+          predicate-yield (yield-function predicate-pattern environment)
+          x-query (query-function x-pattern environment)]
       (fn [pass fail state]
         (take state
           (fn [object]
@@ -317,21 +319,21 @@
                  (fn [predicate-object]
                    (call predicate-object object
                      (fn [truth]
-                       (test truth 
+                       (test truth
                          (fn [] (x-query pass fail state))
                          (fn [] (fail state))))))))
              fail
              state))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [call (get kernel :call)
-          fail (get kernel :fail)
-          pass (get kernel :pass)
-          take (get kernel :take)
-          test (get kernel :test)
-          predicate-yield (yield-function predicate-pattern kernel)
-          x-yield (yield-function x-pattern kernel)]
+  (yield-function [this environment]
+    (let [call (get environment :call)
+          fail (get environment :fail)
+          pass (get environment :pass)
+          take (get environment :take)
+          test (get environment :test)
+          predicate-yield (yield-function predicate-pattern environment)
+          x-yield (yield-function x-pattern environment)]
       (fn [pass fail state]
         (predicate-yield
          (fn [predicate-state]
@@ -343,7 +345,7 @@
                     (fn [x]
                       (call predicate-object x
                         (fn [truth]
-                          (test truth 
+                          (test truth
                             (fn [] (pass x-state))
                             (fn [] (fail x-state))))))))
                 fail
@@ -353,14 +355,14 @@
 
 (defrecord Project [a-pattern b-pattern c-pattern]
   IQueryFunction
-  (query-function [this kernel]
-    (let [give (get kernel :give)
-          pass (get kernel :pass)
-          take (get kernel :take)
-          a-yield (yield-function a-pattern kernel)
-          b-query (query-function b-pattern kernel)
-          c-query (query-function c-pattern kernel)]
-     (fn [pass fail state]
+  (query-function [this environment]
+    (let [give (get environment :give)
+          pass (get environment :pass)
+          take (get environment :take)
+          a-yield (yield-function a-pattern environment)
+          b-query (query-function b-pattern environment)
+          c-query (query-function c-pattern environment)]
+      (fn [pass fail state]
         (take state
           (fn [object]
             (a-yield
@@ -379,12 +381,12 @@
              state))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [give (get kernel :give)
-          take (get kernel :take)
-          a-yield (yield-function a-pattern kernel)
-          b-query (query-function b-pattern kernel)
-          c-yield (yield-function c-pattern kernel)]
+  (yield-function [this environment]
+    (let [give (get environment :give)
+          take (get environment :take)
+          a-yield (yield-function a-pattern environment)
+          b-query (query-function b-pattern environment)
+          c-yield (yield-function c-pattern environment)]
       (fn [pass fail state]
         (a-yield
          (fn [a-state]
@@ -405,13 +407,13 @@
 
 (defrecord RegexEmpty []
   IQueryFunction
-  (query-function [this kernel]
-    (let [call (get kernel :call)
-          host (get kernel :eval)
-          take (get kernel :take)
-          test (get kernel :test)
+  (query-function [this environment]
+    (let [call (get environment :call)
+          host (get environment :eval)
+          take (get environment :take)
+          test (get environment :test)
           host-seq (host `clojure/seq)
-          host-sequential? (host-sequential-predicate kernel this)]
+          host-sequential? (host-sequential-predicate environment this)]
       (fn [pass fail state]
         (take state
           (fn [object]
@@ -421,35 +423,35 @@
                   (fn []
                     (call host-seq object
                       (fn [truth]
-                        (test truth 
+                        (test truth
                           (fn [] (fail state))
                           (fn [] (pass state))))))
                   (fn []
                     (fail state))))))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [data (get kernel :data)
-          give (get kernel :give)
+  (yield-function [this environment]
+    (let [data (get environment :data)
+          give (get environment :give)
           empty-vector (data [])]
       (fn [pass fail state]
         (give state empty-vector pass)))))
 
 (defrecord RegexCons [head-pattern tail-pattern]
   IQueryFunction
-  (query-function [this kernel]
-    (let [call (get kernel :call)
-          data (get kernel :data)
-          host (get kernel :eval)
-          give (get kernel :give)
-          take (get kernel :take)
-          test (get kernel :test)
-          head-query (query-function head-pattern kernel)
-          tail-query (query-function tail-pattern (set-sequential kernel tail-pattern))
+  (query-function [this environment]
+    (let [call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          give (get environment :give)
+          take (get environment :take)
+          test (get environment :test)
+          head-query (query-function head-pattern environment)
+          tail-query (query-function tail-pattern (set-sequential environment tail-pattern))
           host-nth (host `clojure/nth)
           host-tail (host `m.algorithms/tail)
           host-seq (host `clojure/seq)
-          host-sequential? (host-sequential-predicate kernel this)
+          host-sequential? (host-sequential-predicate environment this)
           data-0 (data 0)]
       (fn [pass fail state]
         (take state
@@ -460,7 +462,7 @@
                   (fn []
                     (call host-seq object
                       (fn [truth]
-                        (test truth 
+                        (test truth
                           (fn []
                             (call host-nth object data-0
                               (fn [head-object]
@@ -481,16 +483,16 @@
 
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [call (get kernel :call)
-          host (get kernel :eval)
-          give (get kernel :give)
-          take (get kernel :take)
-          test (get kernel :test)
-          head-yield (yield-function head-pattern kernel)
-          tail-yield (yield-function tail-pattern kernel)
+  (yield-function [this environment]
+    (let [call (get environment :call)
+          host (get environment :eval)
+          give (get environment :give)
+          take (get environment :take)
+          test (get environment :test)
+          head-yield (yield-function head-pattern environment)
+          tail-yield (yield-function tail-pattern environment)
           host-cons (host `clojure/cons)
-          tail-sequential? (host-sequential-predicate kernel tail-pattern)]
+          tail-sequential? (host-sequential-predicate environment tail-pattern)]
       (fn [pass fail state]
         (head-yield
          (fn [head-state]
@@ -516,22 +518,22 @@
 
 (defrecord RegexConcatenation [initial-patterns tail-pattern]
   IQueryFunction
-  (query-function [this kernel]
-    (let [bind (get kernel :bind)
-          call (get kernel :call)
-          data (get kernel :data)
-          host (get kernel :eval)
-          give (get kernel :give)
-          take (get kernel :take)
-          test (get kernel :test)
-          pass (get kernel :pass)
+  (query-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          give (get environment :give)
+          take (get environment :take)
+          test (get environment :test)
+          pass (get environment :pass)
           initial-queries (map (fn [pattern]
-                                 (query-function pattern kernel))
+                                 (query-function pattern environment))
                                initial-patterns)
           indexed-queries (map-indexed (fn [index query]
                                          [(data index) query])
                                        initial-queries)
-          tail-query (query-function tail-pattern (set-sequential kernel tail-pattern))
+          tail-query (query-function tail-pattern (set-sequential environment tail-pattern))
           n* (count initial-patterns)
           m* (inc n*)
           n (data n*)
@@ -540,19 +542,19 @@
           nth (host `clojure/nth)
           bounded-count (host `clojure/bounded-count)
           drop (host `m.algorithms/drop)
-          sequential? (host-sequential-predicate kernel this)]
+          sequential? (host-sequential-predicate environment this)]
       (fn [resolve reject state]
         (take state
           (fn [object]
             (call sequential? object
               (fn [truth]
-                (test truth 
+                (test truth
                   (fn []
                     (call bounded-count m object
                       (fn [m]
                         (call <= n m
                           (fn [truth]
-                            (test truth 
+                            (test truth
                               (fn []
                                 (call drop n object
                                   (fn [tail]
@@ -577,18 +579,18 @@
                     (reject state))))))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [bind (get kernel :bind)
-          call (get kernel :call)
-          data (get kernel :data)
-          host (get kernel :eval)
-          give (get kernel :give)
-          take (get kernel :take)
-          pass (get kernel :pass)
+  (yield-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          give (get environment :give)
+          take (get environment :take)
+          pass (get environment :pass)
           initial-yields (map (fn [pattern]
-                                (yield-function pattern kernel))
+                                (yield-function pattern environment))
                               initial-patterns)
-          tail-yield (yield-function tail-pattern kernel)
+          tail-yield (yield-function tail-pattern environment)
           empty-vector (data [])
           conj (host `clojure/conj)
           concat (host `clojure/concat)]
@@ -623,19 +625,19 @@
 
 (defrecord RegexJoin [x-pattern y-pattern]
   IQueryFunction
-  (query-function [this kernel]
-    (let [bind (get kernel :bind)
-          call (get kernel :call)
-          data (get kernel :data)
-          host (get kernel :eval)
-          give (get kernel :give)
-          test (get kernel :test)
-          take (get kernel :take)
-          scan (get kernel :scan)
-          x-query (query-function x-pattern (set-sequential kernel x-pattern))
-          y-query (query-function y-pattern (set-sequential kernel y-pattern))
+  (query-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          data (get environment :data)
+          host (get environment :eval)
+          give (get environment :give)
+          test (get environment :test)
+          take (get environment :take)
+          scan (get environment :scan)
+          x-query (query-function x-pattern (set-sequential environment x-pattern))
+          y-query (query-function y-pattern (set-sequential environment y-pattern))
           nth (host `clojure/nth)
-          sequential? (host-sequential-predicate kernel this)
+          sequential? (host-sequential-predicate environment this)
           partitions (host `meander.algorithms.zeta/partitions)
           zero (data 0)
           one (data 1)
@@ -667,19 +669,19 @@
                     (reject state))))))))))
 
   IYieldFunction
-  (yield-function [this kernel]
-    (let [bind (get kernel :bind)
-          call (get kernel :call)
-          host (get kernel :eval)
-          give (get kernel :give)
-          give (get kernel :give)
-          take (get kernel :take)
-          test (get kernel :test)
-          x-yield (yield-function x-pattern kernel)
-          y-yield (yield-function y-pattern kernel)
+  (yield-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          host (get environment :eval)
+          give (get environment :give)
+          give (get environment :give)
+          take (get environment :take)
+          test (get environment :test)
+          x-yield (yield-function x-pattern environment)
+          y-yield (yield-function y-pattern environment)
           concat (host `clojure/concat)
-          x-coll? (host-coll-predicate kernel x-pattern)
-          y-coll? (host-coll-predicate kernel y-pattern)]
+          x-coll? (host-coll-predicate environment x-pattern)
+          y-coll? (host-coll-predicate environment y-pattern)]
       (fn [resolve reject state]
         (x-yield
          (fn [x-state]
@@ -791,41 +793,41 @@
           (fn [initial-state]
             (star initial-state
               (fn [rec state]
-                    (take state
-                      (fn [a]
-                        (pick (fn []
-                                (subsequence-yield
-                                 (fn [subsequence-state]
-                                   (take subsequence-state
-                                     (fn [b]
-                                       (call subsequence-sequential? b
-                                         (fn [truth]
-                                           (test truth
-                                             (fn []
-                                               (call concat a b
-                                                 (fn [ab]
-                                                   (give subsequence-state ab
-                                                     (fn [state]
-                                                       (call rec state identity))))))
-                                             (fn []
-                                               (reject state))))))))
-                                 reject
-                                 state))
-                              (fn []
-                                (tail-yield (fn [tail-state]
-                                              (take tail-state
-                                                (fn [b]
-                                                  (call tail-sequential? b
-                                                    (fn [truth]
-                                                      (test truth
-                                                        (fn []
-                                                          (call concat a b
-                                                            (fn [ab]
-                                                              (give tail-state ab resolve))))
-                                                        (fn []
-                                                          (reject tail-state))))))))
-                                            reject
-                                            state)))))))))))))
+                (take state
+                  (fn [a]
+                    (pick (fn []
+                            (subsequence-yield
+                             (fn [subsequence-state]
+                               (take subsequence-state
+                                 (fn [b]
+                                   (call subsequence-sequential? b
+                                     (fn [truth]
+                                       (test truth
+                                         (fn []
+                                           (call concat a b
+                                             (fn [ab]
+                                               (give subsequence-state ab
+                                                 (fn [state]
+                                                   (call rec state identity))))))
+                                         (fn []
+                                           (reject state))))))))
+                             reject
+                             state))
+                          (fn []
+                            (tail-yield (fn [tail-state]
+                                          (take tail-state
+                                            (fn [b]
+                                              (call tail-sequential? b
+                                                (fn [truth]
+                                                  (test truth
+                                                    (fn []
+                                                      (call concat a b
+                                                        (fn [ab]
+                                                          (give tail-state ab resolve))))
+                                                    (fn []
+                                                      (reject tail-state))))))))
+                                        reject
+                                        state)))))))))))))
 
 (defrecord FrugalStar [subsequence-pattern tail-pattern]
   IQueryFunction
@@ -849,7 +851,6 @@
           rest (host `clojure/rest)
           seq (host `clojure/seq)
           sequential? (host-sequential-predicate environment this)
-          identity (host `clojure/identity)
           zero (data 0)
           one (data 1)
           two (data 2)]
@@ -866,7 +867,7 @@
                           (fn [object]
                             (call seq object
                               (fn [truth]
-                                (test truth 
+                                (test truth
                                   (fn []
                                     (join (fn []
                                             (tail-query resolve reject state))
@@ -880,7 +881,7 @@
                                                               (fn [a]
                                                                 (call nth x one
                                                                   (fn [b]
-                                                                    (give state a 
+                                                                    (give state a
                                                                       (fn [state]
                                                                         (subsequence-query
                                                                          (fn [a-state]
@@ -926,7 +927,7 @@
                                         (fn [] (reject tail-state))))))))
                             reject
                             state))
-              (fn [] 
+              (fn []
                 (give state empty-list
                   (fn [state]
                     (star state
@@ -953,7 +954,7 @@
                                                             (fn [cs]
                                                               (call concat cs tail
                                                                 (fn [ds]
-                                                                  (join (fn [] 
+                                                                  (join (fn []
                                                                           (give tail-state ds resolve))
                                                                         (fn []
                                                                           (give subsequence-state cs
@@ -995,7 +996,7 @@
           (fn [object]
             (call associative? object
               (fn [truth]
-                (test truth 
+                (test truth
                   (fn []
                     (call seq object
                       (fn [entries]
@@ -1092,7 +1093,7 @@
           (fn [object]
             (call associative? object
               (fn [truth]
-                (test truth 
+                (test truth
                   (fn []
                     (call map-partitions object n
                       (fn [partitions]
@@ -1196,11 +1197,11 @@
 ;; Variable
 ;; --------
 
-(defn logic-fold-function [kernel]
-  (let [call (get kernel :call)
-        host (get kernel :eval)
-        none (get kernel :none)
-        test (get kernel :test)
+(defn logic-fold-function [environment]
+  (let [call (get environment :call)
+        host (get environment :eval)
+        none (get environment :none)
+        test (get environment :test)
         host-equals (host `clojure/=)]
     (fn [old new pass fail]
       (call host-equals old none
@@ -1214,11 +1215,11 @@
                     (fn [] (pass new))
                     (fn [] (fail old))))))))))))
 
-(defn logic-unfold-function [kernel]
-  (let [call (get kernel :call)
-        host (get kernel :eval)
-        none (get kernel :none)
-        test (get kernel :test)
+(defn logic-unfold-function [environment]
+  (let [call (get environment :call)
+        host (get environment :eval)
+        none (get environment :none)
+        test (get environment :test)
         = (host `clojure/=)]
     (fn [old pass fail]
       (call = old none
@@ -1234,15 +1235,15 @@
    {:pre [(symbol? symbol)]}
    (->Variable symbol logic-fold-function logic-unfold-function)))
 
-(defn mutable-fold-function [kernel]
+(defn mutable-fold-function [environment]
   (fn [old new pass fail]
     (pass new)))
 
-(defn mutable-unfold-function [kernel]
-  (let [call (get kernel :call)
-        host (get kernel :eval)
-        none (get kernel :none)
-        test (get kernel :test)
+(defn mutable-unfold-function [environment]
+  (let [call (get environment :call)
+        host (get environment :eval)
+        none (get environment :none)
+        test (get environment :test)
         = (host `clojure/=)]
     (fn [old pass fail]
       (call = old none
@@ -1376,7 +1377,20 @@
 (defn rule [query-pattern yield-pattern]
   (->Rule query-pattern yield-pattern))
 
-(defn edit-environment
+(defn intercept-pattern
+  {:style/indent 1
+   :private true}
+  [pattern f & args]
+  (reify
+    IQueryFunction
+    (query-function [this environment]
+      (query-function (clojure/apply f pattern environment args) environment))
+
+    IYieldFunction
+    (yield-function [this environment]
+      (yield-function (clojure/apply f pattern environment args) environment))))
+
+(defn intercept-environment
   {:style/indent 1
    :private true}
   [pattern f & args]
@@ -1391,7 +1405,18 @@
 
 (defn host-fn [symbol]
   {:pre [(symbol? symbol)]}
-  (edit-environment (host symbol) set-ifn))
+  (intercept-environment (host symbol) set-ifn))
+
+(defn host-predicate [symbol]
+  {:pre [(symbol? symbol)]}
+  (-> (host symbol)
+      (intercept-pattern
+       (fn [pattern environment]
+         (let [host (get environment :eval)]
+           (if (true? (get environment [pattern symbol]))
+             (host `clojure/any?)
+             pattern))))
+      (intercept-environment set-ifn)))
 
 (defn symbol
   ([name-pattern]
@@ -1433,9 +1458,9 @@
 
 (defn seq [pattern]
   (rule (predicate (host-fn `clojure/seq?) pattern)
-        (apply (host-fn `clojure/list) ;; TODO: 
-               pattern
-               (anything))))
+        ;; TODO: Replace `clojure/list with the symbol of a function
+        ;; which creates a lazy seq.
+        (apply (host-fn `clojure/list) pattern (anything))))
 
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------
