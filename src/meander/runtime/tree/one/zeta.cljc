@@ -23,9 +23,8 @@
                          SetBinding
                          SetObject
                          State
-                         Test]
-                        ])
-             ])
+                         Star
+                         Test]])])
   #?(:clj
      (:import (meander.tree.zeta Arguments
                                  Bind
@@ -46,6 +45,7 @@
                                  SetBinding
                                  SetObject
                                  State
+                                 Star
                                  Test))))
 ;; Code generation
 ;; ---------------------------------------------------------------------
@@ -190,11 +190,16 @@
 
   State
   (clojure [this]
-    (let [meta (meta this)
-          object (clojure (.-object this))
+    (let [object (clojure (.-object this))
           bindings (clojure (.-bindings this))]
       `{:bindings ~bindings
         :object ~object}))
+
+  Star
+  (clojure [this]
+    `((fn ~(clojure (.-recur-identifier this)) [~(clojure (.-state-identifier this))]
+        ~(clojure (.-body this)))
+      ~(clojure (.-state this))))
 
   Test
   (clojure [this]
@@ -202,3 +207,4 @@
           then (clojure (.-then this))
           else (clojure (.-else this))]
       `(if ~test ~then ~else))))
+
