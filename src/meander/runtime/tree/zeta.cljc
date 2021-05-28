@@ -73,9 +73,10 @@
   (let [identifier (m.tree/identifier)]
     (m.tree/scan identifier xs (f identifier))))
 
-(defn star [f state]
-  (let [identifier (m.tree/identifier)]
-    (m.tree/star state identifier (fn g [state] (f g identifier)))))
+(defn star [state f]
+  (let [state-identifier (m.tree/identifier)
+        recur-identifier (m.tree/identifier)]
+    (m.tree/star state state-identifier recur-identifier (f recur-identifier state-identifier))))
 
 (defn test [test then else]
   (let [identifier (m.tree/identifier)]

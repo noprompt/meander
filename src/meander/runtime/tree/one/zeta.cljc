@@ -162,6 +162,8 @@
     (let [x__0 (clojure (.-identifier this))
           x__1 (gensym "x__")
           x__2 (gensym "x__")]
+      `(some (fn [~x__0] ~(clojure (.-body this))) ~(clojure (.-expression this)))
+      #_
       `(reduce
         (fn [~x__2 ~x__0]
           (let* [~x__1 ~(clojure (.-body this))]

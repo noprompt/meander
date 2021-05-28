@@ -327,12 +327,13 @@
   (make-node [this [new-state identifier new-value]]
     (SetBinding. new-state identifier new-value)))
 
-(defrecord Star [state identifier body]
+(defrecord Star [state state-identifier recur-identifier body]
   IBranch
 
   IForm
   (form [this]
-    `(star ~(form state) ~(form identifier) ~(form body)))
+    `(star ~(form state) ~(form state-identifier) ~(form recur-identifier)
+       ~(form body)))
 
   m.protocols/IChildren
   (children [this]
@@ -340,7 +341,7 @@
 
   m.protocols/IMakeNode
   (make-node [this [new-state new-value]]
-    (Star. new-state identifier new-value)))
+    (Star. new-state state-identifier recur-identifier new-value)))
 
 (defrecord Test [test then else]
   IBranch
@@ -512,9 +513,10 @@
 
 (defn star
   {:style/indent 2}
-  [state identifier body]
-  {:pre [(identifier? identifier)]}
-  (->SetBinding state identifier body))
+  [state state-identifier recur-identifier body]
+  {:pre [(identifier? state-identifier)
+         (identifier? recur-identifier)]}
+  (->Star state state-identifier recur-identifier body))
 
 (defn test
   {:style/indent 1}
@@ -578,6 +580,21 @@
 
 (defn top-down-pass [f node]
   (top-down-pass* f node ()))
+
+(defn top-down-pass-with-state*
+  [f node path state]
+  (clojure/let [[node* state*] (f node path state)]
+    (if (branch? node*)
+      (clojure/let [path* (cons node* path)
+                    children* (mapv (fn [child-node]
+                                      (top-down-pass-with-state* f child-node path* state*))
+                                    (m.protocols/children node*))]
+        (m.protocols/make-node node* children*))
+      node*)))
+
+(defn top-down-pass-with-state
+  [f node initial-state]
+  (top-down-pass-with-state* f node () initial-state))
 
 (defn bottom-up-pass*
   {:private true}
