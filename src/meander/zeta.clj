@@ -1,6 +1,5 @@
 (ns meander.zeta
-  (:require [meander.core.zeta :as m.core]
-            [meander.pattern.zeta :as m.pattern]
+  (:require [meander.pattern.zeta :as m.pattern]
             [meander.parse.zeta :as m.parse]
             [meander.tree.zeta :as m.tree]
             [meander.tree.rewrite.zeta :as m.tree.rewrite]
