@@ -1,7 +1,7 @@
 (ns meander.pattern.zeta-test
   (:require [clojure.test :as t]
             [meander.pattern.zeta :as m.pattern]
-            [meander.runtime.eval.zeta :as m.kernel.eval]))
+            [meander.kernel.eval.zeta :as m.kernel.eval]))
 
 ;; Helpers
 ;; ---------------------------------------------------------------------

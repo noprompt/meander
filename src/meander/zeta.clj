@@ -4,9 +4,9 @@
             [meander.parse.zeta :as m.parse]
             [meander.tree.zeta :as m.tree]
             [meander.tree.rewrite.zeta :as m.tree.rewrite]
-            [meander.runtime.tree.zeta :as m.rt.tree]
-            [meander.runtime.tree.one.zeta :as m.rt.tree.one]
-            [meander.runtime.tree.all.zeta :as m.rt.tree.all]
+            [meander.kernel.tree.zeta :as m.kernel.tree]
+            [meander.kernel.tree.one.zeta :as m.kernel.tree.one]
+            [meander.kernel.tree.all.zeta :as m.kernel.tree.all]
             [meander.util.zeta :as m.util]))
 
 (def optimize
@@ -20,7 +20,7 @@
          m.tree.rewrite/pass-let)))
 
 (defmacro query [pattern]
-  (let [kernel (m.rt.tree/df-one {})
+  (let [kernel (m.kernel.tree/df-one {})
         bind (get kernel :bind)
         host (get kernel :eval)
         get-bindings (get kernel :list)
@@ -28,14 +28,8 @@
         tree (m.pattern/run-query (m.parse/parse pattern) (host object) kernel)
         tree (bind get-bindings tree)
         tree (optimize tree)
-        body (m.rt.tree.one/clojure tree)]
+        body (m.kernel.tree.one/clojure tree)]
     `(fn [~object] ~body)))
-
-
-
-
-
-
 
 ;; (defn make-parse-environment
 ;;   {:private true}
@@ -85,14 +79,14 @@
 ;;     (parse pattern)))
 
 ;; (defn query-tree [input-symbol form options]
-;;   (let [rt (m.rt.tree/df-one options)
-;;         bind (:bind rt)
-;;         code (:eval rt)
-;;         list (:list rt)
-;;         pass (:pass rt)
+;;   (let [kernel (m.kernel.tree/df-one options)
+;;         bind (:bind kernel)
+;;         code (:eval kernel)
+;;         list (:list kernel)
+;;         pass (:pass kernel)
 ;;         pattern (parse-query form)
 ;;         tree (bind (fn [state] (pass (list state)))
-;;                    (m.core/run-query pattern rt (code input-symbol)))
+;;                    (m.core/run-query pattern kernel (code input-symbol)))
 ;;         f (if (false? (::optimize-post-construct? options))
 ;;             identity
 ;;             optimize)
@@ -103,12 +97,12 @@
 ;;   (let [options (meta &form)
 ;;         input-symbol (gensym "t__")
 ;;         tree (query-tree input-symbol pattern options)
-;;         clojure (m.rt.tree.one/clojure tree)]
+;;         clojure (m.kernel.tree.one/clojure tree)]
 ;;     `(fn [~input-symbol] ~clojure)))
 
 ;; (defmacro query-all [pattern]
 ;;   (let [options (meta &form)
 ;;         input-symbol (gensym "t__")
 ;;         tree (query-tree input-symbol pattern options)
-;;         clojure (m.rt.tree.all/clojure tree)]
+;;         clojure (m.kernel.tree.all/clojure tree)]
 ;;     `(fn [~input-symbol] ~clojure)))

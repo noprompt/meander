@@ -1,6 +1,6 @@
 (ns ^:no-doc meander.parse.zeta
   (:require [meander.pattern.zeta :as m.%]
-            [meander.runtime.eval.zeta :as m.kernel.eval]
+            [meander.kernel.eval.zeta :as m.kernel.eval]
             [meander.util.zeta :as m.util]))
 
 (def _
