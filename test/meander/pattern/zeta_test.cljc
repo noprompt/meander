@@ -7,10 +7,14 @@
 ;; ---------------------------------------------------------------------
 
 (defn host-match [pattern object]
-  (m.pattern/run-query pattern (m.kernel.eval/df-one) object))
+  (let [kernel (m.kernel.eval/df-one)
+        data (get kernel :data)]
+    (m.pattern/run-query pattern (data object) kernel)))
 
 (defn host-search [pattern object]
-  (m.pattern/run-query pattern (m.kernel.eval/df-all) object))
+  (let [kernel (m.kernel.eval/df-all)
+        data (get kernel :data)]
+    (m.pattern/run-query pattern (data object) kernel)))
 
 (defn host-build [pattern]
   (m.pattern/run-yield pattern (m.kernel.eval/df-one)))

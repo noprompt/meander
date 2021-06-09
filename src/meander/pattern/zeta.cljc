@@ -629,10 +629,12 @@
     (let [bind (get environment :bind)
           call (get environment :call)
           data (get environment :data)
-          host (get environment :eval)
+          fail (get environment :fail)
           give (get environment :give)
-          test (get environment :test)
+          host (get environment :eval)
+          pick (get environment :pick)
           take (get environment :take)
+          test (get environment :test)
           scan (get environment :scan)
           x-query (query-function x-pattern (set-sequential environment x-pattern))
           y-query (query-function y-pattern (set-sequential environment y-pattern))
@@ -651,20 +653,23 @@
                   (fn []
                     (call partitions two object
                       (fn [partitions]
-                        (scan (fn [partition]
-                                (call nth partition zero
-                                  (fn [x]
-                                    (call nth partition one
-                                      (fn [y]
-                                        (give state x
-                                          (fn [state]
-                                            (x-query (fn [x-state]
-                                                       (give x-state y
-                                                         (fn [x-state]
-                                                           (y-query resolve reject x-state))))
-                                                     reject
-                                                     state))))))))
-                              partitions))))
+                        (pick (fn []
+                                (scan (fn [partition]
+                                        (call nth partition zero
+                                          (fn [x]
+                                            (call nth partition one
+                                              (fn [y]
+                                                (give state x
+                                                  (fn [state]
+                                                    (x-query (fn [x-state]
+                                                               (give x-state y
+                                                                 (fn [x-state]
+                                                                   (y-query resolve fail x-state))))
+                                                             reject
+                                                             state))))))))
+                                      partitions))
+                              (fn []
+                                (reject state))))))
                   (fn []
                     (reject state))))))))))
 
@@ -1232,7 +1237,7 @@
   ([]
    (->Variable (gensym "?__") logic-fold-function logic-unfold-function))
   ([symbol]
-   {:pre [(symbol? symbol)]}
+   #_{:pre [(symbol? symbol)]}
    (->Variable symbol logic-fold-function logic-unfold-function)))
 
 (defn mutable-fold-function [environment]
@@ -1420,7 +1425,7 @@
 
 (defn symbol
   ([name-pattern]
-   (rule (predicate (host-fn `clojure/symbol)
+   (rule (predicate (host-fn `clojure/symbol?)
                     (apply (host-fn `clojure/name) (regex-empty) name-pattern))
          (apply (host `clojure/symbol)
                 (regex-cons (predicate (host-fn `clojure/string?) name-pattern) (regex-empty))
@@ -1462,16 +1467,32 @@
         ;; which creates a lazy seq.
         (apply (host-fn `clojure/list) pattern (anything))))
 
+
+(defn str
+  ([] (data ""))
+  ([pattern]
+   (predicate (host-fn `clojure/string?) pattern))
+  ([pattern-1 pattern-2]
+   (rule
+    (predicate (host-fn `clojure/string?)
+               (apply (host-fn `m.algorithms/string-partitions)
+                      (regex-cons (data 2) (regex-empty))
+                      (regex-join (anything)
+                                  (regex-cons (regex-concatenation [pattern-1 pattern-2] (anything))
+                                              (anything)))))
+    (apply (host-fn `clojure/str)
+           (regex-concatenation [pattern-1 pattern-2] (anything))
+           (anything)))))
+
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------
 
-(defn run-query [pattern kernel object]
+(defn run-query [pattern object kernel]
   (let [query (query-function pattern kernel)
-        data (get kernel :data)
         fail (get kernel :fail)
         pass (get kernel :pass)
         seed (get kernel :seed)]
-    (query pass fail (seed (data object)))))
+    (query pass fail (seed object))))
 
 (defn run-yield [pattern kernel]
   (let [yield (yield-function pattern kernel)
@@ -1481,7 +1502,7 @@
         seed (get kernel :seed)]
     (yield pass fail (seed (data nil)))))
 
-(defn run-rule [rule kernel object]
+(defn run-rule [rule object kernel]
   (let [bind (get kernel :bind)
         pass (get kernel :pass)
         fail (get kernel :fail)
@@ -1493,6 +1514,7 @@
              (yield pass fail state))
            fail
            (seed object))))
+
 
 ;; Local Variables:
 ;; eval: (put-clojure-indent 'call :defn)

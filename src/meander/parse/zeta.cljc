@@ -1,24 +1,45 @@
 (ns ^:no-doc meander.parse.zeta
-  (:require [meander.pattern.zeta :as m.pattern]
+  (:require [meander.pattern.zeta :as m.%]
             [meander.runtime.eval.zeta :as m.kernel.eval]
             [meander.util.zeta :as m.util]))
 
-(def rule-default
-  (let [?x (m.pattern/logic-variable)]
-    (m.pattern/rule
-     ?x
-     (m.pattern/apply (m.pattern/data m.pattern/data)
-                      (m.pattern/regex-cons ?x (m.pattern/regex-empty))
-                      (m.pattern/anything)))))
+(def _
+  (m.%/anything))
 
-(defn parser [options]
+(defn %list [& args]
+  (if (seq args)
+    (m.%/regex-concatenation args (m.%/regex-empty))
+    (m.%/regex-empty)))
+
+;; ?x => (apply data [?x] _)
+(def rule-default
+  (let [?x (m.%/logic-variable)]
+    (m.%/rule
+     ?x
+     (m.%/apply (m.%/data m.%/data) (%list ?x) _))))
+
+;; (each (symbol _ (str "?" _)) ?symbol) => (apply logic-variable [?symbol] _)
+
+(def logic-variable-rule
+  (let [?symbol (m.%/logic-variable)]
+    (m.%/rule
+     (m.%/each (m.%/symbol _ (m.%/str (m.%/data "?") _)) ?symbol)
+     (m.%/apply (m.%/data m.%/logic-variable) (m.%/regex-cons ?symbol (m.%/regex-empty)) _))))
+
+(defn parser
+  {:arglists '([{:keys [:kernel] :as options}])}
+  [options]
   (let [kernel (get options :kernel)
         bind (get kernel :bind)
+        data (get kernel :data)
         take (get kernel :take)
         pass (get kernel :pass)]
     (fn [form]
       (bind (fn [state] (take state pass))
-            (m.pattern/run-rule rule-default kernel form)))))
+            (m.%/run-rule (m.%/pick logic-variable-rule
+                                    rule-default)
+                          form
+                          kernel)))))
 
 (defn parse [form]
   (let [parse (parser {:kernel (m.kernel.eval/df-one)})]

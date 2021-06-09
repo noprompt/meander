@@ -1,5 +1,6 @@
 (ns meander.zeta
   (:require [meander.core.zeta :as m.core]
+            [meander.pattern.zeta :as m.pattern]
             [meander.parse.zeta :as m.parse]
             [meander.tree.zeta :as m.tree]
             [meander.tree.rewrite.zeta :as m.tree.rewrite]
@@ -7,6 +8,34 @@
             [meander.runtime.tree.one.zeta :as m.rt.tree.one]
             [meander.runtime.tree.all.zeta :as m.rt.tree.all]
             [meander.util.zeta :as m.util]))
+
+(def optimize
+  (m.util/fix
+   (comp m.tree.rewrite/pass-prune-test
+         m.tree.rewrite/pass-prune-let
+         m.tree.rewrite/pass-interpret
+         m.tree.rewrite/pass-test
+         m.tree.rewrite/pass-pick
+         m.tree.rewrite/pass-bind
+         m.tree.rewrite/pass-let)))
+
+(defmacro query [pattern]
+  (let [kernel (m.rt.tree/df-one {})
+        bind (get kernel :bind)
+        host (get kernel :eval)
+        get-bindings (get kernel :list)
+        object (gensym "x__")
+        tree (m.pattern/run-query (m.parse/parse pattern) (host object) kernel)
+        tree (bind get-bindings tree)
+        tree (optimize tree)
+        body (m.rt.tree.one/clojure tree)]
+    `(fn [~object] ~body)))
+
+
+
+
+
+
 
 ;; (defn make-parse-environment
 ;;   {:private true}

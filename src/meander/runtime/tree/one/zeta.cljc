@@ -105,7 +105,12 @@
 
   Data
   (clojure [this]
-    (.-data this))
+    (let [x (.-data this)]
+      (if (or (number? x)
+              (keyword? x)
+              (string? x))
+        x
+        `(quote ~x))))
 
   Fail
   (clojure [this]

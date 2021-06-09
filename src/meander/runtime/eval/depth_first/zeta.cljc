@@ -101,7 +101,7 @@
    :pick pick-one
    :join join-one
    :save m.runtime.eval.common/receive
-   :scan scan-one
+   :scan some
    :seed m.runtime.eval.common/seed
    :star m.runtime.eval.common/star
    :take m.runtime.eval.common/get-object

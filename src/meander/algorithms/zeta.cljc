@@ -327,7 +327,7 @@
      (range (inc (count v))))))
 
 (defn string-partitions
-  {:arglists '([number-of-partitions string])}
+  {:arglists '([string number-of-partitions])}
   [^String s n]
   (case n
     0 (list [])
@@ -345,7 +345,7 @@
                     [a b])))
            (mapcat (fn [[a b]]
                      (sequence (map conj)
-                               (string-partitions (dec n) a)
+                               (string-partitions a (dec n))
                                (repeat b)))))
      (range (inc (.length s))))))
 
