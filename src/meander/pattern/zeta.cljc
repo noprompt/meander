@@ -1455,34 +1455,35 @@
                             (regex-cons (predicate (host-fn `clojure/string?) name-pattern) (regex-empty)))
                 (anything)))))
 
+(defn str
+  ([] (data ""))
+  ([pattern]
+   (predicate (host-fn `clojure/string?) pattern))
+  ([pattern & more-patterns]
+   (let [patterns (clojure/cons pattern more-patterns)]
+     (rule
+      (predicate (host-fn `clojure/string?)
+                 (apply (host-fn `m.algorithms/string-partitions)
+                        (regex-cons (data (count patterns)) (regex-empty))
+                        (regex-join (anything)
+                                    (regex-cons (regex-concatenation patterns (anything))
+                                                (anything)))))
+      (apply (host-fn `clojure/str)
+             (regex-concatenation patterns (anything))
+             (anything))))))
+
 (defn vec [pattern]
   (rule (predicate (host-fn `clojure/vector?) pattern)
         (apply (host-fn `clojure/vector)
                pattern
                (anything))))
 
+
 (defn seq [pattern]
   (rule (predicate (host-fn `clojure/seq?) pattern)
         ;; TODO: Replace `clojure/list with the symbol of a function
         ;; which creates a lazy seq.
         (apply (host-fn `clojure/list) pattern (anything))))
-
-
-(defn str
-  ([] (data ""))
-  ([pattern]
-   (predicate (host-fn `clojure/string?) pattern))
-  ([pattern-1 pattern-2]
-   (rule
-    (predicate (host-fn `clojure/string?)
-               (apply (host-fn `m.algorithms/string-partitions)
-                      (regex-cons (data 2) (regex-empty))
-                      (regex-join (anything)
-                                  (regex-cons (regex-concatenation [pattern-1 pattern-2] (anything))
-                                              (anything)))))
-    (apply (host-fn `clojure/str)
-           (regex-concatenation [pattern-1 pattern-2] (anything))
-           (anything)))))
 
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------

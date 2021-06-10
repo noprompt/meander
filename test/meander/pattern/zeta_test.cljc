@@ -1149,14 +1149,18 @@
       (t/is (= {:object "bar", :bindings {}, :references {}}
                (host-match (m.pattern/symbol (m.pattern/data "bar")) 'foo/bar)))
 
-      (t/is (= {:object "bar", :bindings {}, :references {}}
-               (host-match (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'foo/bar)))
+      (let [%foo-bar (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar"))]
+        (t/is (= {:object "bar", :bindings {}, :references {}}
+                 (host-match %foo-bar 'foo/bar)))
 
-      (t/is (= nil
-               (host-match (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'foo/baz)))
+        (t/is (= nil
+                 (host-match %foo-bar 'foo/baz)))
 
-      (t/is (= nil
-               (host-match (m.pattern/symbol (m.pattern/data "foo") (m.pattern/data "bar")) 'bar/baz))))
+        (t/is (= nil
+                 (host-match %foo-bar 'bar/baz)))
+
+        (t/is (= nil
+                 (host-match %foo-bar 1)))))
 
     (t/testing "symbol search"
       (t/is (= [{:object "foo", :bindings {}, :references {}}]
@@ -1198,14 +1202,18 @@
       (t/is (= {:object "bar", :bindings {}, :references {}}
                (host-match (m.pattern/keyword (m.pattern/data "bar")) :foo/bar)))
 
-      (t/is (= {:object "bar", :bindings {}, :references {}}
-               (host-match (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :foo/bar)))
+      (let [%keyword-foo-bar (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar"))]
+        (t/is (= {:object "bar", :bindings {}, :references {}}
+                 (host-match %keyword-foo-bar :foo/bar)))
 
-      (t/is (= nil
-               (host-match (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :foo/baz)))
+        (t/is (= nil
+                 (host-match %keyword-foo-bar 1)))
 
-      (t/is (= nil
-               (host-match (m.pattern/keyword (m.pattern/data "foo") (m.pattern/data "bar")) :bar/baz))))
+        (t/is (= nil
+                 (host-match %keyword-foo-bar :foo/baz)))
+
+        (t/is (= nil
+                 (host-match %keyword-foo-bar :bar/baz)))))
 
     (t/testing "keyword search"
       (t/is (= [{:object "foo", :bindings {}, :references {}}]
@@ -1275,6 +1283,74 @@
       (t/is (= []
                (host-stream (m.pattern/vec (m.pattern/data 1))))))))
 
+(t/deftest str-test
+  (t/testing "str query"
+    (t/testing "str match"
+      (t/is (= {:object "", :bindings {}, :references {}}
+               (host-match (m.pattern/str) "")))
+
+      (t/is (= nil
+               (host-match (m.pattern/str) " ")))
+
+      (t/is (= {:object "foo", :bindings {}, :references {}}
+               (host-match (m.pattern/str (m.pattern/data "foo")) "foo")))
+
+      (t/testing "str (arity 2) match"
+        (let [the-space [["" "foo"]
+                         ["f" "oo"]
+                         ["fo" "o"]
+                         ["foo" ""]]]
+          (doseq [[a b] the-space]
+            (let [%a (m.pattern/data a)
+                  %b (m.pattern/data b)]
+              (t/is (= {:object the-space, :bindings {}, :references {}}
+                       (host-match (m.pattern/str %a %b) "foo"))))))))
+
+    (t/testing "str search"
+      (t/testing "str (arity 2) search"
+        (let [the-space [["" "foo"]
+                         ["f" "oo"]
+                         ["fo" "o"]
+                         ["foo" ""]]]
+          (doseq [[a b] the-space]
+            (let [%a (m.pattern/data a)
+                  %b (m.pattern/data b)]
+              (t/is (= {:object the-space, :bindings {}, :references {}}
+                       (host-match (m.pattern/str %a %b) "foo")))))
+
+          (let [?a (m.pattern/logic-variable '?a)
+                ?b (m.pattern/logic-variable '?b)]
+            (t/is (= (map (fn [[a b]]
+                            {:object the-space, :bindings {'?a a, '?b b}, :references {}})
+                          the-space)
+                     (host-search (m.pattern/str ?a ?b) "foo"))))))
+
+      (t/testing "str (arity 3) search"
+        (let [the-space [["" "" "foo"]
+                         ["" "f" "oo"]
+                         ["f" "" "oo"]
+                         ["" "fo" "o"]
+                         ["f" "o" "o"]
+                         ["fo" "" "o"]
+                         ["" "foo" ""]
+                         ["f" "oo" ""]
+                         ["fo" "o" ""]
+                         ["foo" "" ""]]]
+          (doseq [[a b c] the-space]
+            (let [%a (m.pattern/data a)
+                  %b (m.pattern/data b)
+                  %c (m.pattern/data c)]
+              (t/is (= [{:object the-space, :bindings {}, :references {}}]
+                       (host-search (m.pattern/str %a %b %c) "foo")))))
+
+          (let [?a (m.pattern/logic-variable '?a)
+                ?b (m.pattern/logic-variable '?b)
+                ?c (m.pattern/logic-variable '?c)]
+            (t/is (= (map (fn [[a b c]]
+                            {:object the-space, :bindings {'?a a, '?b b, '?c c}, :references {}})
+                          the-space)
+                     (host-search (m.pattern/str ?a ?b ?c) "foo")))))))))
+
 (t/deftest seq-test
   (t/testing "seq query"
     (t/testing "seq match"
@@ -1311,3 +1387,7 @@
 
       (t/is (= []
                (host-stream (m.pattern/seq (m.pattern/data 1))))))))
+
+;; Local Variables:
+;; eval: (put-clojure-indent 'forall 1)
+;; End:
