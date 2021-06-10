@@ -336,7 +336,7 @@
                        (let [a (.substring s 0 i)
                              b (.substring s i)]
                          [a b])))
-                (range (inc (.length s))))
+                (range (inc #?(:clj (.length s), :cljs (.-length s)))))
     ;; else
     (sequence
      (comp (map (fn [i]
@@ -347,7 +347,7 @@
                      (sequence (map conj)
                                (string-partitions a (dec n))
                                (repeat b)))))
-     (range (inc (.length s))))))
+     (range (inc #?(:clj (.length s), :cljs (.-length s)))))))
 
 (defn seq-partitions
   {:arglists '([number-of-partitions seq])}
