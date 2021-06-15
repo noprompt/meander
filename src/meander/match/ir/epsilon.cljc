@@ -34,6 +34,11 @@ compilation decisions."
        :private true}
   *env* {})
 
+(defn unsafe?
+  {:private true}
+  ([] (true? (:meander.epsilon/unsafe *env*)))
+  ([env] (true? (:meander.epsilon/unsafe env))))
+
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
   a `:search-order` of `:breadth-first`."
@@ -1308,24 +1313,27 @@ compilation decisions."
 
 (defmethod compile* :check-bounds
   [ir fail kind]
-  (let [length (:length ir)
-        target (compile* (:target ir) fail kind)
-        test (case (:kind ir)
-               :js-array
-               `(= (.-length ~target) ~length)
+  (let [then (compile* (:then ir) fail kind)]
+    (if (unsafe?)
+      then
+      (let [length (:length ir)
+            target (compile* (:target ir) fail kind)
+            test (case (:kind ir)
+                   :js-array
+                   `(= (.-length ~target) ~length)
 
-               (:map :set)
-               `(<= ~length (count ~target))
+                   (:map :set)
+                   `(<= ~length (count ~target))
 
-               :seq
-               `(= (bounded-count ~(inc length) ~target)
-                   ~length)
+                   :seq
+                   `(= (bounded-count ~(inc length) ~target)
+                       ~length)
 
-               :vector
-               `(= (count ~target) ~length))]
-    `(if ~test
-       ~(compile* (:then ir) fail kind)
-       ~fail)))
+                   :vector
+                   `(= (count ~target) ~length))]
+        `(if ~test
+           ~then
+           ~fail)))))
 
 (defmethod compile* :check-equal
   [ir fail kind]
@@ -1359,27 +1367,39 @@ compilation decisions."
 
 (defmethod compile* :check-map
   [ir fail kind]
-  `(if (map? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (unsafe?)
+      then
+      `(if (map? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail))))
 
 (defmethod compile* :check-seq
   [ir fail kind]
-  `(if (seq? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (unsafe?)
+      then
+      `(if (seq? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail))))
 
 (defmethod compile* :check-set
   [ir fail kind]
-  `(if (set? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (unsafe?)
+      then
+      `(if (set? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail))))
 
 (defmethod compile* :check-vector
   [ir fail kind]
-  `(if (vector? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (unsafe?)
+      then
+      `(if (vector? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail))))
 
 (defmethod compile* :drop
   [ir fail kind]
@@ -1427,7 +1447,8 @@ compilation decisions."
 
 (defmethod compile* :lookup
   [ir fail kind]
-  (if (r.util/cljs-env? *env*)
+  (if (or (r.util/cljs-env? *env*)
+          (unsafe?))
     `(get ~(compile* (:target ir) fail kind)
           ~(compile* (:key ir) fail kind))
     `(.valAt ~(with-meta (compile* (:target ir) fail kind)
@@ -1447,7 +1468,11 @@ compilation decisions."
 
 (defmethod compile* :nth
   [ir fail kind]
-  `(nth ~(compile* (:target ir) fail kind) ~(:index ir)))
+  (let [target (compile* (:target ir) fail kind)
+        index (:index ir)]
+    (if (unsafe?)
+      `(nth ~target ~index nil)
+      `(nth ~target ~index))))
 
 (defmethod compile* :mut-bind
   [ir fail kind]
