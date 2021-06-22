@@ -567,8 +567,8 @@ The `...` postfix operator matches the _subsequence_ of patterns to its left (up
 ```
 
 ```clj
-(m/match [:A :A :A :B :A :C :A :D]
-  [:A !xs ...]
+(m/match [:Z :A :Z :B :Z :C :Z :D]
+  [:Z !xs ...]
   !xs)
 ;; =>
 [:A :B :C :D]
