@@ -36,26 +36,20 @@ compilation decisions."
 
 (defn unsafe?
   {:private true}
-  ([] (true? (:meander.epsilon/unsafe *env*)))
-  ([env] (true? (:meander.epsilon/unsafe env))))
+  []
+  (boolean (:meander.epsilon/unsafe *env*)))
 
 (defn bounds-check?
   {:private true}
-  ([]
-   (or (false? (unsafe?))
-       (false? (:meander.epsilon/no-bounds-check *env*))))
-  ([env]
-   (or (false? (unsafe?))
-       (false? (:meander.epsilon/no-bounds-check env)))))
+  []
+  (or (not (unsafe?))
+      (not (:meander.epsilon/no-bounds-check *env*))))
 
 (defn type-check?
   {:private true}
-  ([]
-   (or (false? (unsafe?))
-       (false? (:meander.epsilon/no-type-check *env*))))
-  ([env]
-   (or (false? (unsafe?))
-       (false? (:meander.epsilon/no-type-check env)))))
+  []
+  (or (not (unsafe?))
+      (not (:meander.epsilon/no-type-check *env*))))
 
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
