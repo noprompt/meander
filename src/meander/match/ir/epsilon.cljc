@@ -1004,14 +1004,14 @@ compilation decisions."
   {:private true}
   [env node]
   (if (bounds-check?)
-    node
     (case (op node)
       :nth
       (let [target-type (lookup-type env (:form (:target node)))]
         (if (isa? target-type VectorInterface)
           (op-eval `(~(:form (:target node)) ~(:index node)))
           node))
-      node)))
+      node)
+    node))
 
 (defn rewrite-with-types
   {:private true}
@@ -1326,7 +1326,6 @@ compilation decisions."
   [ir fail kind]
   (let [then (compile* (:then ir) fail kind)]
     (if (bounds-check?)
-      then
       (let [length (:length ir)
             target (compile* (:target ir) fail kind)
             test (case (:kind ir)
@@ -1344,7 +1343,8 @@ compilation decisions."
                    `(= (count ~target) ~length))]
         `(if ~test
            ~then
-           ~fail)))))
+           ~fail))
+      then)))
 
 (defmethod compile* :check-equal
   [ir fail kind]
@@ -1482,8 +1482,8 @@ compilation decisions."
   (let [target (compile* (:target ir) fail kind)
         index (:index ir)]
     (if (bounds-check?)
-      `(nth ~target ~index nil)
-      `(nth ~target ~index))))
+      `(nth ~target ~index)
+      `(nth ~target ~index nil))))
 
 (defmethod compile* :mut-bind
   [ir fail kind]
