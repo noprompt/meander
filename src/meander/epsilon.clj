@@ -29,8 +29,20 @@
   match successfully an error will be thrown indicating the pattern
   match failed.
 
-  This operator restricts ambiguous patterns i.e. patterns which have
-  more than one possible match. For example, the pattern
+  Optionally, type checks and/or bounds checks can be omitted from
+  compiled code by annotating the `match` macro form with meta data.
+
+    ;; Disable runtime type checking.
+    ^::no-type-check (match ,,,)
+
+    ;; Disable runtime bounds checking of sequences.
+    ^::no-bounds-check (match ,,,)
+
+    ;; Disable both runtime type checking and bounds checking.
+    ^::unsafe (match ,,,)
+
+  Note: This operator restricts ambiguous patterns i.e. patterns which
+  have more than one possible match. For example, the pattern
 
       #{?x ?y}
 
@@ -61,6 +73,18 @@
         pattern_1 expr_1
         ,,,
         pattern_n expr_n)
+
+  Optionally, type checks and/or bounds checks can be omitted from
+  compiled code by annotating the `find` macro form with meta data.
+
+    ;; Disable runtime type checking.
+    ^::no-type-check (find ,,,)
+
+    ;; Disable runtime bounds checking of sequences.
+    ^::no-bounds-check (find ,,,)
+
+    ;; Disable both runtime type checking and bounds checking.
+    ^::unsafe (find ,,,)
   "
   {:style/indent :defn}
   [x & clauses]
@@ -78,6 +102,18 @@
         pattern_1 expr_1
         ,,,
         pattern_n expr_n)
+
+  Optionally, type checks and/or bounds checks can be omitted from
+  compiled code by annotating the `search` macro form with meta data.
+
+    ;; Disable runtime type checking.
+    ^::no-type-check (search ,,,)
+
+    ;; Disable runtime bounds checking of sequences.
+    ^::no-bounds-check (search ,,,)
+
+    ;; Disable both runtime type checking and bounds checking.
+    ^::unsafe (search ,,,)
 
   Example:
 
