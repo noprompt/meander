@@ -43,10 +43,19 @@ compilation decisions."
   {:private true}
   ([]
    (or (false? (unsafe?))
-       (true? (:meander.epsilon/bounds-check *env*))))
+       (false? (:meander.epsilon/no-bounds-check *env*))))
   ([env]
    (or (false? (unsafe?))
-       (true? (:meander.epsilon/bounds-check env)))))
+       (false? (:meander.epsilon/no-bounds-check env)))))
+
+(defn type-check?
+  {:private true}
+  ([]
+   (or (false? (unsafe?))
+       (false? (:meander.epsilon/no-type-check *env*))))
+  ([env]
+   (or (false? (unsafe?))
+       (false? (:meander.epsilon/no-type-check env)))))
 
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
@@ -1379,38 +1388,38 @@ compilation decisions."
 (defmethod compile* :check-map
   [ir fail kind]
   (let [then (compile* (:then ir) fail kind)]
-    (if (unsafe?)
-      then
+    (if (type-check?)
       `(if (map? ~(compile* (:target ir) fail kind))
          ~then
-         ~fail))))
+         ~fail)
+      then)))
 
 (defmethod compile* :check-seq
   [ir fail kind]
   (let [then (compile* (:then ir) fail kind)]
-    (if (unsafe?)
-      then
+    (if (type-check?)
       `(if (seq? ~(compile* (:target ir) fail kind))
          ~then
-         ~fail))))
+         ~fail)
+      then)))
 
 (defmethod compile* :check-set
   [ir fail kind]
   (let [then (compile* (:then ir) fail kind)]
-    (if (unsafe?)
-      then
+    (if (type-check?)
       `(if (set? ~(compile* (:target ir) fail kind))
          ~then
-         ~fail))))
+         ~fail)
+      then)))
 
 (defmethod compile* :check-vector
   [ir fail kind]
   (let [then (compile* (:then ir) fail kind)]
-    (if (unsafe?)
-      then
+    (if (type-check?)
       `(if (vector? ~(compile* (:target ir) fail kind))
          ~then
-         ~fail))))
+         ~fail)
+      then)))
 
 (defmethod compile* :drop
   [ir fail kind]
@@ -1459,12 +1468,12 @@ compilation decisions."
 (defmethod compile* :lookup
   [ir fail kind]
   (if (or (r.util/cljs-env? *env*)
-          (unsafe?))
-    `(get ~(compile* (:target ir) fail kind)
-          ~(compile* (:key ir) fail kind))
+          (type-check?))
     `(.valAt ~(with-meta (compile* (:target ir) fail kind)
                 {:tag 'clojure.lang.ILookup})
-             ~(compile* (:key ir) fail kind))))
+             ~(compile* (:key ir) fail kind))
+    `(get ~(compile* (:target ir) fail kind)
+          ~(compile* (:key ir) fail kind))))
 
 (defmethod compile* :lvr-bind
   [ir fail kind]

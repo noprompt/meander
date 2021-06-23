@@ -4,14 +4,16 @@
   {:meander.epsilon/abstract-disjunction true
    ;; This reduces code size at the expensive of performance.
    :meander.epsilon/abstract-plus false
-   ;; When true enables bounds checking.
-   :meander.epsilon/bounds-check true
    :meander.epsilon/eliminate-double-negation true
    :meander.epsilon/flatten-and true
    :meander.epsilon/flatten-or true
    :meander.epsilon/infer-case true
    :meander.epsilon/infer-literal-seq true
    :meander.epsilon/infer-literal-vector true
+   ;; When set to true disables type checking.
+   :meander.epsilon/no-type-check false
+   ;; When set to true disables bounds checking.
+   :meander.epsilon/no-bounds-check false
    :meander.epsilon/prioritize-map-entries true
    :meander.epsilon/prioritize-literal-set-elements false
    ;; This is false because enabling it offers no significant
@@ -32,8 +34,6 @@
    :meander.epsilon/rewrite-set-rest-to-disj false
    :meander.epsilon/rewrite-vector-as-to-and true
    :meander.epsilon/substitute-acyclic-references true
-   ;; When set to true enables type checking.
-   :meander.epsilon/type-check true
    ;; When set to true disables type checks and bounds checks.
    :meander.epsilon/unsafe false
    :meander.syntax.epsilon/expander-registry {}
