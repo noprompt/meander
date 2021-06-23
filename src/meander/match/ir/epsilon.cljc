@@ -42,14 +42,16 @@ compilation decisions."
 (defn bounds-check?
   {:private true}
   []
-  (or (not (unsafe?))
-      (not (:meander.epsilon/no-bounds-check *env*))))
+  (if (unsafe?)
+    false
+    (not (:meander.epsilon/no-bounds-check *env*))))
 
 (defn type-check?
   {:private true}
   []
-  (or (not (unsafe?))
-      (not (:meander.epsilon/no-type-check *env*))))
+  (if (unsafe?)
+    false
+    (not (:meander.epsilon/no-type-check *env*))))
 
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
