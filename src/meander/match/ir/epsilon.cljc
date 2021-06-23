@@ -39,6 +39,15 @@ compilation decisions."
   ([] (true? (:meander.epsilon/unsafe *env*)))
   ([env] (true? (:meander.epsilon/unsafe env))))
 
+(defn bounds-check?
+  {:private true}
+  ([]
+   (or (false? (unsafe?))
+       (true? (:meander.epsilon/bounds-check *env*))))
+  ([env]
+   (or (false? (unsafe?))
+       (true? (:meander.epsilon/bounds-check env)))))
+
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
   a `:search-order` of `:breadth-first`."
@@ -994,13 +1003,15 @@ compilation decisions."
 (defn fast-vector-nth-calls
   {:private true}
   [env node]
-  (case (op node)
-    :nth
-    (let [target-type (lookup-type env (:form (:target node)))]
-      (if (isa? target-type VectorInterface)
-        (op-eval `(~(:form (:target node)) ~(:index node)))
-        node))
-    node))
+  (if (bounds-check?)
+    node
+    (case (op node)
+      :nth
+      (let [target-type (lookup-type env (:form (:target node)))]
+        (if (isa? target-type VectorInterface)
+          (op-eval `(~(:form (:target node)) ~(:index node)))
+          node))
+      node)))
 
 (defn rewrite-with-types
   {:private true}
@@ -1314,7 +1325,7 @@ compilation decisions."
 (defmethod compile* :check-bounds
   [ir fail kind]
   (let [then (compile* (:then ir) fail kind)]
-    (if (unsafe?)
+    (if (bounds-check?)
       then
       (let [length (:length ir)
             target (compile* (:target ir) fail kind)
@@ -1470,7 +1481,7 @@ compilation decisions."
   [ir fail kind]
   (let [target (compile* (:target ir) fail kind)
         index (:index ir)]
-    (if (unsafe?)
+    (if (bounds-check?)
       `(nth ~target ~index nil)
       `(nth ~target ~index))))
 
