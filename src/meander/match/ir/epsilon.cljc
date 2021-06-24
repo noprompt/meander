@@ -34,6 +34,25 @@ compilation decisions."
        :private true}
   *env* {})
 
+(defn unsafe?
+  {:private true}
+  []
+  (boolean (:meander.epsilon/unsafe *env*)))
+
+(defn bounds-check?
+  {:private true}
+  []
+  (if (unsafe?)
+    false
+    (not (:meander.epsilon/no-bounds-check *env*))))
+
+(defn type-check?
+  {:private true}
+  []
+  (if (unsafe?)
+    false
+    (not (:meander.epsilon/no-type-check *env*))))
+
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
   a `:search-order` of `:breadth-first`."
@@ -989,12 +1008,14 @@ compilation decisions."
 (defn fast-vector-nth-calls
   {:private true}
   [env node]
-  (case (op node)
-    :nth
-    (let [target-type (lookup-type env (:form (:target node)))]
-      (if (isa? target-type VectorInterface)
-        (op-eval `(~(:form (:target node)) ~(:index node)))
-        node))
+  (if (bounds-check?)
+    (case (op node)
+      :nth
+      (let [target-type (lookup-type env (:form (:target node)))]
+        (if (isa? target-type VectorInterface)
+          (op-eval `(~(:form (:target node)) ~(:index node)))
+          node))
+      node)
     node))
 
 (defn rewrite-with-types
@@ -1308,24 +1329,27 @@ compilation decisions."
 
 (defmethod compile* :check-bounds
   [ir fail kind]
-  (let [length (:length ir)
-        target (compile* (:target ir) fail kind)
-        test (case (:kind ir)
-               :js-array
-               `(= (.-length ~target) ~length)
+  (let [then (compile* (:then ir) fail kind)]
+    (if (bounds-check?)
+      (let [length (:length ir)
+            target (compile* (:target ir) fail kind)
+            test (case (:kind ir)
+                   :js-array
+                   `(= (.-length ~target) ~length)
 
-               (:map :set)
-               `(<= ~length (count ~target))
+                   (:map :set)
+                   `(<= ~length (count ~target))
 
-               :seq
-               `(= (bounded-count ~(inc length) ~target)
-                   ~length)
+                   :seq
+                   `(= (bounded-count ~(inc length) ~target)
+                       ~length)
 
-               :vector
-               `(= (count ~target) ~length))]
-    `(if ~test
-       ~(compile* (:then ir) fail kind)
-       ~fail)))
+                   :vector
+                   `(= (count ~target) ~length))]
+        `(if ~test
+           ~then
+           ~fail))
+      then)))
 
 (defmethod compile* :check-equal
   [ir fail kind]
@@ -1359,27 +1383,39 @@ compilation decisions."
 
 (defmethod compile* :check-map
   [ir fail kind]
-  `(if (map? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (type-check?)
+      `(if (map? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail)
+      then)))
 
 (defmethod compile* :check-seq
   [ir fail kind]
-  `(if (seq? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (type-check?)
+      `(if (seq? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail)
+      then)))
 
 (defmethod compile* :check-set
   [ir fail kind]
-  `(if (set? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (type-check?)
+      `(if (set? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail)
+      then)))
 
 (defmethod compile* :check-vector
   [ir fail kind]
-  `(if (vector? ~(compile* (:target ir) fail kind))
-     ~(compile* (:then ir) fail kind)
-     ~fail))
+  (let [then (compile* (:then ir) fail kind)]
+    (if (type-check?)
+      `(if (vector? ~(compile* (:target ir) fail kind))
+         ~then
+         ~fail)
+      then)))
 
 (defmethod compile* :drop
   [ir fail kind]
@@ -1427,7 +1463,8 @@ compilation decisions."
 
 (defmethod compile* :lookup
   [ir fail kind]
-  (if (r.util/cljs-env? *env*)
+  (if (or (r.util/cljs-env? *env*)
+          (not (type-check?)))
     `(get ~(compile* (:target ir) fail kind)
           ~(compile* (:key ir) fail kind))
     `(.valAt ~(with-meta (compile* (:target ir) fail kind)
@@ -1447,7 +1484,11 @@ compilation decisions."
 
 (defmethod compile* :nth
   [ir fail kind]
-  `(nth ~(compile* (:target ir) fail kind) ~(:index ir)))
+  (let [target (compile* (:target ir) fail kind)
+        index (:index ir)]
+    (if (bounds-check?)
+      `(nth ~target ~index)
+      `(nth ~target ~index nil))))
 
 (defmethod compile* :mut-bind
   [ir fail kind]

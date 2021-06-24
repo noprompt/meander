@@ -31,6 +31,7 @@
     * [Rest](#rest)
   * [Escaping](#escaping)
     * [Unquote](#unquote)
+  * [Compiler Options](#compiler-options)
 
 ## Macros
 
@@ -801,4 +802,61 @@ This can be done using Clojure's `unquote` operator (`unquote-splicing` is curre
    (f [1 3 4])])
 ;; =>
 [:yes :no :yes]
+```
+
+## Compiler Options
+
+Each of the pattern matching operators `match`, `find`, and `search` can configure the compiler by attaching metadata to the macro form. The following options are recognized.
+
+`:meander.epsilon/no-type-check` configures the compiler to omit runtime type checking for literal `seq?`, `vector?`, `map?`, and `set?` patterns. Omitting type checks can dramatically improve the performace of pattern matching in situations where it is known that the shape of data is already an instance of the pattern. However, in removing type checks it is easy to trigger type errors, ie. `ClassCastException`, for instance when the pattern is a `map?` but input is a `vector?`. In other words, use this option cautiously. Note this does not affect type checks appearing in `pred`, `app`, etc.
+
+Example:
+
+```clj
+(def x [1 2 3])
+^::m/no-type-check
+(m/search x
+  (?x ?y ?z) (str ?x ?y ?z)
+  [?x ?y ?z] (str ?z ?y ?x))
+;; => ("123" "321")
+
+^::m/no-type-check
+(m/search x
+  (m/or (?x ?y ?z) [?x ?y ?z])
+  (str ?x ?y ?z))
+;; => ("123" "123")
+```
+
+`:meander.epsilon/no-bounds-check` configures the compiler to omit runtime bounds checking for literal `seq?`, and `vector?` patterns. When bounds checks are omitted the compiler will use the three arity form of `nth` ie. `(nth coll idx not-found)` to retrieve values from the match target as opposed to the two arity form ie. `(nth coll idx)` which is only safe when the bounds are known. Note this does not affect bounds checks appearing in `pred`, `app`, etc.
+
+Example:
+
+```clj
+(def x [1 2])
+
+^::m/no-bounds-check
+(m/search x
+  [?x ?y]
+  [?y ?x]
+  
+  [?x ?y ?z]
+  [?z ?y ?x])
+;; => ([2 1] [nil 2 1])
+```
+
+`:meander.epsilon/unsafe` configures to the compiler to omit runtime type and bounds checking for collection patterns. Note, this does not affect checks appearing in `pred`, `app`, etc.
+
+Example:
+
+```clj
+(def x [1 2])
+
+^::m/unsafe
+(m/search x
+  (?x ?y)
+  [?y ?x]
+  
+  (?x ?y ?z)
+  [?z ?y ?x])
+;; => ([2 1] [nil 2 1])
 ```

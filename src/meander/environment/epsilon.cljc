@@ -10,6 +10,10 @@
    :meander.epsilon/infer-case true
    :meander.epsilon/infer-literal-seq true
    :meander.epsilon/infer-literal-vector true
+   ;; When set to true disables type checking.
+   :meander.epsilon/no-type-check false
+   ;; When set to true disables bounds checking.
+   :meander.epsilon/no-bounds-check false
    :meander.epsilon/prioritize-map-entries true
    :meander.epsilon/prioritize-literal-set-elements false
    ;; This is false because enabling it offers no significant
@@ -30,6 +34,9 @@
    :meander.epsilon/rewrite-set-rest-to-disj false
    :meander.epsilon/rewrite-vector-as-to-and true
    :meander.epsilon/substitute-acyclic-references true
+   ;; When set to true disables type checks and bounds checks.
+   :meander.epsilon/unsafe false
    :meander.syntax.epsilon/expander-registry {}
    :meander.syntax.epsilon/phase nil
    :meander.syntax.epsilon/parser-registry {}})
+
