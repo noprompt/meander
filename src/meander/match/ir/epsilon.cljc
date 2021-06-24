@@ -1464,12 +1464,12 @@ compilation decisions."
 (defmethod compile* :lookup
   [ir fail kind]
   (if (or (r.util/cljs-env? *env*)
-          (type-check?))
+          (not (type-check?)))
+    `(get ~(compile* (:target ir) fail kind)
+          ~(compile* (:key ir) fail kind))
     `(.valAt ~(with-meta (compile* (:target ir) fail kind)
                 {:tag 'clojure.lang.ILookup})
-             ~(compile* (:key ir) fail kind))
-    `(get ~(compile* (:target ir) fail kind)
-          ~(compile* (:key ir) fail kind))))
+             ~(compile* (:key ir) fail kind))))
 
 (defmethod compile* :lvr-bind
   [ir fail kind]
