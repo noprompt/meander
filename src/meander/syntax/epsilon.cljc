@@ -349,80 +349,102 @@
   (let [[l r] (split-with
                (fn [{tag :tag}]
                  (case tag
-                   (:dot :dt+ :dt* :dtl :dtm)
+                   (:amp :dot :dt+ :dt* :dtl :dtm)
                    false
                    ;; else
                    true))
                xs)]
     (if (seq l)
-      (let [node (first r)]
-        {:tag :prt
-         :left (case (:tag node)
-                 :dt*
-                 (let [c (bounded-count 2 l)]
-                   (cond
-                     ;; _ ...
-                     (and (= c 1)
-                          (= :any (:tag (first l))))
-                     {:tag :drp
-                      :symbol (:symbol (first l))}
+      (let [node (first r)
+            tag (:tag node)]
+        (case tag
+          :amp
+          (if-some [[rest-node & r*] (next r)]
+            {:tag :prt
+             :left {:tag :cat, :elements l}
+             :right {:tag :prt
+                     :left {:tag :tail, :pattern rest-node}
+                     :right (expand-prt r*)}}
+            {:tag :cat, :elements l})
 
-                     ;; !xs ...
-                     (and (= c 1)
-                          (= :mvr (:tag (first l))))
-                     {:tag :rst
-                      :mvr (first l)}
-
-                     ;; a b ...
-                     :else
-                     {:tag :rp*
-                      :cat {:tag :cat
-                            :elements l}}))
-
-                 ;; a b ..<nat-int>
-                 :dt+
-                 {:tag :rp+
-                  :cat {:tag :cat
-                        :elements l}
-                  :n (:n node)}
-
-                 ;; ab ..?<name>
-                 :dtl
-                 {:tag :rpl
-                  :cat {:tag :cat
-                        :elements l}
-                  :lvr (:lvr node)}
-
-                 ;; a b ..!<name>
-                 :dtm
-                 {:tag :rpm
-                  :cat {:tag :cat
-                        :elements l}
-                  :mvr (:mvr node)}
-
-                 (nil :dot)
-                 {:tag :cat
-                  :elements l})
-         :right (expand-prt (next r))})
-      (if (seq r)
-        (let [node (first r)]
+          ;; else
           {:tag :prt
-           :left (case (:tag node)
+           :left (case tag
                    :dt*
-                   {:tag :rp*
-                    :cat {:tag :cat
-                          :elements l}}
+                   (let [c (bounded-count 2 l)]
+                     (cond
+                       ;; _ ...
+                       (and (= c 1)
+                            (= :any (:tag (first l))))
+                       {:tag :drp
+                        :symbol (:symbol (first l))}
 
+                       ;; !xs ...
+                       (and (= c 1)
+                            (= :mvr (:tag (first l))))
+                       {:tag :rst
+                        :mvr (first l)}
+
+                       ;; a b ...
+                       :else
+                       {:tag :rp*
+                        :cat {:tag :cat
+                              :elements l}}))
+
+                   ;; a b ..<nat-int>
                    :dt+
                    {:tag :rp+
                     :cat {:tag :cat
                           :elements l}
                     :n (:n node)}
 
+                   ;; ab ..?<name>
+                   :dtl
+                   {:tag :rpl
+                    :cat {:tag :cat
+                          :elements l}
+                    :lvr (:lvr node)}
+
+                   ;; a b ..!<name>
+                   :dtm
+                   {:tag :rpm
+                    :cat {:tag :cat
+                          :elements l}
+                    :mvr (:mvr node)}
+
                    (nil :dot)
                    {:tag :cat
                     :elements l})
-           :right (expand-prt (next r))})
+           :right (expand-prt (next r))}))
+      (if (seq r)
+        (let [node (first r)
+              tag (:tag node)]
+          (case tag
+            :amp
+            (if-some [[rest-node & r*] (next r)]
+              {:tag :prt
+               :left {:tag :tail, :pattern rest-node}
+               :right (expand-prt r*)}
+              {:tag :tail, :pattern {:tag :any}})
+
+            ;; else
+            {:tag :prt
+             :left (case tag
+                     :dt*
+                     {:tag :rp*
+                      :cat {:tag :cat
+                            :elements l}}
+
+                     :dt+
+                     {:tag :rp+
+                      :cat {:tag :cat
+                            :elements l}
+                      :n (:n node)}
+
+                     (nil :dot)
+                     {:tag :cat
+                      :elements l})
+             :right (expand-prt (next r))}))
         {:tag :cat
          :elements []}))))
 
@@ -725,6 +747,10 @@
 
             (r.util/re-matches? #"^\*.+" s)
             {:tag :mut
+             :symbol sym}
+
+            (r.util/re-matches? #"^&.*" s)
+            {:tag :amp
              :symbol sym}
 
             :else
