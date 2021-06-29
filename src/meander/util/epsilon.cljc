@@ -119,7 +119,7 @@
   where the first element in the pair is a permuted selection of k
   items from the set s, and the second element is s with those
   elements removed."
-  [s k]
+  [s ^long k]
   (case k
     0 (list [[] s])
 
@@ -153,7 +153,7 @@
   where the first element in the pair is a permuted selection of k
   entries from the map m, and the second element is m with those
   entries removed."
-  [m k]
+  [m ^long k]
   (case k
     0 (list [[] m])
 
@@ -187,7 +187,7 @@
   where the first element in the pair is a permuted selection of k
   items from the vector v, and the second element is v with the items
   at their respective indicies removed."
-  [v k]
+  [v ^long k]
   (case k
     0 (list [[] v])
 
@@ -217,7 +217,7 @@
   where the first element in the pair is a permuted selection of k
   items from the seq s, and the second element is s with the items
   at their respective indicies removed."
-  [s k]
+  [s ^long k]
   (case k
     0 (list [[] s])
 
@@ -286,7 +286,7 @@
   ;;     [[:a :b] [] []])
   "
   {:private true}
-  ([n v]
+  ([^long n v]
    {:pre [(nat-int? n)]}
    (case n
      0 (list [])
@@ -308,7 +308,7 @@
                 (vec-partitions (dec n) a)
                 (repeat b)))))
       (range (inc (count v))))))
-  ([n m v]
+  ([^long n m v]
    {:pre [(nat-int? n) (nat-int? m)]}
    (if (<= m (count v))
      (case n
@@ -343,7 +343,7 @@
 
 (defn coll-partitions
   {:private true}
-  ([n coll]
+  ([^long n coll]
    {:pre [(nat-int? n)]}
    (case n
      0 (list [])
@@ -368,7 +368,7 @@
       ;; Adding one more element to the coll ensures we split at 0
       ;; *and* at (count coll) without counting the collection.
       (cons (first coll) coll))))
-  ([n m coll]
+  ([^long n m coll]
    {:pre [(nat-int? n) (nat-int? m)]}
    (if (<= m (bounded-count m coll))
      (case n
@@ -429,8 +429,8 @@
   ;;     [[\"a\"] [\"b\"] []]
   ;;     [[\"ab\"] [] []])
   "
-  [n #?(:clj  ^String str
-        :cljs str)]
+  [^long n #?(:clj ^String str
+              :cljs str)]
   {:pre [(nat-int? n)]}
   (case n
     0 (list [])
@@ -627,7 +627,7 @@
 
 (defn knit
   [colls]
-  (case (bounded-count 2 colls)
+  (case (long (bounded-count 2 colls))
     0 ()
 
     1 (if (seq (first colls))
