@@ -360,11 +360,14 @@
         (case tag
           :amp
           (if-some [[rest-node & r*] (next r)]
-            {:tag :prt
-             :left {:tag :cat, :elements l}
-             :right {:tag :prt
-                     :left {:tag :tail, :pattern rest-node}
-                     :right (expand-prt r*)}}
+            (let [left-node (if (any-node? rest-node)
+                              {:tag :drp}
+                              {:tag :tail, :pattern rest-node})]
+              {:tag :prt
+               :left {:tag :cat, :elements l}
+               :right {:tag :prt
+                       :left left-node
+                       :right (expand-prt r*)}})
             {:tag :cat, :elements l})
 
           ;; else
@@ -422,10 +425,13 @@
           (case tag
             :amp
             (if-some [[rest-node & r*] (next r)]
-              {:tag :prt
-               :left {:tag :tail, :pattern rest-node}
-               :right (expand-prt r*)}
-              {:tag :tail, :pattern {:tag :any}})
+              (let [left-node (if (any-node? rest-node)
+                                {:tag :drp}
+                                {:tag :tail, :pattern rest-node})]
+                {:tag :prt
+                 :left left-node
+                 :right (expand-prt r*)})
+              {:tag :drp})
 
             ;; else
             {:tag :prt
