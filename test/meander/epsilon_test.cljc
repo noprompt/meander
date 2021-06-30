@@ -2675,3 +2675,15 @@
                {?e {:name "Ivan", :friend (r/or (r/scan [?t ?f]) [?t ?f])},
                 ?f {:name ?name}}
                [?e ?t ?f ?name])))))
+
+(t/deftest semantic-equivalence-of-&-any-and-drop-test
+  (t/is (= ' ([1 2 10]
+              [1 3 10]
+              [1 4 10]
+              [1 5 10]
+              [1 6 10]
+              [1 7 10]
+              [1 8 10]
+              [1 9 10])
+             (r/search (range 1 11) (?a . _ ... ?b . _ ... ?c) [?a ?b ?c])
+             (r/search (range 1 11) (?a & _ ?b & _ ?c) [?a ?b ?c]))))
