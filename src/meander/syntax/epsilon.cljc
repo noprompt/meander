@@ -556,79 +556,36 @@
           [:failure ":as pattern must be a logic variable or memory variable"]))
       [:nothing xs nil])))
 
-(defn parse-&
-  {:private true}
-  [xs env]
-  (let [c (count xs)
-        &-index (- c 2)]
-    (if (and (<= 2 c)
-             (= (nth xs &-index) '&))
-      (let [xs* (take &-index xs)
-            &-pattern (last xs)
-            &-node (parse &-pattern env)]
-        (let [;; Check for illegal :as pattern.
-              as-result (parse-as xs* env)]
-          (case (nth as-result 0)
-            (:failure :success)
-            [:failure "& pattern must appear be before :as pattern"]
-
-            ;; else
-            (let [;; Check for illegal & pattern.
-                  &-result (parse-& xs* env)]
-              (case (nth &-result 0)
-                (:failure :sucess)
-                [:failure "& pattern may only occur once"]
-
-                ;; else
-                [:success xs* &-node])))))
-      [:success xs nil])))
-
 (defn parse-sequential
   "Used by `parse-seq-not-special` and `parse-vector` to parse their
-  `:prt` and `:as` nodes."
-  {:private true}
-  [xs env]
-  ;; Check for :as ?x or :as !xs
+  :prt and :as nodes. If parsing is successful, calls resolve with
+  the a map of
+
+    {:prt prt-node, :as as-node }
+
+  where prt-node is a `partition-node?`, and as-node is either `nil?`
+  or a `variable-node?`.
+
+  If parsing is unsucessful, throws an exception."
+  {:private true
+   :style/indent 2}
+  [xs env resolve]
   (let [as-result (parse-as xs env)]
     (case (nth as-result 0)
       :failure
-      (throw (ex-info (nth as-result 1)
-                      {:form xs
-                       :meta (meta xs)}))
+      (throw (ex-info (nth as-result 1) {:form xs, :meta (meta xs)}))
 
       (:success :nothing)
-      (let [[_ xs* as-node] as-result
-            ;; Check for & ?x or & !xs
-            &-result (parse-& xs* env)]
-        (case (nth &-result 0)
-          :failure
-          &-result
-
-          (:success :nothing)
-          (let [[_ xs** rest-node] &-result
-                prt (expand-prt (parse-all xs** env))
-                prt (if rest-node
-                      (prt-append prt {:tag :tail
-                                       :pattern rest-node})
-                      prt)]
-            [:success prt as-node]))))))
+      (let [[_ xs* as-node] as-result]
+        (resolve {:prt (expand-prt (parse-all xs* env))
+                  :as as-node})))))
 
 (defn parse-seq-not-special
   {:private true}
   [xs env]
-  (let [result (parse-sequential xs env)]
-    (case (nth result 0)
-      :failure
-      (let [[_ error-message] result]
-        (throw (ex-info error-message
-                        {:form xs
-                         :meta (meta xs)})))
-
-      :success
-      (let [[_ prt as-node] result]
-        {:tag :seq
-         :prt prt
-         :as as-node}))))
+  (parse-sequential xs env
+    (fn [partial-node]
+      (assoc partial-node :tag :seq))))
 
 (defn parse-seq
   "Parses a seq? into a :meander.syntax.epsilon/node.
@@ -779,20 +736,10 @@
 
 (defn parse-vector
   {:private true}
-  [v env]
-  (let [result (parse-sequential v env)]
-    (case (nth result 0)
-      :failure
-      (let [[_ error-message] result]
-        (throw (ex-info error-message
-                        {:form v
-                         :meta (meta v)})))
-
-      :success
-      (let [[_ prt as-node] result]
-        {:tag :vec
-         :prt prt
-         :as as-node}))))
+  [xs env]
+  (parse-sequential xs env
+    (fn [partial-node]
+      (assoc partial-node :tag :vec))))
 
 (defn parse-map
   {:private true}
