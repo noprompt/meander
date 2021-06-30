@@ -293,6 +293,44 @@
                [?x ?y]
                _ false)))))
 
+
+(t/deftest seq-multiple-rest
+  (let [x 'x
+        y 'y
+        z 'z]
+    (let [l1 '(x y x y)]
+      (t/is (= '[() (x y x y)]
+               (r/find l1 (& ?1 & ?2) [?1 ?2])))
+
+      (t/is (= '[[() (x y x y)]
+                 [(x) (y x y)]
+                 [(x y) (x y)]
+                 [(x y x) (y)]
+                 [(x y x y) ()]]
+               (r/search l1 (& ?1 & ?2) [?1 ?2]))))
+
+    (let [l2 '(x y z x y)]
+      (t/is (= '[(x y) (x y)]
+               (r/find l2 (& ?1 z & ?2) [?1 ?2])))
+
+      (t/is (= '[[(x y) (x y)]]
+               (r/search l2 (& ?1 z & ?2) [?1 ?2]))))
+
+    (let [l3 '(x y z x z y)]
+      (t/is (= '[(x y) (x z y)]
+               (r/find l3 (& ?1 z & ?2) [?1 ?2])))
+
+      (t/is (= '[[(x y) (x z y)]
+                 [(x y z x) (y)]]
+               (r/search l3 (& ?1 z & ?2) [?1 ?2]))))
+
+    (let [l4 '(1 2 3 4)]
+      (t/is (= '(3 4 1)
+               (r/rewrite l4 (& ?1 2 & ?2) (& ?2 & ?1))))
+
+      (t/is (= '[(1 2 3 4) (2 3 4 1) (3 4 1 2) (4 1 2 3) (1 2 3 4)]
+               (r/rewrites l4 (& ?1 & ?2) (& ?2 & ?1)))))))
+
 ;;; Vectors
 
 
@@ -478,6 +516,44 @@
 
   (t/is (= '(1)
            (r/search '[1 1 1 1 1] [1 ..4 ?x] ?x))))
+
+(t/deftest vec-multiple-rest
+  (let [x 'x
+        y 'y
+        z 'z]
+    (let [v1 '[x y x y]]
+      (t/is (= '[[] [x y x y]]
+               (r/find v1 [& ?1 & ?2] [?1 ?2])))
+
+      (t/is (= '[[[] [x y x y]]
+                 [[x] [y x y]]
+                 [[x y] [x y]]
+                 [[x y x] [y]]
+                 [[x y x y] []]]
+               (r/search v1 [& ?1 & ?2] [?1 ?2]))))
+
+    (let [v2 '[x y z x y]]
+      (t/is (= '[[x y] [x y]]
+               (r/find v2 [& ?1 z & ?2] [?1 ?2])))
+
+      (t/is (= '[[[x y] [x y]]]
+               (r/search v2 [& ?1 z & ?2] [?1 ?2]))))
+
+    (let [v3 '[x y z x z y]]
+      (t/is (= '[[x y] [x z y]]
+               (r/find v3 [& ?1 z & ?2] [?1 ?2])))
+
+      (t/is (= '[[[x y] [x z y]]
+                 [[x y z x] [y]]]
+               (r/search v3 [& ?1 z & ?2] [?1 ?2]))))
+
+    (let [v4 [1 2 3 4]]
+      (t/is (= [3 4 1]
+               (r/rewrite v4 [& ?1 2 & ?2] [& ?2 & ?1])))
+
+      (t/is (= [[1 2 3 4] [2 3 4 1] [3 4 1 2] [4 1 2 3] [1 2 3 4]]
+               (r/rewrites v4 [& ?1 & ?2] [& ?2 & ?1]))))))
+
 
 ;; Maps
 
