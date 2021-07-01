@@ -847,6 +847,33 @@
           ir-a))
       (compile-non-literal-key-map-matrix targets map-matrix))))
 
+(defmethod compile-specialized-matrix :merge
+  [_ [target & rest-targets] map-matrix]
+  (let [counts (distinct (map (comp count :patterns first :cols) map-matrix))
+        max-count (reduce max 0 counts)
+        specialized-by-count (group-by (comp count :patterns first :cols) map-matrix)]
+    (mapv
+     (fn [i]
+       (let [search-space-symbol (symbol (str target "_M_" i))
+             element-symbols (map (fn [j]
+                                    (symbol (str search-space-symbol "_" j "_")))
+                                  (range i))
+             inner-ir (compile `[~@element-symbols ~@rest-targets]
+                               (process-matrix (get specialized-by-count i)
+                                 (fn [node row]
+                                   (r.matrix/prepend-cells row
+                                     (case (r.syntax/tag node)
+                                       :any (repeat i any-node)
+                                       :merge (get node :patterns))))))]
+         (r.ir/op-search search-space-symbol (r.ir/op-eval `(r.util/map-partitions ~target ~i))
+           (reduce
+            (fn [ir [j element-symbol]]
+              (r.ir/op-bind element-symbol `(nth ~search-space-symbol ~j)
+                ir))
+            inner-ir
+            (reverse (map-indexed vector element-symbols))))))
+     counts)))
+
 (defmethod compile-specialized-matrix :mut
   [_ [target & targets*] matrix]
   (let [targets* (vec targets*)]

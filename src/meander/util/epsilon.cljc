@@ -454,6 +454,50 @@
           (repeat b)))))
      (range (inc (.length str))))))
 
+(defn increment-code
+  {:private true}
+  [base code]
+  (reduce
+   (fn [v i]
+     (let [b (nth v i)]
+       (if (zero? b)
+         (reduced (assoc v i 1))
+         (let [b (+ b 1)]
+           (if (zero? (mod b base))
+             (assoc v i 0)
+             (assoc v i b))))))
+   code
+   (range (count code))))
+
+(defn code-seq
+  {:arglists '([number-of-positions number-of-partitions])
+   :private true}
+  [n m]
+  (let [number-of-answers (Math/pow m n)]
+    (if (< number-of-answers ##Inf)
+      (take number-of-answers
+            (iterate (partial increment-code m) (vec (repeat n 0))))
+      (let [last-answer (vec (repeat n (dec m)))]
+        (take-while (fn [answer]
+                      (not (= answer last-answer)))
+                    (iterate (partial increment-code m) (vec (repeat n 0))))))))
+
+
+(defn map-partitions
+  {:arglists '([map number-of-partitions])}
+  [m n]
+  (let [elements (vec m)
+        number-of-elements (count m)
+        empty-partitions (vec (repeat n {}))]
+    (map (fn [code]
+           (reduce (fn [partitions i]
+                     (update partitions (nth code i) conj (nth elements i)))
+                   empty-partitions
+                   (range (count code))))
+         (code-seq number-of-elements n))))
+
+(doall (map-partitions {:a 1 :b 2 :c 3} 3))
+
 
 (defn partitions "
   Examples:

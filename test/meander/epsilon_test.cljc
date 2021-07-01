@@ -2204,8 +2204,14 @@
     (let [?rest {:foo "bar" :baz "quux" :quux "ducks"}
           ?as {:foo "goo" :frob "knob"}]
       (t/is (= {:foo "quux" :baz "bar" :quux "ducks" :frob "knob"}
-               (r/subst {:foo "quux" :baz "bar" & ?rest :as ?as}))))))
+               (r/subst {:foo "quux" :baz "bar" & ?rest :as ?as})))))
 
+  (t/testing "multiple rest maps"
+    (let [?m1 {:a 1 :b 2}
+          ?m2 {:c 3 :d 4}
+          ?kvs1 [[:e 5] [:f 6]]]
+      (t/is (= {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}
+               (r/subst {&1 ?m1 &2 ?m2 &3 ?kvs1 &4 [[:g 7] [:h 8] [:i 9]]}))))))
 
 (t/deftest subst-$-test
   (let [?context (fn [hole]

@@ -747,32 +747,41 @@
     (fn [partial-node]
       (assoc partial-node :tag :vec))))
 
+(defn classify-entry
+  {:private true}
+  [e]
+  (let [k (key e)]
+    (cond
+      (and (= k :as)
+           (let [v (val e)]
+             (or (logic-variable-symbol? v) (memory-variable-symbol? v))))
+      :as
+
+      (or (= k '&) (and (symbol? k) (re-matches #"&.*" (name k))))
+      :merge
+
+      :else
+      :assoc)))
+
+(defn classify-entries
+  {:private true}
+  [m]
+  (group-by classify-entry m))
+
 (defn parse-map
   {:private true}
   [m env]
-  (if (and (map? m)
-           (not (record? m)))
-    (let [as (if-some [[_ y] (find m :as)]
-               (if (or (logic-variable-symbol? y)
-                       (memory-variable-symbol? y))
-                 (parse y env)))
-          m (if (some? as)
-              (dissoc m :as)
-              m)
-          rest-map (if-some [[_ y] (find m '&)]
-                     (parse y env))
-          m (if (some? rest-map)
-              (dissoc m '&)
-              m)]
-      {:tag :map
-       :as as
-       :rest-map rest-map
-       :map (into {}
-                  (map
-                   (fn [[k v]]
-                     [(parse k env) (parse v env)]))
-                  m)})
-    (parse m env)))
+  (let [classified (classify-entries m)]
+    {:tag :map
+     :as (if-some [[_ [[_ pattern]]] (find classified :as)]
+           (parse pattern env))
+     :map (into {} (map
+                    (fn [e]
+                      [(parse (key e) env) (parse (val e) env)]))
+                (get classified :assoc))
+     :rest-map (if-some [es (get classified :merge)]
+                 {:tag :merge
+                  :patterns (parse-all (vals es) env)})}))
 
 (defn parse-set [s env]
   (if (set? s)
@@ -1072,6 +1081,24 @@
           (search? k)
           (search? v)))
     (:map node))))
+
+;; :merge
+
+(defmethod ground? :merge [_]
+  false)
+
+(defmethod children :merge [node]
+  (vec (:patterns node)))
+
+(defmethod search? :merge [_]
+  true)
+
+(defmethod unparse :merge [node]
+  (reduce
+   (fn [m [i p]]
+     (assoc m (symbol (str "&" i)) (unparse p)))
+   {}
+   (map-indexed vector (get node :patterns))))
 
 ;; :mut
 
@@ -1532,6 +1559,10 @@
                         (assoc m (inner k-node) (inner v-node)))
                       {}
                       (:map node)))))
+
+
+(defmethod walk :merge [inner outer node]
+  (outer (assoc node :patterns (map inner (:patterns node)))))
 
 (defmethod walk :prt [inner outer node]
   (outer (assoc node
