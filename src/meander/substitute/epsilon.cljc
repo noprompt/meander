@@ -252,7 +252,7 @@
 (defmethod compile* :merge
   [node env]
   (let [[forms env*] (compile-all* (:patterns node) env)]
-    [`(merge ~@(map (fn [form] `(into {} ~form)) forms)) env*]))
+    [`(into {} cat [~@forms]) env*]))
 
 (defmethod compile* :mvr
   [node env]
