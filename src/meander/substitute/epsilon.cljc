@@ -218,6 +218,7 @@
   [node env]
   [(:symbol node) env])
 
+
 (defmethod compile* :map
   [node env]
   (let [[form env] (if-some [as-node (:as node)]
@@ -229,7 +230,8 @@
         [form env] (if-some [rest-node (:rest-map node)]
                      (let [[rest-form env] (compile* rest-node env)]
                        [`(let [form# ~form]
-                           (merge (into {} ~rest-form) form#)) env])
+                           (merge ~rest-form form#))
+                        env])
                      [form env])
         ;; Search for keys containing memory variables that have
         ;; associated iterator symbols in the environment.
@@ -246,6 +248,11 @@
                   {})
                form)]
     [form env]))
+
+(defmethod compile* :merge
+  [node env]
+  (let [[forms env*] (compile-all* (:patterns node) env)]
+    [`(into {} cat [~@forms]) env*]))
 
 (defmethod compile* :mvr
   [node env]

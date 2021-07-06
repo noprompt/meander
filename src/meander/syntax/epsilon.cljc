@@ -349,80 +349,108 @@
   (let [[l r] (split-with
                (fn [{tag :tag}]
                  (case tag
-                   (:dot :dt+ :dt* :dtl :dtm)
+                   (:amp :dot :dt+ :dt* :dtl :dtm)
                    false
                    ;; else
                    true))
                xs)]
     (if (seq l)
-      (let [node (first r)]
-        {:tag :prt
-         :left (case (:tag node)
-                 :dt*
-                 (let [c (bounded-count 2 l)]
-                   (cond
-                     ;; _ ...
-                     (and (= c 1)
-                          (= :any (:tag (first l))))
-                     {:tag :drp
-                      :symbol (:symbol (first l))}
+      (let [node (first r)
+            tag (:tag node)]
+        (case tag
+          :amp
+          (if-some [[rest-node & r*] (next r)]
+            (let [left-node (if (any-node? rest-node)
+                              {:tag :drp}
+                              {:tag :tail, :pattern rest-node})]
+              {:tag :prt
+               :left {:tag :cat, :elements l}
+               :right {:tag :prt
+                       :left left-node
+                       :right (expand-prt r*)}})
+            {:tag :cat, :elements l})
 
-                     ;; !xs ...
-                     (and (= c 1)
-                          (= :mvr (:tag (first l))))
-                     {:tag :rst
-                      :mvr (first l)}
-
-                     ;; a b ...
-                     :else
-                     {:tag :rp*
-                      :cat {:tag :cat
-                            :elements l}}))
-
-                 ;; a b ..<nat-int>
-                 :dt+
-                 {:tag :rp+
-                  :cat {:tag :cat
-                        :elements l}
-                  :n (:n node)}
-
-                 ;; ab ..?<name>
-                 :dtl
-                 {:tag :rpl
-                  :cat {:tag :cat
-                        :elements l}
-                  :lvr (:lvr node)}
-
-                 ;; a b ..!<name>
-                 :dtm
-                 {:tag :rpm
-                  :cat {:tag :cat
-                        :elements l}
-                  :mvr (:mvr node)}
-
-                 (nil :dot)
-                 {:tag :cat
-                  :elements l})
-         :right (expand-prt (next r))})
-      (if (seq r)
-        (let [node (first r)]
+          ;; else
           {:tag :prt
-           :left (case (:tag node)
+           :left (case tag
                    :dt*
-                   {:tag :rp*
-                    :cat {:tag :cat
-                          :elements l}}
+                   (let [c (bounded-count 2 l)]
+                     (cond
+                       ;; _ ...
+                       (and (= c 1)
+                            (= :any (:tag (first l))))
+                       {:tag :drp
+                        :symbol (:symbol (first l))}
 
+                       ;; !xs ...
+                       (and (= c 1)
+                            (= :mvr (:tag (first l))))
+                       {:tag :rst
+                        :mvr (first l)}
+
+                       ;; a b ...
+                       :else
+                       {:tag :rp*
+                        :cat {:tag :cat
+                              :elements l}}))
+
+                   ;; a b ..<nat-int>
                    :dt+
                    {:tag :rp+
                     :cat {:tag :cat
                           :elements l}
                     :n (:n node)}
 
+                   ;; ab ..?<name>
+                   :dtl
+                   {:tag :rpl
+                    :cat {:tag :cat
+                          :elements l}
+                    :lvr (:lvr node)}
+
+                   ;; a b ..!<name>
+                   :dtm
+                   {:tag :rpm
+                    :cat {:tag :cat
+                          :elements l}
+                    :mvr (:mvr node)}
+
                    (nil :dot)
                    {:tag :cat
                     :elements l})
-           :right (expand-prt (next r))})
+           :right (expand-prt (next r))}))
+      (if (seq r)
+        (let [node (first r)
+              tag (:tag node)]
+          (case tag
+            :amp
+            (if-some [[rest-node & r*] (next r)]
+              (let [left-node (if (any-node? rest-node)
+                                {:tag :drp}
+                                {:tag :tail, :pattern rest-node})]
+                {:tag :prt
+                 :left left-node
+                 :right (expand-prt r*)})
+              {:tag :drp})
+
+            ;; else
+            {:tag :prt
+             :left (case tag
+                     :dt*
+                     {:tag :rp*
+                      :cat {:tag :cat
+                            :elements l}}
+
+                     :dt+
+                     {:tag :rp+
+                      :cat {:tag :cat
+                            :elements l}
+                      :n (:n node)}
+
+                     (nil :dot)
+                     {:tag :cat
+                      :elements l})
+             :right (expand-prt (next r))}))
         {:tag :cat
          :elements []}))))
 
@@ -534,79 +562,36 @@
           [:failure ":as pattern must be a logic variable or memory variable"]))
       [:nothing xs nil])))
 
-(defn parse-&
-  {:private true}
-  [xs env]
-  (let [c (count xs)
-        &-index (- c 2)]
-    (if (and (<= 2 c)
-             (= (nth xs &-index) '&))
-      (let [xs* (take &-index xs)
-            &-pattern (last xs)
-            &-node (parse &-pattern env)]
-        (let [;; Check for illegal :as pattern.
-              as-result (parse-as xs* env)]
-          (case (nth as-result 0)
-            (:failure :success)
-            [:failure "& pattern must appear be before :as pattern"]
-
-            ;; else
-            (let [;; Check for illegal & pattern.
-                  &-result (parse-& xs* env)]
-              (case (nth &-result 0)
-                (:failure :sucess)
-                [:failure "& pattern may only occur once"]
-
-                ;; else
-                [:success xs* &-node])))))
-      [:success xs nil])))
-
 (defn parse-sequential
   "Used by `parse-seq-not-special` and `parse-vector` to parse their
-  `:prt` and `:as` nodes."
-  {:private true}
-  [xs env]
-  ;; Check for :as ?x or :as !xs
+  :prt and :as nodes. If parsing is successful, calls resolve with
+  the a map of
+
+    {:prt prt-node, :as as-node }
+
+  where prt-node is a `partition-node?`, and as-node is either `nil?`
+  or a `variable-node?`.
+
+  If parsing is unsucessful, throws an exception."
+  {:private true
+   :style/indent 2}
+  [xs env resolve]
   (let [as-result (parse-as xs env)]
     (case (nth as-result 0)
       :failure
-      (throw (ex-info (nth as-result 1)
-                      {:form xs
-                       :meta (meta xs)}))
+      (throw (ex-info (nth as-result 1) {:form xs, :meta (meta xs)}))
 
       (:success :nothing)
-      (let [[_ xs* as-node] as-result
-            ;; Check for & ?x or & !xs
-            &-result (parse-& xs* env)]
-        (case (nth &-result 0)
-          :failure
-          &-result
-
-          (:success :nothing)
-          (let [[_ xs** rest-node] &-result
-                prt (expand-prt (parse-all xs** env))
-                prt (if rest-node
-                      (prt-append prt {:tag :tail
-                                       :pattern rest-node})
-                      prt)]
-            [:success prt as-node]))))))
+      (let [[_ xs* as-node] as-result]
+        (resolve {:prt (expand-prt (parse-all xs* env))
+                  :as as-node})))))
 
 (defn parse-seq-not-special
   {:private true}
   [xs env]
-  (let [result (parse-sequential xs env)]
-    (case (nth result 0)
-      :failure
-      (let [[_ error-message] result]
-        (throw (ex-info error-message
-                        {:form xs
-                         :meta (meta xs)})))
-
-      :success
-      (let [[_ prt as-node] result]
-        {:tag :seq
-         :prt prt
-         :as as-node}))))
+  (parse-sequential xs env
+    (fn [partial-node]
+      (assoc partial-node :tag :seq))))
 
 (defn parse-seq
   "Parses a seq? into a :meander.syntax.epsilon/node.
@@ -727,6 +712,10 @@
             {:tag :mut
              :symbol sym}
 
+            (r.util/re-matches? #"^&.*" s)
+            {:tag :amp
+             :symbol sym}
+
             :else
             {:tag :lit
              :value sym}))))))
@@ -753,47 +742,46 @@
 
 (defn parse-vector
   {:private true}
-  [v env]
-  (let [result (parse-sequential v env)]
-    (case (nth result 0)
-      :failure
-      (let [[_ error-message] result]
-        (throw (ex-info error-message
-                        {:form v
-                         :meta (meta v)})))
+  [xs env]
+  (parse-sequential xs env
+    (fn [partial-node]
+      (assoc partial-node :tag :vec))))
 
-      :success
-      (let [[_ prt as-node] result]
-        {:tag :vec
-         :prt prt
-         :as as-node}))))
+(defn classify-entry
+  {:private true}
+  [e]
+  (let [k (key e)]
+    (cond
+      (and (= k :as)
+           (let [v (val e)]
+             (or (logic-variable-symbol? v) (memory-variable-symbol? v))))
+      :as
+
+      (or (= k '&) (and (symbol? k) (re-matches #"&.*" (name k))))
+      :merge
+
+      :else
+      :assoc)))
+
+(defn classify-entries
+  {:private true}
+  [m]
+  (group-by classify-entry m))
 
 (defn parse-map
   {:private true}
   [m env]
-  (if (and (map? m)
-           (not (record? m)))
-    (let [as (if-some [[_ y] (find m :as)]
-               (if (or (logic-variable-symbol? y)
-                       (memory-variable-symbol? y))
-                 (parse y env)))
-          m (if (some? as)
-              (dissoc m :as)
-              m)
-          rest-map (if-some [[_ y] (find m '&)]
-                     (parse y env))
-          m (if (some? rest-map)
-              (dissoc m '&)
-              m)]
-      {:tag :map
-       :as as
-       :rest-map rest-map
-       :map (into {}
-                  (map
-                   (fn [[k v]]
-                     [(parse k env) (parse v env)]))
-                  m)})
-    (parse m env)))
+  (let [classified (classify-entries m)]
+    {:tag :map
+     :as (if-some [[_ [[_ pattern]]] (find classified :as)]
+           (parse pattern env))
+     :map (into {} (map
+                    (fn [e]
+                      [(parse (key e) env) (parse (val e) env)]))
+                (get classified :assoc))
+     :rest-map (if-some [es (get classified :merge)]
+                 {:tag :merge
+                  :patterns (parse-all (vals es) env)})}))
 
 (defn parse-set [s env]
   (if (set? s)
@@ -1093,6 +1081,24 @@
           (search? k)
           (search? v)))
     (:map node))))
+
+;; :merge
+
+(defmethod ground? :merge [_]
+  false)
+
+(defmethod children :merge [node]
+  (vec (:patterns node)))
+
+(defmethod search? :merge [_]
+  true)
+
+(defmethod unparse :merge [node]
+  (reduce
+   (fn [m [i p]]
+     (assoc m (symbol (str "&" i)) (unparse p)))
+   {}
+   (map-indexed vector (get node :patterns))))
 
 ;; :mut
 
@@ -1553,6 +1559,10 @@
                         (assoc m (inner k-node) (inner v-node)))
                       {}
                       (:map node)))))
+
+
+(defmethod walk :merge [inner outer node]
+  (outer (assoc node :patterns (map inner (:patterns node)))))
 
 (defmethod walk :prt [inner outer node]
   (outer (assoc node
