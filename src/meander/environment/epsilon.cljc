@@ -36,6 +36,7 @@
    :meander.epsilon/substitute-acyclic-references true
    ;; When set to true disables type checks and bounds checks.
    :meander.epsilon/unsafe false
+   :meander.epsilon/fast   false
    :meander.syntax.epsilon/expander-registry {}
    :meander.syntax.epsilon/phase nil
    :meander.syntax.epsilon/parser-registry {}})
