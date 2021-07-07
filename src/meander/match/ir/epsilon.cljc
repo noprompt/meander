@@ -39,17 +39,22 @@ compilation decisions."
   []
   (boolean (:meander.epsilon/unsafe *env*)))
 
+(defn fast?
+  {:private true}
+  []
+  (boolean (:meander.epsilon/fast *env*)))
+
 (defn bounds-check?
   {:private true}
   []
-  (if (unsafe?)
+  (if (or (unsafe?) (fast?))
     false
     (not (:meander.epsilon/no-bounds-check *env*))))
 
 (defn type-check?
   {:private true}
   []
-  (if (unsafe?)
+  (if (or (unsafe?) (fast?))
     false
     (not (:meander.epsilon/no-type-check *env*))))
 
@@ -1463,10 +1468,18 @@ compilation decisions."
 
 (defmethod compile* :lookup
   [ir fail kind]
-  (if (or (r.util/cljs-env? *env*)
-          (not (type-check?)))
+  (cond
+    (r.util/cljs-env? *env*)
+    `(.get ~(compile* (:target ir) fail kind)
+           ~(compile* (:key ir) fail kind))
+    (fast?)
+    `(.get ~(with-meta (compile* (:target ir) fail kind)
+                {:tag 'clojure.lang.APersistentMap})
+             ~(compile* (:key ir) fail kind))
+    (not (type-check?))
     `(get ~(compile* (:target ir) fail kind)
           ~(compile* (:key ir) fail kind))
+    :else
     `(.valAt ~(with-meta (compile* (:target ir) fail kind)
                 {:tag 'clojure.lang.ILookup})
              ~(compile* (:key ir) fail kind))))
