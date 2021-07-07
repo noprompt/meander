@@ -723,8 +723,10 @@
                            rest-row (r.matrix/prepend-cells rest-row [rest-node as-node])
                            rest-matrix [rest-row]
                            rest-ir (compile sub_targets rest-matrix)
-                           rest-rhs (r.ir/op-bind rest_target (r.ir/op-eval `(dissoc ~target ~@local-literal-key-codes))
-                                      rest-ir)
+                           rest-rhs (if (= rest-node any-node)
+                                      rest-ir
+                                      (r.ir/op-bind rest_target (r.ir/op-eval `(dissoc ~target ~@local-literal-key-codes))
+                                        rest-ir))
                            row* (merge row {:cols value-nodes, :rhs rest-rhs})]
                        row*))))
         (map vector value_targets literal-key-codes)))]))
