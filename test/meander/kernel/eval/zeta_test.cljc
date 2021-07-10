@@ -186,14 +186,14 @@
                     (t/testing "with"
                       (let [identifier (gensym)
                             function (fn [state] (give state 2 pass))]
-                        (t/is (= (pass {:object 1, :bindings {}, :references {identifier function}})
+                        (t/is (= (pass {:object 1, :bindings {}, :references {}})
                                  (with (seed 1) {identifier function}
                                    pass)))))
 
                     (t/testing "find"
                       (let [identifier (gensym)
                             function (fn [state] (give state 2 pass))]
-                        (t/is (= (pass {:object 2, :bindings {}, :references {identifier function}})
+                        (t/is (= (pass {:object 2, :bindings {}, :references {}})
                                  (with (seed 1) {identifier function}
                                    (fn [state]
                                      ((find state identifier) state)))))))

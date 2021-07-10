@@ -98,22 +98,22 @@
           test (get environment :test)
           data-value (data value)
           host-equal (host `=)]
-      (fn [pass fail state]
+      (fn [resolve reject state]
         (take state
           (fn [object]
             (call host-equal object data-value
               (fn [truth]
                 (test truth
-                  (fn [] (pass state))
-                  (fn [] (fail state))))))))))
+                  (fn [] (resolve state))
+                  (fn [] (reject state))))))))))
 
   IYieldFunction
   (yield-function [this environment]
     (let [data (get environment :data)
           give (get environment :give)
           data-value (data value)]
-      (fn [pass fail state]
-        (give state data-value pass)))))
+      (fn [resolve reject state]
+        (give state data-value resolve)))))
 
 (defrecord Host [form]
   IQueryFunction
@@ -402,6 +402,101 @@
          fail
          state)))))
 
+(defrecord Reference [id]
+  IQueryFunction
+  (query-function [this environment]
+    (let [call (get environment :call)
+          find (get environment :find)]
+      (fn [resolve reject state]
+        (call (find state id) resolve reject state identity))))
+
+  IYieldFunction
+  (yield-function [this environment]
+    (let [call (get environment :call)
+          find (get environment :find)]
+      (fn [resolve reject state]
+        (call (find state id) resolve reject state identity)))))
+
+(defrecord With [pattern-mapping pattern]
+  IQueryFunction
+  (query-function [this environment]
+    (let [with (get environment :with)
+          mapping (reduce-kv (fn [m k v]
+                               (clojure/assoc m (get k :id) (query-function v environment)))
+                    {}
+                    pattern-mapping)
+          query (query-function pattern environment)]
+      (fn [resolve reject state]
+        (with state mapping
+          (fn [state]
+            (query resolve reject state))))))
+
+  IYieldFunction
+  (yield-function [this environment]
+    (let [with (get environment :with)
+          mapping (reduce-kv (fn [m k v]
+                               (clojure/assoc m (get k :id) (yield-function v environment)))
+                    {}
+                    pattern-mapping)
+          yield (yield-function pattern environment)]
+      (fn [resolve reject state]
+        (with state mapping
+          (fn [state]
+            (yield resolve reject state)))))))
+
+(defrecord Again [pattern]
+  IQueryFunction
+  (query-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          cata (get environment :cata)
+          give (get environment :give)
+          fail (get environment :fail)
+          mint (get environment :mint)
+          pick (get environment :pick)
+          take (get environment :take)
+          pattern-query (query-function pattern environment)
+          cata-query (query-function cata environment)]
+      (fn [resolve reject state]
+        (pick (fn []
+                (cata-query
+                 (fn [cata-state]
+                   (take cata-state
+                     (fn [cata-object]
+                       (give state cata-object
+                         (fn [state]
+                           (pattern-query resolve fail state))))))
+                 fail
+                 (mint state)))
+              (fn []
+                (reject state))))))
+
+  IYieldFunction
+  (yield-function [this environment]
+    (let [bind (get environment :bind)
+          call (get environment :call)
+          cata (get environment :cata)
+          give (get environment :give)
+          fail (get environment :fail)
+          mint (get environment :mint)
+          pick (get environment :pick)
+          take (get environment :take)
+          pattern-yield (yield-function pattern environment)
+          cata-yield (yield-function cata environment)]
+      (fn [resolve reject state]
+        (pick (fn []
+                (pattern-yield (fn [pattern-state]
+                                 (cata-yield (fn [cata-state]
+                                               (take cata-state
+                                                 (fn [cata-object]
+                                                   (give state cata-object resolve))))
+                                             fail
+                                             (mint pattern-state)))
+                               fail
+                               state))
+              (fn []
+                (reject state)))))))
+
 ;; Regular Expression Patterns
 ;; ---------------------------------------------------------------------
 
@@ -583,10 +678,12 @@
     (let [bind (get environment :bind)
           call (get environment :call)
           data (get environment :data)
-          host (get environment :eval)
+          fail (get environment :fail)
           give (get environment :give)
+          host (get environment :eval)
           take (get environment :take)
           pass (get environment :pass)
+          pick (get environment :pick)
           initial-yields (map (fn [pattern]
                                 (yield-function pattern environment))
                               initial-patterns)
@@ -595,33 +692,36 @@
           conj (host `clojure/conj)
           concat (host `clojure/concat)]
       (fn [resolve reject state]
-        (bind (fn [xs-state]
-                (take xs-state
-                  (fn [xs]
-                    (tail-yield (fn [ys-state]
-                                  (take ys-state
-                                    (fn [ys]
-                                      (call concat xs ys
-                                        (fn [xs+ys]
-                                          (give ys-state xs+ys resolve))))))
-                                reject
-                                xs-state))))
-              (reduce
-               (fn [m x-yield]
-                 (bind (fn [state]
-                         (take state
-                           (fn [xs]
-                             (x-yield (fn [x-state]
-                                        (take x-state
-                                          (fn [x]
-                                            (call conj xs x
-                                              (fn [xs+x]
-                                                (give x-state xs+x pass))))))
-                                      reject
-                                      state))))
-                       m))
-               (give state empty-vector pass)
-               initial-yields))))))
+        (pick (fn []
+                (bind (fn [xs-state]
+                        (take xs-state
+                          (fn [xs]
+                            (tail-yield (fn [ys-state]
+                                          (take ys-state
+                                            (fn [ys]
+                                              (call concat xs ys
+                                                (fn [xs+ys]
+                                                  (give ys-state xs+ys resolve))))))
+                                        fail
+                                        xs-state))))
+                      (reduce
+                       (fn [m x-yield]
+                         (bind (fn [state]
+                                 (take state
+                                   (fn [xs]
+                                     (x-yield (fn [x-state]
+                                                (take x-state
+                                                  (fn [x]
+                                                    (call conj xs x
+                                                      (fn [xs+x]
+                                                        (give x-state xs+x pass))))))
+                                              fail
+                                              state))))
+                               m))
+                       (give state empty-vector pass)
+                       initial-yields)))
+              (fn []
+                (reject state)))))))
 
 (defrecord RegexJoin [x-pattern y-pattern]
   IQueryFunction
@@ -1311,6 +1411,10 @@
   ([id]
    (->Variable id fifo-fold-function fifo-unfold-function)))
 
+(defn reference
+  ([] (->Reference (gensym "%__")))
+  ([id] (->Reference id)))
+
 ;; Compound patterns
 ;; ---------------------------------------------------------------------
 
@@ -1340,6 +1444,9 @@
 (defn predicate
   [function-pattern object-pattern]
   (->Predicate function-pattern object-pattern))
+
+(defn with [pattern-mapping pattern]
+  (->With pattern-mapping pattern))
 
 ;; Regular Expression Constructors
 ;; -------------------------------
@@ -1484,6 +1591,41 @@
         ;; TODO: Replace `clojure/list with the symbol of a function
         ;; which creates a lazy seq.
         (apply (host-fn `clojure/list) pattern (anything))))
+
+;; System Constructors
+;; -------------------
+
+;; (defrecord RuleSystem [id pattern]
+;;   IQueryFunction
+;;   (query-function [this environment]
+;;     (let [%again (reference id) 
+;;           environment (clojure/assoc environment :cata %again)
+;;           with (get environment :with)
+;;           query (query-function pattern environment)]
+;;       (fn again [resolve reject state]
+;;         (prn :query state)
+;;         (with state {id again}
+;;           (fn [state]
+;;             (query resolve reject state))))))
+
+;;   IYieldFunction
+;;   (yield-function [this environment]
+;;     (let [%again (reference id) 
+;;           environment (clojure/assoc environment :cata %again)
+;;           with (get environment :with)
+;;           yield (yield-function pattern environment)]
+;;       (fn again [resolve reject state]
+;;             (prn :yield state)
+;;         (with state {id again}
+;;           (fn [state]
+;;             (yield resolve reject state)))))))
+
+;; (defn system [pattern]
+;;   (->RuleSystem (gensym "%__") pattern))
+
+;; (defn again [pattern]
+;;   (->Again pattern))
+
 
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------

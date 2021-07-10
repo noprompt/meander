@@ -40,6 +40,14 @@
   [state]
   nil)
 
+(defn with-one
+  {:style/indent 2}
+  [state mapping then]
+  (let [old-references (get state :references)
+        new-references (merge old-references mapping)]
+    (bind-one (fn [state] (assoc state :references old-references))
+              (then (assoc state :references new-references)))))
+
 (def ^{:private true}
   pass-all list)
 
@@ -82,6 +90,13 @@
    nil
    xs))
 
+(defn with-all
+  {:style/indent 2}
+  [state mapping then]
+  (let [old-references (get state :references)
+        new-references (merge old-references mapping)]
+    (map (fn [state] (assoc state :references old-references))
+         (then (assoc state :references new-references)))))
 
 (defn one [& args]
   {:bind bind-one
@@ -106,7 +121,7 @@
    :star m.kernel.eval.common/star
    :take m.kernel.eval.common/get-object
    :test m.kernel.eval.common/test
-   :with m.kernel.eval.common/with})
+   :with with-one})
 
 (defn all [& args]
   {:bind bind-all
@@ -131,4 +146,4 @@
    :star m.kernel.eval.common/star
    :take m.kernel.eval.common/get-object
    :test m.kernel.eval.common/test
-   :with m.kernel.eval.common/with})
+   :with with-all})

@@ -4,13 +4,20 @@
             [meander.pattern.zeta :as m.pattern]
             [meander.util.zeta :as m.util :include-macros true]))
 
-
-
 (t/deftest parse-test
   (let [x (reify)]
     (t/testing "data parse"
       (t/is (= (m.pattern/data x)
-               (m.parse/parse x))))))
+               (m.parse/parse x)))))
+
+  (t/testing "logic variable parse"
+    (t/is (= (m.pattern/logic-variable '?x)
+             (m.parse/parse '?x))))
+
+  (t/testing "sequential parse"
+    (t/is (= 1
+             (m.parse/parse '(1 2 3))))
+    ))
 
 #_
 (defn with-parse* [f]

@@ -31,6 +31,9 @@
 (def %empty
   (m.pattern/regex-empty))
 
+(defn fresh-references [f]
+  (f (repeatedly m.pattern/reference)))
+
 ;; Tests
 ;; ---------------------------------------------------------------------
 
@@ -610,6 +613,59 @@
 
         (t/is (= []
                  (host-stream (m.pattern/predicate %even? (m.pattern/data 1)))))))))
+
+(t/deftest with-test
+  (let [x (reify)
+        y (reify)
+        [%x %y %x-or-y] (repeatedly m.pattern/reference)
+        references {%x (m.pattern/data x)
+                    %y (m.pattern/data y)
+                    %x-or-y (m.pattern/some %x %y)}]
+    (t/testing "with query"
+      (t/testing "with match"
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-match (m.pattern/with references %x) x)))
+
+        (t/is (= nil
+                 (host-match (m.pattern/with references %x) y)))
+        
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-match (m.pattern/with references %x-or-y) x)))
+
+        (t/is (= {:object y, :bindings {}, :references {}}
+                 (host-match (m.pattern/with references %x-or-y) y))))
+
+      (t/testing "with search"
+        (t/is (= [{:object x, :bindings {}, :references {}}]
+                 (host-search (m.pattern/with references %x) x)))
+
+        (t/is (= []
+                 (host-search (m.pattern/with references %x) y)))
+        
+        (t/is (= [{:object x, :bindings {}, :references {}}]
+                 (host-search (m.pattern/with references %x-or-y) x)))
+
+        (t/is (= [{:object y, :bindings {}, :references {}}]
+                 (host-search (m.pattern/with references %x-or-y) y)))))
+
+    (t/testing "with yield"
+      (t/testing "with build"
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-build (m.pattern/with references %x))))
+        
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-build (m.pattern/with references %x-or-y))))
+
+        (t/is (= {:object x, :bindings {}, :references {}}
+                 (host-build (m.pattern/with references %x-or-y)))))
+
+      (t/testing "with stream"
+        (t/is (= [{:object x, :bindings {}, :references {}}]
+                 (host-stream (m.pattern/with references %x))))
+
+        (t/is (= [{:object x, :bindings {}, :references {}}
+                  {:object y, :bindings {}, :references {}}]
+                 (host-stream (m.pattern/with references %x-or-y))))))))
 
 (t/deftest regex-empty-test
   (t/testing "regex-empty query"

@@ -1,30 +1,44 @@
 (ns ^:no-doc meander.parse.zeta
-  (:require [meander.pattern.zeta :as m.%]
+  (:require [meander.pattern.zeta :as mp]
             [meander.kernel.eval.zeta :as m.kernel.eval]
             [meander.util.zeta :as m.util]))
 
 (def _
-  (m.%/anything))
+  (mp/anything))
 
 (defn %list [& args]
   (if (seq args)
-    (m.%/regex-concatenation args (m.%/regex-empty))
-    (m.%/regex-empty)))
+    (mp/regex-concatenation args (mp/regex-empty))
+    (mp/regex-empty)))
+
+(defn %call
+  {:private true}
+  [f & args]
+  {:pre [(fn? f)]}
+  (mp/apply (mp/data f) (apply %list args) _))
 
 ;; ?x => (apply data [?x] _)
 (def rule-default
-  (let [?x (m.%/logic-variable)]
-    (m.%/rule
-     ?x
-     (m.%/apply (m.%/data m.%/data) (%list ?x) _))))
+  (let [?x (mp/logic-variable)]
+    (mp/rule ?x (%call mp/data ?x))))
 
 ;; (each (symbol _ (str "?" _)) ?symbol) => (apply logic-variable [?symbol] _)
-
 (def logic-variable-rule
-  (let [?symbol (m.%/logic-variable)]
-    (m.%/rule
-     (m.%/each (m.%/symbol _ (m.%/str (m.%/data "?") _)) ?symbol)
-     (m.%/apply (m.%/data m.%/logic-variable) (m.%/regex-cons ?symbol (m.%/regex-empty)) _))))
+  (let [?symbol (mp/logic-variable)]
+    (mp/rule
+     (mp/each (mp/symbol _ (mp/str (mp/data "?") _)) ?symbol)
+     (%call mp/logic-variable ?symbol))))
+
+(def atomic-system
+  (mp/pick logic-variable-rule
+           rule-default))
+
+(defn sequential-system [again]
+  (let [<xs (mp/fifo-variable)
+        <xs* (mp/greedy-star [(mp/each again <xs)] (mp/regex-empty))]
+    (mp/rule
+     <xs*
+     (%call mp/regex-concatenation <xs*))))
 
 (defn parser
   {:arglists '([{:keys [:kernel] :as options}])}
@@ -36,10 +50,10 @@
         pass (get kernel :pass)]
     (fn [form]
       (bind (fn [state] (take state pass))
-            (m.%/run-rule (m.%/pick logic-variable-rule
-                                    rule-default)
-                          form
-                          kernel)))))
+            (mp/run-rule (mp/pick atomic-system
+                                  sequential-system)
+                         form
+                         kernel)))))
 
 (defn parse [form]
   (let [parse (parser {:kernel (m.kernel.eval/df-one)})]
@@ -188,7 +202,7 @@
 ;;      [(get environment :extra-rules (m/nothing))
 
 ;;       (make-special-symbol-rules environment)
-      
+
 ;;       (make-special-form-rules environment)
 
 ;;       ;; (rx ())
@@ -226,7 +240,7 @@
 ;;       (m/rule
 ;;        (m/vec ?xs)
 ;;        (m/apply (m/data m/vec) [(m/again (rx ?xs))]))
-      
+
 ;;       ;; Default
 ;;       (let [?x (m/logic-variable)]
 ;;         (m/rule ?x (m/apply m/data [?x])))])))

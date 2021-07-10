@@ -89,11 +89,6 @@
       f
       (throw (ex-info "Unbound reference" {:id id, :state state})))))
 
-(defn with
-  {:style/indent 2}
-  [state mapping then]
-  (then (reduce-kv (fn [m k v] (assoc-in m [:references k] v)) state mapping)))
-
 #?(:cljs
    (def cljs-symbol-table
      {'cljs.core/- cljs.core/-

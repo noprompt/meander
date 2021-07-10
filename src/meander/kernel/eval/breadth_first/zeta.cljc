@@ -37,6 +37,14 @@
   [f xs]
   (m.algorithms/mix* (map f xs)))
 
+(defn with
+  {:style/indent 2}
+  [state mapping then]
+  (let [old-references (get state :references)
+        new-references (assoc state :references (merge mapping old-references))]
+    (map (fn [state] (assoc state :references old-references))
+         (then (assoc state :references (merge old-references mapping))))))
+
 (defn all [& args]
   {:bind bind
    :call m.kernel.eval.common/call
@@ -60,4 +68,4 @@
    :star m.kernel.eval.common/star
    :take m.kernel.eval.common/get-object
    :test m.kernel.eval.common/test
-   :with m.kernel.eval.common/with})
+   :with with})
