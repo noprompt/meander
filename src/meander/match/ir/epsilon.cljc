@@ -34,10 +34,10 @@ compilation decisions."
        :private true}
   *env* {})
 
-(defn unsafe?
+(defn use-native-methods?
   {:private true}
   []
-  (boolean (:meander.epsilon/unsafe *env*)))
+  (:meander.epsilon/use-native-methods *env*))
 
 (defn fast?
   {:private true}
@@ -47,16 +47,12 @@ compilation decisions."
 (defn bounds-check?
   {:private true}
   []
-  (if (or (unsafe?) (fast?))
-    false
-    (not (:meander.epsilon/no-bounds-check *env*))))
+  (not (:meander.epsilon/no-bounds-check *env*)))
 
 (defn type-check?
   {:private true}
   []
-  (if (or (unsafe?) (fast?))
-    false
-    (not (:meander.epsilon/no-type-check *env*))))
+  (not (:meander.epsilon/no-type-check *env*)))
 
 (defn breadth-first?
   "`true` if the current IR compilation environment `*env*` specifies
@@ -1469,17 +1465,16 @@ compilation decisions."
 (defmethod compile* :lookup
   [ir fail kind]
   (cond
-    (r.util/cljs-env? *env*)
-    `(.get ~(compile* (:target ir) fail kind)
-           ~(compile* (:key ir) fail kind))
-    (fast?)
-    `(.get ~(with-meta (compile* (:target ir) fail kind)
-                {:tag 'clojure.lang.APersistentMap})
-             ~(compile* (:key ir) fail kind))
-    (not (type-check?))
+    (and (r.util/cljs-env? *env*) (not (use-native-methods?)))
     `(get ~(compile* (:target ir) fail kind)
           ~(compile* (:key ir) fail kind))
-    :else
+    (and (r.util/cljs-env? *env*) (use-native-methods?))
+    `(.get ~(compile* (:target ir) fail kind)
+           ~(compile* (:key ir) fail kind))
+    (not (use-native-methods?))
+    `(get ~(compile* (:target ir) fail kind)
+          ~(compile* (:key ir) fail kind))
+    (use-native-methods?)
     `(.valAt ~(with-meta (compile* (:target ir) fail kind)
                 {:tag 'clojure.lang.ILookup})
              ~(compile* (:key ir) fail kind))))
