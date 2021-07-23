@@ -52,9 +52,9 @@
   [state]
   {:object (get state :object)
    :bindings {}
-   :references {}})
+   :references (get state :references)})
 
-(defn receive
+(defn save
   {:style/indent 2}
   [state id fold pass fail]
   (get-object state

@@ -115,7 +115,7 @@
    :pass pass-one
    :pick pick-one
    :join join-one
-   :save m.kernel.eval.common/receive
+   :save m.kernel.eval.common/save
    :scan some
    :seed m.kernel.eval.common/seed
    :star m.kernel.eval.common/star
@@ -140,7 +140,7 @@
    :pass pass-all
    :pick pick-all
    :join join-all
-   :save m.kernel.eval.common/receive
+   :save m.kernel.eval.common/save
    :scan bind-all
    :seed m.kernel.eval.common/seed
    :star m.kernel.eval.common/star

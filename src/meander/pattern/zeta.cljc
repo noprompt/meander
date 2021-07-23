@@ -61,6 +61,17 @@
 (defprotocol IYieldFunction
   (yield-function [this environment]))
 
+(defprotocol IRedexFunction
+  (redex-function [this environment]))
+
+(extend-type Object
+  IRedexFunction
+  (redex-function [this environment]
+    (let [query (query-function this environment)
+          yield (yield-function this environment)]
+      (fn [pass fail state]
+        (query (fn [state] (yield pass fail state)) fail state)))))
+
 ;; Classes
 ;; ---------------------------------------------------------------------
 
@@ -75,18 +86,29 @@
     (let [give (get environment :give)
           make (get environment :make)]
       (fn [pass fail state]
-        (give state (make state) pass)))))
+        (give state (make state) pass))))
+
+  IRedexFunction
+  (redex-function [this environment]
+    (yield-function this environment)))
+
+(defn fail-function
+  {:private true}
+  [pass fail state]
+  (fail state))
 
 (defrecord Nothing []
   IQueryFunction
   (query-function [this environment]
-    (fn [pass fail state]
-      (fail state)))
+    fail-function)
 
   IYieldFunction
   (yield-function [this environment]
-    (fn [pass fail state]
-      (fail state))))
+    fail-function)
+
+  IRedexFunction
+  (redex-function [this environment]
+    fail-function))
 
 (defrecord Data [value]
   IQueryFunction
@@ -155,6 +177,7 @@
       (fn [pass fail state]
         (load state symbol unfold pass fail)))))
 
+
 (defrecord Pick [pattern-a pattern-b]
   IQueryFunction
   (query-function [this environment]
@@ -168,7 +191,14 @@
     (let [yield-a (yield-function pattern-a environment)
           yield-b (yield-function pattern-b environment)]
       (fn [pass fail state]
-        (yield-a pass (fn [_] (yield-b pass fail state)) state)))))
+        (yield-a pass (fn [_] (yield-b pass fail state)) state))))
+
+  IRedexFunction
+  (redex-function [this environment]
+    (let [rule-a (redex-function pattern-a environment)
+          rule-b (redex-function pattern-b environment)]
+      (fn [resolve reject state]
+        (rule-a resolve (fn [_] (rule-b resolve reject state)) state)))))
 
 (defrecord Some [pattern-a pattern-b]
   IQueryFunction
@@ -187,8 +217,16 @@
           join (get environment :join)]
       (fn [pass fail state]
         (join (fn [] (yield-a pass fail state))
-              (fn [] (yield-b pass fail state)))))))
+              (fn [] (yield-b pass fail state))))))
 
+  IRedexFunction
+  (redex-function [this environment]
+    (let [rule-a (redex-function pattern-a environment)
+          rule-b (redex-function pattern-b environment)
+          join (get environment :join)]
+      (fn [resolve reject state]
+        (join (fn [] (rule-a resolve reject state))
+              (fn [] (rule-b resolve reject state)))))))
 
 (defrecord Each [pattern-a pattern-b]
   IQueryFunction
@@ -197,14 +235,14 @@
           give (get environment :give)
           query-a (query-function pattern-a environment)
           query-b (query-function pattern-b environment)]
-      (fn [pass fail state]
+      (fn [resolve reject state]
         (take state
           (fn [object]
             (query-a (fn [state]
                        (give state object
                          (fn [state]
-                           (query-b pass fail state))))
-                     fail
+                           (query-b resolve reject state))))
+                     reject
                      state))))))
 
   IYieldFunction
@@ -214,9 +252,18 @@
           yield-b (yield-function pattern-b environment)
           query-a (query-function pattern-a environment)
           query-b (query-function pattern-b environment)]
-      (fn [pass fail state]
-        (join (fn [] (yield-a (fn [state] (query-b pass fail state)) fail state))
-              (fn [] (yield-b (fn [state] (query-a pass fail state)) fail state)))))))
+      (fn [resolve reject state]
+        (join (fn [] (yield-a (fn [state] (query-b resolve reject state)) reject state))
+              (fn [] (yield-b (fn [state] (query-a resolve reject state)) reject state))))))
+
+  IRedexFunction
+  (redex-function [this environment]
+    (let [join (get environment :join)
+          redex-a (redex-function pattern-a environment)
+          redex-b (redex-function pattern-b environment)]
+      (fn [resolve reject state]
+        (join (fn [] (redex-a (fn [state] (redex-b resolve reject state)) reject state))
+              (fn [] (redex-b (fn [state] (redex-a resolve reject state)) reject state)))))))
 
 (defrecord Apply [function-pattern arguments-pattern return-pattern]
   IQueryFunction
@@ -1272,6 +1319,7 @@
   (yield-function [this environment]
     (yield-function yield-pattern environment)))
 
+
 ;; Constructors
 ;; ---------------------------------------------------------------------
 
@@ -1585,7 +1633,6 @@
                pattern
                (anything))))
 
-
 (defn seq [pattern]
   (rule (predicate (host-fn `clojure/seq?) pattern)
         ;; TODO: Replace `clojure/list with the symbol of a function
@@ -1595,37 +1642,47 @@
 ;; System Constructors
 ;; -------------------
 
-;; (defrecord RuleSystem [id pattern]
-;;   IQueryFunction
-;;   (query-function [this environment]
-;;     (let [%again (reference id) 
-;;           environment (clojure/assoc environment :cata %again)
-;;           with (get environment :with)
-;;           query (query-function pattern environment)]
-;;       (fn again [resolve reject state]
-;;         (prn :query state)
-;;         (with state {id again}
-;;           (fn [state]
-;;             (query resolve reject state))))))
+(defrecord RuleSystem [id pattern]
+  IQueryFunction
+  (query-function [this environment]
+    (let [%again (reference id) 
+          environment (clojure/assoc environment :cata %again)
+          with (get environment :with)
+          query (query-function pattern environment)]
+      (fn again [resolve reject state]
+        (with state {id again}
+          (fn [state]
+            (query resolve reject state))))))
 
-;;   IYieldFunction
-;;   (yield-function [this environment]
-;;     (let [%again (reference id) 
-;;           environment (clojure/assoc environment :cata %again)
-;;           with (get environment :with)
-;;           yield (yield-function pattern environment)]
-;;       (fn again [resolve reject state]
-;;             (prn :yield state)
-;;         (with state {id again}
-;;           (fn [state]
-;;             (yield resolve reject state)))))))
+  IYieldFunction
+  (yield-function [this environment]
+    (let [%again (reference id) 
+          environment (clojure/assoc environment :cata %again)
+          with (get environment :with)
+          yield (yield-function pattern environment)]
+      (fn again [resolve reject state]
+        (with state {id again}
+          (fn [state]
+            (yield resolve reject state))))))
 
-;; (defn system [pattern]
-;;   (->RuleSystem (gensym "%__") pattern))
+  IRedexFunction
+  (redex-function [this environment]
+    (let [%again (reference id) 
+          environment (clojure/assoc environment :cata %again)
+          with (get environment :with)
+          rule (redex-function pattern environment)]
+      (fn again-redex [resolve reject state]
+        (with state {id again-redex}
+          (fn [state]
+            (rule resolve reject state)))))))
 
-;; (defn again [pattern]
-;;   (->Again pattern))
+(defn system
+  {:style/indent 1}
+  [pattern]
+  (->RuleSystem (gensym "%__") pattern))
 
+(defn again [pattern]
+  (->Again pattern))
 
 ;; Query/Yield API
 ;; ---------------------------------------------------------------------
@@ -1645,18 +1702,12 @@
         seed (get kernel :seed)]
     (yield pass fail (seed (data nil)))))
 
-(defn run-rule [rule object kernel]
-  (let [bind (get kernel :bind)
-        pass (get kernel :pass)
+(defn run-rule [pattern object kernel]
+  (let [pass (get kernel :pass)
         fail (get kernel :fail)
         seed (get kernel :seed)
-        take (get kernel :take)
-        query (query-function rule kernel)
-        yield (yield-function rule kernel)]
-    (query (fn [state]
-             (yield pass fail state))
-           fail
-           (seed object))))
+        rule (redex-function pattern kernel)]
+    (rule pass fail (seed object))))
 
 
 ;; Local Variables:

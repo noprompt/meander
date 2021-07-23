@@ -33,12 +33,11 @@
   (mp/pick logic-variable-rule
            rule-default))
 
-(defn sequential-system [again]
-  (let [<xs (mp/fifo-variable)
-        <xs* (mp/greedy-star [(mp/each again <xs)] (mp/regex-empty))]
-    (mp/rule
-     <xs*
-     (%call mp/regex-concatenation <xs*))))
+(def sequential-system 
+  (let [<xs (mp/fifo-variable)]
+    ;; TODO: (mp/greedy-star [(mp/again <xs)] (mp/regex-empty)) 
+    (mp/rule (mp/regex-cons (mp/again <xs) (mp/again <xs)) 
+             (%call mp/regex-cons <xs <xs))))
 
 (defn parser
   {:arglists '([{:keys [:kernel] :as options}])}
@@ -50,14 +49,16 @@
         pass (get kernel :pass)]
     (fn [form]
       (bind (fn [state] (take state pass))
-            (mp/run-rule (mp/pick atomic-system
-                                  sequential-system)
+            (mp/run-rule (mp/system (mp/pick sequential-system
+                                             atomic-system))
                          form
                          kernel)))))
 
 (defn parse [form]
   (let [parse (parser {:kernel (m.kernel.eval/df-one)})]
     (parse form)))
+
+(parse '[?x ?y])
 
 ;; (defn default-variable-id
 ;;   {:private true}

@@ -62,7 +62,7 @@
    :pass list
    :pick pick
    :join join
-   :save m.kernel.eval.common/receive
+   :save m.kernel.eval.common/save
    :scan scan
    :seed m.kernel.eval.common/seed
    :star m.kernel.eval.common/star

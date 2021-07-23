@@ -14,6 +14,7 @@
     (t/is (= (m.pattern/logic-variable '?x)
              (m.parse/parse '?x))))
 
+  #_
   (t/testing "sequential parse"
     (t/is (= 1
              (m.parse/parse '(1 2 3))))
