@@ -109,7 +109,8 @@
 (defn compile-rewrites-args
   {:arglists '([[target & rewrite-clauses] env])}
   [rewrite-args env]
-  (let [rewrites-analysis (analyze-rewrites-args rewrite-args env)]
+  (let [env (m.environment/desugar env)
+        rewrites-analysis (analyze-rewrites-args rewrite-args env)]
     (m.match/match rewrites-analysis
       {:cata-symbol ?cata-symbol
        :match-cata? ?match-cata?

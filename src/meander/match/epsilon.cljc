@@ -2007,7 +2007,7 @@
   ([match-args]
    (analyze-find-args match-args {}))
   ([match-args env]
-   (let [env (merge r.environment/default env)
+   (let [env (r.environment/desugar env)
          result (parse-match-args match-args env)]
      (if-some [error (first (get result :errors))]
        result
