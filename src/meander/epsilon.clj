@@ -8,7 +8,8 @@
             [meander.syntax.epsilon :as r.syntax]
             [meander.substitute.epsilon :as r.subst]
             [meander.substitute.syntax.epsilon :as r.subst.syntax]
-            [meander.util.epsilon :as r.util]))
+            [meander.util.epsilon :as r.util]
+            [meander.environment.epsilon :as r.environment]))
 
 ;; ---------------------------------------------------------------------
 ;; Match, Find, Search
@@ -196,7 +197,7 @@
    :style/indent :defn}
   [x & clauses]
   (assert (even? (count clauses)) "rewrite requires an even number of clauses")
-  (clj/let [y (r.rewrite/compile-rewrite-args (list* x clauses) &env)]
+  (clj/let [y (r.rewrite/compile-rewrite-args (list* x clauses) (merge r.environment/default (meta &form) &env))]
     (if (instance? Exception y)
       (throw y)
       y)))
@@ -212,7 +213,7 @@
   {:style/indent :defn}
   [x & clauses]
   (assert (even? (count clauses)) "rewrites requires an even number of clauses")
-  (clj/let [y (r.rewrite/compile-rewrites-args (list* x clauses) &env)]
+  (clj/let [y (r.rewrite/compile-rewrites-args (list* x clauses) (merge r.environment/default (meta &form) &env))]
     (cond
       (instance? Exception y)
       (throw y)
