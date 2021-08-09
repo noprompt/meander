@@ -1841,7 +1841,7 @@
   part of an equality check would result in false negative matches."
   [node]
   (and (ground? node)
-       (not-any? (comp #{:map :unq :set} tag)
+       (not-any? (comp #{:map :set} tag)
                  (subnodes node))))
 
 (defn partition-nodes
