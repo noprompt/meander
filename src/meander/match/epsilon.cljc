@@ -681,23 +681,22 @@
      (r.matrix/first-column matrix)
      (r.matrix/drop-column matrix))))
 
-(defn map-matrix-all-literal-keys
+(defn map-matrix-all-ground-keys
   {:private true}
   [map-matrix]
   (sequence
    (comp (filter r.syntax/map-node?)
-         (mapcat r.syntax/literal-keys))
+         (mapcat r.syntax/ground-keys))
    (r.matrix/first-column map-matrix)))
 
-
-(defn compile-literal-key-map-matrix
+(defn compile-ground-key-map-matrix
   {:private true}
-  [literal-key-nodes [target :as targets] map-matrix]
-  {:pre [(seq literal-key-nodes)]}
-  (let [literal-key-nodes (r.util/rank literal-key-nodes)
-        value_targets (vec (repeatedly (count literal-key-nodes) (fn [] (gensym "T__"))))
+  [ground-key-nodes [target :as targets] map-matrix]
+  {:pre [(seq ground-key-nodes)]}
+  (let [ground-key-nodes (r.util/rank ground-key-nodes)
+        value_targets (vec (repeatedly (count ground-key-nodes) (fn [] (gensym "T__"))))
         rest_target (gensym "T__")
-        literal-key-codes (map compile-ground literal-key-nodes)
+        ground-key-codes (map compile-ground ground-key-nodes)
         sub_targets `[~rest_target ~@targets]
         ir-target (r.ir/op-eval target)]
     [(r.ir/op-check-map ir-target
@@ -710,12 +709,12 @@
                    (fn [node row]
                      (let [as-node (or (get node :as) any-node)
                            the-map (or (get node :map) {})
-                           local-literal-key-nodes (filter the-map literal-key-nodes)
-                           local-literal-key-codes (map compile-ground local-literal-key-nodes)
+                           local-ground-key-nodes (filter the-map ground-key-nodes)
+                           local-ground-key-codes (map compile-ground local-ground-key-nodes)
                            value-nodes (mapv (fn [key-node]
                                                (or (get the-map key-node) any-node))
-                                             literal-key-nodes)
-                           the-map* (reduce dissoc the-map local-literal-key-nodes)
+                                             ground-key-nodes)
+                           the-map* (reduce dissoc the-map local-ground-key-nodes)
                            rest-node (if (seq the-map*)
                                        (merge node {:as nil :map the-map*})
                                        (or (get node :rest-map) any-node))
@@ -725,11 +724,11 @@
                            rest-ir (compile sub_targets rest-matrix)
                            rest-rhs (if (= rest-node any-node)
                                       rest-ir
-                                      (r.ir/op-bind rest_target (r.ir/op-eval `(dissoc ~target ~@local-literal-key-codes))
+                                      (r.ir/op-bind rest_target (r.ir/op-eval `(dissoc ~target ~@local-ground-key-codes))
                                         rest-ir))
                            row* (merge row {:cols value-nodes, :rhs rest-rhs})]
                        row*))))
-        (map vector value_targets literal-key-codes)))]))
+        (map vector value_targets ground-key-codes)))]))
 
 (defn specialize-map-matrix-by-size
   {:private true}
@@ -809,7 +808,7 @@
                                   row*))))))
                (reverse (range k))))))))))
 
-(defn compile-non-literal-key-map-matrix
+(defn compile-non-ground-key-map-matrix
   {:private true}
   [targets map-matrix]
   (let [matrices (specialize-map-matrix-by-size map-matrix)]
@@ -819,19 +818,19 @@
              (compile-k-map-specialized-matrix k targets s-matrix)))
           matrices)))
 
-(defn partition-map-matrix-by-literal-keys
+(defn partition-map-matrix-by-ground-keys
   "Partition map-matrix into two separate matrices: one containing
   only the rows of map-matrix such that the first column is a :map
-  node containing key from literal-key-nodes, and one containing only
+  node containing key from ground-key-nodes, and one containing only
   the rows of the map-matrix such that the first column is a :map node
-  containing no key from literal-key-nodes."
+  containing no key from ground-key-nodes."
   {:private true}
-  [literal-key-nodes map-matrix]
+  [ground-key-nodes map-matrix]
   (reduce
    (fn [[a b] row]
      (let [node (first (:cols row))
            the-map (or (get node :map) {})]
-       (if (seq (filter the-map literal-key-nodes))
+       (if (seq (filter the-map ground-key-nodes))
          [(conj a row) b]
          [a (conj b row)])))
    [[] []]
@@ -839,15 +838,15 @@
 
 (defmethod compile-specialized-matrix :map
   [_  targets map-matrix]
-  (let [literal-key-nodes (map-matrix-all-literal-keys map-matrix)]
-    (if (seq literal-key-nodes)
-      (let [[map-matrix-a map-matrix-b] (partition-map-matrix-by-literal-keys literal-key-nodes map-matrix)
-            ir-a (compile-literal-key-map-matrix literal-key-nodes targets map-matrix-a)]
+  (let [ground-key-nodes (map-matrix-all-ground-keys map-matrix)]
+    (if (seq ground-key-nodes)
+      (let [[map-matrix-a map-matrix-b] (partition-map-matrix-by-ground-keys ground-key-nodes map-matrix)
+            ir-a (compile-ground-key-map-matrix ground-key-nodes targets map-matrix-a)]
         (if (seq map-matrix-b)
-          (let [ir-b (compile-non-literal-key-map-matrix targets map-matrix-b)]
+          (let [ir-b (compile-non-ground-key-map-matrix targets map-matrix-b)]
             (into ir-a ir-b))
           ir-a))
-      (compile-non-literal-key-map-matrix targets map-matrix))))
+      (compile-non-ground-key-map-matrix targets map-matrix))))
 
 (defmethod compile-specialized-matrix :merge
   [_ [target & rest-targets] map-matrix]
