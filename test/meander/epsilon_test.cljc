@@ -2694,7 +2694,7 @@
              (r/search (range 1 11) (?a . _ ... ?b . _ ... ?c) [?a ?b ?c])
              (r/search (range 1 11) (?a & _ ?b & _ ?c) [?a ?b ?c]))))
 
-(t/deftest gh-194
+(t/deftest gh-194-test
   (let [f (fn rec [expr]
             (r/match expr
               (r/pred number?) {:num expr}
@@ -2729,3 +2729,29 @@
                               :related {:type "sha256" :value "abcd"}
                               :module "VirusTotal"
                               :module-type "VirusTotal Module"}))))
+
+(t/deftest gh-195-test
+  (let [m {:a 1 :b 2 :c 3 :d 4}]
+    (t/is (= m
+             (r/rewrite m
+               (r/map-of !ks !vs)
+               {& [[!ks !vs] ...]})))))
+
+(t/deftest gh-198-test
+  (let [m {:group-defaults [{:attribute {:alias "alias-1"}
+                             :from-expression "expression"}]
+           :group-by [{:alias "alias-0"}
+                      {:alias "alias-1"}
+                      {:alias "alias-2"}]}]
+    (t/is (= [{:group-by [{:alias "alias-1", :default {:from-expression "expression"}}]}
+              {:group-by [{:alias "alias-0"}]}
+              {:group-by [{:alias "alias-2"}]}]
+             (r/rewrites m
+               {:group-defaults (r/scan {:attribute {:alias (r/some ?alias)}
+                                         :from-expression (r/some ?expression)})
+                :group-by (r/scan {:alias ?alias :as ?group-by})}
+               {:group-by [{:default {:from-expression ?expression} & ?group-by}]}
+
+               {:group-by (r/scan {(r/some :alias) ?a :as ?group-by})
+                :group-defaults (r/scan {:attribute {:alias (r/not ?a)}})}
+               {:group-by [?group-by]})))))
