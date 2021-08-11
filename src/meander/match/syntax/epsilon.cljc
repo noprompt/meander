@@ -517,7 +517,6 @@
    (-> (expand-ast-top-down node env)
        (expand-ast-bottom-up env)
        (r.syntax/rename-refs)
-       #_
        (r.syntax/consolidate-with))
    #_
    (let [node* (-> (expand-ast-top-down node env)
