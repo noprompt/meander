@@ -2693,3 +2693,39 @@
               [1 9 10])
              (r/search (range 1 11) (?a . _ ... ?b . _ ... ?c) [?a ?b ?c])
              (r/search (range 1 11) (?a & _ ?b & _ ?c) [?a ?b ?c]))))
+
+(t/deftest gh-194
+  (let [f (fn rec [expr]
+            (r/match expr
+              (r/pred number?) {:num expr}
+              (?verb & ?args) {:verb ?verb :args (map rec ?args)}
+              _ {:any expr}))]
+    (t/is (= {:verb '+, :args [{:num 1} {:num 2}]}
+             (f '(+ 1 2))))))
+
+(t/deftest map-with-unq-disjunction-test
+  (let [relation-matches? (fn [query relation]
+                            (when-not (empty? query)
+                              (every?
+                               (fn [[k v]]
+                                 (r/find relation
+                                   (r/or {:source {~k ~v}}
+                                         {~k ~v}
+                                         {:related {~k ~v}}
+                                         {:origin {~k ~v}})
+                                   true))
+                               query)))]
+    (t/is (not (relation-matches? {:foo "bar"}
+                                  {:source {:type "ip" :value "1.2.3.4"}
+                                   :relation "Downloaded"
+                                   :related {:type "sha256" :value "abcd"}
+                                   :module "VirusTotal"
+                                   :module-type "VirusTotal Module"})))
+    (t/is (relation-matches? {:type "ip"
+                              :module "VirusTotal"
+                              :value "1.2.3.4"}
+                             {:source {:type "ip" :value "1.2.3.4"}
+                              :relation "Downloaded"
+                              :related {:type "sha256" :value "abcd"}
+                              :module "VirusTotal"
+                              :module-type "VirusTotal Module"}))))
