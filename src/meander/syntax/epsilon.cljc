@@ -15,6 +15,21 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+(defn with-collection-context
+  {:private true}
+  [env]
+  (assoc env ::context :collection))
+
+(defn with-scalar-context
+  {:private true}
+  [env]
+  (assoc env ::context :scalar))
+
+(defn scalar-context?
+  {:private true}
+  [{:keys [::context]}]
+  (= context :scalar))
+
 (defn node?
   "true if x is an AST node."
   [x]
@@ -644,81 +659,92 @@
             (assoc (parse xs* env) ::original-form xs))))
       (parse-seq-not-special xs env))))
 
-(defn parse-symbol
+(defn parse-maybe-special-symbol
   {:private true}
   [sym]
+  (let [s (name sym)]
+    (cond
+      (r.util/re-matches? #"^_.*" s)
+      {:tag :any
+       :symbol sym}
+
+      (r.util/re-matches? #"^\?.+" s)
+      {:tag :lvr
+       :symbol sym}
+
+      (r.util/re-matches? #"^!.+" s)
+      {:tag :mvr
+       :symbol sym}
+
+      (r.util/re-matches? #"^%.+" s)
+      {:tag :ref
+       :symbol sym}
+
+      (r.util/re-matches? #"^\*.+" s)
+      {:tag :mut
+       :symbol sym}
+
+      :else
+      {:tag :lit
+       :value sym})))
+
+(defn parse-symbol
+  {:private true}
+  [sym env]
   (if (namespace sym)
     {:tag :lit
      :value sym}
-    (let [s (name sym)
-          [$0 $N $L $M] (re-matches #"\.(?:\.(?:\.|(\d+)|(\?.+)|(!.+))?)?" s)]
-      (cond
-        ;; `..<nat-int>`
-        (some? $N)
-        (if (= $N "0")
-          ;; `..0` is the same as `...`.
-          {:tag :dt*}
-          ;; Inteneral tag for postfix n or more operator.
-          {:tag :dt+
-           :n (r.util/parse-int $N)})
+    (if (scalar-context? env)
+      (parse-maybe-special-symbol sym)
+      (let [s (name sym)
+            [$0 $N $L $M] (re-matches #"\.(?:\.(?:\.|(\d+)|(\?.+)|(!.+))?)?" s)]
+        (cond
+          ;; `..<nat-int>`
+          (some? $N)
+          (if (= $N "0")
+            ;; `..0` is the same as `...`.
+            {:tag :dt*}
+            ;; Inteneral tag for postfix n or more operator.
+            {:tag :dt+
+             :n (r.util/parse-int $N)})
 
-        ;; `..?<name>`
-        (some? $L)
-        ;; Internal tag for postfix ?n or more operator.
-        {:tag :dtl
-         :lvr {:tag :lvr
-               :symbol (symbol $L)}}
+          ;; `..?<name>`
+          (some? $L)
+          ;; Internal tag for postfix ?n or more operator.
+          {:tag :dtl
+           :lvr {:tag :lvr
+                 :symbol (symbol $L)}}
 
-        (some? $M)
-        ;; Internal tag for postfix !n or more operator.
-        {:tag :dtm
-         :mvr {:tag :mvr
-               :symbol (symbol $M)}}
+          (some? $M)
+          ;; Internal tag for postfix !n or more operator.
+          {:tag :dtm
+           :mvr {:tag :mvr
+                 :symbol (symbol $M)}}
 
-        :else
-        (case $0
-          ;; Internal tag for postfix partition.
-          "."
-          {:tag :dot}
+          :else
+          (case $0
+            ;; Internal tag for postfix partition.
+            "."
+            {:tag :dot}
 
-          ;; Internal tag for postfix n or more operator.
-          ".."
-          {:tag :dt+
-           :n $N}
+            ;; Internal tag for postfix n or more operator.
+            ".."
+            {:tag :dt+
+             :n $N}
 
-          ;; Internal tag for postfix 0 or more operator.
-          "..."
-          {:tag :dt*}
+            ;; Internal tag for postfix 0 or more operator.
+            "..."
+            {:tag :dt*}
 
-          nil
-          (cond
-            (r.util/re-matches? #"^_.*" s)
-            {:tag :any
-             :symbol sym}
+            nil
+            (cond
+              ;; Internal tag for rest patterns.
+              (r.util/re-matches? #"^&.*" s)
+              {:tag :amp
+               :symbol sym}
 
-            (r.util/re-matches? #"^\?.+" s)
-            {:tag :lvr
-             :symbol sym}
-
-            (r.util/re-matches? #"^!.+" s)
-            {:tag :mvr
-             :symbol sym}
-
-            (r.util/re-matches? #"^%.+" s)
-            {:tag :ref
-             :symbol sym}
-
-            (r.util/re-matches? #"^\*.+" s)
-            {:tag :mut
-             :symbol sym}
-
-            (r.util/re-matches? #"^&.*" s)
-            {:tag :amp
-             :symbol sym}
-
-            :else
-            {:tag :lit
-             :value sym}))))))
+              :else
+              (parse-maybe-special-symbol sym))))))))
 
 (defn parse-js-value
   {:arglists '([val-of-js-value env])
@@ -777,7 +803,7 @@
            (parse pattern env))
      :map (into {} (map
                     (fn [e]
-                      [(parse (key e) env) (parse (val e) env)]))
+                      [(parse (key e) env) (parse (val e) (with-scalar-context env))]))
                 (get classified :assoc))
      :rest-map (if-some [es (get classified :merge)]
                  {:tag :merge
@@ -836,20 +862,20 @@
   ([form env]
    (let [node (cond
                 (seq? form)
-                (parse-seq form env)
+                (parse-seq form (with-collection-context env))
 
                 (vector? form)
-                (parse-vector form env)
+                (parse-vector form (with-collection-context env))
 
                 (and (map? form)
                      (not (record? form)))
-                (parse-map form env)
+                (parse-map form (with-collection-context env))
 
                 (set? form)
-                (parse-set form env)
+                (parse-set form (with-collection-context env))
 
                 (symbol? form)
-                (parse-symbol form)
+                (parse-symbol form env)
 
                 #?@(:clj [(r.util/js-value? form)
                           (parse-js-value (r.util/val-of-js-value form) env)])

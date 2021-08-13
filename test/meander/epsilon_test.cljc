@@ -2752,6 +2752,19 @@
                 :group-by (r/scan {:alias ?alias :as ?group-by})}
                {:group-by [{:default {:from-expression ?expression} & ?group-by}]}
 
-               {:group-by (r/scan {(r/some :alias) ?a :as ?group-by})
+               {:group-by (r/scan {:alias ?a :as ?group-by})
                 :group-defaults (r/scan {:attribute {:alias (r/not ?a)}})}
                {:group-by [?group-by]})))))
+
+(t/deftest gh-199-test
+  ;; Reported as a compilation error.
+  (let [query {}]
+    (t/is (r/rewrite query
+            {:as ?query :aggregates [(r/cata !agg) ...]}
+            {& ?query :aggregates [!agg ...]}
+
+            {:op "AVG", :args [{:computed ["deal_count_by_user"]}], :alias ?alias :as ?agg}
+            {?agg & :op "AVG", :args [{:computed ["user_count_by_deal"]}], :alias ?alias}
+            ;;    ^
+
+            ?? ??))))
