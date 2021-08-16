@@ -1,19 +1,10 @@
 # Meander<sup>ε</sup>
 
 Meander is a Clojure/ClojureScript library that empowers you to write transparent data transformation code that allows you to plainly see the input and output of these transformations.
+The latest version of the library can be found at the following link.
 
-The latest recommended version of the library can be used as follows.
+[![Clojars Project](https://img.shields.io/clojars/v/meander/epsilon.svg)](https://clojars.org/meander/epsilon)
 
-### Leiningen/Boot
-
-```edn
-[meander/epsilon "0.0.602"]
-```
-
-#### Clojure CLI/deps.edn
-
-```edn
-meander/epsilon {:mvn/version "0.0.602"}
 ```
 
 ## What can Meander do?
