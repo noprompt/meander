@@ -5,8 +5,6 @@ The latest version of the library can be found at the following link.
 
 [![Clojars Project](https://img.shields.io/clojars/v/meander/epsilon.svg)](https://clojars.org/meander/epsilon)
 
-```
-
 ## What can Meander do?
 
 ```clojure
