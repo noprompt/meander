@@ -19,4 +19,8 @@
                              :extra-deps {org.clojure/clojure {:mvn/version "1.10.0"}
                                           org.clojure/clojurescript {:mvn/version "1.10.439"}
                                           org.clojure/test.check {:mvn/version "0.10.0-alpha3"}}
-                             :main-opts ["-m" "make-defproject"]}}}
+                             :main-opts ["-m" "make-defproject"]}
+           :build {:extra-paths ["src" "build"]
+                   :deps {io.github.clojure/tools.build {:sha "6736c83ce1234735f464be979eb8fe9f16db7904"}
+                          slipset/deps-deploy {:mvn/version "RELEASE"}}
+                   :ns-default build}}}
