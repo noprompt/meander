@@ -30,7 +30,7 @@
            ?result
            (throw (ex-info "Unable to compute commit count" ?result))))
 
-(def lib 'noprompt/meander)
+(def lib (symbol "meander" (git-branch-name)))
 (def basis (b/create-basis {:project "deps.edn"}))
 (def version (format "0.0.%s" (git-branch-commit-count)))
 (def class-dir "target/classes")
