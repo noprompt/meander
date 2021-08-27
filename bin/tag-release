@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-clj -T:build clean
-clj -T:build jar
-clj -T:build clojars
-
 branch_name=`git rev-parse --abbrev-ref HEAD`
 commit_count=`git rev-list 6c9083a9e75a3ac451edd3514030d6baa7e04a9c... --count`
 

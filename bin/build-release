@@ -2,9 +2,6 @@
 
 set -x
 
-# This script clones the current repository into ./release and builds
-# a project.clj file.
-
 # Delete ./release if it exists.
 [[ -d release ]] && rm -rf release
 
@@ -14,6 +11,19 @@ git clone $project_root release
 
 cd release
 
-bin/test && bin/tag-release
+bin/test && clojure -T:build clean && clojure -T:build jar
+
+if [ $? -eq 0 ];  then
+    case $1 in
+        "deploy")
+            bin/tag-release
+            set +x
+            read -p "Clojars username: " clojars_username
+            read -s -p "Clojars password: " clojars_password
+            env CLOJARS_USERNAME="$clojars_username" CLOJARS_PASSWORD="$clojars_password" clojure -T:build clojars
+            set -x
+            ;;
+    esac
+fi
 
 cd ..

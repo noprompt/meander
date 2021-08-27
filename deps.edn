@@ -15,12 +15,7 @@
                        :extra-deps {org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
                        :main-opts ["-m" "cljs-test-runner.main"]}
-           :make-defproject {:extra-paths ["bin"]
-                             :extra-deps {org.clojure/clojure {:mvn/version "1.10.0"}
-                                          org.clojure/clojurescript {:mvn/version "1.10.439"}
-                                          org.clojure/test.check {:mvn/version "0.10.0-alpha3"}}
-                             :main-opts ["-m" "make-defproject"]}
            :build {:extra-paths ["src" "build"]
-                   :deps {io.github.clojure/tools.build {:sha "6736c83ce1234735f464be979eb8fe9f16db7904"}
-                          slipset/deps-deploy {:mvn/version "RELEASE"}}
+                   :extra-deps {io.github.clojure/tools.build {:git/tag "v0.1.9" :git/sha "6736c83"}
+                                slipset/deps-deploy {:mvn/version "RELEASE"}}
                    :ns-default build}}}
