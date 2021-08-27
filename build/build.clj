@@ -53,7 +53,7 @@
 (defn deploy [args]
   (-> args
       (assoc  :artifact jar-file
-              :pom-file (str class-dir "/META-INF/maven/noprompt/meander/pom.xml"))
+              :pom-file (str class-dir "/META-INF/maven/" (namespace lib) "/" (name lib) "/pom.xml"))
       (d/deploy)))
 
 (defn clojars [args]
