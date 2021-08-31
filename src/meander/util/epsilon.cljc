@@ -7,8 +7,6 @@
                                __dissoc
                                __nth]])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 (defn cljs-env?
   "true if compiling ClojureScript or in a ClojureScript setting,
   false otherwise."
