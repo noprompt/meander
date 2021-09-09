@@ -116,7 +116,7 @@ If you want to ensure that a certain number of elements exist you can also use t
 ### Conditional Matches
 
 Stepping away from food examples, we can see a few of Meanders more traditional pattern matching abilities.
-Imagine that we have coordinates that can either include be `[x y]` or `[x y z]` and we want a pattern to that extracts `y`.
+Imagine that we have coordinates that can either include be `[x y]` or `[x y z]` and we want a pattern that extracts `y`.
 
 ```clojure
 (def point [1 2])
