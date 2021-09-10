@@ -448,7 +448,7 @@ Meander makes that easy.
 ;; => [1 6 2 7 3 8 4 9 5 10]
 ```
 
-Simply remove the `... .` between `!xs` and `!ys`. Now, the remaining "..." operator applies to both memory variables as a pair.
+Simply remove the `... .` between `!xs` and `!ys`. Now, the remaining `...` operator applies to both memory variables as a pair.
 
 Now, let's take a look at a more complex example.
 
