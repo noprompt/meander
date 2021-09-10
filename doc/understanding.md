@@ -412,7 +412,7 @@ We'll show an example shortly, but first we need to introduce Meander's memory v
 ```
 
 Memory variables are prefixed with an exclamation point and accumulate values into a vector every time they match.
-Here, we're using the `match` macro, but memory variables work with `match`, `search`, `fine`, `rewrites`, and `rewrite`.
+Here, we're using the `match` macro, but memory variables work with `match`, `search`, `find`, `rewrites`, and `rewrite`.
 The `!xs ...` construction says to match a series of values and to accumulate them into `!xs`.
 Every time `!xs` matches another value, the value is accumulated into the `!xs` vector.
 Because we're using `match`, the RHS expression is arbitrary Clojure code, which simply returns the value of `!xs`: `[1 2 3]`.
