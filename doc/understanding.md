@@ -245,8 +245,8 @@ Now that you've seen that `search` can match against different clauses, here's a
 While this pattern looks complex, when we break it down you'll see that it's actually pretty simple.
 In this case, we are looking for a vector, finding all the 1s in that vector, and assigning whatever appears after a 1 to the variable `?x`.
 Syntactically, the `_ ...` is a wildcard match of any number of elements that are *not* a 1 (since the 1 comes next).
-As described previously, `_` matches anything, and `...` says to match anything any number of times.
-If you're familiar with Clojure regular expressions for string matching, this is effectively the equivalent of `#".*"`.
+As described previously, `_` matches anything, and `...` says to repeat the match any number of times.
+If you're familiar with Clojure regular expressions for string matching, `_ ...` is effectively the equivalent of `#".*"`.
 Next, we have `1 ?x`.
 This says to match a `1` followed by anything and to bind `?x` to the item following the `1`.
 Finally, we have `. _ ...`.
