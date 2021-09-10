@@ -255,7 +255,7 @@ The leading `.` says to start the wildcard matching following the item bound to 
 
 In this case, `?x` is bound to three items, one at a time, and the RHS expression is invoked once for each binding.
 This is important, so let's say it again.
-The logic variable `?x` is *not* bound to `(1 2 3)`, but rather once to `1` and then the RHS expression is evaluated, then to `2` and the RHS is evaluated a second time, and finally bound to `3` and the RHS expression is evaluated a third and final time.
+The logic variable `?x` is *not* bound to `(2 3 5)`, but rather once to `2` and then the RHS expression is evaluated, then to `3` and the RHS is evaluated a second time, and finally bound to `5` and the RHS expression is evaluated a third and final time.
 
 If you want to see this explicitly, you can add a side effect to the expression.
 
