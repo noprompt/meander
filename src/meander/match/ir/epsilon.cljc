@@ -39,11 +39,6 @@ compilation decisions."
   []
   (:meander.epsilon/use-native-methods *env*))
 
-(defn fast?
-  {:private true}
-  []
-  (boolean (:meander.epsilon/fast *env*)))
-
 (defn bounds-check?
   {:private true}
   []
