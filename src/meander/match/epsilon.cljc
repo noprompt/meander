@@ -1796,7 +1796,8 @@
           :matrix matrix})))))
 
 (defn compile-match-args [match-args env]
-  (let [match-data (analyze-match-args match-args env)]
+  (let [env (r.environment/desugar env)
+        match-data (analyze-match-args match-args env)]
     (if-some [error (first (get match-data :errors))]
       (throw error)
       (let [expr (get match-data :expr)
@@ -1915,7 +1916,8 @@
 
 (defn compile-search-analysis
   [search-analysis env]
-  (let [matrix (get search-analysis :matrix)]
+  (let [env (r.environment/desugar env)
+        matrix (get search-analysis :matrix)]
     (if (r.matrix/empty? matrix)
       nil
       (let [expr (get search-analysis :expr)
@@ -1982,7 +1984,7 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [env (merge (meta &form) &env)
+  (let [env (merge r.environment/default (meta &form) &env)
         search-analysis (analyze-search-args match-args env)]
     (if-some [error (first (get search-analysis :errors))]
       (throw error)
@@ -2005,7 +2007,7 @@
   ([match-args]
    (analyze-find-args match-args {}))
   ([match-args env]
-   (let [env (merge r.environment/default env)
+   (let [env (r.environment/desugar env)
          result (parse-match-args match-args env)]
      (if-some [error (first (get result :errors))]
        result
@@ -2044,7 +2046,8 @@
 
 (defn compile-find-analysis
   [find-analysis env]
-  (let [matrix (get find-analysis :matrix)
+  (let [env    (r.environment/desugar env)
+        matrix (get find-analysis :matrix)
         final-clause (get find-analysis :final-clause)
         matrix (if (some? final-clause)
                  (conj matrix final-clause)
@@ -2089,7 +2092,7 @@
   {:arglists '([x & clauses])
    :style/indent [1]}
   [& match-args]
-  (let [env (merge (meta &form) &env)
+  (let [env (merge r.environment/default (meta &form) &env)
         find-analysis (analyze-find-args match-args env)]
     (if-some [error (first (get find-analysis :errors))]
       (throw error)

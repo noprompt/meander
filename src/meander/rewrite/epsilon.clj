@@ -5,7 +5,8 @@
    [meander.match.runtime.epsilon :as m.match.runtime]
    [meander.substitute.epsilon :as m.subst]
    [meander.substitute.syntax.epsilon :as m.subst.syntax]
-   [meander.syntax.epsilon :as m.syntax]))
+   [meander.syntax.epsilon :as m.syntax]
+   [meander.environment.epsilon :as m.environment]))
 
 ;; rewrite compilation
 ;; -------------------
@@ -51,7 +52,8 @@
 (defn compile-rewrite-args
   {:arglists '([[target & rewrite-clauses] env])}
   [rewrite-args env]
-  (let [rewrite-analysis (analyze-rewrite-args rewrite-args env)]
+  (let [env (m.environment/desugar env)
+        rewrite-analysis (analyze-rewrite-args rewrite-args env)]
     (m.match/match rewrite-analysis
       {:cata-symbol ?cata-symbol
        :match-cata? ?match-cata?
@@ -107,7 +109,8 @@
 (defn compile-rewrites-args
   {:arglists '([[target & rewrite-clauses] env])}
   [rewrite-args env]
-  (let [rewrites-analysis (analyze-rewrites-args rewrite-args env)]
+  (let [env (m.environment/desugar env)
+        rewrites-analysis (analyze-rewrites-args rewrite-args env)]
     (m.match/match rewrites-analysis
       {:cata-symbol ?cata-symbol
        :match-cata? ?match-cata?

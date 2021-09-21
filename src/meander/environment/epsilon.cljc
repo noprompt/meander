@@ -35,8 +35,25 @@
    :meander.epsilon/rewrite-vector-as-to-and true
    :meander.epsilon/substitute-acyclic-references true
    ;; When set to true disables type checks and bounds checks.
-   :meander.epsilon/unsafe false
+   :meander.epsilon/use-native-methods true
    :meander.syntax.epsilon/expander-registry {}
    :meander.syntax.epsilon/phase nil
    :meander.syntax.epsilon/parser-registry {}})
 
+(defn desugar-unsafe [env]
+  (if (:meander.epsilon/unsafe env)
+    (assoc (dissoc env :meander.epsilon/unsafe)
+           :meander.epsilon/no-type-check true)
+    env))
+
+(defn desugar-dangerous [env]
+  (if (:meander.epsilon/dangerous env)
+    (assoc (dissoc env :meander.epsilon/dangerous)
+           :meander.epsilon/no-type-check true
+           :meander.epsilon/use-native-methods true)
+    env))
+
+(defn desugar [env]
+  (-> env
+      desugar-unsafe
+      desugar-dangerous))
