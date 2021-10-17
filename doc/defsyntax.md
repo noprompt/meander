@@ -161,7 +161,7 @@ If we try invoking that last form we will see the same error which was reported 
 So how do we fix this?
 The answer lies in `&env`.
 
-`&env` contains data which allows us to identify what kind of syntax our extension applies to e.g. whether we are matching or subsiting.
+`&env` contains data which allows us to identify what kind of syntax our extension applies to e.g. whether we are matching or substituting.
 The syntax is matching on the left side of `m/match`, `m/search`, `m/find`, `m/rewrite`, and `m/rewrites`; and substituting in `m/subst` and on the right side of `m/rewrite` and `m/rewrites`.
 We can use the functions `m/match-syntax?` and `m/subst-syntax?` to detect which syntax is in use.
 Lets update our previous extension.
