@@ -218,8 +218,9 @@ If there is no child term for which `s` succeeds then `(one s)` fails.
 
 ### `some`
 
-The `some` combinator is a traversal combinator which applies a strategy `s` to one child of a term `t`.
-If there is no child term for which `s` succeeds then `(some s)` fails.
+The `some` combinator is a traversal combinator which applies a strategy `s` to
+as many direct subterms of `t` as possible. Succeeds if at least one application
+applies, fails otherwise.
 
 ```clj example
 (let [s (fn [x]
