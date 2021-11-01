@@ -122,7 +122,7 @@ Strategy which always fails.
 
 ### `build`
 
-Strategy combinator which takes a value returns a strategy which always returns that value.
+Strategy combinator which takes a value and returns a strategy which always returns that value.
 Like `clojure.core/constantly` but the returned function takes only one argument.
 
 ```clj
