@@ -369,6 +369,67 @@ You can leverage self recursion to accumulate a result.
 ;; => (3 2 1)
 ```
 
+### Recursion and pattern expansion
+
+#### Rewrite sequence of maps
+
+```clojure
+(m/rewrite
+ {:x
+  {:y
+   [{:foo 1 :bar 2}
+    {:foo 4 :bar 8}]}}
+
+ {:x {:y [!vs ...]}}
+ [(m/cata !vs) ...]
+
+ {:foo ?foo :bar ?bar} [?foo ?bar])
+;; => [[1 2] [4 8]]
+```
+
+#### Rewrite map values
+
+```clojure
+(m/rewrite
+  {:x
+   {:y
+    {:k1 {:foo 1 :bar 2}
+     :k2 {:foo 4 :bar 8}}}}
+
+  {:x {:y {& (m/seqable [!_ !vs] ...)}}}
+  [(m/cata !vs) ...]
+
+  {:foo ?foo :bar ?bar} [?foo ?bar])
+;; => [[1 2] [4 8]]
+```
+
+#### Rewrite sub values and merge with keys from other levels
+
+```clojure
+(m/rewrite
+ {:x
+  {:y
+   {:k1 {:foo 1 :bar 2}
+    :k2 {:foo 4 :bar 8}}
+   :z {:w :another-value}}}
+
+ {:x {:y {& (m/seqable [!_ !vs] ...)}
+      :z {:w ?val}}}
+ [{:val ?val
+   & (m/cata !vs)}
+  ...]
+
+ {:foo ?foo :bar ?bar} {:fizz ?foo :buzz ?bar}
+ )
+;; => [{:fizz 1, :buzz 2, :val :another-value}
+;;     {:fizz 4, :buzz 8, :val :another-value}]
+```
+
+Notice how the result of applying the sub rewrite again on `!vs` via `cata`
+returns a map which is merge with the toplevel map containing `:val`.
+
+The "more" operator `...` should be outside the scope of the repeated pattern.
+
 ## Use the same value from a memory variable twice
 
 When you have a match pattern that contains a memory varible `!n` and a substitution pattern where you want to make use of the variable in multiple ways, you can't do that directly because `[!n !n]` would take 2 different values out of `!n` instead of the same value twice. However, you can easily create two names for the same value in the search pattern with `(m/and !n !n2)` which will match a single value, but create 2 memory variables.
@@ -547,3 +608,61 @@ To solve this, we could write the code like this:
 For the `:assignee` field, it either matches a nil and at the same
 time binds the `?assignee` variable to nil, or it matches a map whose
 `:name` value is bound to the `?assignee` variable.
+## Nested Repetition
+
+Consider the following Scheme syntax definition:
+
+```scheme
+(define-syntax conde
+  (syntax-rules ()
+    ((_ (g0 g ...) ...) (disj+ (conj+ g0 g ...) ...))))
+```
+
+i.e. a form such as:
+
+```scheme
+(conde (g0 g1 g2) (g3 g4))
+```
+
+Will expand to:
+```scheme
+(disj+ (conj+ g0 g1 g2) (conj+ g3 g4))
+```
+
+Using regular macros, it could be written in Clojure as:
+
+```clojure
+(defmacro conde
+  [[g0 & gs] & more]
+  `(disj+
+    (conj+ ~g0 ~@gs)
+    ~@(map
+       (fn [[g0 & gs]]
+         `(cojn+ ~g0 ~@gs))
+       more)))
+```
+
+In meander, we might try implementing it as:
+
+```clojure
+(m/rewrite
+ '(conde [g0 g1 g2] [g3 g4])
+
+ (_ . [!g ...] ... )
+ (disj+ . (conj+ . !g ...) ... ))
+;; => (disj+ (conj+ g0 g1 g2 g3 g4))
+```
+
+But the memory variable `!g` captures all `g`s.
+
+We can provide an "early termination" condition to each group by
+specifying a quantifier to the inner matching pattern:
+
+```clojure
+(m/rewrite
+ '(conde [g0 g1 g2] [g3 g4] [g7 g8 g9])
+
+ (_ . [!g ..!n] ... )
+ (disj+ . (conj+ . !g ..!n) ... ))
+;; => (disj+ (conj+ g0 g1 g2) (conj+ g3 g4) (conj+ g7 g8 g9))
+```
