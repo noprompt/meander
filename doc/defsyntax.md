@@ -13,7 +13,7 @@ Meanders pattern syntax can be extended with new "special" forms called _operato
 `defsyntax` is similar to `defmacro` in that it defines a function which will be called with unevaluated arguments.
 Functions defined by `defsyntax` are invoked when patterns are parsed e.g. during the macro expansion of `m/match`, `m/subst`, etc.
 Like `defmacro`, `defsyntax` binds the special variables `&form` and `&env`, but unlike `defmacro` are often essential.
-`&form` is semantically equivalent to the `&form` bound by `defmacro`; its the form of the invocation of the operator i.e. `(operator-name ?x ?y)`.
+`&form` is semantically equivalent to the `&form` bound by `defmacro`; it's the form of the invocation of the operator i.e. `(operator-name ?x ?y)`.
 On the other hand, `&env` is only similar to the `&env` of `defmacro` in that it is a `map?` and contains contextual data.
 
 ## Tutorial
@@ -31,7 +31,7 @@ To build some motivation for `defsyntax` consider the following.
 ```
 
 This example captures a common scenario in Clojure: given an `ident?`, we'd like to get its `namespace` and `name`.
-However, it is also often the case to then dispatch on these values.
+However, it is also often the case that we want to then dispatch on these values.
 We could tighten up the original pattern by matching the result `namespace`, etc.
 
 
