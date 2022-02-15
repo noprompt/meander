@@ -17,3 +17,4 @@ cljs-test-runner-out/
 nashorn_code_cache/
 src/meander/compiled/
 *~
+.DS_Store
