@@ -1,7 +1,6 @@
 (ns meander.bsless.dev)
 
 (defprotocol MonadPlus
-  :extend-via-metadata true
   (-mzero [this])
   (-mplus [this that]))
 
@@ -33,16 +32,24 @@
 (extend-protocol MonadPlus
   clojure.lang.ISeq
   (-mzero [this] ())
-  (-mplus [this that] (concat this that)))
+  (-mplus [this that] (concat this that))
+  clojure.lang.IPersistentVector
+  (-mzero [this] [])
+  (-mplus [this that] (into this that)))
 
 (comment
   (-mzero '(1 2 3))
-  (-mplus '(1 2 3) '(4 5 6)))
+  (-mplus '(1 2 3) '(4 5 6))
+  (-mzero [1 2])
+  (-mplus [1 2] [1 2]))
 
 (extend-protocol Monad
   clojure.lang.ISeq
   (-bind [this f] (mapcat f this))
-  (-return [_ x] (list x)))
+  (-return [_ x] (list x))
+  clojure.lang.IPersistentVector
+  (-bind [this f] (into [] (mapcat f) this))
+  (-return [_ x] [x]))
 
 (comment
   (-bind '(1 2 3) inc)
@@ -52,10 +59,15 @@
   clojure.lang.ISeq
   (-msplit [this]
     (-return this (when-let [xs (seq this)]
-                    [(first xs) (rest xs)]))))
+                    [(first xs) (rest xs)])))
+  clojure.lang.IPersistentVector
+  (-msplit [this]
+    (-return this (when (seq this)
+                    [(first this) (subvec this 1)]))))
 
 (comment
   (-msplit '(1 2 3 4))
+  (-msplit '[1 2 3 4])
   (-msplit '())
   (-msplit '(1)))
 
@@ -84,5 +96,6 @@
             (-mzero m)))))
 
 (-interleave '(1 2 3) '(4 5 6))
+(-interleave '[1 2 3] '[4 5 6])
 
 (>>- '(1 2 3) (fn [x] (list (inc x))))
