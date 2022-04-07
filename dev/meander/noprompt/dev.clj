@@ -127,6 +127,9 @@
               state))
           this)))
 
+;; Tests
+;; -----
+
 (t/deftest primitive-query-test
   (let [s {:object 1}
         m (-pass (list) s)]
