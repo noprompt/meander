@@ -64,7 +64,7 @@
   (-interleave [sg1 sg2]
     (mdo* [r (-msplit sg1)]
           (if-let [[sg11 sg12] r]
-            (-mplus (-return sg1 sg11) (interleave-impl sg2 sg12))
+            (-mplus (-return sg1 sg11) (-interleave sg2 sg12))
             sg2)))
   (>>- [sg g]
     (mdo* [r (-msplit sg)]
