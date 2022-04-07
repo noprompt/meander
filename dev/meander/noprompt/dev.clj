@@ -1,5 +1,6 @@
 (ns meander.noprompt.dev
-  (:require [meander.algorithms.zeta :as m.algorithms]
+  (:require [clojure.test :as t]
+            [meander.algorithms.zeta :as m.algorithms]
             [meander.primitive.zeta :as m]
             [meander.primitive.string.zeta :as m.str])
   (:import meander.primitive.zeta.Anything
@@ -15,78 +16,182 @@
 
 (defprotocol IQuery
   :extend-via-metadata true
-  (query [pattern logic]))
+  (-query [pattern logicm]))
 
 (defprotocol IYield
   :extend-via-metadata true
-  (yield [pattern logic]))
+  (-yield [pattern logicm]))
 
 (defprotocol IRedex
   :extend-via-metadata true
-  (redex [pattren logic]))
-
-;; FAILURE  = empty [A] : M[A]
-;; DISJ = plus [A](x: M[A], y: M[A]) : M[A]
-;; SUCCESS = pure [A](a: A) : M[A]
-;; CONJ = flatMap [A, B](ma: M[A])(f: A => M[B])
-(defprotocol IMonadPlus
-  :extend-via-metadata true
-  ;; Conjunction
-  (^{:style/indent 1} bind [this f]))
-
-(defprotocol ILogic
-  :extend-via-metadata true
-  (pass [logic state])
-  (fail [logic state])
-  ;; Disjunction
-  (some [logic-a logic-b]))
+  (-redex [pattern logicm]))
 
 (defprotocol IState
   :extend-via-metadata true
-  (geto [state])
-  (seto [state x]))
+  (-get-object [this])
+  (-set-object [this new-object]))
+
+(defprotocol ILogic
+  :extend-via-metadata true
+  ;; True/In
+  (-pass [this state])
+  ;; False/Not In
+  (-fail [this state])
+  ;; And/All/Intersection
+  (^{:style/indent 1}
+   -each [this f])
+  ;; Or/Some/Union
+  (-some [this that])
+  ;; Pick/XOR
+  (-pick [this that])
+  ;; Not/Complement
+  (^{:style/indent 1}
+   -comp [this f]))
+
+;; Implementation
+;; ---------------------------------------------------------------------
+
+;; Patterns
+;; --------
 
 (extend-type meander.primitive.zeta.Anything
   IQuery
-  (query [this logic]
-    logic)
+  (-query [this m]
+    m))
 
-  IYield
-  (yield [this logic]
-    logic))
-
-;; (is 1)
 (extend-type meander.primitive.zeta.Is
   IQuery
-  (query [this logic]
-    (bind logic
-      (fn [state]
+  (-query [this m]
+    (-each m
+      (fn [s]
         (let [x (.-x this)
-              y (geto state)]
+              y (-get-object s)]
           (if (= x y)
-            (pass logic state)
-            (fail logic state))))))
-                                   
-  IYield
-  (yield [this logic]
-    (let [x (.-x this)]
-      (bind logic
-        (fn [state]
-          (pass logic (seto state x)))))))
+            (-pass m s)
+            (-fail m s)))))))
 
-(let [object 1
+(extend-type meander.primitive.zeta.Some
+  IQuery
+  (-query [this m]
+    (-some (-query (.-a this) m)
+           (-query (.-b this) m))))
 
-      state
-      (with-meta {:object object}
-        {`geto :object
-         `seto (fn [this x] (assoc this :object x))})
+(extend-type meander.primitive.zeta.Each
+  IQuery
+  (-query [this m]
+    (-each (-query (.-a this) m)
+      (fn [s]
+        (-query (.-b this) (-pass m s))))))
 
-      logic
-      (with-meta (list state)
-        {`pass (fn [_ state] (list state))
-         `fail (constantly ())
-         `some concat
-         `flat-map (fn [this f]
-                     (mapcat f this))})
-      p (m/is 10)]
-  (yield p logic))
+(extend-type meander.primitive.zeta.Not
+  IQuery
+  (-query [this m]
+    (-comp m
+      (fn [s]
+        (-query (.-a this) (-pass m s))))))
+
+;; Interpreter
+;; -----------
+
+;; Extended to Clojure values directly.
+
+(extend-type clojure.lang.IPersistentMap
+  IState
+  (-get-object [this]
+    (get this :object))
+
+  (-set-object [this new-object]
+    (assoc this :object new-object)))
+
+(extend-type clojure.lang.ISeq
+  ILogic
+  (-pass [this state]
+    (list state))
+
+  (-fail [this state]
+    ())
+
+  (-each [this f]
+    (mapcat f this))
+
+  (-some [this that]
+    (concat this that))
+
+  (-pick [this that]
+    (or (seq this) that))
+
+  (-comp [this f]
+    (keep (fn [state]
+            (if (seq (f state))
+              nil
+              state))
+          this)))
+
+(t/deftest primitive-query-test
+  (let [s {:object 1}
+        m (-pass (list) s)]
+    (t/is (= (-query (m/anything) m)
+             m))
+
+    (t/is (= (-query (m/is 1) m)
+             (list s)))
+
+    (t/is (= (-query (m/is 2) m)
+             ()))
+
+    (t/is (= (-query (m/some (m/is 1) (m/is 1)) m)
+             (list s s)))
+
+    (t/is (= (-query (m/some (m/is 0) (m/is 1)) m)
+             (list s)))
+
+    (t/is (= (-query (m/some (m/is 0) (m/is 2)) m)
+             ()))
+
+    (t/is (= (-query (m/each (m/is 1) (m/anything)) m)
+             (list s)))
+
+    (t/is (= (-query (m/each (m/is 1) (m/is 0)) m)
+             ()))
+
+    (t/is (= (-query (m/not (m/is 2)) m)
+             (list s)))))
+
+;; Same as above but extended to types we "own".
+(comment
+  (defrecord State [object]
+    IState
+    (-get-object [this]
+      object)
+
+    (-set-object [this new-object]
+      (assoc this :object object)))
+
+  (defrecord DFSLogic [states]
+    ILogic
+    (-pass [this state]
+      (assoc this :states (list state)))
+
+    (-fail [this state]
+      (assoc this :states ()))
+
+    (-each [this f]
+      (assoc this :states (mapcat (comp :states f) states)))
+
+    (-some [this that]
+      (assoc this :states (concat states (:states that))))
+
+    (-pick [this that]
+      (if (seq states) this that))
+
+    (-comp [this f]
+      (assoc this :states
+             (keep (fn [state]
+                     (if (seq (:states (f state)))
+                       nil
+                       state))
+                   states))))
+
+  (-query (m/not (m/is 2))
+          (-pass (->DFSLogic (list))
+                 (->State 1))))
