@@ -1,6 +1,7 @@
 (ns meander.primitive.zeta
   (:require [meander.primitive.string.zeta :as m.primitive.string])
   (:refer-clojure :exclude [not
+                            some
                             str]))
 
 (defrecord Anything [])
@@ -11,38 +12,60 @@
 (defrecord Some [a b])
 (defrecord Predicate [p])
 
-(def anything #'->Anything)
+(def ^{:arglists '([])
+       :doc "Constructor for the pattern which represents an element
+  of set of all objects."}
+  anything #'->Anything)
 
-(def is #'->Is)
+(def ^{:arglists '([x])
+       :doc "Constructor for the pattern which represents an element
+  of the set containing only x."}
+  is #'->Is)
 
-(def not #'->Not)
+(def ^{:arglists '([p])
+       :doc "Constructor for the pattern which represents an element
+  of the complement of the set described by the pattern p."}
+  not #'->Not)
 
-(def nothing (comp not anything))
+(def ^{:arglists '([])
+       :doc "Constructor for the pattern which represents an element
+  of the empty set e.g. nothing."}
+  nothing (comp not anything))
 
-(def predicate #'->Predicate)
+;; Note: Not ready for documentation.
+(def predicate
+  #'->Predicate)
 
 (defn some
-  ([] nothing)
+  "Constructor for the pattern which represents an element of the
+  union of the sets described by patterns provided."
+  ([] (nothing))
   ([a] a)
   ([a b] (->Some a b))
   ([a b & more]
    (apply some (->Some a b) more)))
 
 (defn pick
-  ([] nothing)
+  "Constructor for the pattern which represents an element of the
+  of one of the sets described by patterns provided."
+  ([] (nothing))
   ([a] a)
   ([a b] (->Pick a b))
   ([a b & more]
    (apply pick (->Pick a b) more)))
 
 (defn each
-  ([] anything)
+  "Constructor for the pattern which represents an element of the
+  of the intersection of sets described by patterns provided."
+  ([] (anything))
   ([a] a)
   ([a b] (->Each a b))
   ([a b & more]
    (apply each (->Each a b) more)))
 
 (defn str
+  "Constructor for the pattern which represents an element of the
+  of set of strings described by patterns provided."
   ([] (is ""))
   ([a] (m.primitive.string/concat (is "") a))
   ([a b] (m.primitive.string/concat a b))
