@@ -26,6 +26,7 @@
   (-once [this]))
 
 (defmacro mdo*
+  {:style/indent 1}
   [[binding expr] body]
   `(-bind ~expr (fn [~binding] ~body)))
 
@@ -75,25 +76,25 @@
   Object
   (-interleave [sg1 sg2]
     (mdo* [r (-msplit sg1)]
-          (if-let [[sg11 sg12] r]
-            (-mplus (-return sg1 sg11) (-interleave sg2 sg12))
-            sg2)))
+      (if-let [[sg11 sg12] r]
+        (-mplus (-return sg1 sg11) (-interleave sg2 sg12))
+        sg2)))
   (>>- [sg g]
     (mdo* [r (-msplit sg)]
-          (if-let [[sg1 sg2] r]
-            (-interleave (g sg1) (>>- sg2 g))
-            (-mzero sg))))
+      (if-let [[sg1 sg2] r]
+        (-interleave (g sg1) (>>- sg2 g))
+        (-mzero sg))))
 
   (-ifte [t th el]
     (mdo* [r (-msplit t)]
-          (if-let [[sg1 sg2] r]
-            (-mplus (th sg1) (-bind sg2 th))
-            el)))
+      (if-let [[sg1 sg2] r]
+        (-mplus (th sg1) (-bind sg2 th))
+        el)))
   (-once [m]
     (mdo* [r (-msplit m)]
-          (if-let [[sg1] r]
-            (-return m sg1)
-            (-mzero m)))))
+      (if-let [[sg1] r]
+        (-return m sg1)
+        (-mzero m)))))
 
 (-interleave '(1 2 3) '(4 5 6))
 (-interleave '[1 2 3] '[4 5 6])
