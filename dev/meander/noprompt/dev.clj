@@ -81,7 +81,7 @@
   (-yield [this m]
     (-each m
       (fn [s]
-        (-pass m (-set-object m (.-x this)))))))
+        (-pass m (-set-object s (.-x this)))))))
 
 (extend-type meander.primitive.zeta.Some
   IQuery
