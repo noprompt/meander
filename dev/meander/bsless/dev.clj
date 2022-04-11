@@ -67,8 +67,7 @@
 
 (defmacro mplus
   [this that]
-  `(lazy-seq
-    (-mplus ~this (lazy-seq ~that))))
+  `(-mplus ~this (lazy-seq ~that)))
 
 (extend-protocol MonadPlus
   clojure.lang.ISeq
