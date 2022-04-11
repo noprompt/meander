@@ -153,5 +153,8 @@
   (-interleave '(1 2 3) '(4 5 6))
   (take 42 (-interleave '(1 2 3) (range)))
   (-interleave '[1 2 3] '[4 5 6])
-  (>>- '(a b c) (fn [_] (range 10))))
+  (>>- '(a b c) (fn [_] (range 10)))
+  (frequencies (take 99 (>>- '(a b c) (fn [x] (repeat x)))))
+  (frequencies (take 200 (>>- '(a b c) (fn [x] (repeat x)))))
+  )
 
