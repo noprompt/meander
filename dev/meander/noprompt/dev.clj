@@ -121,6 +121,33 @@
       (fn [s]
         (-query (.-a this) (-pass m s))))))
 
+
+(extend-type meander.primitive.string.zeta.Concat
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (string? x)
+            (reduce -some (-fail m s)
+                    (map (fn [[a b]]
+                           (-each (-query (.-a this) (-pass m (-set-object s a)))
+                             (fn [s]
+                               (-query (.-b this) (-pass m (-set-object s b))))))
+                         (m.algorithms/string-partitions x 2)))
+            (-fail m s))))))
+
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-a this) m)
+      (fn [s]
+        (let [a (-get-object s)]
+          (-each (-yield (.-b this) (-pass m s))
+            (fn [s]
+              (let [b (-get-object s)]
+                (-pass m (-set-object s (str a b)))))))))))
+
 ;; Interpreter
 ;; -----------
 
@@ -146,6 +173,7 @@
     {:object object
      :random random
      :seed seed}))
+
 
 (extend-type clojure.lang.ISeq
   ILogic
@@ -174,44 +202,69 @@
 ;; Tests
 ;; -----
 (t/deftest primitive-query-test
-  (let [seed (long (rand Long/MAX_VALUE))
+  (let [;; seed (long (rand Long/MAX_VALUE))
+        seed 1
         s {:seed seed
            :object 1
            :random (m.random/make-random seed)}
         m (-pass (list) s)]
-    (t/is (= (-query (m/anything) m)
-             m))
+    (t/testing "anything"
+      (t/is (= m
+               (-query (m/anything) m)))
 
-    (t/is (= (-query (m/is 1) m)
-             (list s)))
+      (t/is (= (-each m
+                 (fn [s]
+                   (-pass m -7995527694508729151)))
+               (-each (-yield (m/anything) m)
+                 (fn [s]
+                   (-pass m (-get-object s)))))))
 
-    (t/is (= (-query (m/is 2) m)
-             ()))
+    (t/testing "is"
+      (t/is (= (list s)
+               (-query (m/is 1) m)))
 
-    (t/is (= (-query (m/some (m/is 1) (m/is 1)) m)
-             (list s s)))
+      (t/is (= ()
+               (-query (m/is 2) m)))
 
-    (t/is (= (-query (m/some (m/is 0) (m/is 1)) m)
-             (list s)))
+      (t/is (= (list s s)
+               (-query (m/some (m/is 1) (m/is 1)) m)))
 
-    (t/is (= (-query (m/some (m/is 0) (m/is 2)) m)
-             ()))
+      (t/is (= (list s)
+               (-query (m/some (m/is 0) (m/is 1)) m)))
 
-    (t/is (= (-query (m/each (m/is 1) (m/anything)) m)
-             (list s)))
+      (t/is (= ()
+               (-query (m/some (m/is 0) (m/is 2)) m)))
 
-    (t/is (= (-query (m/each (m/is 1) (m/is 0)) m)
-             ()))
+      (t/is (= (list s)
+               (-query (m/each (m/is 1) (m/anything)) m)))
 
-    (t/is (= (-query (m/not (m/is 2)) m)
-             (list s)))))
+      (t/is (= ()
+               (-query (m/each (m/is 1) (m/is 0)) m)))
 
-(comment
-  (let [s (make-state {:seed 10})
-        m (-pass (list) s)]
-    (-yield (m/each (m/anything) (m/anything)) m)))
+      (t/is (= (list s)
+               (-query (m/not (m/is 2)) m)))
 
-;; Same as above but extended to types we "own".
+      (t/is (= (list (-set-object s 1))
+               (-yield (m/is 1) m))))
+
+    (t/testing "str"
+      (let [fan-fin-fun (m/str (m/is "f")
+                               (m/some (m/is "a") (m/is "i") (m/is "u"))
+                               (m/is "n"))]
+        (t/is (= (list 1 3 5)
+                 (map :seed (-query fan-fin-fun (list (make-state {:object "fan" :seed 1})
+                                                      (make-state {:object "fen" :seed 2})
+                                                      (make-state {:object "fin" :seed 3})
+                                                      (make-state {:object "fon" :seed 4})
+                                                      (make-state {:object "fun" :seed 5}))))))
+
+        (t/is (= (list "fan" "fin" "fun")
+                 (map :object (-yield fan-fin-fun (list (make-state {}))))))
+
+        (t/is 3
+              (count (-query fan-fin-fun (-yield fan-fin-fun (list (make-state {}))))))))))
+
+
 (comment
   (defrecord State [object]
     IState
