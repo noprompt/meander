@@ -101,7 +101,6 @@
       (fn [s]
         (-query (.-b this) (-pass m s)))))
 
-
   IYield
   (-yield [this m]
     (-some (-each (-yield (.-a this) m)
