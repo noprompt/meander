@@ -21,23 +21,3 @@
 ((-into-goal (z/each (z/some (z/is 1) (z/is 2))
                      (z/is 2))
              {:lvar (->LVar 'x)}) {})
-
-
-#_#_
-(defprotocol IntoGoal
-  (-into-goal [this]))
-
-(extend-protocol IntoGoal
-  Each
-  (-into-goal [this]
-    (-conj (-into-goal (.-a this)) (-into-goal (.-b this))))
-  Some
-  (-into-goal [this]
-    (-disj (-into-goal (.-a this)) (-into-goal (.-b this))))
-  Is
-  (-into-goal [this] (call-fresh #(=== % (.-x this)))))
-
-#_
-((-into-goal (z/each (z/some (z/is 1) (z/is 2))
-                     (z/is 2))
-             ) {})
