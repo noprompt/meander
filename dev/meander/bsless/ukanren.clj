@@ -156,42 +156,20 @@
 
 (t/deftest one-or-branch
   (t/is (= '((7))
-           (map vals ((call-fresh
-                       (fn [q]
-                         (-conj
-                          (=== q 7)
-                          (-disj (=== q 5) (=== q 7))))) {})))))
+           (map
+            vals
+            ((call-fresh
+              (fn [q]
+                (-conj
+                 (=== q 7)
+                 (-disj (=== q 5) (=== q 7))))) {})))))
 
-(comment
-  (defn sixes [x]
-    (-disj (=== x 6) (fn [s] (fn [] ((sixes x) s)))))
-
-  (defn sixes [x]
-    (-disj (=== x 6) (fn [s] ((sixes x) s))))
-
-  (def x (take 2 ((call-fresh sixes) {})))
-  (type (second x))
-
-  (defn sixes [x]
-    (-disj (=== x 6) (fn sc [s] (fn $ [] ((sixes x) s)))))
-
-  (take 33 ((call-fresh sixes) {}))
-
-
-  ((call-fresh
-    (fn [q]
-      (-conj
-       (=== q 7)
-       (-disj (=== q 5) (=== q 7))))) {})
-
-  ((fn [s]
-     (let [q (->LVar 'q)]
-       (>>-
-        (>>- s (=== q 1))
-        (fn [a12821]
-          (-interleave
-           (>>- s (=== q 1))
-           (>>- a12821 (=== q 2)))))))
-   {})
-
-  )
+(t/deftest infinite-stream-test
+  (t/is
+   (= (repeat 33 6)
+      (->> {}
+           ((call-fresh
+             (fn sixes [x]
+               (-disj (=== x 6) (fn [s] (lazy-seq ((sixes x) s)))))))
+           (take 33)
+           (mapcat vals)))))
