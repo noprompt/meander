@@ -155,6 +155,19 @@
   (-interleave '[1 2 3] '[4 5 6])
   (>>- '(a b c) (fn [_] (range 10)))
   (frequencies (take 99 (>>- '(a b c) (fn [x] (repeat x)))))
-  (frequencies (take 200 (>>- '(a b c) (fn [x] (repeat x)))))
-  )
+  (frequencies (take 200 (>>- '(a b c d) (fn [x] (repeat x)))))
+  (frequencies
+   (take
+    100
+    (-interleave
+     (>>- '(a b) (fn [x] (repeat x)))
+     (>>- '(c d) (fn [x] (repeat x))))))
+  (frequencies
+   (take
+    100
+    (-interleave
+     (>>- '(a b) (fn [x] (repeat x)))
+     (>>- '(c) (fn [x] (repeat x))))))
+  (frequencies (take 200 (>>- '(a b) (fn [x] (repeat x)))))
+  ,())
 
