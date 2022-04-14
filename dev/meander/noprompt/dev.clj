@@ -3,6 +3,7 @@
             [meander.algorithms.zeta :as m.algorithms]
             [meander.primitive.zeta :as m]
             [meander.primitive.string.zeta :as m.str]
+            [meander.primitive.character.zeta :as m.char]
             [meander.random.zeta :as m.random])
   (:import meander.primitive.zeta.Anything
            meander.primitive.zeta.Each
@@ -11,7 +12,9 @@
            meander.primitive.zeta.Pick
            meander.primitive.zeta.Predicate
            meander.primitive.zeta.Some
-           meander.primitive.string.zeta.Member
+           meander.primitive.character.zeta.AnyCharacter
+           meander.primitive.character.zeta.CharacterInRange
+           meander.primitive.string.zeta.AnyString
            meander.primitive.string.zeta.Concat))
 
 (defprotocol IQuery
@@ -121,6 +124,119 @@
       (fn [s]
         (-query (.-a this) (-pass m s))))))
 
+;; Character
+;; ---------------------------------------------------------------------
+
+(defn frac [f]
+  (rem f 1))
+
+(defn clamp [value value-min value-max]
+  (max value-min (min value value-max)))
+
+;; SEE: https://www.sidefx.com/docs/houdini/expressions/fit01.html
+(defn fit01
+  "Return the number between new-min and new-max relative to f in
+  between 0 and 1. If the f is outside the 0 to 1 range it will be
+  clamped."
+  [f new-min new-max]
+  (+ new-min (* (clamp f 0 1) (- new-max new-min))))
+
+(def CHARACTER_MAX_INT_VALUE
+  (int Character/MAX_VALUE))
+
+(extend-type meander.primitive.character.zeta.AnyCharacter
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (char? x)
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (let [s (-set-random s)
+              v (-get-object s)
+              r (java.util.Random. (Math/floor (fit01 v 0 Long/MAX_VALUE)))
+              m (-pass m (-set-object s (char (.nextInt r CHARACTER_MAX_INT_VALUE))))]
+          (-some m (-yield this m)))))))
+
+(extend-type meander.primitive.character.zeta.CharacterInRange
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (char? x)
+            (let [i (int x)]
+              ;; Yield min.
+              (-each (-yield (.-min this) (-pass m s))
+                (fn [s-min]
+                  (let [min (-get-object s-min)]
+                    (if (and (nat-int? min) (<= min i))
+                      ;; Yield max (with s not s-min).
+                      (-each (-yield (.-max this) (-pass m s))
+                        (fn [s-max]
+                          (let [max (-get-object s-max)]
+                            ;; Max is exclusive.
+                            (if (and (nat-int? max) (< i max))
+                              (-pass m s)
+                              ;; Max was invalid.
+                              (-fail m s)))))
+                      ;; Min was invalid
+                      (-fail m s))))))
+            ;; Object was not a character.
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        ;; Yield min.
+        (-each (-yield (.-min this) (-pass m s))
+          (fn [s-min]
+            (let [min (-get-object s-min)]
+              (if (nat-int? min)
+                ;; Yield max.
+                (-each (-yield (.-max this) (-pass m s-min))
+                  (fn [s-max]
+                    (let [max (-get-object s-max)]
+                      (if (and (nat-int? max) (<= max CHARACTER_MAX_INT_VALUE))
+                        (case (compare min max)
+                          ;; Range with max - min elements.
+                          -1 (let [s-rnd (-set-random s-max)
+                                   f (-get-object s-rnd)
+                                   i (int (fit01 f min max))]
+                               (-some (-pass m (-set-object s-max (char i)))
+                                      (if (== i min)
+                                        (-yield (m.char/in-range (m/is (inc min)) (m/is max)) (-pass m s))
+                                        (-some (-yield (m.char/in-range (.-min this) (m/is i)) (-pass m s))
+                                               (-yield (m.char/in-range (m/is i) (.-max this)) (-pass m s))))))
+                          ;; Range with 1 element.
+                          0 (-pass m (-set-object s-max (char min)))
+
+                          ;; Invalid Range
+                          (-fail m s))
+                        ;; Max was invalid.
+                        (-fail m s)))))
+                ;; Min was invalid
+                (-fail m s)))))))))
+
+(comment
+  ;; WRONG
+  (frequencies
+   (map :object
+        (take 90 (-yield (m.char/in-range (m/is 65) (m/is (+ 65 26)))
+                         (list (make-state {:seed 1})))))))
+
+(comment
+  (take 10 (-yield (m.char/any) (list (make-state {:seed 1})))))
+
+;; String
+;; ---------------------------------------------------------------------
 
 (extend-type meander.primitive.string.zeta.Concat
   IQuery
@@ -136,7 +252,6 @@
                                (-query (.-b this) (-pass m (-set-object s b))))))
                          (m.algorithms/string-partitions x 2)))
             (-fail m s))))))
-
 
   IYield
   (-yield [this m]
@@ -164,7 +279,7 @@
   (-set-random [this]
     (let [r1 (get this :random)
           [r2] (m.random/split-n r1 1)
-          x (m.random/rand-long r1)]
+          x (m.random/rand-double r1)]
       (assoc this :object x :random r2))))
 
 (defn make-state [{:keys [object seed]}]
@@ -184,10 +299,10 @@
     ())
 
   (-each [this f]
-    (mapcat f this))
+    (lazy-seq (m.algorithms/mix* (map f this))))
 
   (-some [this that]
-    (concat this that))
+    (m.algorithms/mix this that))
 
   (-pick [this that]
     (or (seq this) that))
@@ -198,6 +313,7 @@
               nil
               state))
           this)))
+
 
 ;; Tests
 ;; -----
@@ -263,7 +379,6 @@
 
         (t/is 3
               (count (-query fan-fin-fun (-yield fan-fin-fun (list (make-state {}))))))))))
-
 
 (comment
   (defrecord State [object]
