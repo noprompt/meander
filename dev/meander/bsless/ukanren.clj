@@ -11,17 +11,17 @@
 
 (defprotocol ISubstitution
   (-lookup [this v])
-  (-extend [this lvar value]))
+  (-extend [this lvar value])
+  (-walk [this u]))
 
 (extend-protocol ISubstitution
   clojure.lang.IPersistentMap
   (-lookup [this v] (find this v))
-  (-extend [this lvar value] (assoc this lvar value)))
-
-(defn walk [u s]
-  (if-let [[_ found] (and (lvar? u) (-lookup s u))]
-    (recur found s)
-    u))
+  (-extend [this lvar value] (assoc this lvar value))
+  (-walk [s u]
+    (if-let [found (and (lvar? u) (-lookup s u))]
+      (recur s (val found))
+      u)))
 
 (t/deftest walk-test
   (let [v1 (->LVar 1)
@@ -29,21 +29,21 @@
         v3 (->LVar 3)
         s (-> {} (-extend v1 1) (-extend v2 v1))]
     (t/testing "LVar mapped to simple value"
-      (t/is (= 1 (walk v1 s))))
+      (t/is (= 1 (-walk s v1))))
     (t/testing "Transitive mapping: v2 -> v1 -> value"
-      (t/is (= 1 (walk v2 s))))
+      (t/is (= 1 (-walk s v2))))
     (t/testing "LVar not mapped to anything is returned"
-      (t/is (= v3 (walk v3 s))))
+      (t/is (= v3 (-walk s v3))))
     (t/testing "Value not mapped to anything is returned"
-      (t/is (= 4 (walk 4 s)))))
+      (t/is (= 4 (-walk s 4)))))
   (t/is (= (let [x  (lvar 'x)
                  y  (lvar 'y)
                  s (reduce (fn [m [x y]] (-extend m x y)) {} [[x 5] [y x]])]
-             (walk y s))
+             (-walk s y))
            5))
   (t/is (= (let [[x y z c b a] (map lvar '[x y z c b a])
                  s (reduce (fn [m [x y]] (-extend m x y)) {} [[x 5] [y x] [z y] [c z] [b c] [a b]])]
-             (walk a s))
+             (-walk s a))
            5)))
 
 (defprotocol IOccursCheck
@@ -51,11 +51,11 @@
 
 (extend-protocol IOccursCheck
   LVar
-  (-occurs? [v x s] (= v (walk x s))))
+  (-occurs? [v x s] (= v (-walk s x))))
 
 (defn occurs-check
   [u v s]
-  (when-let [v (and (lvar? u) (walk v s))]
+  (when-let [v (and (lvar? u) (-walk s v))]
     (-occurs? u v s)))
 
 (t/deftest occurance
@@ -88,7 +88,7 @@
 (defn unify [u v s]
   (if (identical? u v)
     s
-    (let [u (walk u s) v (walk v s)]
+    (let [u (-walk s u) v (-walk s v)]
       (cond
         (and (lvar? u) (lvar? v) (= u v)) s
         (lvar? u) (ext-s u v s)
