@@ -1,11 +1,11 @@
 (ns meander.primitive.string.zeta
   (:refer-clojure :exclude [concat]))
 
-(defrecord Member [])
+(defrecord AnyString [])
 
 (defrecord Concat [a b])
 
-(def member #'->Member)
+(def any #'->AnyString)
 
 (def concat #'->Concat)
 
