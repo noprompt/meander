@@ -3,7 +3,7 @@
 
 (defrecord AnyString [])
 
-(defrecord Concat [a b])
+(defrecord StringConcat [a b])
 
 (def any #'->AnyString)
 
@@ -11,5 +11,5 @@
        :doc "Constructor for the pattern which represents an element
   of the set of all strings which are the concatentation of the string
   described by a and b."}
-  concat #'->Concat)
+  concat #'->StringConcat)
 

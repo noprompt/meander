@@ -15,7 +15,7 @@
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
            meander.primitive.string.zeta.AnyString
-           meander.primitive.string.zeta.Concat))
+           meander.primitive.string.zeta.StringConcat))
 
 (defprotocol IQuery
   :extend-via-metadata true
@@ -215,7 +215,7 @@
 
 ;; ---------------------------------------------------------------------
 
-(extend-type meander.primitive.string.zeta.Concat
+(extend-type meander.primitive.string.zeta.StringConcat
   IQuery
   (-query [this m]
     (-each m
