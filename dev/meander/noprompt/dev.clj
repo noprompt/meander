@@ -127,9 +127,6 @@
 ;; Character
 ;; ---------------------------------------------------------------------
 
-(defn frac [f]
-  (rem f 1))
-
 (defn clamp [value value-min value-max]
   (max value-min (min value value-max)))
 
@@ -156,16 +153,7 @@
 
   IYield
   (-yield [this m]
-    (-yield (m.char/in-range (m/is 0) (m/is CHARACTER_MAX_INT_VALUE)) m)
-
-    #_ ;; This is slower. Why?
-    (-each m
-      (fn [s]
-        (let [s (-set-random s)
-              v (-get-object s)
-              f (fit01 v 0 CHARACTER_MAX_INT_VALUE)]
-          (-some (-pass m (-set-object s (char f)))
-                 (-yield this (-pass m s))))))))
+    (-yield (m.char/in-range (m/is 0) (m/is CHARACTER_MAX_INT_VALUE)) m)))
 
 (extend-type meander.primitive.character.zeta.CharacterInRange
   IQuery
@@ -208,19 +196,16 @@
                   (fn [s-max]
                     (let [max (-get-object s-max)]
                       (if (and (nat-int? max) (<= max CHARACTER_MAX_INT_VALUE))
-                        (case (compare min max)
+                        (if (< min max)
                           ;; Range with max - min elements.
-                          -1 (let [s-rnd (-set-random s-max)
-                                   f (-get-object s-rnd)
-                                   i (int (fit01 f min max))]
-                               (-some (-pass m (-set-object s-max (char i)))
-                                      (if (== i min)
-                                        (-yield (m.char/in-range (m/is (inc min)) (m/is max)) (-pass m s))
-                                        (-some (-yield (m.char/in-range (.-min this) (m/is i)) (-pass m s))
-                                               (-yield (m.char/in-range (m/is i) (.-max this)) (-pass m s))))))
-                          ;; Range with 1 element.
-                          0 (-pass m (-set-object s-max (char min)))
-
+                          (let [s-rnd (-set-random s-max)
+                                f (-get-object s-rnd)
+                                i (int (fit01 f min max))]
+                            (-some (-pass m (-set-object s-rnd (char i)))
+                                   (if (== i min)
+                                     (-yield (m.char/in-range (m/is (inc min)) (m/is max)) (-pass m s-rnd))
+                                     (-some (-yield (m.char/in-range (.-min this) (m/is i)) (-pass m s-rnd))
+                                            (-yield (m.char/in-range (m/is (inc i)) (.-max this)) (-pass m s-rnd))))))
                           ;; Invalid Range
                           (-fail m s))
                         ;; Max was invalid.
@@ -255,8 +240,10 @@
               (let [b (-get-object s)]
                 (-pass m (-set-object s (str a b)))))))))))
 
-;; Interpreter
-;; -----------
+
+
+;; Implementation
+;; --------------
 
 ;; Extended to Clojure values directly.
 
@@ -307,124 +294,64 @@
           this)))
 
 
-;; Tests
-;; -----
+;; (comment
+;;   (defrecord State [object]
+;;     IState
+;;     (-get-object [this]
+;;       object)
 
-(t/deftest primitive-query-test
-  (let [;; seed (long (rand Long/MAX_VALUE))
-        seed 1
-        s {:seed seed
-           :object 1
-           :random (m.random/make-random seed)}
-        m (-pass (list) s)]
-    (t/testing "anything"
-      (t/is (= m
-               (-query (m/anything) m)))
+;;     (-set-object [this new-object]
+;;       (assoc this :object object)))
 
-      (t/is (= (-each m
-                 (fn [s]
-                   (-pass m -7995527694508729151)))
-               (-each (-yield (m/anything) m)
-                 (fn [s]
-                   (-pass m (-get-object s)))))))
+;;   (defrecord DFSLogic [states]
+;;     ILogic
+;;     (-pass [this state]
+;;       (assoc this :states (list state)))
 
-    (t/testing "is"
-      (t/is (= (list s)
-               (-query (m/is 1) m)))
+;;     (-fail [this state]
+;;       (assoc this :states ()))
 
-      (t/is (= ()
-               (-query (m/is 2) m)))
+;;     (-each [this f]
+;;       (assoc this :states (mapcat (comp :states f) states)))
 
-      (t/is (= (list s s)
-               (-query (m/some (m/is 1) (m/is 1)) m)))
+;;     (-some [this that]
+;;       (assoc this :states (concat states (:states that))))
 
-      (t/is (= (list s)
-               (-query (m/some (m/is 0) (m/is 1)) m)))
+;;     (-pick [this that]
+;;       (if (seq states) this that))
 
-      (t/is (= ()
-               (-query (m/some (m/is 0) (m/is 2)) m)))
+;;     (-comp [this f]
+;;       (assoc this :states
+;;              (keep (fn [state]
+;;                      (if (seq (:states (f state)))
+;;                        nil
+;;                        state))
+;;                    states))))
 
-      (t/is (= (list s)
-               (-query (m/each (m/is 1) (m/anything)) m)))
+;;   (-query (m/not (m/is 2))
+;;           (-pass (->DFSLogic (list))
+;;                  (->State 1))))
 
-      (t/is (= ()
-               (-query (m/each (m/is 1) (m/is 0)) m)))
-
-      (t/is (= (list s)
-               (-query (m/not (m/is 2)) m)))
-
-      (t/is (= (list (-set-object s 1))
-               (-yield (m/is 1) m))))
-
-    (t/testing "str"
-      (let [fan-fin-fun (m/str (m/is "f")
-                               (m/some (m/is "a") (m/is "i") (m/is "u"))
-                               (m/is "n"))]
-        (t/is (= (list 1 3 5)
-                 (map :seed (-query fan-fin-fun (list (make-state {:object "fan" :seed 1})
-                                                      (make-state {:object "fen" :seed 2})
-                                                      (make-state {:object "fin" :seed 3})
-                                                      (make-state {:object "fon" :seed 4})
-                                                      (make-state {:object "fun" :seed 5}))))))
-
-        (t/is (= (list "fan" "fin" "fun")
-                 (map :object (-yield fan-fin-fun (list (make-state {}))))))
-
-        (t/is 3
-              (count (-query fan-fin-fun (-yield fan-fin-fun (list (make-state {}))))))))))
-
+#_
 (comment
-  (defrecord State [object]
-    IState
-    (-get-object [this]
-      object)
+  (let [uppercase (m.char/in-range (m/is 65) (m/is (+ 65 26)))
+        vowel (m/some (m/is \a) (m/is \e) (m/is \i) (m/is \o) (m/is \u))
+        expected [\A \B \C \D \E \F]
+        n (count expected)]
+    (loop [i 4588001]
+      (cond
+        (= expected (take n (map :object (-yield uppercase (list (make-state {:seed i}))))))
+        i
 
-    (-set-object [this new-object]
-      (assoc this :object object)))
+        (= expected (take n (map :object (-yield uppercase (list (make-state {:seed (- i)}))))))
+        (- i)
 
-  (defrecord DFSLogic [states]
-    ILogic
-    (-pass [this state]
-      (assoc this :states (list state)))
+        :else
+        (recur (inc i)))))
 
-    (-fail [this state]
-      (assoc this :states ()))
-
-    (-each [this f]
-      (assoc this :states (mapcat (comp :states f) states)))
-
-    (-some [this that]
-      (assoc this :states (concat states (:states that))))
-
-    (-pick [this that]
-      (if (seq states) this that))
-
-    (-comp [this f]
-      (assoc this :states
-             (keep (fn [state]
-                     (if (seq (:states (f state)))
-                       nil
-                       state))
-                   states))))
-
-  (-query (m/not (m/is 2))
-          (-pass (->DFSLogic (list))
-                 (->State 1))))
-
-;;comment
-;; WRONG
-#_
-(frequencies
- (map :object
-      (take 90 (-yield (m.char/in-range (m/is 65) (m/is (+ 65 26)))
-                       (list (make-state {:seed 1}))))))
-
-#_
-(int Character/MAX_VALUE)
-
-;; String
-
-;; with-out-str
-;; time
-;; doall
-;; (map :object (take 1000 (-yield (m.char/any) (list (make-state {:seed 1})))))
+  ;;       10 A
+  ;;      -50 A B
+  ;;    15858 A B C
+  ;;   942972 A B C D
+  ;; -4588001 A B C D E
+)
