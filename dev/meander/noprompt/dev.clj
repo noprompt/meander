@@ -156,13 +156,16 @@
 
   IYield
   (-yield [this m]
+    (-yield (m.char/in-range (m/is 0) (m/is CHARACTER_MAX_INT_VALUE)) m)
+
+    #_ ;; This is slower. Why?
     (-each m
       (fn [s]
         (let [s (-set-random s)
               v (-get-object s)
-              r (java.util.Random. (Math/floor (fit01 v 0 Long/MAX_VALUE)))
-              m (-pass m (-set-object s (char (.nextInt r CHARACTER_MAX_INT_VALUE))))]
-          (-some m (-yield this m)))))))
+              f (fit01 v 0 CHARACTER_MAX_INT_VALUE)]
+          (-some (-pass m (-set-object s (char f)))
+                 (-yield this (-pass m s))))))))
 
 (extend-type meander.primitive.character.zeta.CharacterInRange
   IQuery
@@ -225,17 +228,6 @@
                 ;; Min was invalid
                 (-fail m s)))))))))
 
-(comment
-  ;; WRONG
-  (frequencies
-   (map :object
-        (take 90 (-yield (m.char/in-range (m/is 65) (m/is (+ 65 26)))
-                         (list (make-state {:seed 1})))))))
-
-(comment
-  (take 10 (-yield (m.char/any) (list (make-state {:seed 1})))))
-
-;; String
 ;; ---------------------------------------------------------------------
 
 (extend-type meander.primitive.string.zeta.Concat
@@ -278,17 +270,17 @@
 
   (-set-random [this]
     (let [r1 (get this :random)
-          [r2] (m.random/split-n r1 1)
+          r2 (nth (m.random/split-n r1 1) 0)
           x (m.random/rand-double r1)]
       (assoc this :object x :random r2))))
 
 (defn make-state [{:keys [object seed]}]
   (let [seed (or seed (long (rand Long/MAX_VALUE)))
+        ;; random (java.util.Random. seed)
         random (m.random/make-random seed)]
     {:object object
      :random random
      :seed seed}))
-
 
 (extend-type clojure.lang.ISeq
   ILogic
@@ -317,6 +309,7 @@
 
 ;; Tests
 ;; -----
+
 (t/deftest primitive-query-test
   (let [;; seed (long (rand Long/MAX_VALUE))
         seed 1
@@ -417,3 +410,21 @@
   (-query (m/not (m/is 2))
           (-pass (->DFSLogic (list))
                  (->State 1))))
+
+;;comment
+;; WRONG
+#_
+(frequencies
+ (map :object
+      (take 90 (-yield (m.char/in-range (m/is 65) (m/is (+ 65 26)))
+                       (list (make-state {:seed 1}))))))
+
+#_
+(int Character/MAX_VALUE)
+
+;; String
+
+;; with-out-str
+;; time
+;; doall
+;; (map :object (take 1000 (-yield (m.char/any) (list (make-state {:seed 1})))))
