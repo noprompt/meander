@@ -1,9 +1,11 @@
 (ns meander.noprompt.dev
   (:require [clojure.test :as t]
+            [meander.noprompt.util :as m.util]
             [meander.algorithms.zeta :as m.algorithms]
             [meander.primitive.zeta :as m]
-            [meander.primitive.string.zeta :as m.str]
             [meander.primitive.character.zeta :as m.char]
+            [meander.primitive.integer.zeta :as m.int]
+            [meander.primitive.string.zeta :as m.str]
             [meander.random.zeta :as m.random])
   (:import meander.primitive.zeta.Anything
            meander.primitive.zeta.Each
@@ -14,6 +16,12 @@
            meander.primitive.zeta.Some
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
+           meander.primitive.integer.zeta.AnyInteger
+           meander.primitive.integer.zeta.IntegerInRange
+           #_meander.primitive.real.zeta.AnyReal
+           #_meander.primitive.real.zeta.RealInRange
+           meander.primitive.sequence.zeta.SequenceCons
+           meander.primitive.sequence.zeta.SequenceConcat
            meander.primitive.string.zeta.AnyString
            meander.primitive.string.zeta.StringConcat))
 
@@ -124,19 +132,77 @@
       (fn [s]
         (-query (.-a this) (-pass m s))))))
 
-;; Character
+;; Integer
 ;; ---------------------------------------------------------------------
 
-(defn clamp [value value-min value-max]
-  (max value-min (min value value-max)))
+(extend-type meander.primitive.integer.zeta.AnyInteger
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (integer? x)
+            (-pass m s)
+            (-fail m s))))))
 
-;; SEE: https://www.sidefx.com/docs/houdini/expressions/fit01.html
-(defn fit01
-  "Return the number between new-min and new-max relative to f in
-  between 0 and 1. If the f is outside the 0 to 1 range it will be
-  clamped."
-  [f new-min new-max]
-  (+ new-min (* (clamp f 0 1) (- new-max new-min))))
+  IYield
+  (-yield [this m]
+    (-yield (m.int/in-range (m/is Long/MIN_VALUE) (m/is Long/MAX_VALUE)) m)))
+
+(extend-type meander.primitive.integer.zeta.IntegerInRange
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (integer? x)
+            ;; Yield min.
+            (-each (-yield (.-min this) (-pass m s))
+              (fn [s-min]
+                (let [min (-get-object s-min)]
+                  (if (integer? min)
+                    ;; Yield max (with s not s-min).
+                    (-each (-yield (.-max this) (-pass m s))
+                      (fn [s-max]
+                        (let [max (-get-object s-max)]
+                          ;; Max is exclusive.
+                          (if (and (integer? max) (< min max))
+                            (-pass m s)
+                            ;; Max was invalid.
+                            (-fail m s)))))
+                    ;; Min was invalid
+                    (-fail m s)))))
+            ;; Object was not a character.
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-min this) m)
+      (fn [s-min]
+        (let [x (-get-object s-min)]
+          (if (integer? x)
+            (-each (-yield (.-max this) (-pass m s-min))
+              (fn [s-max]
+                (let [y (-get-object s-max)]
+                  (if (integer? y)
+                    (if (< x y)
+                      (let [s-rnd (-set-random s-max)
+                            f (-get-object s-rnd)
+                            i (long (m.util/fit01 f x y))]
+                        (-some (-pass m (-set-object s-rnd i))
+                               (if (== i x)
+                                 (-yield (m.int/in-range (m/is (inc x)) (m/is y)) (-pass m s-rnd))
+                                 (-some (-yield (m.int/in-range (.-min this) (m/is i)) (-pass m s-rnd))
+                                        (-yield (m.int/in-range (m/is (inc i)) (.-max this)) (-pass m s-rnd))))))
+                      ;; Invalid range
+                      (-fail m s-max))
+                    ;; Invalid max
+                    (-fail m s-max)))))
+            ;; Invalid min
+            (-fail m s-min)))))))
+
+;; Character 
+;; ---------------------------------------------------------------------
 
 (def CHARACTER_MAX_INT_VALUE
   (int Character/MAX_VALUE))
@@ -200,7 +266,7 @@
                           ;; Range with max - min elements.
                           (let [s-rnd (-set-random s-max)
                                 f (-get-object s-rnd)
-                                i (int (fit01 f min max))]
+                                i (int (m.util/fit01 f min max))]
                             (-some (-pass m (-set-object s-rnd (char i)))
                                    (if (== i min)
                                      (-yield (m.char/in-range (m/is (inc min)) (m/is max)) (-pass m s-rnd))
@@ -241,6 +307,42 @@
                 (-pass m (-set-object s (str a b)))))))))))
 
 
+(extend-type meander.primitive.sequence.zeta.SequenceCons
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (seq? x)
+            (if-let [[head & tail] (seq x)]
+              (-each (-query (.-head this) (-pass m (-set-object s head)))
+                (fn [s]
+                  (-query (.-tail this) (-pass m (-set-object s tail))))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-head this) m)
+      (fn [s]
+        (let [x (-get-object s)]
+          (-each (-yield (.-tail this) (-pass m s))
+            (fn [s]
+              (let [y (-get-object s)]
+                (if (seq? y)
+                  (-pass m (-set-object s (cons x y))))))))))))
+
+(extend-type meander.primitive.sequence.zeta.SequenceConcat
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (-fail m s))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (-fail m s)))))
 
 ;; Implementation
 ;; --------------

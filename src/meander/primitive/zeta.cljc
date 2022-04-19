@@ -1,6 +1,11 @@
 (ns meander.primitive.zeta
-  (:require [meander.primitive.string.zeta :as m.primitive.string])
-  (:refer-clojure :exclude [not
+  (:require
+   [meander.primitive.sequence.zeta :as m.primitive.sequence]
+   [meander.primitive.string.zeta :as m.primitive.string])
+  (:refer-clojure :exclude [concat
+                            cons
+                            list
+                            not
                             some
                             str]))
 
@@ -70,3 +75,19 @@
   ([a] (m.primitive.string/concat (is "") a))
   ([a b] (m.primitive.string/concat a b))
   ([a b & more] (apply str (str a b) more)))
+
+(defn cons
+  ([a b] (m.primitive.sequence/cons a b)))
+
+(defn concat
+  ([] (is ()))
+  ([a] (concat (concat) a))
+  ([a b] (m.primitive.sequence/concat a b))
+  ([a b & more] (apply concat (concat a b) more)))
+
+;; NOTE: Temporary implementation
+(defn list
+  ([] (is ()))
+  ([a] (cons a (list)))
+  ([a b] (cons a (list b)))
+  ([a b & more] (cons a (cons b (apply list more)))))

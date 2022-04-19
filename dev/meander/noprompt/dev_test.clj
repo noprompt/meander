@@ -2,8 +2,9 @@
   (:require [clojure.test :as t]
             [meander.noprompt.dev :as m.dev]
             [meander.primitive.zeta :as m]
-            [meander.primitive.string.zeta :as m.str]
             [meander.primitive.character.zeta :as m.char]
+            [meander.primitive.integer.zeta :as m.int]
+            [meander.primitive.string.zeta :as m.str]
             [meander.random.zeta :as m.random]))
 
 (t/deftest anything-test
@@ -68,6 +69,20 @@
     (t/testing "Yielding characters in a range produces each element in the range once."
       (t/is (= {\A 1, \B 1, \C 1, \D 1, \E 1, \F 1, \G 1, \H 1, \I 1, \J 1, \K 1, \L 1, \M 1, \N 1, \O 1, \P 1, \Q 1, \R 1, \S 1, \T 1, \U 1, \V 1, \W 1, \X 1, \Y 1, \Z 1}
                (frequencies (take 26 (map :object y-answers))))))
+
+    (t/testing "Every yielded answer should successfully query"
+      (t/is (= y-answers q-answers)))))
+
+(t/deftest integer-in-range-test
+  (let [uppercase (m.int/in-range (m/is 65) (m/is (+ 65 26)))
+        rnd-state (m.dev/make-state {})
+        y-answers (m.dev/-yield uppercase (list rnd-state))
+        q-answers (m.dev/-query uppercase y-answers)]
+    (t/is (= 26 (count (take 27 (map :object y-answers)))))
+
+    (t/testing "Yielding integers in a range produces each element in the range once."
+      (t/is (= {65 1, 66 1, 67 1, 68 1, 69 1, 70 1, 71 1, 72 1, 73 1, 74 1, 75 1, 76 1, 77 1, 78 1, 79 1, 80 1, 81 1, 82 1, 83 1, 84 1, 85 1, 86 1, 87 1, 88 1, 89 1, 90 1}
+               (frequencies (take 27 (map :object y-answers))))))
 
     (t/testing "Every yielded answer should successfully query"
       (t/is (= y-answers q-answers)))))
