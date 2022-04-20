@@ -4,11 +4,20 @@
 
 (defrecord SequenceCons [head tail])
 
+(defrecord SequenceConcat [a b])
+
+(defrecord SequenceSeqCast [a])
+
+(defrecord SequenceVectorCast [a])
+
 (def cons
   #'->SequenceCons)
-
-(defrecord SequenceConcat [a b])
 
 (def concat
   #'->SequenceConcat)
 
+(def seq-cast
+  #'->SequenceSeqCast)
+
+(def vector-cast
+  #'->SequenceVectorCast)

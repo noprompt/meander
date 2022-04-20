@@ -22,6 +22,8 @@
            #_meander.primitive.real.zeta.RealInRange
            meander.primitive.sequence.zeta.SequenceCons
            meander.primitive.sequence.zeta.SequenceConcat
+           meander.primitive.sequence.zeta.SequenceSeqCast
+           meander.primitive.sequence.zeta.SequenceVectorCast
            meander.primitive.string.zeta.AnyString
            meander.primitive.string.zeta.StringConcat))
 
@@ -279,6 +281,7 @@
                 ;; Min was invalid
                 (-fail m s)))))))))
 
+;; String
 ;; ---------------------------------------------------------------------
 
 (extend-type meander.primitive.string.zeta.StringConcat
@@ -306,14 +309,15 @@
               (let [b (-get-object s)]
                 (-pass m (-set-object s (str a b)))))))))))
 
+;; Sequence
+;; ---------------------------------------------------------------------
 
 (extend-type meander.primitive.sequence.zeta.SequenceCons
   IQuery
-  (-query [this m]
-    (-each m
+  (-query [this m] (-each m
       (fn [s]
         (let [x (-get-object s)]
-          (if (seq? x)
+          (if (sequential? x)
             (if-let [[head & tail] (seq x)]
               (-each (-query (.-head this) (-pass m (-set-object s head)))
                 (fn [s]
@@ -328,9 +332,10 @@
           (-each (-yield (.-tail this) (-pass m s))
             (fn [s]
               (let [y (-get-object s)]
-                (if (seq? y)
+                (if (sequential? y)
                   (-pass m (-set-object s (cons x y))))))))))))
 
+;; TODO
 (extend-type meander.primitive.sequence.zeta.SequenceConcat
   IQuery
   (-query [this m]
@@ -344,8 +349,47 @@
       (fn [s]
         (-fail m s)))))
 
-;; Implementation
-;; --------------
+(extend-type meander.primitive.sequence.zeta.SequenceSeqCast
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (or (seq? x) (nil? x))
+            (-query (.-a this) (-pass m s))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (seqable? x)
+            (-pass m (-set-object s (seq x)))
+            (-fail m s)))))))
+
+(extend-type meander.primitive.sequence.zeta.SequenceVectorCast
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (vector? x)
+            (-query (.-a this) (-pass m s))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (seqable? x)
+            (-pass m (-set-object s (vec x)))
+            (-fail m s)))))))
+
+
+;; Logic/State implementation
+;; ---------------------------------------------------------------------
 
 ;; Extended to Clojure values directly.
 

@@ -6,8 +6,10 @@
                             cons
                             list
                             not
+                            seq
                             some
-                            str]))
+                            str
+                            vec]))
 
 (defrecord Anything [])
 (defrecord Is [x])
@@ -91,3 +93,11 @@
   ([a] (cons a (list)))
   ([a b] (cons a (list b)))
   ([a b & more] (cons a (cons b (apply list more)))))
+
+(defn seq
+  [a]
+  (m.primitive.sequence/seq-cast x))
+
+(defn vec
+  [a]
+  (m.primitive.sequence/vector-cast a))
