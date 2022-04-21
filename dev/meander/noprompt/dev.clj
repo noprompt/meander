@@ -347,6 +347,23 @@
 ;; String
 ;; ---------------------------------------------------------------------
 
+(extend-type AnyString
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (string? x)
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-yield (let [%s (m/% (gensym))]
+              (m/with {%s (m/some (m/str (m.char/any)) (m/str %s (m.char/any)))}
+                (m/some (m/str) %s)))
+            m)))
+
 (extend-type StringConcat
   IQuery
   (-query [this m]
