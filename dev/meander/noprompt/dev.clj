@@ -13,7 +13,9 @@
            meander.primitive.zeta.Not
            meander.primitive.zeta.Pick
            meander.primitive.zeta.Predicate
+           meander.primitive.zeta.Reference
            meander.primitive.zeta.Some
+           meander.primitive.zeta.With
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
            meander.primitive.integer.zeta.AnyInteger
@@ -43,6 +45,8 @@
   :extend-via-metadata true
   (-get-object [this])
   (-set-object [this new-object])
+  (-get-reference [this reference not-found])
+  (-set-reference [this reference new-definition])
   (-set-random [this]))
 
 (defprotocol ILogic
@@ -133,6 +137,59 @@
     (-comp m
       (fn [s]
         (-query (.-a this) (-pass m s))))))
+
+
+(extend-type Reference
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (if-some [p (-get-reference s this nil)]
+          (-query p (-pass m s))
+          (-fail m s)))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (if-some [p (-get-reference s this nil)]
+          (-yield p (-pass m s))
+          (-fail m s))))))
+
+
+(extend-type With
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s1]
+        (let [s2 (reduce (fn [s2 [k v]]
+                           (-set-reference s2 k v))
+                         s1
+                         (.-index this))]
+          (-each (-query (.-a this) (-pass m s2))
+            (fn [s3]
+              (-pass m (reduce
+                        (fn [s4 k]
+                          (-set-reference s4 k (-get-reference s1 k nil)))
+                        s3
+                        (keys (.-index this))))))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s1]
+        (let [s2 (reduce (fn [s2 [k v]]
+                           (-set-reference s2 k v))
+                         s1
+                         (.-index this))]
+          (-each (-yield (.-a this) (-pass m s2))
+            (fn [s3]
+              (-pass m (reduce
+                        (fn [s4 k]
+                          (-set-reference s4 k (-get-reference s1 k nil)))
+                        s3
+                        (keys (.-index this)))))))))))
+
 
 ;; Integer
 ;; ---------------------------------------------------------------------
@@ -400,6 +457,12 @@
 
   (-set-object [this new-object]
     (assoc this :object new-object))
+
+  (-get-reference [this reference not-found]
+    (get-in this [:references reference] not-found))
+
+  (-set-reference [this reference new-definition]
+    (assoc-in this [:references reference] new-definition))
 
   (-set-random [this]
     (let [r1 (get this :random)
