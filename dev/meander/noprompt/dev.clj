@@ -72,7 +72,7 @@
 ;; Patterns
 ;; --------
 
-(extend-type meander.primitive.zeta.Anything
+(extend-type Anything
   IQuery
   (-query [this m]
     m)
@@ -83,7 +83,7 @@
       (fn [s]
         (-pass m (-set-random s))))))
 
-(extend-type meander.primitive.zeta.Is
+(extend-type Is
   IQuery
   (-query [this m]
     (-each m
@@ -100,7 +100,7 @@
       (fn [s]
         (-pass m (-set-object s (.-x this)))))))
 
-(extend-type meander.primitive.zeta.Some
+(extend-type Some
   IQuery
   (-query [this m]
     (-some (-query (.-a this) m)
@@ -111,7 +111,7 @@
     (-some (-yield (.-a this) m)
            (-yield (.-b this) m))))
 
-(extend-type meander.primitive.zeta.Each
+(extend-type Each
   IQuery
   (-query [this m]
     (-each (-query (.-a this) m)
@@ -131,7 +131,7 @@
                  (-each (-query (.-a this) (-pass m s))
                    (fn [_] ms))))))))
 
-(extend-type meander.primitive.zeta.Not
+(extend-type Not
   IQuery
   (-query [this m]
     (-comp m
@@ -194,7 +194,7 @@
 ;; Integer
 ;; ---------------------------------------------------------------------
 
-(extend-type meander.primitive.integer.zeta.AnyInteger
+(extend-type AnyInteger
   IQuery
   (-query [this m]
     (-each m
@@ -208,7 +208,7 @@
   (-yield [this m]
     (-yield (m.int/in-range (m/is Long/MIN_VALUE) (m/is Long/MAX_VALUE)) m)))
 
-(extend-type meander.primitive.integer.zeta.IntegerInRange
+(extend-type IntegerInRange
   IQuery
   (-query [this m]
     (-each m
@@ -266,7 +266,7 @@
 (def CHARACTER_MAX_INT_VALUE
   (int Character/MAX_VALUE))
 
-(extend-type meander.primitive.character.zeta.AnyCharacter
+(extend-type AnyCharacter
   IQuery
   (-query [this m]
     (-each m
@@ -280,7 +280,7 @@
   (-yield [this m]
     (-yield (m.char/in-range (m/is 0) (m/is CHARACTER_MAX_INT_VALUE)) m)))
 
-(extend-type meander.primitive.character.zeta.CharacterInRange
+(extend-type CharacterInRange
   IQuery
   (-query [this m]
     (-each m
@@ -341,7 +341,7 @@
 ;; String
 ;; ---------------------------------------------------------------------
 
-(extend-type meander.primitive.string.zeta.StringConcat
+(extend-type StringConcat
   IQuery
   (-query [this m]
     (-each m
@@ -369,7 +369,7 @@
 ;; Sequence
 ;; ---------------------------------------------------------------------
 
-(extend-type meander.primitive.sequence.zeta.SequenceCons
+(extend-type SequenceCons
   IQuery
   (-query [this m]
     (-each m
@@ -398,7 +398,7 @@
                   (-fail m s))))))))))
 
 ;; TODO
-(extend-type meander.primitive.sequence.zeta.SequenceConcat
+(extend-type SequenceConcat
   IQuery
   (-query [this m]
     (-each m
@@ -411,7 +411,7 @@
       (fn [s]
         (-fail m s)))))
 
-(extend-type meander.primitive.sequence.zeta.SequenceSeqCast
+(extend-type SequenceSeqCast
   IQuery
   (-query [this m]
     (-each m
@@ -430,7 +430,7 @@
             (-pass m (-set-object s (seq x)))
             (-fail m s)))))))
 
-(extend-type meander.primitive.sequence.zeta.SequenceVectorCast
+(extend-type SequenceVectorCast
   IQuery
   (-query [this m]
     (-each m
@@ -506,66 +506,3 @@
               nil
               state))
           this)))
-
-
-;; (comment
-;;   (defrecord State [object]
-;;     IState
-;;     (-get-object [this]
-;;       object)
-
-;;     (-set-object [this new-object]
-;;       (assoc this :object object)))
-
-;;   (defrecord DFSLogic [states]
-;;     ILogic
-;;     (-pass [this state]
-;;       (assoc this :states (list state)))
-
-;;     (-fail [this state]
-;;       (assoc this :states ()))
-
-;;     (-each [this f]
-;;       (assoc this :states (mapcat (comp :states f) states)))
-
-;;     (-some [this that]
-;;       (assoc this :states (concat states (:states that))))
-
-;;     (-pick [this that]
-;;       (if (seq states) this that))
-
-;;     (-comp [this f]
-;;       (assoc this :states
-;;              (keep (fn [state]
-;;                      (if (seq (:states (f state)))
-;;                        nil
-;;                        state))
-;;                    states))))
-
-;;   (-query (m/not (m/is 2))
-;;           (-pass (->DFSLogic (list))
-;;                  (->State 1))))
-
-#_
-(comment
-  (let [uppercase (m.char/in-range (m/is 65) (m/is (+ 65 26)))
-        vowel (m/some (m/is \a) (m/is \e) (m/is \i) (m/is \o) (m/is \u))
-        expected [\A \B \C \D \E \F]
-        n (count expected)]
-    (loop [i 4588001]
-      (cond
-        (= expected (take n (map :object (-yield uppercase (list (make-state {:seed i}))))))
-        i
-
-        (= expected (take n (map :object (-yield uppercase (list (make-state {:seed (- i)}))))))
-        (- i)
-
-        :else
-        (recur (inc i)))))
-
-  ;;       10 A
-  ;;      -50 A B
-  ;;    15858 A B C
-  ;;   942972 A B C D
-  ;; -4588001 A B C D E
-)
