@@ -371,14 +371,18 @@
 
 (extend-type meander.primitive.sequence.zeta.SequenceCons
   IQuery
-  (-query [this m] (-each m
+  (-query [this m]
+    (-each m
       (fn [s]
         (let [x (-get-object s)]
           (if (sequential? x)
-            (if-let [[head & tail] (seq x)]
-              (-each (-query (.-head this) (-pass m (-set-object s head)))
-                (fn [s]
-                  (-query (.-tail this) (-pass m (-set-object s tail))))))
+            (if (seq x)
+              (let [head (first x)
+                    tail (rest x)]
+                (-each (-query (.-head this) (-pass m (-set-object s head)))
+                  (fn [s]
+                    (-query (.-tail this) (-pass m (-set-object s tail))))))
+              (-fail m s))
             (-fail m s))))))
 
   IYield
@@ -390,7 +394,8 @@
             (fn [s]
               (let [y (-get-object s)]
                 (if (sequential? y)
-                  (-pass m (-set-object s (cons x y))))))))))))
+                  (-pass m (-set-object s (cons x y)))
+                  (-fail m s))))))))))
 
 ;; TODO
 (extend-type meander.primitive.sequence.zeta.SequenceConcat
@@ -418,7 +423,7 @@
 
   IYield
   (-yield [this m]
-    (-each m
+    (-each (-yield (.-a this) m)
       (fn [s]
         (let [x (-get-object s)]
           (if (seqable? x)
@@ -437,7 +442,7 @@
 
   IYield
   (-yield [this m]
-    (-each m
+    (-each (-yield (.-a this) m)
       (fn [s]
         (let [x (-get-object s)]
           (if (seqable? x)
