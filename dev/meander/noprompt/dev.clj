@@ -136,7 +136,13 @@
   (-query [this m]
     (-comp m
       (fn [s]
-        (-query (.-a this) (-pass m s))))))
+        (-query (.-a this) (-pass m s)))))
+
+  IYield
+  (-yield [this m]
+    (-comp m
+      (fn [s]
+        (-yield (.-a this) (-pass m s))))))
 
 
 (extend-type Reference
