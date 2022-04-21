@@ -17,6 +17,8 @@
 (defrecord Not [a])
 (defrecord Pick [a b])
 (defrecord Some [a b])
+(defrecord Reference [id])
+(defrecord With [index a])
 (defrecord Predicate [p])
 
 (def ^{:arglists '([])
@@ -69,6 +71,17 @@
   ([a b] (->Each a b))
   ([a b & more]
    (apply each (->Each a b) more)))
+
+(def
+  ^{:arglists '([id])}
+  % #'->Reference)
+
+(defn with
+  [index a]
+  (assert (and (map? index)
+               (every? (fn [x] (instance? Reference x)) 
+                       (keys index))))
+  (->With index a))
 
 (defn str
   "Constructor for the pattern which represents an element of the
