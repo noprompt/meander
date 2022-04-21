@@ -96,7 +96,7 @@
 
 (defn seq
   [a]
-  (m.primitive.sequence/seq-cast x))
+  (m.primitive.sequence/seq-cast a))
 
 (defn vec
   [a]
