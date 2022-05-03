@@ -3,16 +3,19 @@
    [clojure.test :as t]
    [meander.bsless.dev :refer [-return -mzero -interleave >>-]]))
 
+(defprotocol IUnify
+  (-unify [this that s]))
+
+(defprotocol ISubstitution
+  (-lookup [this v])
+  (-extend [this lvar value] "No check")
+  (-walk [this u]))
+
 (defrecord LVar [x])
 (defn lvar? [x] (instance? LVar x))
 (defn lvar
   ([] (lvar (gensym)))
   ([x] (->LVar x)))
-
-(defprotocol ISubstitution
-  (-lookup [this v])
-  (-extend [this lvar value])
-  (-walk [this u]))
 
 (extend-protocol ISubstitution
   clojure.lang.IPersistentMap
