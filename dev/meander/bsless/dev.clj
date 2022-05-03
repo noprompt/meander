@@ -171,3 +171,8 @@
   (frequencies (take 200 (>>- '(a b) (fn [x] (repeat x)))))
   ,())
 
+
+;;; Non canonical representation objects - ambiguous
+;;; How can ambiguous objects be turned into sequences?
+;;; Use the amb operator!
+;;; how do you stage that?
