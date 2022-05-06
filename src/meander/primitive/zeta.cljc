@@ -20,6 +20,7 @@
 (defrecord Reference [id])
 (defrecord With [index a])
 (defrecord Predicate [p])
+(defrecord LogicVariable [id])
 
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
@@ -82,6 +83,10 @@
                (every? (fn [x] (instance? Reference x)) 
                        (keys index))))
   (->With index a))
+
+(def
+  ^{:arglists '([id])}
+  ? #'->LogicVariable)
 
 (defn str
   "Constructor for the pattern which represents an element of the

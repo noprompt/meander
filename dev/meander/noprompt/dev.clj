@@ -15,6 +15,7 @@
            meander.primitive.zeta.Predicate
            meander.primitive.zeta.Reference
            meander.primitive.zeta.Some
+           meander.primitive.zeta.LogicVariable
            meander.primitive.zeta.With
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
@@ -46,6 +47,8 @@
   :extend-via-metadata true
   (-get-object [this])
   (-set-object [this new-object])
+  (-get-variable [this variable unbound])
+  (-set-variable [this variable value])
   (-get-reference [this reference not-found])
   (-set-reference [this reference new-definition])
   (-set-random [this]))
@@ -65,7 +68,9 @@
   (-pick [this that])
   ;; Not/Complement
   (^{:style/indent 1}
-   -comp [this f]))
+   -comp [this f])
+  ;; Sentinel value
+  (-unbound [this]))
 
 ;; Implementation
 ;; ---------------------------------------------------------------------
@@ -145,6 +150,29 @@
       (fn [s]
         (-yield (.-a this) (-pass m s))))))
 
+(extend-type LogicVariable
+  IQuery
+  (-query [this m]
+    (let [unbound (-unbound m)]
+      (-each m
+        (fn [s]
+          (let [x (-get-object s)
+                y (-get-variable s this unbound)]
+            (if (identical? y unbound)
+              (-pass m (-set-variable s this x))
+              (if (= x y)
+                (-pass m s)
+                (-fail m s))))))))
+
+  IYield
+  (-yield [this m]
+    (let [unbound (-unbound m)]
+      (-each m
+        (fn [s]
+          (let [x (-get-variable s this unbound)]
+            (if (identical? x unbound)
+              (-fail m s)
+              (-pass m (-set-object s x)))))))))
 
 (extend-type Reference
   IQuery
@@ -512,6 +540,12 @@
   (-set-object [this new-object]
     (assoc this :object new-object))
 
+  (-get-variable [this variable not-found]
+    (get-in this [:variables variable] not-found))
+
+  (-set-variable [this variable value]
+    (assoc-in this [:variables variable] value))
+
   (-get-reference [this reference not-found]
     (get-in this [:references reference] not-found))
 
@@ -531,6 +565,9 @@
     {:object object
      :random random
      :seed seed}))
+
+(def unbound
+  (reify))
 
 (extend-type clojure.lang.ISeq
   ILogic
@@ -554,4 +591,16 @@
             (if (seq (f state))
               nil
               state))
-          this)))
+          this))
+
+  (-unbound [this]
+    unbound))
+
+;; (-yield (m/list (m/? 1) (m/? 1))
+;;         (-query (m/cons (m/? 1) (m/? 1)) (list (make-state {:object [[1 2 3] 1 2 3]}))))
+
+;; (project 3 *i
+;;          (m/with {%base (project *i 0 _)
+;;                   %step (project *i (+ *i 1) (project *i >i %main))
+;;                   %main (some %base %step)}
+;;            %main))
