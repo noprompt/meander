@@ -295,7 +295,7 @@
             ;; Invalid min
             (-fail m s-min)))))))
 
-;; Character 
+;; Character
 ;; ---------------------------------------------------------------------
 
 (def CHARACTER_MAX_INT_VALUE
@@ -484,9 +484,17 @@
 
   IYield
   (-yield [this m]
-    (-each m
+    (-each (-yield (.-a this) m)
       (fn [s]
-        (-fail m s)))))
+        (let [x (-get-object s)]
+          (if (sequential? x)
+            (-each (-yield (.-b this) (-pass m s))
+              (fn [s]
+                (let [y (-get-object s)]
+                  (if (sequential? y)
+                    (-pass m (-set-object s (concat x y)))
+                    (-fail m s)))))
+            (-fail m s)))))))
 
 (extend-type SequenceSeqCast
   IQuery
