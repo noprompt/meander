@@ -1,6 +1,9 @@
 (ns meander.primitive.sequence.zeta
   (:refer-clojure :exclude [concat
-                            cons]))
+                            cons
+                            empty]))
+
+(defrecord SequenceEmpty [])
 
 (defrecord SequenceCons [head tail])
 
@@ -9,6 +12,9 @@
 (defrecord SequenceSeqCast [a])
 
 (defrecord SequenceVectorCast [a])
+
+(def empty
+  #'->SequenceEmpty)
 
 (def cons
   #'->SequenceCons)

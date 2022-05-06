@@ -24,6 +24,7 @@
            #_meander.primitive.real.zeta.RealInRange
            meander.primitive.sequence.zeta.SequenceCons
            meander.primitive.sequence.zeta.SequenceConcat
+           meander.primitive.sequence.zeta.SequenceEmpty
            meander.primitive.sequence.zeta.SequenceSeqCast
            meander.primitive.sequence.zeta.SequenceVectorCast
            meander.primitive.string.zeta.AnyString
@@ -392,6 +393,23 @@
 ;; Sequence
 ;; ---------------------------------------------------------------------
 
+(extend-type SequenceEmpty
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (sequential? x)
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (-some (-pass m (-set-object s ()))
+               (-pass m (-set-object s [])))))))
+
 (extend-type SequenceCons
   IQuery
   (-query [this m]
@@ -420,13 +438,21 @@
                   (-pass m (-set-object s (cons x y)))
                   (-fail m s))))))))))
 
-;; TODO
 (extend-type SequenceConcat
   IQuery
   (-query [this m]
     (-each m
       (fn [s]
-        (-fail m s))))
+        (let [x (-get-object s)]
+          (if (sequential? x)
+            (reduce
+             (fn [m [a b]]
+               (-some m
+                      (-each (-query (.-a this) (-pass m (-set-object s a)))
+                        (fn [s]
+                          (-query (.-b this) (-pass m (-set-object s b)))))))
+             (-fail m s)
+             (m.algorithms/partitions 2 x)))))))
 
   IYield
   (-yield [this m]
