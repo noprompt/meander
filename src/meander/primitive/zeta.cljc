@@ -1,9 +1,11 @@
 (ns meander.primitive.zeta
   (:require
    [meander.primitive.sequence.zeta :as m.primitive.sequence]
-   [meander.primitive.string.zeta :as m.primitive.string])
+   [meander.primitive.string.zeta :as m.primitive.string]
+   [meander.primitive.hash-map.zeta :as m.primitive.hash-map])
   (:refer-clojure :exclude [concat
                             cons
+                            hash-map
                             list
                             not
                             seq
@@ -119,3 +121,19 @@
 (defn vec
   [a]
   (m.primitive.sequence/vector-cast a))
+
+(defn hash-map
+  [& kvs]
+  (assert (even? (count kvs)) "hash-map expects an even number of arguments")
+  (reduce (fn [m k v] (m.primitive.hash-map/assoc m k v))
+          (m.primitive.hash-map/empty)
+          (partition 2 kvs)))
+
+(defn assoc
+  [m k v & kvs]
+  (assert (even? (count kvs)) "assoc expects an even number of arguments")
+  (reduce
+   (fn [m [k v]]
+     (m.primitive.hash-map/assoc m k v))
+   (m.primitive.hash-map/assoc m k v)
+   (partition 2 kvs)))

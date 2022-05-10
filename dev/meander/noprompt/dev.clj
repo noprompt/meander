@@ -4,6 +4,7 @@
             [meander.algorithms.zeta :as m.algorithms]
             [meander.primitive.zeta :as m]
             [meander.primitive.character.zeta :as m.char]
+            [meander.primitive.hash-map.zeta :as m.hash-map]
             [meander.primitive.integer.zeta :as m.int]
             [meander.primitive.string.zeta :as m.str]
             [meander.random.zeta :as m.random])
@@ -17,6 +18,10 @@
            meander.primitive.zeta.Some
            meander.primitive.zeta.LogicVariable
            meander.primitive.zeta.With
+           meander.primitive.hash_map.zeta.HashMapEmpty
+           meander.primitive.hash_map.zeta.HashMapEntry
+           meander.primitive.hash_map.zeta.HashMapAssoc
+           meander.primitive.hash_map.zeta.HashMapMerge
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
            meander.primitive.integer.zeta.AnyInteger
@@ -83,6 +88,7 @@
   (-query [this m]
     m)
 
+  ;; FIXME: For each state in m produce an infinite sequence. 
   IYield
   (-yield [this m]
     (-each m
@@ -535,6 +541,75 @@
             (-fail m s)))))))
 
 
+;; HashMap
+;; ---------------------------------------------------------------------
+
+(extend-type HashMapEmpty
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (map? x)
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (-pass m (-set-object s {}))))))
+
+(extend-type HashMapAssoc
+  IQuery
+  (-query [this m]
+    (let [entry (m.hash-map/entry (.-k this) (.-v this))]
+      (-each m
+        (fn [s]
+          (let [x (-get-object s)]
+            (if (map? x)
+              (if-some [e (first x)]
+                (let [x-e (dissoc x (key e))]
+                  (-each (-query entry (-pass m (-set-object s e)))
+                    (fn [s]
+                      (-query (.-m this) (-pass m (-set-object s x-e))))))
+                (-fail m s))
+              (-fail m s)))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (m.hash-map/entry (.-k this) (.-v this)) m)
+      (fn [s]
+        (let [e (-get-object s)]
+          (-each (-yield (.-m this) (-pass m s))
+            (fn [s]
+              (let [x (-get-object s)]
+                (if (map? x)
+                  (-pass m (-set-object s (conj x e)))
+                  (-fail m s))))))))))
+
+(extend-type HashMapEntry
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (map-entry? x)
+            (-each (-query (.-k this) (-pass m (-set-object s (key x))))
+              (fn [s]
+                (-query (.-v this) (-pass m (-set-object s (val x))))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-k this) m)
+      (fn [s]
+        (let [k (-get-object s)]
+          (-each (-yield (.-v this) (-pass m s))
+            (fn [s]
+              (let [v (-get-object s)]
+                (-pass m (-set-object s (clojure.lang.MapEntry. k v)))))))))))
+
 ;; Logic/State implementation
 ;; ---------------------------------------------------------------------
 
@@ -612,3 +687,27 @@
 ;;                   %step (project *i (+ *i 1) (project *i >i %main))
 ;;                   %main (some %base %step)}
 ;;            %main))
+
+;; (keep (fn [seed] 
+;;         (let [mn 0
+;;               mx 127
+;;               result1 (map (fn [i] (bit-and (* i seed) mx)) (range mn mx))
+;;               result2 (into #{} result1)]
+;;           (when (= mx (count result2))
+;;             (take 10 result1))))
+;;       (range 127))
+
+;; (let [?x (m/? '?x)
+;;       ?xs (m/? '?xs)
+;;       p1 (m/cons ?x ?xs)
+;;       p2 (m/cons ?xs (m/concat ?xs ?xs))
+;;       s (make-state {:object '(1 4 3)})
+;;       m (list s)]
+;;   (-yield p2 (-query p1 m)))
+
+;; (-yield (m/assoc (m/is {})
+;;                  (m/is :a) (m.char/in-range (m/is 65) (m/is 92))
+;;                  (m/is :b) (m/is 2))
+;;         (list (make-state {})))
+;; (-query (m.hash-map/assoc (m.hash-map/empty) (m/? 1) (m/? 2))
+;;         (list {:object {:a 1}}))
