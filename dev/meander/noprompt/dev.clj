@@ -610,6 +610,44 @@
               (let [v (-get-object s)]
                 (-pass m (-set-object s (clojure.lang.MapEntry. k v)))))))))))
 
+(extend-type HashMapMerge
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (map? x)
+            (if (zero? (count x))
+              (-each (-query (.-m1 this) (-pass m (-set-object s {})))
+                (fn [s]
+                  (-query (.-m2 this) (-pass m (-set-object s {})))))
+              ;; Not supplying val here is safe because
+              ;; (map-partitions m 2) will give us a sequence of at
+              ;; least 2 when the key count of m is greater than 0.
+              (reduce -some
+                      (map (fn [[a b]]
+                             (-each (-query (.-m1 this) (-pass m (-set-object s a)))
+                               (fn [s]
+                                 (-query (.-m2 this) (-pass m (-set-object s b))))))
+                           (m.algorithms/map-partitions x 2))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-m1 this) m)
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (map? x)
+            (-each (-yield (.-m2 this) (-pass m s))
+              (fn [s]
+                (let [y (-get-object s)]
+                  (if (map? y)
+                    (-pass m (-set-object s (merge x y)))
+                    (-fail m s)))))
+            (-fail m s)))))))
+
+
+
 ;; Logic/State implementation
 ;; ---------------------------------------------------------------------
 
@@ -711,3 +749,9 @@
 ;;         (list (make-state {})))
 ;; (-query (m.hash-map/assoc (m.hash-map/empty) (m/? 1) (m/? 2))
 ;;         (list {:object {:a 1}}))
+
+;; (let [?x (m/? 'x)
+;;       ?y (m/? 'y)]
+;;   (-yield (m.hash-map/merge ?x ?y)
+;;           (-query (m.hash-map/merge ?x ?y)
+;;                   (list (make-state {:object {:foo 1 :bar 2}})))))

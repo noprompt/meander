@@ -125,7 +125,7 @@
 (defn hash-map
   [& kvs]
   (assert (even? (count kvs)) "hash-map expects an even number of arguments")
-  (reduce (fn [m k v] (m.primitive.hash-map/assoc m k v))
+  (reduce (fn [m [k v]] (m.primitive.hash-map/assoc m k v))
           (m.primitive.hash-map/empty)
           (partition 2 kvs)))
 
