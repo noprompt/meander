@@ -2,10 +2,12 @@
   (:require
    [meander.primitive.sequence.zeta :as m.primitive.sequence]
    [meander.primitive.string.zeta :as m.primitive.string]
-   [meander.primitive.hash-map.zeta :as m.primitive.hash-map])
+   [meander.primitive.hash-map.zeta :as m.primitive.hash-map]
+   [meander.primitive.hash-set.zeta :as m.primitive.hash-set])
   (:refer-clojure :exclude [concat
                             cons
                             hash-map
+                            hash-set
                             let
                             list
                             not
@@ -153,3 +155,7 @@
      (m.primitive.hash-map/assoc m k v))
    (m.primitive.hash-map/assoc m k v)
    (partition 2 kvs)))
+
+(defn hash-set
+  [& keys]
+  (reduce m.primitive.hash-set/conj (m.primitive.hash-set/empty) keys))

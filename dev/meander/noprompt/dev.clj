@@ -1,10 +1,12 @@
 (ns meander.noprompt.dev
   (:require [clojure.test :as t]
+            [clojure.set :as set]
             [meander.noprompt.util :as m.util]
             [meander.algorithms.zeta :as m.algorithms]
             [meander.primitive.zeta :as m]
             [meander.primitive.character.zeta :as m.char]
             [meander.primitive.hash-map.zeta :as m.hash-map]
+            [meander.primitive.hash-set.zeta :as m.hash-set]
             [meander.primitive.integer.zeta :as m.int]
             [meander.primitive.string.zeta :as m.str]
             [meander.random.zeta :as m.random])
@@ -23,6 +25,11 @@
            meander.primitive.hash_map.zeta.HashMapEntry
            meander.primitive.hash_map.zeta.HashMapAssoc
            meander.primitive.hash_map.zeta.HashMapMerge
+           meander.primitive.hash_set.zeta.HashSetAny
+           meander.primitive.hash_set.zeta.HashSetEmpty
+           meander.primitive.hash_set.zeta.HashSetConj
+           meander.primitive.hash_set.zeta.HashSetUnion
+           meander.primitive.hash_set.zeta.HashSetIntersection
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
            meander.primitive.integer.zeta.AnyInteger
@@ -667,6 +674,88 @@
                     (-fail m s)))))
             (-fail m s)))))))
 
+;; HashSet
+;; ---------------------------------------------------------------------
+
+(extend-type HashSetAny)
+
+(extend-type HashSetEmpty
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (= x #{})
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (-pass m (-set-object s #{}))))))
+
+(extend-type HashSetConj
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (set? x)
+            (if (< 0 (count x))
+              (map (fn [e]
+                     (let [y (disj x e)]
+                       (-query (.-e this) (-pass m (-set-object s e)))))
+                   x))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-s this) m)
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (set? x)
+            (-each (-yield (.-e this) (-pass m s))
+              (fn [s]
+                (let [y (-get-object s)]
+                  (-pass m (-set-object s (conj x y))))))
+            (-fail m s)))))))
+
+(extend-type HashSetUnion
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (set? x)
+            (if (zero? (count x))
+              (-each (-query (.-s1 this) (-pass m (-set-object s #{})))
+                (fn [s]
+                  (-query (.-s2 this) (-pass m (-set-object s #{})))))
+              (reduce -some
+                      (map (fn [[a b]]
+                             (-each (-query (.-s1 this) (-pass m (-set-object s a)))
+                               (fn [s]
+                                 (-query (.-s2 this) (-pass m (-set-object s b))))))
+                           (m.algorithms/set-partitions 2 x))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-s1 this) m)
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (set? x)
+            (-each (-yield (.-s2 this) (-pass m s))
+              (fn [s]
+                (let [y (-get-object s)]
+                  (if (set? y)
+                    (-pass m (-set-object s (set/union x y)))
+                    (-fail m s)))))
+            (-fail m s)))))))
+
+(extend-type HashSetIntersection)
+
 ;; Logic/State implementation
 ;; ---------------------------------------------------------------------
 
@@ -785,3 +874,9 @@
 ;; (-query (m/let [(m/? 'x) (m/vec (m/list (m/is 20) (m/is 10)))]
 ;;           (m/anything))
 ;;         (list (make-state {})))
+
+;; (let [?x (m/? 'x)
+;;       ?y (m/? 'y)]
+;;   (-yield (m.hash-set/union ?x ?y)
+;;           (-query (m.hash-set/union ?x ?y)
+;;                   (list (make-state {:object #{:foo 1 :bar 2}})))))
