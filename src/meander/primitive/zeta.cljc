@@ -6,6 +6,7 @@
   (:refer-clojure :exclude [concat
                             cons
                             hash-map
+                            let
                             list
                             not
                             seq
@@ -23,6 +24,7 @@
 (defrecord With [index a])
 (defrecord Predicate [p])
 (defrecord LogicVariable [id])
+(defrecord Project [y q a])
 
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
@@ -89,6 +91,20 @@
 (def
   ^{:arglists '([id])}
   ? #'->LogicVariable)
+
+(def
+  ^{:arglists '([y q a])}
+  project #'->Project)
+
+(defmacro let
+  {:style/indent 1}
+  [patterns a]
+  {:pre [(and (vector? patterns) (even? (count patterns)))]}
+  (reduce
+   (fn [a [q y]]
+     `(project ~y ~q ~a))
+   a
+   (partition 2 patterns)))
 
 (defn str
   "Constructor for the pattern which represents an element of the

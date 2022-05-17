@@ -11,12 +11,13 @@
   (:import meander.primitive.zeta.Anything
            meander.primitive.zeta.Each
            meander.primitive.zeta.Is
+           meander.primitive.zeta.LogicVariable
            meander.primitive.zeta.Not
            meander.primitive.zeta.Pick
            meander.primitive.zeta.Predicate
+           meander.primitive.zeta.Project
            meander.primitive.zeta.Reference
            meander.primitive.zeta.Some
-           meander.primitive.zeta.LogicVariable
            meander.primitive.zeta.With
            meander.primitive.hash_map.zeta.HashMapEmpty
            meander.primitive.hash_map.zeta.HashMapEntry
@@ -231,6 +232,26 @@
                         s3
                         (keys (.-index this)))))))))))
 
+(extend-type Project
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (-each (-yield (.-y this) (-pass m s))
+          (fn [sy]
+            (let [x (-get-object sy)]
+              (-query (.-a this)
+                      (-query (.-q this) (-pass m (-set-object s x))))))))))
+
+  IYield
+  (-yield [this m]
+    (-each m
+      (fn [s]
+        (-each (-yield (.-y this) (-pass m s))
+          (fn [sy]
+            (let [x (-get-object sy)]
+              (-yield (.-a this)
+                      (-query (.-q this) (-pass m (-set-object s x)))))))))))
 
 ;; Integer
 ;; ---------------------------------------------------------------------
@@ -646,8 +667,6 @@
                     (-fail m s)))))
             (-fail m s)))))))
 
-
-
 ;; Logic/State implementation
 ;; ---------------------------------------------------------------------
 
@@ -717,6 +736,9 @@
   (-unbound [this]
     unbound))
 
+;; Scratch
+;; ---------------------------------------------------------------------
+
 ;; (-yield (m/list (m/? 1) (m/? 1))
 ;;         (-query (m/cons (m/? 1) (m/? 1)) (list (make-state {:object [[1 2 3] 1 2 3]}))))
 
@@ -755,3 +777,11 @@
 ;;   (-yield (m.hash-map/merge ?x ?y)
 ;;           (-query (m.hash-map/merge ?x ?y)
 ;;                   (list (make-state {:object {:foo 1 :bar 2}})))))
+
+;;  (with {%equal-pair (omit [?_ ?_])}
+;;         %equal-pair-list (cons %equal-pair (some (empty) %equal-pair-list))}
+;;    %equal-pair-list)
+
+;; (-query (m/let [(m/? 'x) (m/vec (m/list (m/is 20) (m/is 10)))]
+;;           (m/anything))
+;;         (list (make-state {})))
