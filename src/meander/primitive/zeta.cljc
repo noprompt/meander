@@ -4,7 +4,8 @@
    [meander.primitive.string.zeta :as m.primitive.string]
    [meander.primitive.hash-map.zeta :as m.primitive.hash-map]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set])
-  (:refer-clojure :exclude [concat
+  (:refer-clojure :exclude [assoc
+                            concat
                             cons
                             hash-map
                             hash-set

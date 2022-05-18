@@ -1,4 +1,6 @@
-(ns meander.primitive.hash-set.zeta)
+(ns meander.primitive.hash-set.zeta
+  (:refer-clojure :exclude [conj
+                            empty]))
 
 (defrecord HashSetAny [])
 

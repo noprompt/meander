@@ -23,8 +23,7 @@
 
 (def
   ^{:arglists '([m k v])}
-  assoc
-  #'->HashMapAssoc)
+  assoc #'->HashMapAssoc)
 
 (def
   ^{:arglists '([m1 m2])}
