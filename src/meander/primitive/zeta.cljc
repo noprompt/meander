@@ -28,6 +28,7 @@
 (defrecord Predicate [p])
 (defrecord LogicVariable [id])
 (defrecord Project [y q a])
+(defrecord Rule [q y])
 
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
@@ -108,6 +109,10 @@
      `(project ~y ~q ~a))
    a
    (partition 2 patterns)))
+
+(def
+  ^{:arglists '([q y])}
+  rule #'->Rule)
 
 (defn str
   "Constructor for the pattern which represents an element of the

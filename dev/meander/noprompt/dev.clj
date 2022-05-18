@@ -19,6 +19,7 @@
            meander.primitive.zeta.Predicate
            meander.primitive.zeta.Project
            meander.primitive.zeta.Reference
+           meander.primitive.zeta.Rule
            meander.primitive.zeta.Some
            meander.primitive.zeta.With
            meander.primitive.hash_map.zeta.HashMapEmpty
@@ -259,6 +260,19 @@
             (let [x (-get-object sy)]
               (-yield (.-a this)
                       (-query (.-q this) (-pass m (-set-object s x)))))))))))
+
+(extend-type Rule
+  IQuery
+  (-query [this m]
+    (-query (.-q this) m))
+
+  IYield
+  (-yield [this m]
+    (-yield (.-y this) m))
+
+  IRedex
+  (-redex [this m]
+    (-yield this (-query this m))))
 
 ;; Integer
 ;; ---------------------------------------------------------------------
@@ -880,3 +894,11 @@
 ;;   (-yield (m.hash-set/union ?x ?y)
 ;;           (-query (m.hash-set/union ?x ?y)
 ;;                   (list (make-state {:object #{:foo 1 :bar 2}})))))
+
+;; (let [?x (m/? 'x)
+;;       ?y (m/? 'y)]
+;;   (-redex 
+;;    (m/rule
+;;     (m/vec (m/cons ?x ?y))
+;;     (m/cons ?x (m/seq ?y)))
+;;    (list (make-state {:object [1 2 3 4 5 6]}))))
