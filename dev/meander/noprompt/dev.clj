@@ -592,7 +592,7 @@
     (-each m
       (fn [s]
         (let [x (-get-object s)]
-          (if (map? x)
+          (if (= x {})
             (-pass m s)
             (-fail m s))))))
 
@@ -610,12 +610,24 @@
         (fn [s]
           (let [x (-get-object s)]
             (if (map? x)
-              (if-some [e (first x)]
-                (let [x-e (dissoc x (key e))]
-                  (-each (-query entry (-pass m (-set-object s e)))
-                    (fn [s]
-                      (-query (.-m this) (-pass m (-set-object s x-e))))))
-                (-fail m s))
+              (case (count x)
+                0 (-fail m s)
+
+                1 (let [e (first x)
+                        x-e (dissoc x (key e))]
+                    (-each (-query entry (-pass m (-set-object s e)))
+                      (fn [s]
+                        (-query (.-m this) (-pass m (-set-object s x-e))))))
+
+                ;; else
+                (reduce -some
+                        (map
+                         (fn [e]
+                           (let [x-e (dissoc x (key e))]
+                             (-each (-query entry (-pass m (-set-object s e)))
+                               (fn [s]
+                                 (-query (.-m this) (-pass m (-set-object s x-e)))))))
+                         x)))
               (-fail m s)))))))
 
   IYield
