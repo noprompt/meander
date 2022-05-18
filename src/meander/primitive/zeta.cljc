@@ -116,6 +116,7 @@
   rule #'->Rule)
 
 (defn system
+  {:style/indent 1}
   ([rules]
    {:pre [(sequential? rules)]}
    (->RuleSystem (gensym) rules))
