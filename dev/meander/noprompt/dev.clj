@@ -20,6 +20,7 @@
            meander.primitive.zeta.Project
            meander.primitive.zeta.Reference
            meander.primitive.zeta.Rule
+           meander.primitive.zeta.RuleSystem
            meander.primitive.zeta.Some
            meander.primitive.zeta.With
            meander.primitive.hash_map.zeta.HashMapEmpty
@@ -273,6 +274,52 @@
   IRedex
   (-redex [this m]
     (-yield this (-query this m))))
+
+(extend-type RuleSystem
+  IQuery
+  (-query [this m]
+    (case (count (.-rules this))
+      0
+      (-each m (fn [s] (-fail m s)))
+
+      1
+      (-query (first (.-rules this)) m)
+
+      ;; else
+      (reduce -some
+              (-query (first (.-rules this)) m)
+              (map (fn [rule] (-query rule m))
+                   (rest (.-rules this))))))
+
+  IYield
+  (-yield [this m]
+    (case (count (.-rules this))
+      0
+      (-each m (fn [s] (-fail m s)))
+
+      1
+      (-query (first (.-rules this)) m)
+
+      ;; else
+      (reduce -some
+              (-yield (first (.-rules this)) m)
+              (map (fn [rule] (-yield rule m))
+                   (rest (.-rules this))))))
+
+  IRedex
+  (-redex [this m]
+    (case (count (.-rules this))
+      0
+      (-each m (fn [s] (-fail m s)))
+
+      1
+      (-redex (first (.-rules this)) m)
+
+      ;; else
+      (reduce -some
+              (-redex (first (.-rules this)) m)
+              (map (fn [rule] (-redex rule m))
+                   (rest (.-rules this)))))))
 
 ;; Integer
 ;; ---------------------------------------------------------------------
@@ -914,3 +961,16 @@
 ;;     (m/vec (m/cons ?x ?y))
 ;;     (m/cons ?x (m/seq ?y)))
 ;;    (list (make-state {:object [1 2 3 4 5 6]}))))
+
+
+
+;; (-redex
+;;  (m/system
+;;   [(m/rule
+;;     (m/hash-map (m/is :username) (m/? 1)
+;;                 (m/is :password) (m/? 2))
+;;     (m/list (m/? 1) (m/? 2)))
+;;    (m/rule
+;;     (m/hash-map (m/is :username) (m/? 1))
+;;     (m/list (m/? 1) (m/is "no password")))])
+;;  (list (make-state {:object {:username "foo", :password "bar"}})))

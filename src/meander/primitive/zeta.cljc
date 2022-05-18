@@ -29,6 +29,7 @@
 (defrecord LogicVariable [id])
 (defrecord Project [y q a])
 (defrecord Rule [q y])
+(defrecord RuleSystem [id rules])
 
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
@@ -113,6 +114,14 @@
 (def
   ^{:arglists '([q y])}
   rule #'->Rule)
+
+(defn system
+  ([rules]
+   {:pre [(sequential? rules)]}
+   (->RuleSystem (gensym) rules))
+  ([id rules]
+   {:pre [(sequential? rules)]}
+   (->RuleSystem id rules)))
 
 (defn str
   "Constructor for the pattern which represents an element of the
