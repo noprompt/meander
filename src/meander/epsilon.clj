@@ -386,6 +386,24 @@
     ;; else
     &form))
 
+(defsyntax sequential
+  "Pattern matching operator which matches the `seq` of anything that
+  is `sequential?` against
+
+      (p1 ,,, pn)
+
+  where the sequence `p1` through `pn` is equal to `patterns`."
+  [& patterns]
+  (case (::r.syntax/phase &env)
+    :meander/match
+    `(r.match.syntax/pred sequential? (r.match.syntax/apply seq ~patterns))
+
+    :meander/substitute
+    patterns
+
+    ;; else
+    &form))
+
 (defsyntax scan
   "Pattern matching operator which matches the `seq` of `seqable?`
   forms of the shape
