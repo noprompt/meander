@@ -7,42 +7,183 @@
             [meander.primitive.string.zeta :as m.str]
             [meander.random.zeta :as m.random]))
 
+;; Helpers
+;; ---------------------------------------------------------------------
+
+(defn query-for
+  ([f logicm p]
+   (m.dev/-each (m.dev/-query p logicm)
+     (fn [state]
+       (m.dev/-pass logicm (f state))))))
+
+(defn query-for-objects
+  ([logicm p]
+   (query-for m.dev/-get-object logicm p)))
+
+(defn yield-for
+  [f logicm p]
+  (m.dev/-each (m.dev/-yield p logicm)
+    (fn [state]
+      (m.dev/-pass logicm (f state)))))
+
+(defn yield-for-objects
+  [logicm p]
+  (yield-for m.dev/-get-object logicm p))
+
+(defn query-for-projection
+  [projection logicm p]
+  (yield-for-objects (query-for identity logicm p) projection))
+
+
+;; Tests
+;; ---------------------------------------------------------------------
+
 (t/deftest anything-test
-  (let [m (list (m.dev/make-state {}))]
-    (t/testing "anything"
-      (t/is (= m
-               (m.dev/-query (m/anything) m))))))
+  (let [logicm (list (m.dev/make-state {:object (rand)}))]
+    (t/testing "Anything (Query)"
+      (t/is (= logicm (query-for identity logicm (m/anything)))
+            "Anything should always succeed"))
+
+    (t/testing "anything (Yield)"
+      (t/is (seq (yield-for identity logicm (m/anything)))
+            "Anything should always succeed"))))
+
+(t/deftest nothing-test
+  (let [logicm (list (m.dev/make-state {:object (rand)}))]
+    (t/testing "Nothing (Query)"
+      (t/is (not (seq (query-for identity logicm (m/nothing))))
+            "Nothing should always fail"))
+
+    (t/testing "Nothing (Yield)"
+      (t/is (not (seq (yield-for identity logicm (m/nothing))))
+            "Nothing should always fail"))))
 
 (t/deftest is-test
-  (let [s (m.dev/make-state {:object 1})
-        m (list s)]
-    (t/testing "is"
-      (t/is (= (list s)
-               (m.dev/-query (m/is 1) m)))
+  (let [state (m.dev/make-state {:object true})
+        logicm (list state)]
+    (t/testing "Is (Query)"
+      (t/is (= logicm
+               (query-for identity logicm (m/is true))))
 
       (t/is (= ()
-               (m.dev/-query (m/is 2) m)))
+               (query-for identity logicm (m/is false)))))
+     
+    (t/testing "Is (Yield)"
+      (t/is (= (list false)
+               (yield-for-objects logicm (m/is false)))))))
 
-      (t/is (= (list s s)
-               (m.dev/-query (m/some (m/is 1) (m/is 1)) m)))
+(t/deftest some-test
+  (let [state (m.dev/make-state {:object true})
+        logicm (list state)]
+    (t/testing "Some (Query)"
+      (t/is (= (list true true)
+               (query-for-objects logicm (m/some (m/anything) (m/anything)))))
 
-      (t/is (= (list s)
-               (m.dev/-query (m/some (m/is 0) (m/is 1)) m)))
+      (t/is (= (list true)
+               (query-for-objects logicm (m/some (m/nothing) (m/anything)))))
 
-      (t/is (= ()
-               (m.dev/-query (m/some (m/is 0) (m/is 2)) m)))
+      (t/is (= (list true)
+               (query-for-objects logicm (m/some (m/anything) (m/nothing)))))
 
-      (t/is (= (list s)
-               (m.dev/-query (m/each (m/is 1) (m/anything)) m)))
+      (t/is (= (list)
+               (query-for-objects logicm (m/some (m/nothing) (m/nothing))))))
 
-      (t/is (= ()
-               (m.dev/-query (m/each (m/is 1) (m/is 0)) m)))
+    (t/testing "Some (Yield)"
+      (t/is (= (list true false)
+               (yield-for-objects logicm (m/some (m/is true) (m/is false)))))
 
-      (t/is (= (list s)
-               (m.dev/-query (m/not (m/is 2)) m)))
+      (t/is (= (list true)
+               (yield-for-objects logicm (m/some (m/is true) (m/nothing)))))
 
-      (t/is (= (list (m.dev/-set-object s 1))
-               (m.dev/-yield (m/is 1) m))))))
+      (t/is (= (list true)
+               (yield-for-objects logicm (m/some (m/nothing) (m/is true)))))
+
+      (t/is (= (list)
+               (yield-for-objects logicm (m/some (m/nothing) (m/nothing))))))))
+
+(t/deftest pick-test
+  (let [state (m.dev/make-state {:object true})
+        logicm (list state)]
+    (t/testing "Pick (Query)"
+      (t/is (= (list true)
+               (query-for-objects logicm (m/pick (m/anything) (m/anything)))))
+
+      (t/is (= (list true)
+               (query-for-objects logicm (m/pick (m/nothing) (m/anything)))))
+
+      (t/is (= (list true)
+               (query-for-objects logicm (m/pick (m/anything) (m/nothing)))))
+
+      (t/is (= (list)
+               (query-for-objects logicm (m/pick (m/nothing) (m/nothing))))))
+
+    (t/testing "Pick (Yield)"
+      (t/is (= (list true)
+               (yield-for-objects logicm (m/pick (m/is true) (m/is false)))))
+
+      (t/is (= (list true)
+               (yield-for-objects logicm (m/pick (m/is true) (m/nothing)))))
+
+      (t/is (= (list true)
+               (yield-for-objects logicm (m/pick (m/nothing) (m/is true)))))
+
+      (t/is (= (list)
+               (yield-for-objects logicm (m/pick (m/nothing) (m/nothing))))))))
+
+(t/deftest each
+  (t/testing "Each (Query)"
+    (let [state (m.dev/make-state {:object true})
+          logicm (list state)]
+      (t/is (= (list true)
+               (query-for-objects logicm (m/each (m/anything) (m/anything)))))
+
+      (t/is (= (list)
+               (query-for-objects logicm (m/each (m/nothing) (m/anything)))))
+
+      (t/is (= (list)
+               (query-for-objects logicm (m/each (m/anything) (m/nothing)))))
+
+      (t/is (= (list)
+               (query-for-objects logicm (m/each (m/nothing) (m/nothing)))))))
+
+  (t/testing "Each (Yield)"
+    (let [state (m.dev/make-state {:object true})
+          logicm (list state)
+          a true
+          b false
+          c (rand-nth [a b])]
+      (t/is (= (list c c)
+               (yield-for-objects logicm (m/each (m/is c) (m/some (m/is a) (m/is b))))))
+
+      (t/is (= (list c c)
+               (yield-for-objects logicm (m/each (m/some (m/is a) (m/is b)) (m/is c)))))
+
+      (t/is (= (list)
+               (yield-for-objects logicm (m/each (m/is c) (m/nothing))))))))
+
+
+(t/deftest logic-variable-test
+  (t/testing "Logic Variable (Query)"
+    (let [state (m.dev/make-state {:object true})
+          logicm (list state)
+          ?1 (m/? 1)]
+      (t/is (= (list true)
+               (query-for-projection ?1 logicm ?1)))
+
+      (t/is (= (list true)
+               (query-for-projection ?1 logicm (m/each ?1 ?1))))))
+
+  (t/testing "Logic Variable (Yield)"
+    (let [?1 (m/? 1)
+          state (m.dev/make-state {:object true})
+          state (m.dev/-set-variable state ?1 false)
+          logicm (list state)]
+      (t/is (= (list)
+               (query-for-projection ?1 logicm ?1)))
+
+      (t/is (= (list false)
+               (yield-for-objects logicm ?1))))))
+
 
 (t/deftest str-test
   (let [fan-fin-fun (m/str (m/is "f")
@@ -86,3 +227,5 @@
 
     (t/testing "Every yielded answer should successfully query"
       (t/is (= y-answers q-answers)))))
+
+
