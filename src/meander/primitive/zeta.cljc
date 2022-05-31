@@ -105,11 +105,9 @@
   {:style/indent 1}
   [patterns a]
   {:pre [(and (vector? patterns) (even? (count patterns)))]}
-  (reduce
-   (fn [a [q y]]
-     `(project ~y ~q ~a))
-   a
-   (partition 2 patterns)))
+  (reduce (fn [a [q y]] `(project ~y ~q ~a))
+          a
+          (partition 2 patterns)))
 
 (def
   ^{:arglists '([q y])}
@@ -166,11 +164,9 @@
 (defn assoc
   [m k v & kvs]
   (assert (even? (count kvs)) "assoc expects an even number of arguments")
-  (reduce
-   (fn [m [k v]]
-     (m.primitive.hash-map/assoc m k v))
-   (m.primitive.hash-map/assoc m k v)
-   (partition 2 kvs)))
+  (reduce (fn [m [k v]] (m.primitive.hash-map/assoc m k v))
+          (m.primitive.hash-map/assoc m k v)
+          (partition 2 kvs)))
 
 (defn hash-set
   [& keys]
