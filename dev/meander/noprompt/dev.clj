@@ -133,6 +133,17 @@
     (-some (-yield (.-a this) m)
            (-yield (.-b this) m))))
 
+(extend-type Pick
+  IQuery
+  (-query [this m]
+    (-pick (-query (.-a this) m)
+           (-query (.-b this) m)))
+
+  IYield
+  (-yield [this m]
+    (-pick (-yield (.-a this) m)
+           (-yield (.-b this) m))))
+
 (extend-type Each
   IQuery
   (-query [this m]
