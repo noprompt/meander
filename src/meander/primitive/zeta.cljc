@@ -1,14 +1,17 @@
 (ns meander.primitive.zeta
   (:require
+   [meander.primitive.hash-map.zeta :as m.primitive.hash-map]
+   [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
+   [meander.primitive.keyword.zeta :as m.primitive.keyword]
    [meander.primitive.sequence.zeta :as m.primitive.sequence]
    [meander.primitive.string.zeta :as m.primitive.string]
-   [meander.primitive.hash-map.zeta :as m.primitive.hash-map]
-   [meander.primitive.hash-set.zeta :as m.primitive.hash-set])
+   [meander.primitive.symbol.zeta :as m.primitive.symbol])
   (:refer-clojure :exclude [assoc
                             concat
                             cons
                             hash-map
                             hash-set
+                            keyword
                             let
                             list
                             not
@@ -30,6 +33,7 @@
 (defrecord Project [y q a])
 (defrecord Rule [q y])
 (defrecord RuleSystem [id rules])
+(defrecord Again [id a])
 
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
@@ -129,6 +133,14 @@
   ([a] (m.primitive.string/concat (is "") a))
   ([a b] (m.primitive.string/concat a b))
   ([a b & more] (apply str (str a b) more)))
+
+(defn keyword
+  ([name] (m.primitive.keyword/unqualified name))
+  ([ns name] (m.primitive.keyword/qualified ns name)))
+
+(defn symbol
+  ([name] (m.primitive.symbol/unqualified name))
+  ([ns name] (m.primitive.symbol/qualified ns name)))
 
 (defn cons
   ([a b] (m.primitive.sequence/cons a b)))

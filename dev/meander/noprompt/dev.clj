@@ -8,7 +8,9 @@
             [meander.primitive.hash-map.zeta :as m.hash-map]
             [meander.primitive.hash-set.zeta :as m.hash-set]
             [meander.primitive.integer.zeta :as m.int]
+            [meander.primitive.keyword.zeta :as m.keyword]
             [meander.primitive.string.zeta :as m.str]
+            [meander.primitive.symbol.zeta :as m.symbol]
             [meander.random.zeta :as m.random])
   (:import meander.primitive.zeta.Anything
            meander.primitive.zeta.Each
@@ -34,6 +36,9 @@
            meander.primitive.hash_set.zeta.HashSetIntersection
            meander.primitive.character.zeta.AnyCharacter
            meander.primitive.character.zeta.CharacterInRange
+           meander.primitive.keyword.zeta.KeywordAny
+           meander.primitive.keyword.zeta.KeywordQualified
+           meander.primitive.keyword.zeta.KeywordUnqualified
            meander.primitive.integer.zeta.AnyInteger
            meander.primitive.integer.zeta.IntegerInRange
            #_meander.primitive.real.zeta.AnyReal
@@ -43,6 +48,9 @@
            meander.primitive.sequence.zeta.SequenceEmpty
            meander.primitive.sequence.zeta.SequenceSeqCast
            meander.primitive.sequence.zeta.SequenceVectorCast
+           meander.primitive.symbol.zeta.SymbolAny
+           meander.primitive.symbol.zeta.SymbolQualified
+           meander.primitive.symbol.zeta.SymbolUnqualified
            meander.primitive.string.zeta.AnyString
            meander.primitive.string.zeta.StringConcat))
 
@@ -524,6 +532,136 @@
               (let [b (-get-object s)]
                 (-pass m (-set-object s (str a b)))))))))))
 
+
+;; Keyword
+;; ---------------------------------------------------------------------
+
+(extend-type KeywordAny
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (keyword? x)
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m (fn [s] (-fail m s)))))
+
+(extend-type KeywordUnqualified
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (keyword? x)
+            (-query (.-name this) (-pass m (-set-object s (name x))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-name this) m)
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (string? x)
+            (-pass m (-set-object s (keyword x)))
+            (-fail m s)))))))
+
+(extend-type KeywordQualified
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (qualified-keyword? x)
+            (let [ns (namespace x)
+                  name (name x)]
+              (-each (-query (.-ns this) (-pass m (-set-object s ns)))
+                (fn [s]
+                  (-query (.-name this) (-pass m (-set-object s name))))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-ns this) m)
+      (fn [s1]
+        (let [x (-get-object s1)]
+          (if (string? x)
+            (-each (-yield (.-name this) m)
+              (fn [s2]
+                (let [y (-get-object s2)]
+                  (if (string? y)
+                    (-pass m (-set-object s2 (keyword x y)))
+                    (-fail m s2)))))
+            (-fail m s1)))))))
+
+
+;; Symbol
+;; ---------------------------------------------------------------------
+
+(extend-type SymbolAny
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (symbol? x)
+            (-pass m s)
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each m (fn [s] (-fail m s)))))
+
+(extend-type SymbolUnqualified
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (symbol? x)
+            (-query (.-name this) (-pass m (-set-object s (name x))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-name this) m)
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (string? x)
+            (-pass m (-set-object s (symbol x)))
+            (-fail m s)))))))
+
+(extend-type SymbolQualified
+  IQuery
+  (-query [this m]
+    (-each m
+      (fn [s]
+        (let [x (-get-object s)]
+          (if (qualified-symbol? x)
+            (let [ns (namespace x)
+                  name (name x)]
+              (-each (-query (.-ns this) (-pass m (-set-object s ns)))
+                (fn [s]
+                  (-query (.-name this) (-pass m (-set-object s name))))))
+            (-fail m s))))))
+
+  IYield
+  (-yield [this m]
+    (-each (-yield (.-ns this) m)
+      (fn [s1]
+        (let [x (-get-object s1)]
+          (if (string? x)
+            (-each (-yield (.-name this) m)
+              (fn [s2]
+                (let [y (-get-object s2)]
+                  (if (string? y)
+                    (-pass m (-set-object s2 (symbol x y)))
+                    (-fail m s2)))))
+            (-fail m s1)))))))
+
 ;; Sequence
 ;; ---------------------------------------------------------------------
 
@@ -972,8 +1110,6 @@
 ;;     (m/vec (m/cons ?x ?y))
 ;;     (m/cons ?x (m/seq ?y)))
 ;;    (list (make-state {:object [1 2 3 4 5 6]}))))
-
-
 
 ;; (-redex
 ;;  (m/system
