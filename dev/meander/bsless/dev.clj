@@ -1,6 +1,4 @@
-(ns meander.bsless.dev
-  (:require
-   [clojure.test :as t]))
+(ns meander.bsless.dev)
 
 (defprotocol Monad
   (-bind [this f])
@@ -23,28 +21,7 @@
   (-bind [this f] (fn [] (-bind (this) f)))
   (-return [_ x] (fn [] x)))
 
-(t/deftest monad-laws
-  (t/testing "left identity"
-    (t/testing "ISeq"
-      (let [f #(range %)
-            a 4]
-        (t/is (= (-bind (-return () a) f) (f a)))))
-    #_
-    (t/testing "Fn"
-      (let [f #(range %)
-            ctx (fn [])
-            a '(4)]
-        ((-bind (-return ctx a) f))
-        #_(t/is (= (-bind (-return ctx a) f) (f a))))))
-  (t/testing "Right identity"
-    (t/testing "ISeq"
-      (let [a '(1)]
-        (t/is (= a (-bind a (partial -return ()))))))))
-
 (comment
-  (-bind '(1 2 3) (fn [x] (range x)))
-  (-return '(1 2 3) 1)
-
   (=
    ((-bind (fn [] '(1 2 3)) (fn [x] (range x))))
    (-bind '(1 2 3) (fn [x] (range x)))))
@@ -81,8 +58,6 @@
   (-mplus [this that] (fn [] (-mplus that (this)))))
 
 (comment
-  (-mzero '(1 2 3))
-  (-mplus '(1 2 3) '(4 5 6))
   (-mzero [1 2])
   (-mplus [1 2] [1 2])
   ((-mplus (fn [] [1]) [2])))
@@ -106,10 +81,6 @@
                              [(first xs) (-return this (second xs))]))))
 
 (comment
-  (-msplit '(1 2 3 4))
-  (-msplit '[1 2 3 4])
-  (-msplit '())
-  (-msplit '(1))
   ((second ((-msplit (fn [] '(1 2 3)))))))
 
 (defprotocol ILogicM
@@ -150,26 +121,27 @@
         (-mzero m)))))
 
 (comment
-  (-interleave '(1 2 3) '(4 5 6))
-  (take 42 (-interleave '(1 2 3) (range)))
-  (-interleave '[1 2 3] '[4 5 6])
-  (>>- '(a b c) (fn [_] (range 10)))
-  (frequencies (take 99 (>>- '(a b c) (fn [x] (repeat x)))))
-  (frequencies (take 200 (>>- '(a b c d) (fn [x] (repeat x)))))
-  (frequencies
-   (take
-    100
-    (-interleave
-     (>>- '(a b) (fn [x] (repeat x)))
-     (>>- '(c d) (fn [x] (repeat x))))))
-  (frequencies
-   (take
-    100
-    (-interleave
-     (>>- '(a b) (fn [x] (repeat x)))
-     (>>- '(c) (fn [x] (repeat x))))))
-  (frequencies (take 200 (>>- '(a b) (fn [x] (repeat x)))))
   ,())
+
+;; TODO
+#_
+(extend-protocol ILogicM
+  nil
+  (-interleave [_ sg2] sg2)
+  (>>- [_ g] nil)
+
+  clojure.lang.ISeq
+  (-interleave [sg1 sg2]
+    (lazy-seq
+     (if-let [[sg11 & sg12] (seq sg1)]
+       (cons sg11 (-interleave sg2 sg12))
+       sg2)))
+  (>>- [sg g]
+    (lazy-seq
+     (if-let [[sg1 & sg2] (seq sg)]
+       (-interleave (g sg1) (>>- sg2 g))
+       ()))))
+
 
 
 ;;; Non canonical representation objects - ambiguous
