@@ -106,7 +106,7 @@ The alias `r` stands for "rewrite" and will be used throughout the following exa
 Before diving into the combinators themselves it's important to understand how combinators fail.
 When a combinator fails to transform `t` into `t*` it returns a special value: `meander.strategy.epsilon/*fail*` which is printed as `#meander.epsilon/fail[]`.
 This value is at the heart of strategy control flow.
-You can detect this value in your with `meander.strategy.epsilon/fail?`, however, you should rarely need to reach for this function outside of combinators.
+You can detect this value in your code with `meander.strategy.epsilon/fail?`, however, you should rarely need to reach for this function outside of combinators.
 
 ## Basic Combinators
 
