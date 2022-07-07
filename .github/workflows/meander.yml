@@ -38,3 +38,24 @@ jobs:
     - uses: actions/checkout@v1
     - name: Run cljs tests
       run: clojure -A:cljs:cljs-test
+
+  bb:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Prepare java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'adopt'
+        java-version: '11'
+
+    - name: Install clojure tools
+      uses: DeLaGuardo/setup-clojure@7.0
+      with:
+        bb: latest
+
+    - name: Run babashka tests
+      run: bb test-bb

@@ -1,0 +1,13 @@
+{:paths ["src"]
+ :tasks
+ {test-bb
+  {:doc "Run babashka tests"
+   :extra-paths ["test"]
+   :extra-deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
+                                         :git/sha "1a841c4cc1d4f6dab7505a98ed2d532dd9d56b78"}
+                org.clojure/test.check {:mvn/version "1.1.1"}
+                org.clojure/tools.namespace {:git/url "https://github.com/babashka/tools.namespace"
+                                             :git/sha "3625153ee66dfcec2ba600851b5b2cbdab8fae6c"}
+                io.github.cognitect-labs/test-runner {:git/tag "v0.5.0" :git/sha "b3fd0d2"}}
+   :requires ([cognitect.test-runner.api :as test-api])
+   :task (test-api/test {})}}}
