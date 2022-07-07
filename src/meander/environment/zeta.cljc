@@ -61,6 +61,12 @@
                   ::interns #{}}))
        `(quote ~(cljs-ns-from-clj-ns *ns*)))))
 
+
+;; An operator is a function with the following signature.
+;;
+;;    Anything -> {:object Anything & _} | nil
+;;
+;; This function is named "system".
 (def operator-registry
   (atom {}))
 
