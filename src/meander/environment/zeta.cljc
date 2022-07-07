@@ -110,6 +110,8 @@
 
 ;; Operator registry manipulation, look up, and expansion.
 ;; ---------------------------------------------------------------------
+;;
+;; Operators are stored at the ::operators key of the environment.
 
 (defn operator-add! [symbol system]
   {:pre [(symbol? symbol)
@@ -128,12 +130,11 @@
 (defn operator-expand [environment form]
   (if (seq? form)
     (if-some [[_ f] (operator-find environment (first form))]
-      (if-some [{:keys [object]} (f form)]
+      (if-some [{:keys [object]} (f (vary-meta form assoc ::env environment))]
         object
         form)
       form)
     form))
-
 
 (defn operator-expand-all [environment form]
   (let [form* (operator-expand environment form)]
