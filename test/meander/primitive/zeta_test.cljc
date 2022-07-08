@@ -101,3 +101,48 @@
                                     (m.primitive/is object2))]
       (t/is (= [object1 object2]
                (map :object (yield-unwrap pattern ilogic)))))))
+
+(t/deftest pick-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          object3 (inc object2)
+          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
+          ilogic2 (m.logic/make-dff (m.state/make {:object object2}))
+          ilogic3 (m.logic/make-dff (m.state/make {:object object3}))
+          pattern (m.primitive/pick (m.primitive/is object1)
+                                    (m.primitive/is object2))]
+      (t/is (query-unwrap pattern ilogic1))
+      (t/is (query-unwrap pattern ilogic2))
+      (t/is (not (query-unwrap pattern ilogic3)))))
+
+  (t/testing "-query (bfs)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          object3 (inc object2)
+          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
+          ilogic2 (m.logic/make-bfs (m.state/make {:object object2}))
+          ilogic3 (m.logic/make-bfs (m.state/make {:object object3}))
+          pattern (m.primitive/pick (m.primitive/is object1)
+                                    (m.primitive/is object2))]
+      (t/is (query-unwrap pattern ilogic1))
+      (t/is (query-unwrap pattern ilogic2))
+      (t/is (not (seq (query-unwrap pattern ilogic3))))))
+
+  (t/testing "-yield (dff)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic (m.logic/make-dff (m.state/make {}))
+          pattern (m.primitive/pick (m.primitive/is object1)
+                                    (m.primitive/is object2))]
+      (t/is (= object1
+               (:object (yield-unwrap pattern ilogic))))))
+
+  (t/testing "-yield (bfs)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic (m.logic/make-bfs (m.state/make {}))
+          pattern (m.primitive/pick (m.primitive/is object1)
+                                    (m.primitive/is object2))]
+      (t/is (= [object1]
+               (map :object (yield-unwrap pattern ilogic)))))))

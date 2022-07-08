@@ -73,7 +73,17 @@
     (m.protocols/-some (m.protocols/-yield a ilogic)
                        (m.protocols/-yield b ilogic))))
 
-(defrecord Pick [a b])
+(defrecord Pick [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-pick (m.protocols/-query a ilogic)
+                       (m.protocols/-query b ilogic)))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-pick (m.protocols/-yield a ilogic)
+                       (m.protocols/-yield b ilogic))))
+
 (defrecord Each [a b])
 (defrecord Reference [id])
 (defrecord With [index a])
