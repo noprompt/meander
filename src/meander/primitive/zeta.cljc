@@ -35,6 +35,17 @@
       (fn [s]
         (m.protocols/-pass ilogic (m.protocols/-set-random s))))))
 
+(defrecord Nothing []
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s] (m.protocols/-fail ilogic s))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s] (m.protocols/-fail ilogic s)))))
+
 (defrecord Is [x]
   m.protocols/IQuery
   (-query [this ilogic]
@@ -84,7 +95,31 @@
     (m.protocols/-pick (m.protocols/-yield a ilogic)
                        (m.protocols/-yield b ilogic))))
 
-(defrecord Each [a b])
+(defrecord Each [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each (m.protocols/-query a ilogic)
+      (fn [s]
+        (m.protocols/-query b (m.protocols/-pass ilogic s)))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-some
+     ;; If the result of yielding a successfully queries against b,
+     ;; pass, fail otherwise.
+     (m.protocols/-each (m.protocols/-yield a ilogic)
+       (fn [s]
+         (clj/let [ilogic-out (m.protocols/-pass ilogic s)]
+           (m.protocols/-each (m.protocols/-query b (m.protocols/-pass ilogic s))
+             (fn [_] ilogic-out)))))
+     ;; If the result of yielding b successfully queries against a,
+     ;; pass, fail otherwise.
+     (m.protocols/-each (m.protocols/-yield b ilogic)
+       (fn [s]
+         (clj/let [ilogic-out (m.protocols/-pass ilogic s)]
+           (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic s))
+             (fn [_] ilogic-out))))))))
+
 (defrecord Reference [id])
 (defrecord With [index a])
 (defrecord Predicate [p])
@@ -112,7 +147,7 @@
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
   of the empty set e.g. nothing."}
-  nothing (comp not anything))
+  nothing #'->Nothing)
 
 ;; Note: Not ready for documentation.
 (def predicate

@@ -25,6 +25,15 @@
     (let [ilogic (m.logic/make-dff (m.state/make {}))]
       (t/is (yield-unwrap (m.primitive/anything) ilogic)))))
 
+(t/deftest nothing-protocol-satisfaction-test
+  (t/testing "-query"
+    (let [ilogic (m.logic/make-dff (m.state/make {}))]
+      (t/is (not (query-unwrap (m.primitive/nothing) ilogic)))))
+
+  (t/testing "-yield"
+    (let [ilogic (m.logic/make-dff (m.state/make {}))]
+      (t/is (not (yield-unwrap (m.primitive/nothing) ilogic))))))
+
 (t/deftest is-protocol-satisfaction-test
   (t/testing "-query"
     (let [object (rand)
@@ -146,3 +155,41 @@
                                     (m.primitive/is object2))]
       (t/is (= [object1]
                (map :object (yield-unwrap pattern ilogic)))))))
+
+(t/deftest each-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [ilogic (m.logic/make-dff (m.state/make {}))]
+      (t/is (query-unwrap (m.primitive/each) ilogic))
+      (t/is (query-unwrap (m.primitive/each (m.primitive/anything)) ilogic))
+      (t/is (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic))
+      (t/is (not (query-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
+      (t/is (not (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
+
+  (t/testing "-query (bfs)"
+    (let [ilogic (m.logic/make-bfs (m.state/make {}))]
+      (t/is (= ilogic
+               (query-unwrap (m.primitive/each) ilogic)))
+      (t/is (= ilogic
+               (query-unwrap (m.primitive/each (m.primitive/anything)) ilogic)))
+      (t/is (= ilogic
+               (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic)))
+      (t/is (= ()
+               (query-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
+      (t/is (= ()
+               (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
+
+  (t/testing "-yield (dff)"
+    (let [ilogic (m.logic/make-dff (m.state/make {}))]
+      (t/is (yield-unwrap (m.primitive/each) ilogic))
+      (t/is (yield-unwrap (m.primitive/each (m.primitive/anything)) ilogic))
+      (t/is (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic))
+      (t/is (not (yield-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
+      (t/is (not (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
+
+  (t/testing "-yield (bfs)"
+    (let [ilogic (m.logic/make-bfs (m.state/make {}))]
+      (t/is (seq (yield-unwrap (m.primitive/each) ilogic)))
+      (t/is (seq (yield-unwrap (m.primitive/each (m.primitive/anything)) ilogic)))
+      (t/is (seq (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic)))
+      (t/is (not (seq (yield-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic))))
+      (t/is (not (seq (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))))
