@@ -22,6 +22,9 @@
   (-set-reference [istate reference new-definition])
   (-set-random [istate]))
 
+(defn istate? [x]
+  (satisfies? IState x))
+
 (defprotocol ILogic
   :extend-via-metadata true
   ;; True/In
@@ -40,3 +43,7 @@
    -comp [ilogic f])
   ;; Sentinel value
   (-unbound [ilogic]))
+
+(defprotocol IUnwrap
+  :extend-via-metadata true
+  (-unwrap [iunwrap]))
