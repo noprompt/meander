@@ -1,5 +1,6 @@
 (ns meander.primitive.zeta
   (:require
+   [clojure.core :as clj]
    [meander.primitive.hash-map.zeta :as m.primitive.hash-map]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.primitive.keyword.zeta :as m.primitive.keyword]
@@ -34,7 +35,22 @@
       (fn [s]
         (m.protocols/-pass ilogic (m.protocols/-set-random s))))))
 
-(defrecord Is [x])
+(defrecord Is [x]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [y (m.protocols/-get-object s)]
+          (if (= x y)
+            (m.protocols/-pass ilogic s)
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (m.protocols/-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (m.protocols/-pass ilogic (m.protocols/-set-object s x))))))
+
 (defrecord Each [a b])
 (defrecord Not [a])
 (defrecord Pick [a b])

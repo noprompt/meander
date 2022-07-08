@@ -23,3 +23,18 @@
   (t/testing "-yield"
     (let [ilogic (m.logic/make-dff (m.state/make {}))]
       (t/is (yield-unwrap (m.primitive/anything) ilogic)))))
+
+(t/deftest is-protocol-satisfaction-test
+  (t/testing "-query"
+    (let [object (rand)
+          istate (m.state/make {:object object})
+          ilogic (m.logic/make-dff istate)]
+      (t/is (= istate
+               (query-unwrap (m.primitive/is object) ilogic)))))
+
+  (t/testing "-yield"
+    (let [object (rand)
+          istate (m.state/make {:object (inc object)})
+          ilogic (m.logic/make-dff istate)]
+      (t/is (= (m.protocols/-set-object istate object)
+               (yield-unwrap (m.primitive/is object) ilogic))))))
