@@ -18,6 +18,7 @@
                             seq
                             some
                             str
+                            symbol
                             vec]))
 
 (defrecord Anything [])
