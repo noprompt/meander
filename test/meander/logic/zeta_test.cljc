@@ -27,6 +27,16 @@
                   (fn [_]
                     (m.protocols/-pass ilogic istate))))))
 
+      (t/is (= (m.protocols/-fail ilogic istate)
+               (m.protocols/-each ilogic
+                 (fn [istate]
+                   (m.protocols/-fail ilogic istate)))))
+
+      (t/is (= (m.protocols/-fail ilogic istate)
+               (m.protocols/-each (m.protocols/-fail ilogic istate)
+                 (fn [istate]
+                   (m.protocols/-pass ilogic istate)))))
+
       (t/is (= nil
                (m.protocols/-unwrap
                 (m.protocols/-each ilogic

@@ -13,7 +13,7 @@
     (DFFLogic. nil))
 
   (-each [this f]
-    (f istate))
+    (if istate (f istate) this))
 
   (-some [this that]
     (if istate this that))
