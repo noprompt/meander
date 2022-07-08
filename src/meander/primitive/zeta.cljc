@@ -5,7 +5,8 @@
    [meander.primitive.keyword.zeta :as m.primitive.keyword]
    [meander.primitive.sequence.zeta :as m.primitive.sequence]
    [meander.primitive.string.zeta :as m.primitive.string]
-   [meander.primitive.symbol.zeta :as m.primitive.symbol])
+   [meander.primitive.symbol.zeta :as m.primitive.symbol]
+   [meander.protocols.zeta :as m.protocols])
   (:refer-clojure :exclude [assoc
                             concat
                             cons
@@ -21,7 +22,18 @@
                             symbol
                             vec]))
 
-(defrecord Anything [])
+(defrecord Anything []
+  m.protocols/IQuery
+  (-query [this ilogic]
+    ilogic)
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    ;; FIXME: This should be infinite.
+    (m.protocols/-each ilogic
+      (fn [s]
+        (m.protocols/-pass ilogic (m.protocols/-set-random s))))))
+
 (defrecord Is [x])
 (defrecord Each [a b])
 (defrecord Not [a])
