@@ -16,6 +16,7 @@
                             keyword
                             let
                             list
+                            merge
                             not
                             seq
                             some
