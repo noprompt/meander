@@ -181,6 +181,14 @@
           (m.primitive.hash-map/assoc m k v)
           (partition 2 kvs)))
 
+(defn merge
+  ([]
+   (hash-map))
+  ([m1]
+   (m.primitive.hash-map/merge (hash-map) m1))
+  ([m1 m2 & ms]
+   (reduce m.primitive.hash-map/merge (m.primitive.hash-map/merge m1 m2) ms)))
+
 (defn hash-set
   [& keys]
   (reduce m.primitive.hash-set/conj (m.primitive.hash-set/empty) keys))
