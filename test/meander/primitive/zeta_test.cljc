@@ -4,8 +4,9 @@
    [meander.logic.zeta :as m.logic]
    [meander.primitive.zeta :as m.primitive]
    [meander.protocols.zeta :as m.protocols]
-   [meander.state.zeta :as m.state]))
-
+   [meander.state.zeta :as m.state])
+  #?(:clj
+     (:import clojure.lang.ExceptionInfo)))
 
 (def ^{:arglists '([iquery istate])}
   query-unwrap
@@ -38,3 +39,43 @@
           ilogic (m.logic/make-dff istate)]
       (t/is (= (m.protocols/-set-object istate object)
                (yield-unwrap (m.primitive/is object) ilogic))))))
+
+(t/deftest not-protocol-satisfaction-test
+  (t/testing "-query"
+    (let [ilogic (m.logic/make-dff (m.state/make {}))]
+      (t/is (not (query-unwrap (m.primitive/not (m.primitive/anything)) ilogic))))
+
+    (let [object (rand)
+          ilogic (m.logic/make-dff (m.state/make {:object object}))]
+      (t/is (not (query-unwrap (m.primitive/not (m.primitive/is object)) ilogic))))
+
+    (let [object (rand)
+          ilogic (m.logic/make-dff (m.state/make {:object object}))]
+      (t/is (query-unwrap (m.primitive/not (m.primitive/is (inc object))) ilogic))))
+
+  (t/testing "-yield"
+    (let [ilogic (m.logic/make-dff (m.state/make {}))]
+      (t/is (thrown-with-msg? ExceptionInfo #"Not implemented" (m.protocols/-yield (m.primitive/not (m.primitive/anything)) ilogic))))))
+
+(t/deftest some-protocol-satisfaction-test
+  (t/testing "-query"
+    (let [object1 (rand)
+          object2 (inc object1)
+          object3 (inc object2)
+          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
+          ilogic2 (m.logic/make-dff (m.state/make {:object object2}))
+          ilogic3 (m.logic/make-dff (m.state/make {:object object3}))
+          pattern (m.primitive/some (m.primitive/is object1)
+                                    (m.primitive/is object2))]
+      (t/is (query-unwrap pattern ilogic1))
+      (t/is (query-unwrap pattern ilogic2))
+      (t/is (not (query-unwrap pattern ilogic3)))))
+
+  (t/testing "-yield"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic (m.logic/make-dff (m.state/make {}))
+          pattern (m.primitive/some (m.primitive/is object1)
+                                    (m.primitive/is object2))]
+      (t/is (= object1
+               (:object (yield-unwrap pattern ilogic)))))))

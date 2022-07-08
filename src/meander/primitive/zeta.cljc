@@ -51,10 +51,30 @@
       (fn [s]
         (m.protocols/-pass ilogic (m.protocols/-set-object s x))))))
 
-(defrecord Each [a b])
-(defrecord Not [a])
+(defrecord Not [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-comp ilogic
+      (fn [s]
+        (m.protocols/-query a (m.protocols/-pass ilogic s)))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (throw (ex-info "Not implemented" {}))))
+
+(defrecord Some [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-some (m.protocols/-query a ilogic)
+                       (m.protocols/-query b ilogic)))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-some (m.protocols/-yield a ilogic)
+                       (m.protocols/-yield b ilogic))))
+
 (defrecord Pick [a b])
-(defrecord Some [a b])
+(defrecord Each [a b])
 (defrecord Reference [id])
 (defrecord With [index a])
 (defrecord Predicate [p])
