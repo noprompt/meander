@@ -1,3 +1,14 @@
 #!/usr/bin/env bash
 
-find -E ./dev ./src ./test -regex ".*.*clj[^~#]?$" | entr bin/test $@
+
+# The difference is in the -E flag. There is probably a better way to do this.
+case `uname` in
+	Darwin) 
+		find -E ./dev ./src ./test -regex ".*.*clj[^~#]?$" | entr bin/test $@
+		;;
+	Linux)
+		find ./dev ./src ./test -regex ".*.*clj[^~#]?$" | entr bin/test $@
+		;;
+	*)
+		;;
+esac
