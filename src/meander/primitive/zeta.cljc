@@ -216,6 +216,54 @@
               (clj/let [b (m.protocols/-get-object s)]
                 (m.protocols/-pass ilogic (m.protocols/-set-object s (clj/str a b)))))))))))
 
+(defrecord SymbolUnqualified [name]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (symbol? x)
+            (m.protocols/-query name (m.protocols/-pass ilogic (m.protocols/-set-object s (clj/name x))))
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield name ilogic)
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (string? x)
+            (m.protocols/-pass ilogic (m.protocols/-set-object s (clj/symbol x)))
+            (m.protocols/-fail ilogic s)))))))
+
+
+(defrecord SymbolQualified [ns name]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (qualified-symbol? x)
+            (clj/let [x-ns (namespace x)
+                      x-name (clj/name x)]
+              (m.protocols/-each (m.protocols/-query ns (m.protocols/-pass ilogic (m.protocols/-set-object s x-ns)))
+                (fn [s]
+                  (m.protocols/-query name (m.protocols/-pass ilogic (m.protocols/-set-object s x-name))))))
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield (.-ns this) ilogic)
+      (fn [s1]
+        (clj/let [x (m.protocols/-get-object s1)]
+          (if (string? x)
+            (m.protocols/-each (m.protocols/-yield name ilogic)
+              (fn [s2]
+                (clj/let [y (m.protocols/-get-object s2)]
+                  (if (string? y)
+                    (m.protocols/-pass ilogic (m.protocols/-set-object s2 (clj/symbol x y)))
+                    (m.protocols/-fail ilogic s2)))))
+            (m.protocols/-fail ilogic s1)))))))
+
 ;; API
 ;; ---------------------------------------------------------------------
 
@@ -323,8 +371,8 @@
   ([ns name] (m.primitive.keyword/qualified ns name)))
 
 (defn symbol
-  ([name] (m.primitive.symbol/unqualified name))
-  ([ns name] (m.primitive.symbol/qualified ns name)))
+  ([name] (->SymbolUnqualified name))
+  ([ns name] (->SymbolQualified ns name)))
 
 (defn cons
   ([a b] (m.primitive.sequence/cons a b)))

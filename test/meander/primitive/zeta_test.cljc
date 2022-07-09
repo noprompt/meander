@@ -353,3 +353,35 @@
       (t/is (= ["" "ab" "a"] ?1-vals))
       (t/is (= ["ab" "" "b"] ?2-vals)))))
 
+(t/deftest symbol-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [object1 'foo
+          object2 'foo/foo
+          object3 'foo/bar
+          istate1 (m.state/make {:object object1})
+          istate2 (m.state/make {:object object2})
+          istate3 (m.state/make {:object object3})
+          ilogic1 (m.logic/make-dff istate1)
+          ilogic2 (m.logic/make-dff istate2)
+          ilogic3 (m.logic/make-dff istate3)
+          symbol1 (m.primitive/symbol (m.primitive/is "foo"))
+          symbol2 (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
+      (t/is (not (m.logic/zero? (m.protocols/-query symbol1 ilogic1))))
+      (t/is (not (m.logic/zero? (m.protocols/-query symbol1 ilogic2))))
+      (t/is (not (m.logic/zero? (m.protocols/-query symbol2 ilogic2))))
+      (t/is (m.logic/zero? (m.protocols/-query symbol2 ilogic3)))
+      (t/is (m.logic/zero? (m.protocols/-query symbol2 ilogic3)))))
+  
+  (t/testing "-yield (dff)"
+    (let [object1 'foo
+          object2 'foo/foo
+          istate1 (m.state/make {})
+          ilogic1 (m.logic/make-dff istate1)
+          symbol1 (m.primitive/symbol (m.primitive/is "foo"))
+          symbol2 (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
+      (t/is (= object1
+               (m.protocols/-get-object (yield-unwrap symbol1 ilogic1))))
+
+      (t/is (= object2
+               (m.protocols/-get-object (yield-unwrap symbol2 ilogic1)))))))
+
