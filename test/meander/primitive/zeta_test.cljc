@@ -385,3 +385,34 @@
       (t/is (= object2
                (m.protocols/-get-object (yield-unwrap symbol2 ilogic1)))))))
 
+(t/deftest keyword-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [object1 :foo
+          object2 :foo/foo
+          object3 :foo/bar
+          istate1 (m.state/make {:object object1})
+          istate2 (m.state/make {:object object2})
+          istate3 (m.state/make {:object object3})
+          ilogic1 (m.logic/make-dff istate1)
+          ilogic2 (m.logic/make-dff istate2)
+          ilogic3 (m.logic/make-dff istate3)
+          keyword1 (m.primitive/keyword (m.primitive/is "foo"))
+          keyword2 (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
+      (t/is (not (m.logic/zero? (m.protocols/-query keyword1 ilogic1))))
+      (t/is (not (m.logic/zero? (m.protocols/-query keyword1 ilogic2))))
+      (t/is (not (m.logic/zero? (m.protocols/-query keyword2 ilogic2))))
+      (t/is (m.logic/zero? (m.protocols/-query keyword2 ilogic3)))
+      (t/is (m.logic/zero? (m.protocols/-query keyword2 ilogic3)))))
+  
+  (t/testing "-yield (dff)"
+    (let [object1 :foo
+          object2 :foo/foo
+          istate1 (m.state/make {})
+          ilogic1 (m.logic/make-dff istate1)
+          keyword1 (m.primitive/keyword (m.primitive/is "foo"))
+          keyword2 (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
+      (t/is (= object1
+               (m.protocols/-get-object (yield-unwrap keyword1 ilogic1))))
+
+      (t/is (= object2
+               (m.protocols/-get-object (yield-unwrap keyword2 ilogic1)))))))
