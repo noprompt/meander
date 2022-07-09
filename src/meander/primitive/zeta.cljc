@@ -173,6 +173,23 @@
 (defrecord RuleSystem [id rules])
 (defrecord Again [id a])
 
+(defrecord StringCast [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (string? x)
+            (m.protocols/-query a ilogic)
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (m.protocols/-set-object s (clj/str x)))))))
+
 (defrecord StringConcat [a b]
   m.protocols/IQuery
   (-query [this ilogic]
@@ -297,7 +314,7 @@
   "Constructor for the pattern which represents an element of the
   of set of strings described by patterns provided."
   ([] (is ""))
-  ([a] (->StringConcat (is "") a))
+  ([a] (->StringCast a))
   ([a b] (->StringConcat a b))
   ([a b & more] (apply str (str a b) more)))
 
