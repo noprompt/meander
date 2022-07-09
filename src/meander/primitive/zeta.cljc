@@ -311,6 +311,120 @@
                     (m.protocols/-fail ilogic s2)))))
             (m.protocols/-fail ilogic s1)))))))
 
+(defrecord SequenceEmpty []
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (sequential? x)
+            (m.protocols/-pass m s)
+            (m.protocols/-fail m s))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (m.protocols/-some (m.protocols/-pass m (m.protocols/-set-object s ()))
+                           (m.protocols/-pass m (m.protocols/-set-object s [])))))))
+
+(defrecord SequenceCons [head tail]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (sequential? x)
+            (if (clj/seq x)
+              (clj/let [x-head (first x)
+                        x-tail (rest x)]
+                (m.protocols/-each (m.protocols/-query head (m.protocols/-pass m (m.protocols/-set-object s x-head)))
+                  (fn [s]
+                    (m.protocols/-query tail (m.protocols/-pass m (m.protocols/-set-object s x-tail))))))
+              (m.protocols/-fail m s))
+            (m.protocols/-fail m s))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each (m.protocols/-yield head m)
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (m.protocols/-each (m.protocols/-yield tail (m.protocols/-pass m s))
+            (fn [s]
+              (clj/let [y (m.protocols/-get-object s)]
+                (if (sequential? y)
+                  (m.protocols/-pass m (m.protocols/-set-object s (clj/cons x y)))
+                  (m.protocols/-fail m s))))))))))
+
+(defrecord SequenceConcat [a b]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (sequential? x)
+            (reduce (fn [m [x-a x-b]]
+                      (m.protocols/-some
+                       m
+                       (m.protocols/-each (m.protocols/-query a (m.protocols/-pass m (m.protocols/-set-object s x-a)))
+                         (fn [s]
+                           (m.protocols/-query b (m.protocols/-pass m (m.protocols/-set-object s x-b)))))))
+                    (m.protocols/-fail m s)
+                    (m.algorithms/partitions 2 x))
+            (m.protocols/-fail m s))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each (m.protocols/-yield a m)
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (sequential? x)
+            (m.protocols/-each (m.protocols/-yield b (m.protocols/-pass m s))
+              (fn [s]
+                (clj/let [y (m.protocols/-get-object s)]
+                  (if (sequential? y)
+                    (m.protocols/-pass m (m.protocols/-set-object s (clj/concat x y)))
+                    (m.protocols/-fail m s)))))
+            (m.protocols/-fail m s)))))))
+
+(defrecord SeqCast [x]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (clj/let [y (m.protocols/-get-object s)]
+          (if (or (seq? y) (nil? y))
+            (m.protocols/-query x (m.protocols/-pass m s))
+            (m.protocols/-fail m s))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each (m.protocols/-yield x m)
+      (fn [s]
+        (clj/let [y (m.protocols/-get-object s)]
+          (if (seqable? y)
+            (m.protocols/-pass m (m.protocols/-set-object s (clj/seq y)))
+            (m.protocols/-fail m s)))))))
+
+(defrecord VectorCast [x]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (clj/let [y (m.protocols/-get-object s)]
+          (if (vector? y)
+            (m.protocols/-query x (m.protocols/-pass m s))
+            (m.protocols/-fail m s))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each (m.protocols/-yield x m)
+      (fn [s]
+        (clj/let [y (m.protocols/-get-object s)]
+          (if (seqable? y)
+            (m.protocols/-pass m (m.protocols/-set-object s (clj/vec y)))
+            (m.protocols/-fail m s)))))))
+
 ;; API
 ;; ---------------------------------------------------------------------
 
@@ -414,20 +528,24 @@
   ([a b & more] (apply str (str a b) more)))
 
 (defn keyword
+  "Constructor for the pattern which represents an element of the
+  of set of keywords described by patterns provided."
   ([name] (->KeywordUnqualified name))
   ([ns name] (->KeywordQualified ns name)))
 
 (defn symbol
+  "Constructor for the pattern which represents an element of the
+  of set of symbols described by patterns provided."
   ([name] (->SymbolUnqualified name))
   ([ns name] (->SymbolQualified ns name)))
 
 (defn cons
-  ([a b] (m.primitive.sequence/cons a b)))
+  ([a b] (->SequenceCons a b)))
 
 (defn concat
   ([] (is ()))
   ([a] (concat (concat) a))
-  ([a b] (m.primitive.sequence/concat a b))
+  ([a b] (->SequenceConcat a b))
   ([a b & more] (apply concat (concat a b) more)))
 
 ;; NOTE: Temporary implementation
@@ -439,11 +557,11 @@
 
 (defn seq
   [a]
-  (m.primitive.sequence/seq-cast a))
+  (->SeqCast a))
 
 (defn vec
   [a]
-  (m.primitive.sequence/vector-cast a))
+  (->VectorCast a))
 
 (defn hash-map
   [& kvs]

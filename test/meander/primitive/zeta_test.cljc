@@ -416,3 +416,27 @@
 
       (t/is (= object2
                (m.protocols/-get-object (yield-unwrap keyword2 ilogic1)))))))
+
+(t/deftest cons-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [object1 (list (rand))
+          object2 (list (int (first object1)))
+          object3 (vec object1)
+          istate1 (m.state/make {:object object1})
+          ilogic1 (m.logic/make-dff istate1)
+          istate2 (m.state/make {:object object2})
+          ilogic2 (m.logic/make-dff istate2)
+          istate3 (m.state/make {:object object3})
+          ilogic3 (m.logic/make-dff istate3)
+          cons1 (m.primitive/cons (m.primitive/is (first object1)) (m.primitive/is ()))]
+      (t/is (not (m.logic/zero? (m.protocols/-query cons1 ilogic1))))
+      (t/is (m.logic/zero? (m.protocols/-query cons1 ilogic2)))
+      (t/is (not (m.logic/zero? (m.protocols/-query cons1 ilogic3))))))
+
+  (t/testing "-yield (dff)"
+    (let [object1 (rand)
+          istate1 (m.state/make {})
+          ilogic1 (m.logic/make-dff istate1)
+          cons1 (m.primitive/cons (m.primitive/is object1) (m.primitive/is ()))]
+      (t/is (= (list object1)
+               (m.protocols/-get-object (yield-unwrap cons1 ilogic1)))))))
