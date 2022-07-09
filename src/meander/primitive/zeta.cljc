@@ -121,10 +121,36 @@
            (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic s))
              (fn [_] ilogic-out))))))))
 
+(defrecord LogicVariable [id]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (clj/let [unbound (m.protocols/-unbound ilogic)]
+      (m.protocols/-each ilogic
+        (fn [s]
+          (clj/let [x (m.protocols/-get-object s)
+                    y (m.protocols/-get-variable s this unbound)]
+            (if (identical? y unbound)
+              (do
+                (print "Unbound")
+                (m.protocols/-pass ilogic (m.protocols/-set-variable s this x)))
+              (do (print (= x y))
+                  (if (= x y)
+                    (m.protocols/-pass ilogic s)
+                    (m.protocols/-fail ilogic s)))))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (clj/let [unbound (m.protocols/-unbound m)]
+      (m.protocols/-each m
+        (fn [s]
+          (clj/let [x (m.protocols/-get-variable s this unbound)]
+            (if (identical? x unbound)
+              (m.protocols/-fail m s)
+              (m.protocols/-pass m (m.protocols/-set-object s x)))))))))
+
 (defrecord Reference [id])
 (defrecord With [index a])
 (defrecord Predicate [p])
-(defrecord LogicVariable [id])
 (defrecord Project [y q a])
 (defrecord Rule [q y])
 (defrecord RuleSystem [id rules])

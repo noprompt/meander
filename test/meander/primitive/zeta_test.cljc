@@ -193,3 +193,60 @@
       (t/is (seq (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic)))
       (t/is (not (seq (yield-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic))))
       (t/is (not (seq (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))))
+
+(t/deftest logic-variable-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [?1 (m.primitive/? 1)
+          object1 (rand)
+          object2 (inc object1)
+          istate1 (m.state/make {:object object1})
+          istate2 (m.protocols/-set-variable istate1 ?1 object2)
+          ilogic1 (m.logic/make-dff istate1)
+          ilogic2 (m.logic/make-dff istate2)]
+      (t/is (= object1
+               (m.protocols/-get-variable (query-unwrap ?1 ilogic1) ?1 ::unbound)))
+
+      (t/is (m.logic/zero?
+             (m.protocols/-query ?1 ilogic2)))))
+
+  (t/testing "-query (bfs)"
+    (let [?1 (m.primitive/? 1)
+          object1 (rand)
+          object2 (inc object1)
+          istate1 (m.state/make {:object object1})
+          istate2 (m.protocols/-set-variable istate1 ?1 object2)
+          ilogic1 (m.logic/make-bfs istate1)
+          ilogic2 (m.logic/make-bfs istate2)]
+      (t/is (= [object1]
+               (map #(m.protocols/-get-variable % ?1 ::unbound)
+                    (query-unwrap ?1 ilogic1))))
+
+      (t/is (m.logic/zero?
+             (m.protocols/-query ?1 ilogic2)))))
+  (t/testing "-yield (dff)"
+    (let [?1 (m.primitive/? 1)
+          object1 (rand)
+          object2 (inc object1)
+          istate1 (m.state/make {:object object1})
+          istate2 (m.protocols/-set-variable istate1 ?1 object2)
+          ilogic1 (m.logic/make-dff istate1)
+          ilogic2 (m.logic/make-dff istate2)]
+      (t/is (m.logic/zero?
+             (m.protocols/-yield ?1 ilogic1)))
+
+      (t/is (= object2
+               (m.protocols/-get-object (yield-unwrap ?1 ilogic2))))))
+
+  (t/testing "-yield (bfs)"
+    (let [?1 (m.primitive/? 1)
+          object1 (rand)
+          object2 (inc object1)
+          istate1 (m.state/make {:object object1})
+          istate2 (m.protocols/-set-variable istate1 ?1 object2)
+          ilogic1 (m.logic/make-bfs istate1)
+          ilogic2 (m.logic/make-bfs istate2)]
+      (t/is (m.logic/zero?
+             (m.protocols/-yield ?1 ilogic1)))
+
+      (t/is (= [object2]
+               (map m.protocols/-get-object (yield-unwrap ?1 ilogic2)))))))
