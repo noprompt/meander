@@ -1,6 +1,7 @@
 (ns meander.primitive.zeta
   (:require
    [clojure.core :as clj]
+   [meander.algorithms.zeta :as m.algorithms]
    [meander.primitive.hash-map.zeta :as m.primitive.hash-map]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.primitive.keyword.zeta :as m.primitive.keyword]
@@ -23,6 +24,9 @@
                             str
                             symbol
                             vec]))
+
+;; Protocol Implementation
+;; ---------------------------------------------------------------------
 
 (defrecord Anything []
   m.protocols/IQuery
@@ -169,6 +173,35 @@
 (defrecord RuleSystem [id rules])
 (defrecord Again [id a])
 
+(defrecord StringConcat [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (string? x)
+            (reduce m.protocols/-some
+                    (m.protocols/-fail ilogic s)
+                    (map (fn [[a-part b-part]]
+                           (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic (m.protocols/-set-object s a-part)))
+                             (fn [s]
+                               (m.protocols/-query b (m.protocols/-pass ilogic (m.protocols/-set-object s b-part))))))
+                         (m.algorithms/string-partitions x 2)))
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield a ilogic)
+      (fn [s]
+        (clj/let [a (m.protocols/-get-object s)]
+          (m.protocols/-each (m.protocols/-yield b (m.protocols/-pass ilogic s))
+            (fn [s]
+              (clj/let [b (m.protocols/-get-object s)]
+                (m.protocols/-pass ilogic (m.protocols/-set-object s (clj/str a b)))))))))))
+
+;; API
+;; ---------------------------------------------------------------------
+
 (def ^{:arglists '([])
        :doc "Constructor for the pattern which represents an element
   of set of all objects."}
@@ -264,8 +297,8 @@
   "Constructor for the pattern which represents an element of the
   of set of strings described by patterns provided."
   ([] (is ""))
-  ([a] (m.primitive.string/concat (is "") a))
-  ([a b] (m.primitive.string/concat a b))
+  ([a] (->StringConcat (is "") a))
+  ([a b] (->StringConcat a b))
   ([a b & more] (apply str (str a b) more)))
 
 (defn keyword

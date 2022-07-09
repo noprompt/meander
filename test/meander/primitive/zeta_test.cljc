@@ -305,3 +305,51 @@
           pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
       (t/is (= [object2]
                (map m.protocols/-get-object (redex-unwrap pattern ilogic1)))))))
+
+(t/deftest str-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [object1 (str)
+          object2 (str (rand))
+          istate1 (m.state/make {:object object1})
+          istate2 (m.state/make {:object object2})
+          ilogic1 (m.logic/make-dff istate1)
+          ilogic2 (m.logic/make-dff istate2)
+          ?1 (m.primitive/? 1)
+          ?2 (m.primitive/? 2)]
+      (t/is (not (m.logic/zero?
+                  (m.protocols/-query (m.primitive/str (m.primitive/is object1))
+                                      ilogic1))))
+      (t/is (not (m.logic/zero?
+                  (m.protocols/-query (m.primitive/str (m.primitive/is object2))
+                                      ilogic2))))
+
+      (let [result1 (query-unwrap (m.primitive/str ?1 ?2) ilogic1)]
+        (t/is (= "" (m.protocols/-get-variable result1 ?1 ::unbound)))
+        (t/is (= object1 (m.protocols/-get-variable result1 ?2 ::unbound))))
+
+      (let [result2 (query-unwrap (m.primitive/str ?1 ?2) ilogic2)]
+        (t/is (= "" (m.protocols/-get-variable result2 ?1 ::unbound)))
+        (t/is (= object2 (m.protocols/-get-variable result2 ?2 ::unbound))))))
+
+  (t/testing "-yield (dff)"
+    (let [object1 "foo"
+          object2 "bar"
+          istate1 (m.state/make {})
+          ilogic1 (m.logic/make-dff istate1)]
+      (t/is (= "foobar"
+               (m.protocols/-get-object
+                (yield-unwrap (m.primitive/str (m.primitive/is object1) (m.primitive/is object2))
+                              ilogic1))))))
+
+  (t/testing "-query (bfs)"
+    (let [object1 "ab"
+          istate1 (m.state/make {:object object1})
+          ilogic1 (m.logic/make-bfs istate1)
+          ?1 (m.primitive/? 1)
+          ?2 (m.primitive/? 2)
+          istates (query-unwrap (m.primitive/str ?1 ?2) ilogic1)
+          ?1-vals (map (fn [istate] (m.protocols/-get-variable istate ?1 ::unbound)) istates)
+          ?2-vals (map (fn [istate] (m.protocols/-get-variable istate ?2 ::unbound)) istates)]
+      (t/is (= ["" "ab" "a"] ?1-vals))
+      (t/is (= ["ab" "" "b"] ?2-vals)))))
+
