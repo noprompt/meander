@@ -15,6 +15,8 @@
   (t/testing "-fail"
     (let [ilogic (m.logic/make-dff (m.state/make {}))
           istate (m.state/make {:object (rand)})]
+      (t/is (m.logic/zero?
+             (m.protocols/-fail ilogic istate)))
       (t/is (= nil
                (m.protocols/-unwrap (m.protocols/-fail ilogic istate))))))
 
@@ -27,21 +29,20 @@
                   (fn [_]
                     (m.protocols/-pass ilogic istate))))))
 
-      (t/is (= (m.protocols/-fail ilogic istate)
-               (m.protocols/-each ilogic
-                 (fn [istate]
-                   (m.protocols/-fail ilogic istate)))))
+      (t/is (m.logic/zero?
+             (m.protocols/-each ilogic
+               (fn [istate]
+                 (m.protocols/-fail ilogic istate)))))
 
-      (t/is (= (m.protocols/-fail ilogic istate)
-               (m.protocols/-each (m.protocols/-fail ilogic istate)
-                 (fn [istate]
-                   (m.protocols/-pass ilogic istate)))))
+      (t/is (m.logic/zero?
+             (m.protocols/-each (m.protocols/-fail ilogic istate)
+               (fn [istate]
+                 (m.protocols/-pass ilogic istate)))))
 
-      (t/is (= nil
-               (m.protocols/-unwrap
-                (m.protocols/-each ilogic
-                  (fn [istate]
-                    (m.protocols/-fail ilogic istate))))))))
+      (t/is (m.logic/zero?
+             (m.protocols/-each ilogic
+               (fn [istate]
+                 (m.protocols/-fail ilogic istate)))))))
 
   (t/testing "-some"
     (let [istate (m.state/make {})
@@ -77,8 +78,7 @@
 
   (t/testing "-comp"
     (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (= nil
-               (m.protocols/-unwrap
+      (t/is (= (m.logic/zero?
                 (m.protocols/-comp ilogic
                   (fn [istate]
                     (m.protocols/-pass ilogic istate))))))
