@@ -152,7 +152,20 @@
 (defrecord With [index a])
 (defrecord Predicate [p])
 (defrecord Project [y q a])
-(defrecord Rule [q y])
+
+(defrecord Rule [q y]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-query q m))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-yield y m))
+
+  m.protocols/IRedex
+  (-redex [this m]
+    (m.protocols/-yield this (m.protocols/-query this m))))
+
 (defrecord RuleSystem [id rules])
 (defrecord Again [id a])
 

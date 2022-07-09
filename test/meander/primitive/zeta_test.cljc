@@ -8,13 +8,17 @@
   #?(:clj
      (:import clojure.lang.ExceptionInfo)))
 
-(def ^{:arglists '([iquery istate])}
+(def ^{:arglists '([iquery ilogic])}
   query-unwrap
   (comp m.protocols/-unwrap m.protocols/-query))
 
-(def ^{:arglists '([iyield istate])}
+(def ^{:arglists '([iyield ilogic])}
   yield-unwrap
   (comp m.protocols/-unwrap m.protocols/-yield))
+
+(def ^{:arglists '([iyield ilogic])}
+  redex-unwrap
+  (comp m.protocols/-unwrap m.protocols/-redex))
 
 (t/deftest anything-protocol-satisfaction-test
   (t/testing "-query"
@@ -250,3 +254,54 @@
 
       (t/is (= [object2]
                (map m.protocols/-get-object (yield-unwrap ?1 ilogic2)))))))
+
+(t/deftest rule-protocol-satisfaction-test
+  (t/testing "-query (dff)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
+          ilogic2 (m.logic/make-dff (m.state/make {:object object2}))
+          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
+      (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
+      (t/is (m.logic/zero? (m.protocols/-query pattern ilogic2)))))
+
+  (t/testing "-query (bfs)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
+          ilogic2 (m.logic/make-bfs (m.state/make {:object object2}))
+          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
+      (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
+      (t/is (m.logic/zero? (m.protocols/-query pattern ilogic2)))))
+
+  (t/testing "-yield (dff)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
+          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
+      (t/is (= object2
+               (m.protocols/-get-object (yield-unwrap pattern ilogic1))))))
+
+  (t/testing "-yield (bfs)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
+          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
+      (t/is (= [object2]
+               (map m.protocols/-get-object (yield-unwrap pattern ilogic1))))))
+
+  (t/testing "-redex (dff)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
+          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
+      (t/is (= object2
+               (m.protocols/-get-object (redex-unwrap pattern ilogic1))))))
+
+  (t/testing "-redex (bfs)"
+    (let [object1 (rand)
+          object2 (inc object1)
+          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
+          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
+      (t/is (= [object2]
+               (map m.protocols/-get-object (redex-unwrap pattern ilogic1)))))))
