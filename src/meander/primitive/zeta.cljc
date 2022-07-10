@@ -235,7 +235,6 @@
             (m.protocols/-pass ilogic (m.protocols/-set-object s (clj/symbol x)))
             (m.protocols/-fail ilogic s)))))))
 
-
 (defrecord SymbolQualified [ns name]
   m.protocols/IQuery
   (-query [this ilogic]
@@ -424,6 +423,120 @@
           (if (seqable? y)
             (m.protocols/-pass m (m.protocols/-set-object s (clj/vec y)))
             (m.protocols/-fail m s)))))))
+
+(defrecord HashMapEmpty []
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (= x {})
+            (m.protocols/-pass ilogic s)
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (m.protocols/-pass ilogic (m.protocols/-set-object s {}))))))
+
+(defrecord HashMapEntry [k v]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (map-entry? x)
+            (m.protocols/-each (m.protocols/-query (.-k this) (m.protocols/-pass ilogic (m.protocols/-set-object s (key x))))
+              (fn [s]
+                (m.protocols/-query (.-v this) (m.protocols/-pass ilogic (m.protocols/-set-object s (val x))))))
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield (.-k this) ilogic)
+      (fn [s]
+        (clj/let [k (m.protocols/-get-object s)]
+          (m.protocols/-each (m.protocols/-yield (.-v this) (m.protocols/-pass ilogic s))
+            (fn [s]
+              (clj/let [v (m.protocols/-get-object s)]
+                (m.protocols/-pass ilogic (m.protocols/-set-object s (clojure.lang.MapEntry. k v)))))))))))
+
+(defrecord HashMapAssoc [m k v]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (clj/let [entry (HashMapEntry. (.-k this) (.-v this))]
+      (m.protocols/-each ilogic
+        (fn [s]
+          (clj/let [x (m.protocols/-get-object s)]
+            (if (map? x)
+              (case (count x)
+                0 (m.protocols/-fail ilogic s)
+
+                1 (clj/let [e (first x)
+                            x-e (dissoc x (key e))]
+                    (m.protocols/-each (m.protocols/-query entry (m.protocols/-pass ilogic (m.protocols/-set-object s e)))
+                      (fn [s]
+                        (m.protocols/-query (.-m this) (m.protocols/-pass ilogic (m.protocols/-set-object s x-e))))))
+
+                ;; else
+                (reduce m.protocols/-some
+                        (map
+                         (fn [e]
+                           (clj/let [x-e (dissoc x (key e))]
+                             (m.protocols/-each (m.protocols/-query entry (m.protocols/-pass ilogic (m.protocols/-set-object s e)))
+                               (fn [s]
+                                 (m.protocols/-query (.-m this) (m.protocols/-pass ilogic (m.protocols/-set-object s x-e)))))))
+                         x)))
+              (m.protocols/-fail ilogic s)))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield (HashMapEntry. (.-k this) (.-v this)) ilogic)
+      (fn [s]
+        (clj/let [e (m.protocols/-get-object s)]
+          (m.protocols/-each (m.protocols/-yield (.-m this) (m.protocols/-pass ilogic s))
+            (fn [s]
+              (clj/let [x (m.protocols/-get-object s)]
+                (if (map? x)
+                  (m.protocols/-pass ilogic (m.protocols/-set-object s (conj x e)))
+                  (m.protocols/-fail ilogic s))))))))))
+
+(defrecord HashMapMerge [m1 m2]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (map? x)
+            (if (zero? (count x))
+              (m.protocols/-each (m.protocols/-query (.-m1 this) (m.protocols/-pass ilogic (m.protocols/-set-object s {})))
+                (fn [s]
+                  (m.protocols/-query (.-m2 this) (m.protocols/-pass ilogic (m.protocols/-set-object s {})))))
+              ;; Not supplying val here is safe because
+              ;; (map-partitions m 2) will give us a sequence of at
+              ;; least 2 when the key count of m is greater than 0.
+              (reduce m.protocols/-some
+                      (map (fn [[a b]]
+                             (m.protocols/-each (m.protocols/-query (.-m1 this) (m.protocols/-pass ilogic (m.protocols/-set-object s a)))
+                               (fn [s]
+                                 (m.protocols/-query (.-m2 this) (m.protocols/-pass ilogic (m.protocols/-set-object s b))))))
+                           (m.algorithms/map-partitions x 2))))
+            (m.protocols/-fail ilogic s))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield (.-m1 this) ilogic)
+      (fn [s]
+        (clj/let [x (m.protocols/-get-object s)]
+          (if (map? x)
+            (m.protocols/-each (m.protocols/-yield (.-m2 this) (m.protocols/-pass ilogic s))
+              (fn [s]
+                (clj/let [y (m.protocols/-get-object s)]
+                  (if (map? y)
+                    (m.protocols/-pass ilogic (m.protocols/-set-object s (clj/merge x y)))
+                    (m.protocols/-fail ilogic s)))))
+            (m.protocols/-fail ilogic s)))))))
 
 ;; API
 ;; ---------------------------------------------------------------------
