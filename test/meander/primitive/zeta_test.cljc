@@ -20,6 +20,14 @@
   redex-unwrap
   (comp m.protocols/-unwrap m.protocols/-redex))
 
+(defn fresh* [f]
+  (f (map m.primitive/? (repeatedly gensym))))
+
+(defmacro fresh
+  {:style/indent 1}
+  [bindings & body]
+  `(fresh* (fn [~(vec bindings)] ~@body)))
+
 (t/deftest anything-protocol-satisfaction-test
   (t/testing "-query"
     (let [ilogic (m.logic/make-dff (m.state/make {}))]
