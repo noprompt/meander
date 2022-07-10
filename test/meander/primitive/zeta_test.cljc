@@ -379,7 +379,7 @@
       (t/is (not (m.logic/zero? (m.protocols/-query symbol2 ilogic2))))
       (t/is (m.logic/zero? (m.protocols/-query symbol2 ilogic3)))
       (t/is (m.logic/zero? (m.protocols/-query symbol2 ilogic3)))))
-  
+
   (t/testing "-yield (dff)"
     (let [object1 'foo
           object2 'foo/foo
@@ -411,7 +411,7 @@
       (t/is (not (m.logic/zero? (m.protocols/-query keyword2 ilogic2))))
       (t/is (m.logic/zero? (m.protocols/-query keyword2 ilogic3)))
       (t/is (m.logic/zero? (m.protocols/-query keyword2 ilogic3)))))
-  
+
   (t/testing "-yield (dff)"
     (let [object1 :foo
           object2 :foo/foo
@@ -448,3 +448,37 @@
           cons1 (m.primitive/cons (m.primitive/is object1) (m.primitive/is ()))]
       (t/is (= (list object1)
                (m.protocols/-get-object (yield-unwrap cons1 ilogic1)))))))
+
+(t/deftest concat-protocol-satisfaction-test
+  (t/testing "-query (bfs)"
+    (fresh [?1 ?2]
+      (let [object1 (range 3)
+            istate1 (m.state/make {:object object1})
+            ilogic1 (m.logic/make-bfs istate1)
+            pattern (m.primitive/concat ?1 ?2)]
+        (t/is (= '(() (0 1 2) (0 1) (0))
+                 (map #(m.protocols/-get-variable % ?1 ::unbound)
+                      (query-unwrap pattern ilogic1))))
+
+        (t/is (= '((0 1 2) () (2) (1 2))
+                 (map #(m.protocols/-get-variable % ?2 ::unbound)
+                      (query-unwrap pattern ilogic1)))))))
+
+  (t/testing "-yield (dff)"
+    (fresh [?1 ?2]
+      (let [object1 (range 3)
+            istate1 (m.state/make {:object object1})
+            istate1 (m.protocols/-set-variable istate1 ?1 [1 2])
+            istate1 (m.protocols/-set-variable istate1 ?2 [3 4])
+            ilogic1 (m.logic/make-dff istate1)
+            pattern (m.primitive/concat ?1 ?2)]
+        (t/is (= '(1 2 3 4)
+                 (m.protocols/-get-object (yield-unwrap pattern ilogic1)))))
+
+      (let [object1 (range 3)
+            istate1 (m.state/make {:object object1})
+            istate1 (m.protocols/-set-variable istate1 ?1 :a)
+            istate1 (m.protocols/-set-variable istate1 ?2 [3 4])
+            ilogic1 (m.logic/make-dff istate1)
+            pattern (m.primitive/concat ?1 ?2)]
+        (t/is (m.logic/zero? (m.protocols/-yield pattern ilogic1)))))))
