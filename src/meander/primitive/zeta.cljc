@@ -707,7 +707,7 @@
 
 (def
   ^{:arglists '([id])}
-  % #'->Reference)
+  reference #'->Reference)
 
 (defn with
   [index a]
