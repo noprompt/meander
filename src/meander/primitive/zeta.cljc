@@ -152,10 +152,78 @@
               (m.protocols/-fail m s)
               (m.protocols/-pass m (m.protocols/-set-object s x)))))))))
 
-(defrecord Reference [id])
-(defrecord With [index a])
+(defrecord Reference [id]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (if-some [p (m.protocols/-get-reference s this nil)]
+          (m.protocols/-query p (m.protocols/-pass m s))
+          (m.protocols/-fail m s)))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (if-some [p (m.protocols/-get-reference s this nil)]
+          (m.protocols/-yield p (m.protocols/-pass m s))
+          (m.protocols/-fail m s))))))
+
+(defrecord With [index a]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s1]
+        (clj/let [s2 (reduce (fn [s2 [k v]]
+                               (m.protocols/-set-reference s2 k v))
+                             s1
+                             (.-index this))]
+          (m.protocols/-each (m.protocols/-query (.-a this) (m.protocols/-pass m s2))
+            (fn [s3]
+              (m.protocols/-pass m (reduce
+                                    (fn [s4 k]
+                                      (m.protocols/-set-reference s4 k (m.protocols/-get-reference s1 k nil)))
+                                    s3
+                                    (keys (.-index this))))))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each m
+      (fn [s1]
+        (clj/let [s2 (reduce (fn [s2 [k v]]
+                               (m.protocols/-set-reference s2 k v))
+                             s1
+                             (.-index this))]
+          (m.protocols/-each (m.protocols/-yield (.-a this) (m.protocols/-pass m s2))
+            (fn [s3]
+              (m.protocols/-pass m (reduce
+                                    (fn [s4 k]
+                                      (m.protocols/-set-reference s4 k (m.protocols/-get-reference s1 k nil)))
+                                    s3
+                                    (keys (.-index this)))))))))))
+
 (defrecord Predicate [p])
-(defrecord Project [y q a])
+
+(defrecord Project [y q a]
+  m.protocols/IQuery
+  (-query [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (m.protocols/-each (m.protocols/-yield (.-y this) (m.protocols/-pass m s))
+          (fn [sy]
+            (clj/let [x (m.protocols/-get-object sy)]
+              (m.protocols/-query (.-a this)
+                                  (m.protocols/-query (.-q this) (m.protocols/-pass m (m.protocols/-set-object s x))))))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (m.protocols/-each m
+      (fn [s]
+        (m.protocols/-each (m.protocols/-yield (.-y this) (m.protocols/-pass m s))
+          (fn [sy]
+            (clj/let [x (m.protocols/-get-object sy)]
+              (m.protocols/-yield (.-a this)
+                                  (m.protocols/-query (.-q this) (m.protocols/-pass m (m.protocols/-set-object s x)))))))))))
 
 (defrecord Rule [q y]
   m.protocols/IQuery
@@ -170,7 +238,52 @@
   (-redex [this m]
     (m.protocols/-yield this (m.protocols/-query this m))))
 
-(defrecord RuleSystem [id rules])
+(defrecord RuleSystem [id rules]
+  m.protocols/IQuery
+  (-query [this m]
+    (case (count (.-rules this))
+      0
+      (m.protocols/-each m (fn [s] (m.protocols/-fail m s)))
+
+      1
+      (m.protocols/-query (first (.-rules this)) m)
+
+      ;; else
+      (reduce m.protocols/-some
+              (m.protocols/-query (first (.-rules this)) m)
+              (map (fn [rule] (m.protocols/-query rule m))
+                   (rest (.-rules this))))))
+
+  m.protocols/IYield
+  (-yield [this m]
+    (case (count (.-rules this))
+      0
+      (m.protocols/-each m (fn [s] (m.protocols/-fail m s)))
+
+      1
+      (m.protocols/-query (first (.-rules this)) m)
+
+      ;; else
+      (reduce m.protocols/-some
+              (m.protocols/-yield (first (.-rules this)) m)
+              (map (fn [rule] (m.protocols/-yield rule m))
+                   (rest (.-rules this))))))
+
+  m.protocols/IRedex
+  (-redex [this m]
+    (case (count (.-rules this))
+      0
+      (m.protocols/-each m (fn [s] (m.protocols/-fail m s)))
+
+      1
+      (m.protocols/-redex (first (.-rules this)) m)
+
+      ;; else
+      (reduce m.protocols/-some
+              (m.protocols/-redex (first (.-rules this)) m)
+              (map (fn [rule] (m.protocols/-redex rule m))
+                   (rest (.-rules this)))))))
+
 (defrecord Again [id a])
 
 (defrecord StringCast [a]
@@ -602,10 +715,6 @@
                (every? (fn [x] (instance? Reference x)) 
                        (keys index))))
   (->With index a))
-
-(def
-  ^{:arglists '([id])}
-  ? #'->LogicVariable)
 
 (def
   ^{:arglists '([id])}
