@@ -9,7 +9,8 @@
    [meander.primitive.string.zeta :as m.primitive.string]
    [meander.primitive.symbol.zeta :as m.primitive.symbol]
    [meander.protocols.zeta :as m.protocols])
-  (:refer-clojure :exclude [assoc
+  (:refer-clojure :exclude [apply
+                            assoc
                             concat
                             cons
                             hash-map
@@ -202,8 +203,6 @@
                                     s3
                                     (keys (.-index this)))))))))))
 
-(defrecord Predicate [p])
-
 (defrecord Project [y q a]
   m.protocols/IQuery
   (-query [this m]
@@ -224,6 +223,47 @@
             (clj/let [x (m.protocols/-get-object sy)]
               (m.protocols/-yield (.-a this)
                                   (m.protocols/-query (.-q this) (m.protocols/-pass m (m.protocols/-set-object s x)))))))))))
+
+
+(defrecord Apply [yf yargs q]
+  ;; Yield function and args non destructively, query return destructively.
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [ilogic1 (m.protocols/-pass ilogic istate0)]
+          (m.protocols/-each (m.protocols/-yield yf ilogic1)
+            (fn [istate1]
+              (clj/let [f (m.protocols/-get-object istate1)]
+                (if (ifn? f)
+                  (m.protocols/-each (m.protocols/-yield yargs ilogic1)
+                    (fn [istate2]
+                      (clj/let [args (m.protocols/-get-object istate2)]
+                        (if (sequential? args)
+                          (clj/let [x (clj/apply f args)]
+                            (m.protocols/-query q ilogic1))
+                          (m.protocols/-fail ilogic istate2)))))
+                  (m.protocols/-fail ilogic istate0)))))))))
+
+  ;; Yield function and args destructively, query return non destructively.
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (m.protocols/-each (m.protocols/-yield yf (m.protocols/-pass ilogic istate0))
+          (fn [istate1]
+            (clj/let [f (m.protocols/-get-object istate1)]
+              (if (ifn? f)
+                (m.protocols/-each (m.protocols/-yield yargs (m.protocols/-pass ilogic istate1))
+                  (fn [istate2]
+                    (clj/let [args (m.protocols/-get-object istate2)]
+                      (if (sequential? args)
+                        (clj/let [x (clj/apply f args)
+                                  ilogic2 (m.protocols/-pass ilogic (m.protocols/-set-object istate2 x))]
+                          (m.protocols/-each (m.protocols/-query q ilogic2)
+                            (fn [_] ilogic2)))
+                        (m.protocols/-fail ilogic istate2)))))
+                (m.protocols/-fail ilogic istate0)))))))))
 
 (defrecord Rule [q y]
   m.protocols/IQuery
@@ -674,9 +714,9 @@
   of the empty set e.g. nothing."}
   nothing #'->Nothing)
 
-;; Note: Not ready for documentation.
-(def predicate
-  #'->Predicate)
+(def
+  ^{:arglists '([yf yargs yret])}
+  apply #'->Apply)
 
 (defn some
   "Constructor for the pattern which represents an element of the
@@ -685,7 +725,7 @@
   ([a] a)
   ([a b] (->Some a b))
   ([a b & more]
-   (apply some (->Some a b) more)))
+   (clj/apply some (->Some a b) more)))
 
 (defn pick
   "Constructor for the pattern which represents an element of the
@@ -694,7 +734,7 @@
   ([a] a)
   ([a b] (->Pick a b))
   ([a b & more]
-   (apply pick (->Pick a b) more)))
+   (clj/apply pick (->Pick a b) more)))
 
 (defn each
   "Constructor for the pattern which represents an element of the
@@ -703,7 +743,7 @@
   ([a] a)
   ([a b] (->Each a b))
   ([a b & more]
-   (apply each (->Each a b) more)))
+   (clj/apply each (->Each a b) more)))
 
 (def
   ^{:arglists '([id])}
@@ -759,7 +799,7 @@
   ([] (is ""))
   ([a] (->StringCast a))
   ([a b] (->StringConcat a b))
-  ([a b & more] (apply str (str a b) more)))
+  ([a b & more] (clj/apply str (str a b) more)))
 
 (defn keyword
   "Constructor for the pattern which represents an element of the
@@ -780,14 +820,14 @@
   ([] (is ()))
   ([a] (concat (concat) a))
   ([a b] (->SequenceConcat a b))
-  ([a b & more] (apply concat (concat a b) more)))
+  ([a b & more] (clj/apply concat (concat a b) more)))
 
 ;; NOTE: Temporary implementation
 (defn list
   ([] (is ()))
   ([a] (cons a (list)))
   ([a b] (cons a (list b)))
-  ([a b & more] (cons a (cons b (apply list more)))))
+  ([a b & more] (cons a (cons b (clj/apply list more)))))
 
 (def ^{:arglists '([a])}
   seq #'->SeqCast)
