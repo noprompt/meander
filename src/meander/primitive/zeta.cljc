@@ -676,27 +676,24 @@
   [a]
   (->VectorCast a))
 
-(defn hash-map
-  [& kvs]
-  (assert (even? (count kvs)) "hash-map expects an even number of arguments")
-  (reduce (fn [m [k v]] (m.primitive.hash-map/assoc m k v))
-          (m.primitive.hash-map/empty)
-          (partition 2 kvs)))
-
 (defn assoc
   [m k v & kvs]
   (assert (even? (count kvs)) "assoc expects an even number of arguments")
-  (reduce (fn [m [k v]] (m.primitive.hash-map/assoc m k v))
-          (m.primitive.hash-map/assoc m k v)
+  (reduce (fn [m [k v]] (->HashMapAssoc m k v))
+          (->HashMapAssoc m k v)
+          (partition 2 kvs)))
+
+(defn hash-map
+  [& kvs]
+  (assert (even? (count kvs)) "hash-map expects an even number of arguments")
+  (reduce (fn [m [k v]] (assoc m k v))
+          (->HashMapEmpty)
           (partition 2 kvs)))
 
 (defn merge
-  ([]
-   (hash-map))
-  ([m1]
-   (m.primitive.hash-map/merge (hash-map) m1))
-  ([m1 m2 & ms]
-   (reduce m.primitive.hash-map/merge (m.primitive.hash-map/merge m1 m2) ms)))
+  ([] (hash-map))
+  ([m1] (->HashMapMerge (hash-map) m1))
+  ([m1 m2 & ms] (reduce ->HashMapMerge (->HashMapMerge m1 m2) ms)))
 
 (defn hash-set
   [& keys]
