@@ -608,6 +608,18 @@
   ? #'->LogicVariable)
 
 (def
+  ^{:arglists '([id])}
+  logic-variable #'->LogicVariable)
+
+(defn fresh* [f]
+  (f (map logic-variable (repeatedly gensym))))
+
+(defmacro fresh
+  {:style/indent 1}
+  [bindings & body]
+  `(fresh* (fn [~(clj/vec bindings)] ~@body)))
+
+(def
   ^{:arglists '([y q a])}
   project #'->Project)
 

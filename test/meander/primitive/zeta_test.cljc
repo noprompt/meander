@@ -20,14 +20,6 @@
   redex-unwrap
   (comp m.protocols/-unwrap m.protocols/-redex))
 
-(defn fresh* [f]
-  (f (map m.primitive/? (repeatedly gensym))))
-
-(defmacro fresh
-  {:style/indent 1}
-  [bindings & body]
-  `(fresh* (fn [~(vec bindings)] ~@body)))
-
 (t/deftest anything-protocol-satisfaction-test
   (t/testing "-query"
     (let [ilogic (m.logic/make-dff (m.state/make {}))]
@@ -451,7 +443,7 @@
 
 (t/deftest concat-protocol-satisfaction-test
   (t/testing "-query (bfs)"
-    (fresh [?1 ?2]
+    (m.primitive/fresh [?1 ?2]
       (let [object1 (range 3)
             istate1 (m.state/make {:object object1})
             ilogic1 (m.logic/make-bfs istate1)
@@ -465,7 +457,7 @@
                       (query-unwrap pattern ilogic1)))))))
 
   (t/testing "-yield (dff)"
-    (fresh [?1 ?2]
+    (m.primitive/fresh [?1 ?2]
       (let [object1 (range 3)
             istate1 (m.state/make {:object object1})
             istate1 (m.protocols/-set-variable istate1 ?1 [1 2])
