@@ -789,13 +789,11 @@
   ([a b] (cons a (list b)))
   ([a b & more] (cons a (cons b (apply list more)))))
 
-(defn seq
-  [a]
-  (->SeqCast a))
+(def ^{:arglists '([a])}
+  seq #'->SeqCast)
 
-(defn vec
-  [a]
-  (->VectorCast a))
+(def^{:arglists '([a])}
+  vec #'->VectorCast)
 
 (defn assoc
   [m k v & kvs]
