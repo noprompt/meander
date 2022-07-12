@@ -40,7 +40,7 @@
 (t/deftest operator-registry-api-test
   (let [symbol `test-operator
         object (reify)
-        system (constantly {:object object, :bindings {}})
+        system (constantly object)
         _ (m.environment/operator-add! symbol system)
         environment-a (m.environment/create)
         _ (m.environment/operator-remove! symbol)

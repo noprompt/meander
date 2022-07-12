@@ -49,17 +49,23 @@
         ::interns interns})))
 
 #?(:clj
+   (defn derive-ns-info
+     "Return the current compile time canonical namespace data."
+     [env]
+     (if (cljs-env? env)
+       (let [{:keys [name requires uses]} (get env :ns)]
+         {::namespace name
+          ::requires requires
+          ::refers uses
+          ;; TODO: Determine how to fill this in.
+          ::interns #{}})
+       (cljs-ns-from-clj-ns *ns*))))
+
+#?(:clj
    (defmacro ns-info
      "Return the current compile time canonical namespace data."
      []
-     (if (cljs-env? &env)
-       (let [{:keys [name requires uses]} (get &env :ns)]
-         `(quote {::namespace ~name
-                  ::requires ~requires
-                  ::refers ~uses
-                  ;; TODO: Determine how to fill this in.
-                  ::interns #{}}))
-       `(quote ~(cljs-ns-from-clj-ns *ns*)))))
+     `(quote ~(derive-ns-info &env))))
 
 
 ;; An operator is a function with the following signature.
@@ -74,7 +80,8 @@
 ;; ---------------------------------------------------------------------
 
 (defn make-environment []
-  (merge empty-ns-info {::operators (deref operator-registry)}))
+  (merge empty-ns-info {::operators (deref operator-registry)
+                        ::extensions []}))
 
 (defmacro create
   ([]
@@ -113,13 +120,13 @@
 ;;
 ;; Operators are stored at the ::operators key of the environment.
 
-(defn operator-add! [symbol system]
-  {:pre [(symbol? symbol)
-         (fn? system)]}
-  (swap! operator-registry assoc symbol system))
+(defn operator-add! [symbol f]
+  {:pre [(qualified-symbol? symbol)
+         (fn? f)]}
+  (swap! operator-registry assoc symbol f))
 
 (defn operator-remove! [symbol]
-  {:pre [(symbol? symbol)]}
+  {:pre [(qualified-symbol? symbol)]}
   (swap! operator-registry dissoc symbol))
 
 (defn operator-find [environment x]
@@ -130,9 +137,7 @@
 (defn operator-expand [environment form]
   (if (seq? form)
     (if-some [[_ f] (operator-find environment (first form))]
-      (if-some [{:keys [object]} (f (vary-meta form assoc ::env environment))]
-        object
-        form)
+      (f environment form)
       form)
     form))
 
