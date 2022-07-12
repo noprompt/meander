@@ -394,7 +394,7 @@
     (m.protocols/-each ilogic
       (fn [s]
         (clj/let [x (m.protocols/-get-object s)]
-          (if (qualified-symbol? x)
+          (if (symbol? x)
             (clj/let [x-ns (namespace x)
                       x-name (clj/name x)]
               (m.protocols/-each (m.protocols/-query ns (m.protocols/-pass ilogic (m.protocols/-set-object s x-ns)))
