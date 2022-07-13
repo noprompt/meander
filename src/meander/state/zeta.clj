@@ -3,7 +3,7 @@
    [meander.protocols.zeta :as m.protocols]
    [meander.random.zeta :as m.random]))
 
-(extend-type clojure.lang.IPersistentMap
+(defrecord State [object variables references seed random]
   m.protocols/IState
   (-get-object [this]
     (get this :object))
@@ -33,8 +33,8 @@
   (let [seed (or seed (long (rand Long/MAX_VALUE)))
         ;; random (java.util.Random. seed)
         random (m.random/make-random seed)]
-    {:object object
-     :random random
-     :references {}
-     :seed seed
-     :variables {}}))
+    (map->State {:object object
+                 :random random
+                 :references {}
+                 :seed seed
+                 :variables {}})))
