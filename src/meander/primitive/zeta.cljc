@@ -201,25 +201,33 @@
                                     (keys (.-index this)))))))))))
 
 (defrecord Project [y q a]
+  ;; Yield y with non destructive affect on bindings, query the
+  ;; yielded object with q with destructive affect on bindings, query
+  ;; the original target object with a.
   m.protocols/IQuery
-  (-query [this m]
-    (m.protocols/-each m
-      (fn [s]
-        (m.protocols/-each (m.protocols/-yield (.-y this) (m.protocols/-pass m s))
-          (fn [sy]
-            (clj/let [x (m.protocols/-get-object sy)]
-              (m.protocols/-query (.-a this)
-                                  (m.protocols/-query (.-q this) (m.protocols/-pass m (m.protocols/-set-object s x))))))))))
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [x (m.protocols/-get-object istate0)]
+          (m.protocols/-each (m.protocols/-yield y (m.protocols/-pass ilogic istate0))
+            (fn [istate1]
+              (clj/let [y (m.protocols/-get-object istate1)]
+                (m.protocols/-each (m.protocols/-query q (m.protocols/-pass ilogic (m.protocols/-set-object istate0 y)))
+                  (fn [istate2]
+                    (m.protocols/-query a (m.protocols/-pass ilogic (m.protocols/-set-object istate2 x))))))))))))
 
+  ;; Yield y with non destructive affect on bindings, query the
+  ;; yielded object with q with destructive affect on bindings, yield
+  ;; object with a.
   m.protocols/IYield
-  (-yield [this m]
-    (m.protocols/-each m
-      (fn [s]
-        (m.protocols/-each (m.protocols/-yield (.-y this) (m.protocols/-pass m s))
-          (fn [sy]
-            (clj/let [x (m.protocols/-get-object sy)]
-              (m.protocols/-yield (.-a this)
-                                  (m.protocols/-query (.-q this) (m.protocols/-pass m (m.protocols/-set-object s x)))))))))))
+  (-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [x (m.protocols/-get-object istate0)]
+          (m.protocols/-each (m.protocols/-yield y (m.protocols/-pass ilogic istate0))
+            (fn [istate1]
+              (clj/let [y (m.protocols/-get-object istate1)]
+                (m.protocols/-yield a (m.protocols/-query q (m.protocols/-pass ilogic (m.protocols/-set-object istate0 y))))))))))))
 
 (defrecord Apply [yf yargs q]
   ;; Yield function and args non destructively, query return destructively.
