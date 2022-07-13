@@ -67,21 +67,20 @@
      []
      `(quote ~(derive-ns-info &env))))
 
-
-;; An operator is a function with the following signature.
-;;
-;;    Anything -> {:object Anything & _} | nil
-;;
-;; This function is named "system".
 (def operator-registry
   (atom {}))
 
 ;; Environment construction
 ;; ---------------------------------------------------------------------
 
+(def default-eval
+  #?(:clj eval
+     :cljs (fn [x] (throw (ex-info "eval not defined" {})))))
+
 (defn make-environment []
   (merge empty-ns-info {::operators (deref operator-registry)
-                        ::extensions []}))
+                        ::extensions []
+                        ::eval default-eval}))
 
 (defmacro create
   ([]
