@@ -224,7 +224,6 @@
               (m.protocols/-yield (.-a this)
                                   (m.protocols/-query (.-q this) (m.protocols/-pass m (m.protocols/-set-object s x)))))))))))
 
-
 (defrecord Apply [yf yargs q]
   ;; Yield function and args non destructively, query return destructively.
   m.protocols/IQuery
@@ -538,6 +537,74 @@
                     (m.protocols/-pass m (m.protocols/-set-object s (clj/concat x y)))
                     (m.protocols/-fail m s)))))
             (m.protocols/-fail m s)))))))
+
+(defrecord GreedyStar [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [x (m.protocols/-get-object istate0)]
+          (if (sequential? x)
+            (if (clj/seq x)
+              (clj/let [head (first x)
+                        tail (rest x)]
+                (m.protocols/-pick (m.protocols/-query this (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic (m.protocols/-set-object istate0 head)))
+                                                              (fn [istate1]
+                                                                (m.protocols/-pass ilogic (m.protocols/-set-object istate1 tail)))))
+                                   (m.protocols/-query b ilogic)))
+              (m.protocols/-query b (m.protocols/-pass ilogic istate0)))
+            (m.protocols/-fail ilogic istate0))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-pick
+     (m.protocols/-each (m.protocols/-yield a ilogic)
+       (fn [istate0]
+         (clj/let [x (m.protocols/-get-object istate0)]
+           (m.protocols/-each (m.protocols/-yield this (m.protocols/-pass ilogic istate0))
+             (fn [istate1]
+               (clj/let [xs (m.protocols/-get-object istate0)]
+                 (m.protocols/-pass ilogic (m.protocols/-set-object istate1 (clj/cons x xs)))))))))
+     (m.protocols/-each (m.protocols/-yield a ilogic)
+       (fn [istate0]
+         (clj/let [x (m.protocols/-get-object istate0)]
+           (if (sequential? x)
+             (m.protocols/-pass ilogic istate0)
+             (m.protocols/-fail ilogic istate0))))))))
+
+(defrecord FrugalStar [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [x (m.protocols/-get-object istate0)]
+          (if (sequential? x)
+            (if (clj/seq x)
+              (clj/let [head (first x)
+                        tail (rest x)]
+                (m.protocols/-some (m.protocols/-query b ilogic)
+                                   (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic (m.protocols/-set-object istate0 head)))
+                                     (fn [istate1]
+                                       (m.protocols/-query this (m.protocols/-pass ilogic (m.protocols/-set-object istate1 tail)))))))
+              (m.protocols/-query b (m.protocols/-pass ilogic istate0)))
+            (m.protocols/-fail ilogic istate0))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-some
+     (m.protocols/-each (m.protocols/-yield a ilogic)
+       (fn [istate0]
+         (clj/let [x (m.protocols/-get-object istate0)]
+           (m.protocols/-each (m.protocols/-yield this (m.protocols/-pass ilogic istate0))
+             (fn [istate1]
+               (clj/let [xs (m.protocols/-get-object istate0)]
+                 (m.protocols/-pass ilogic (m.protocols/-set-object istate1 (clj/cons x xs)))))))))
+     (m.protocols/-each (m.protocols/-yield a ilogic)
+       (fn [istate0]
+         (clj/let [x (m.protocols/-get-object istate0)]
+           (if (sequential? x)
+             (m.protocols/-pass ilogic istate0)
+             (m.protocols/-fail ilogic istate0))))))))
 
 (defrecord SeqCast [x]
   m.protocols/IQuery
@@ -857,3 +924,9 @@
 (defn hash-set
   [& keys]
   (reduce m.primitive.hash-set/conj (m.primitive.hash-set/empty) keys))
+
+(def ^{:arglists '([a rest])}
+  greedy-star #'->GreedyStar)
+
+(def ^{:arglists '([a rest])}
+  frugal-star #'->FrugalStar)
