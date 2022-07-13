@@ -135,13 +135,10 @@
           (clj/let [x (m.protocols/-get-object s)
                     y (m.protocols/-get-variable s this unbound)]
             (if (identical? y unbound)
-              (do
-                (print "Unbound")
-                (m.protocols/-pass ilogic (m.protocols/-set-variable s this x)))
-              (do (print (= x y))
-                  (if (= x y)
-                    (m.protocols/-pass ilogic s)
-                    (m.protocols/-fail ilogic s)))))))))
+              (m.protocols/-pass ilogic (m.protocols/-set-variable s this x))
+              (if (= x y)
+                (m.protocols/-pass ilogic s)
+                (m.protocols/-fail ilogic s))))))))
 
   m.protocols/IYield
   (-yield [this m]
