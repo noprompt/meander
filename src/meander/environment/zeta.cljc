@@ -112,8 +112,7 @@
       ;; respect to the environment namespace and return it if it is a
       ;; registered operator.
       (let [in-symbol* (symbol (name env-ns) (name in-symbol))]
-        (if-some [_ (find (::operators environment) in-symbol*)]
-          in-symbol*)))))
+        in-symbol*))))
 
 ;; Operator registry manipulation, look up, and expansion.
 ;; ---------------------------------------------------------------------
