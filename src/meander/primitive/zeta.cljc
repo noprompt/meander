@@ -104,9 +104,12 @@
 (defrecord Each [a b]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.protocols/-each (m.protocols/-query a ilogic)
-      (fn [s]
-        (m.protocols/-query b (m.protocols/-pass ilogic s)))))
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [x (m.protocols/-get-object istate0)]
+          (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic istate0))
+            (fn [istate1]
+              (m.protocols/-query b (m.protocols/-pass ilogic (m.protocols/-set-object istate1 x)))))))))
 
   m.protocols/IYield
   (-yield [this ilogic]
