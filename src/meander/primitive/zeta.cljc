@@ -257,7 +257,8 @@
   (-query [this ilogic]
     (m.protocols/-each ilogic
       (fn [istate0]
-        (clj/let [ilogic1 (m.protocols/-pass ilogic istate0)]
+        (clj/let [object0 (m.protocols/-get-object istate0)
+                  ilogic1 (m.protocols/-pass ilogic istate0)]
           (m.protocols/-each (m.protocols/-yield yf ilogic1)
             (fn [istate1]
               (clj/let [f (m.protocols/-get-object istate1)]
@@ -266,8 +267,8 @@
                     (fn [istate2]
                       (clj/let [args (m.protocols/-get-object istate2)]
                         (if (sequential? args)
-                          (clj/let [x (clj/apply f args)]
-                            (m.protocols/-query q ilogic1))
+                          (clj/let [x (clj/apply f object0 args)]
+                            (m.protocols/-query q (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x))))
                           (m.protocols/-fail ilogic istate2)))))
                   (m.protocols/-fail ilogic istate0)))))))))
 
