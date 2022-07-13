@@ -203,6 +203,25 @@
                                     s3
                                     (keys (.-index this)))))))))))
 
+(defrecord Forget [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic istate0))
+          (fn [istate1]
+            (clj/let [x (m.protocols/-get-object istate1)]
+              (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x))))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (m.protocols/-each (m.protocols/-yield a (m.protocols/-pass ilogic istate0))
+          (fn [istate1]
+            (clj/let [x (m.protocols/-get-object istate1)]
+              (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x)))))))))
+
 (defrecord Project [y q a]
   ;; Yield y with non destructive affect on bindings, query the
   ;; yielded object with q with destructive affect on bindings, query
