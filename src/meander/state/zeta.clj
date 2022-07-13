@@ -6,28 +6,28 @@
 (defrecord State [object variables references seed random]
   m.protocols/IState
   (-get-object [this]
-    (get this :object))
+    object)
 
   (-set-object [this new-object]
-    (assoc this :object new-object))
+    (State. new-object variables references seed random))
 
   (-get-variable [this variable not-found]
-    (get-in this [:variables variable] not-found))
+    (get variables variable not-found))
 
   (-set-variable [this variable value]
-    (assoc-in this [:variables variable] value))
+    (State. object (assoc variables variable value) references seed random))
 
   (-get-reference [this reference not-found]
-    (get-in this [:references reference] not-found))
+    (get references reference not-found))
 
   (-set-reference [this reference new-definition]
-    (assoc-in this [:references reference] new-definition))
+    (State. object variables (assoc references reference new-definition) seed random))
 
   (-set-random [this]
     (let [r1 (get this :random)
           r2 (nth (m.random/split-n r1 1) 0)
           x (m.random/rand-double r1)]
-      (assoc this :object x :random r2))))
+      (State. x variables references seed r2))))
 
 (defn make [{:keys [object seed]}]
   (let [seed (or seed (long (rand Long/MAX_VALUE)))
