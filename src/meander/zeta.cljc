@@ -99,11 +99,11 @@
    `(defnotation ~symbol ~system-form {:notations [], :terminal? false}))
   ([symbol system-form {:keys [eval notations terminal?]}]
    `(def ~(clj/with-meta symbol (clj/merge {:arglists ''([form])} (meta symbol)))
-      (notation* (m.env/create {::m.env/eval ~eval
-                                ::m.env/extensions ~(clj/vec notations)})
-                 '~system-form
-                 identity
-                 {:terminal? ~(clj/boolean terminal?)}))))
+      (#'notation* (m.env/create {::m.env/eval ~eval
+                                  ::m.env/extensions ~(clj/vec notations)})
+                   '~system-form
+                   identity
+                   {:terminal? ~(clj/boolean terminal?)}))))
 
 (defmacro defoperator
   ([symbol system-form]
@@ -111,12 +111,12 @@
   ([symbol system-form {:keys [eval notations terminal?]}]
    (clj/let [env (m.env/derive-ns-info &env)
              fq-symbol (m.env/qualify-symbol env symbol)]
-     `(clj/let [f# (notation* (m.env/create {::m.env/eval ~eval
-                                             ::m.env/extensions ~(clj/vec notations)})
-                              '~system-form
-                              (fn [form#]
-                                (ex-info "Match error" {:form form#, :symbol '~symbol}))
-                              {:terminal? ~(clj/boolean terminal?)})
+     `(clj/let [f# (#'notation* (m.env/create {::m.env/eval ~eval
+                                               ::m.env/extensions ~(clj/vec notations)})
+                                '~system-form
+                                (fn [form#]
+                                  (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
+                                {:terminal? ~(clj/boolean terminal?)})
                 g# (fn [env# form#] (f# (vary-meta form# merge env#)))]
         (m.env/operator-add! '~fq-symbol g#)
         (defn ~symbol [& ~'forms]
