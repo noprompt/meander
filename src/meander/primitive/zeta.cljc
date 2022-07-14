@@ -245,11 +245,10 @@
   (-yield [this ilogic]
     (m.protocols/-each ilogic
       (fn [istate0]
-        (clj/let [x (m.protocols/-get-object istate0)]
-          (m.protocols/-each (m.protocols/-yield y (m.protocols/-pass ilogic istate0))
-            (fn [istate1]
-              (clj/let [y (m.protocols/-get-object istate1)]
-                (m.protocols/-yield a (m.protocols/-query q (m.protocols/-pass ilogic (m.protocols/-set-object istate0 y))))))))))))
+        (m.protocols/-each (m.protocols/-yield y (m.protocols/-pass ilogic istate0))
+          (fn [istate1]
+            (clj/let [y (m.protocols/-get-object istate1)]
+              (m.protocols/-yield a (m.protocols/-query q (m.protocols/-pass ilogic (m.protocols/-set-object istate0 y)))))))))))
 
 (defrecord Apply [yf yargs q]
   ;; Yield function and args non destructively, query return destructively.
