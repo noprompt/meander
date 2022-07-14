@@ -24,7 +24,8 @@
                             some
                             str
                             symbol
-                            vec]))
+                            vec
+                            with-meta]))
 
 ;; Protocol Implementation
 ;; ---------------------------------------------------------------------
@@ -785,6 +786,32 @@
                     (m.protocols/-fail ilogic s)))))
             (m.protocols/-fail ilogic s)))))))
 
+(defrecord WithMeta [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (clj/let [x (m.protocols/-get-object istate0)]
+          (if (instance? clojure.lang.IObj x)
+            (clj/let [m (clj/meta x)]
+              (m.protocols/-each (m.protocols/-query a (m.protocols/-pass ilogic istate0))
+                (fn [istate1]
+                  (m.protocols/-query b (m.protocols/-pass ilogic (m.protocols/-set-object istate1 m))))))
+            (m.protocols/-fail ilogic istate0))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield a ilogic)
+      (fn [istate1]
+        (clj/let [x (m.protocols/-get-object istate1)]
+          (if (instance? clojure.lang.IObj x)
+            (m.protocols/-each (m.protocols/-yield b (m.protocols/-pass ilogic istate1))
+              (fn [istate2]
+                (clj/let [m (m.protocols/-get-object istate2)]
+                  (if (map? m)
+                    (m.protocols/-pass ilogic istate2)
+                    (m.protocols/-fail ilogic istate2)))))
+            (m.protocols/-fail ilogic istate1)))))))
 ;; API
 ;; ---------------------------------------------------------------------
 
@@ -957,3 +984,6 @@
 
 (def ^{:arglists '([a rest])}
   frugal-star #'->FrugalStar)
+
+(def ^{:arglists '([a b])}
+  with-meta #'->WithMeta)
