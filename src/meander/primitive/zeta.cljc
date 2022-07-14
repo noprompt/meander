@@ -694,9 +694,9 @@
       (fn [s]
         (clj/let [x (m.protocols/-get-object s)]
           (if (map-entry? x)
-            (m.protocols/-each (m.protocols/-query (.-k this) (m.protocols/-pass ilogic (m.protocols/-set-object s (key x))))
+            (m.protocols/-each (m.protocols/-query k (m.protocols/-pass ilogic (m.protocols/-set-object s (key x))))
               (fn [s]
-                (m.protocols/-query (.-v this) (m.protocols/-pass ilogic (m.protocols/-set-object s (val x))))))
+                (m.protocols/-query v (m.protocols/-pass ilogic (m.protocols/-set-object s (val x))))))
             (m.protocols/-fail ilogic s))))))
 
   m.protocols/IYield
@@ -712,7 +712,7 @@
 (defrecord HashMapAssoc [m k v]
   m.protocols/IQuery
   (-query [this ilogic]
-    (clj/let [entry (HashMapEntry. (.-k this) (.-v this))]
+    (clj/let [entry (->HashMapEntry k v)]
       (m.protocols/-each ilogic
         (fn [s]
           (clj/let [x (m.protocols/-get-object s)]
