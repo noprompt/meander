@@ -86,7 +86,7 @@
   ([]
    `(merge (make-environment) (ns-info)))
   ([overrides]
-   `(merge (create) ~overrides)))
+   `(merge-with #(or %2 %1) (create) ~overrides)))
 
 (defn qualify-symbol
   "Attempts to fully qualify the symbol in-symbol. If the
