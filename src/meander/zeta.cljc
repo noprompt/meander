@@ -117,9 +117,7 @@
                               (fn [form#]
                                 (ex-info "Match error" {:form form#, :symbol '~symbol}))
                               {:terminal? ~(clj/boolean terminal?)})
-                ;; TODO: (vary-meta form# merge env#) once primitive
-                ;; for matching meta is defined.
-                g# (fn [env# form#] (f# form#))]
+                g# (fn [env# form#] (f# (vary-meta form# merge env#)))]
         (m.env/operator-add! '~fq-symbol g#)
         (defn ~symbol [& ~'forms]
           (f# (clj/cons '~fq-symbol ~'forms)))))))
