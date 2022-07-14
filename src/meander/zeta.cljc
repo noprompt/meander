@@ -188,13 +188,41 @@
                #'logic-variable-symbol
                #'vector-rest]})
 
-(defoperator bool
-  (rule
-   (_)
-   (list `some true false))
-  {:notations [#'anything-symbol
-               #'logic-variable-symbol
-               #'vector-rest]})
+(defn make-logic
+  {:private true}
+  [env system-form make-logic]
+  (clj/let [system-term (m.parse/parse env system-form)]
+    (if (satisfies? m.protocols/IRedex system-term)
+      (fn [form]
+        (clj/let [istate (m.state/make {:object form})
+                  ilogic (make-logic istate)
+                  result (m.protocols/-redex system-term ilogic)]
+          (m.protocols/-unwrap result)))
+      (throw (ex-info "system-form must parse to an object which satisfies meander.protocols.zeta/IRedex"
+                      {:system-form system-form
+                       :system-term system-term})))))
+
+(def default-notations
+  [#'anything-symbol
+   #'logic-variable-symbol
+   #'hash-map-as
+   #'hash-map-rest
+   #'vector-as
+   #'vector-rest])
+
+(defmacro defdff
+  ([name system-form]
+   `(defdff ~name ~system-form {:notations default-notations}))
+  ([name system-form {:keys [notations]}]
+   `(def ~name
+      (#'make-logic (m.env/create {::m.env/extensions ~notations}) '~system-form m.logic/make-dff))))
+
+(defmacro defbfs
+  ([name system-form]
+   `(defbfs ~name ~system-form {:notations default-notations}))
+  ([name system-form {:keys [notations]}]
+   `(def ~name
+      (#'make-logic (m.env/create {::m.env/extensions ~notations}) '~system-form m.logic/make-bfs))))
 
 (comment
   [(anything-symbol '_)
