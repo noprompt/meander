@@ -1,7 +1,6 @@
 (ns meander.zeta
   (:require
    [clojure.core :as clj]
-   [clojure.string :as string]
    [meander.environment.zeta :as m.env]
    [meander.logic.zeta :as m.logic]
    [meander.parse.zeta :as m.parse]
@@ -231,7 +230,6 @@
    (hash-map-as '{:foo 1 ::as ?x})
    (hash-map-rest '{:foo "bar" &1 ?x})
    (vector-rest '[?x 1 2 3 & ?rest 1 2])
-   (bool)
    (let '[] 1)
    (let '[?x 1] 1)])
 
