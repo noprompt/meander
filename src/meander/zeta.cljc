@@ -46,6 +46,7 @@
   ? m.primitive/logic-variable)
 (m.env/operator-add! `? (fn [env [_ & args]] (reduced (clj/apply ? args))))
 
+
 (def-fn-operator anything m.primitive/anything)
 (def-fn-operator apply m.primitive/apply)
 (def-fn-operator assoc m.primitive/assoc)
@@ -70,12 +71,10 @@
 (def-fn-operator vec m.primitive/vec)
 (def-fn-operator with-meta m.primitive/with-meta)
 
-
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
 
-(defn notation*
-  {:private true}
+(defn make-notation
   [env system-form on-zero {:keys [terminal?]}]
   (clj/let [system-term (m.parse/parse env system-form)]
     (if (satisfies? m.protocols/IRedex system-term)
@@ -93,16 +92,26 @@
                       {:system-form system-form
                        :system-term system-term})))))
 
+(defmacro notation
+  ([system-form]
+   `(notation ~system-form {}))
+  ([system-form {:keys [eval notations terminal?]}]
+   `(make-notation (m.env/create {::m.env/eval ~eval
+                                 ::m.env/extensions ~(clj/vec notations)})
+                  '~system-form
+                  identity
+                  {:terminal? ~(clj/boolean terminal?)})))
+
 (defmacro defnotation
   ([symbol system-form]
    `(defnotation ~symbol ~system-form {:notations [], :terminal? false}))
   ([symbol system-form {:keys [eval notations terminal?]}]
    `(def ~(clj/with-meta symbol (clj/merge {:arglists ''([form])} (meta symbol)))
-      (#'notation* (m.env/create {::m.env/eval ~eval
-                                  ::m.env/extensions ~(clj/vec notations)})
-                   '~system-form
-                   identity
-                   {:terminal? ~(clj/boolean terminal?)}))))
+      (make-notation (m.env/create {::m.env/eval ~eval
+                                    ::m.env/extensions ~(clj/vec notations)})
+                     '~system-form
+                     identity
+                     {:terminal? ~(clj/boolean terminal?)}))))
 
 (defmacro defoperator
   ([symbol system-form]
@@ -110,12 +119,13 @@
   ([symbol system-form {:keys [eval notations terminal?]}]
    (clj/let [env (m.env/derive-ns-info &env)
              fq-symbol (m.env/qualify-symbol env symbol)]
-     `(clj/let [f# (#'notation* (m.env/create {::m.env/eval ~eval
-                                               ::m.env/extensions ~(clj/vec notations)})
-                                '~system-form
-                                (fn [form#]
-                                  (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
-                                {:terminal? ~(clj/boolean terminal?)})
+     `(clj/let [f# (make-notation
+                    (m.env/create {::m.env/eval ~eval
+                                   ::m.env/extensions ~(clj/vec notations)})
+                    '~system-form
+                    (fn [form#]
+                      (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
+                    {:terminal? ~(clj/boolean terminal?)})
                 g# (fn [env# form#] (f# (vary-meta form# merge env#)))]
         (m.env/operator-add! '~fq-symbol g#)
         (defn ~symbol [& ~'forms]
@@ -129,25 +139,40 @@
   anything-symbol
   (rule
    (symbol (anything) (str "_" (anything)))
-   (list `anything)))
+   (apply ~$1 [] (anything)))
+  {:eval (fn [x] (case x $1 m.primitive/anything))
+   :terminal? true})
 
 (defnotation
   ^{:doc "Convert symbols with names that start with \"?\" into logic
-  variable forms."}
+  variables."}
   logic-variable-symbol
   (rule
    (each (? 1) (symbol _ (str "?" _)))
-   (list `? (? 1)))
-  {:notations [#'anything-symbol]})
+   (apply ~$1 [(? 1)] _))
+  {:eval (fn [x] (case x $1 m.primitive/logic-variable))
+   :notations [anything-symbol]
+   :terminal? true})
+
+(defnotation
+  ^{:doc "Convert symbols with names that start with \"%\" into references."}
+  reference-symbol
+  (rule
+   (each ?symbol (symbol _ (str "%" _)))
+   (apply ~$1 [?symbol] _))
+  {:eval (fn [x] (case x $1 m.primitive/reference))
+   :notations [anything-symbol
+               logic-variable-symbol]
+   :terminal? true})
 
 (defnotation vector-as
   (rule
    (vec (concat ?left (cons ::as (some (cons ?x (some () ?right)) ()))))
-   (some (list `each ?x (vec (some (concat ?left ?right)
-                                   ?left)))
-         (vec ?left)))
-  {:notations [#'anything-symbol
-               #'logic-variable-symbol]})
+   (some (`each ?x (vec (some (concat ?left ?right)
+                              ?left)))
+         ?left))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
 
 (defnotation vector-rest
   (rule
@@ -155,24 +180,24 @@
                 (cons (symbol (str "&" _))
                       (some (cons ?rest (some () ?right))
                             ()))))
-   (some (list `vec (list `concat ?left ?rest (vec ?right)))
-         (list `vec (list `concat ?left ?rest))
-         (list `vec ?left)))
-  {:notations [#'anything-symbol
-               #'logic-variable-symbol]})
+   (some (`vec (`concat ?left ?rest (vec ?right)))
+         (`vec (`concat ?left ?rest))
+         (vec ?left)))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
 
 (defnotation hash-map-as
   (rule
    (assoc ?m ::as ?v)
-   (list `each ?v ?m))
-  {:notations [#'logic-variable-symbol]})
+   (`each ?v ?m))
+  {:notations [logic-variable-symbol]})
 
 (defnotation hash-map-rest
   (rule
    (assoc ?m (symbol (str "&" _)) ?v)
-   (list `merge ?m ?v))
-  {:notations [#'anything-symbol
-               #'logic-variable-symbol]})
+   (`merge ?m ?v))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
 
 (defoperator let
   (system
@@ -182,7 +207,7 @@
 
    (rule
     (_ [?1 ?2 & ?rest] ?3)
-    (list `project ?2 ?1 (list `let ?rest ?3))))
+    (`project ?2 ?1 (`let ?rest ?3))))
   {:notations [#'anything-symbol
                #'logic-variable-symbol
                #'vector-rest]})
@@ -209,19 +234,17 @@
    #'vector-as
    #'vector-rest])
 
-(defmacro defdff
-  ([name system-form]
-   `(defdff ~name ~system-form {:notations default-notations}))
-  ([name system-form {:keys [notations]}]
-   `(def ~name
-      (#'make-logic (m.env/create {::m.env/extensions ~notations}) '~system-form m.logic/make-dff))))
+(defn dff
+  ([system]
+   (dff system {:notations default-notations}))
+  ([system {:keys [notations]}]
+   (make-logic (m.env/create {::m.env/extensions notations}) system m.logic/make-dff)))
 
-(defmacro defbfs
-  ([name system-form]
-   `(defbfs ~name ~system-form {:notations default-notations}))
-  ([name system-form {:keys [notations]}]
-   `(def ~name
-      (#'make-logic (m.env/create {::m.env/extensions ~notations}) '~system-form m.logic/make-bfs))))
+(defn bfs
+  ([system]
+   (bfs system {:notations default-notations}))
+  ([system {:keys [notations]}]
+   (make-logic (m.env/create {::m.env/extensions notations}) system m.logic/make-bfs)))
 
 (comment
   [(anything-symbol '_)
