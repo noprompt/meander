@@ -127,3 +127,8 @@
   (t/is (= `(m/union* #{} ?x) (m/union `?x)))
   (t/is (= `(m/union* ?x ?y) (m/union `?x `?y)))
   (t/is (= `(m/union* ?x (m/union ?y ?z)) (m/union `?x `?y `?z))))
+
+(t/deftest intersection-operator-test
+  (t/is (= `(m/intersection* #{} ?x) (m/intersection `?x)))
+  (t/is (= `(m/intersection* ?x ?y) (m/intersection `?x `?y)))
+  (t/is (= `(m/intersection* ?x (m/intersection ?y ?z)) (m/intersection `?x `?y `?z))))

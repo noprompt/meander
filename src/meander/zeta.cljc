@@ -72,6 +72,7 @@
 (def-fn-operator vec m.primitive/vec)
 (def-fn-operator with-meta m.primitive/with-meta)
 (def-fn-operator union* m.primitive.hash-set/union)
+(def-fn-operator intersection* m.primitive.hash-set/intersection)
 
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
@@ -214,6 +215,22 @@
    (rule
     (cons _ (cons ?x (each ?y (cons _ _))))
     (`union* ?x (cons `union ?y))))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defoperator intersection
+  (system
+   (rule
+    (_) #{})
+   (rule
+    (_ ?x)
+    (`intersection* #{} ?x))
+   (rule
+    (_ ?x ?y)
+    (`intersection* ?x ?y))
+   (rule
+    (cons _ (cons ?x (each ?y (cons _ _))))
+    (`intersection* ?x (cons `intersection ?y))))
   {:notations [anything-symbol
                logic-variable-symbol]})
 
