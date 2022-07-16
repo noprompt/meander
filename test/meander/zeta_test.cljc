@@ -122,3 +122,8 @@
     (let [result (m/hash-map-rest `{:foo "bar" &1 ?x})]
       (t/is (= result
                `(m/merge {:foo "bar"} ?x))))))
+
+(t/deftest union-operator-test
+  (t/is (= `(m/union* #{} ?x) (m/union `?x)))
+  (t/is (= `(m/union* ?x ?y) (m/union `?x `?y)))
+  (t/is (= `(m/union* ?x (m/union ?y ?z)) (m/union `?x `?y `?z))))

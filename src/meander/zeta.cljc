@@ -4,6 +4,7 @@
    [meander.environment.zeta :as m.env]
    [meander.logic.zeta :as m.logic]
    [meander.parse.zeta :as m.parse]
+   [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.primitive.zeta :as m.primitive]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state])
@@ -70,6 +71,7 @@
 (def-fn-operator with m.primitive/with)
 (def-fn-operator vec m.primitive/vec)
 (def-fn-operator with-meta m.primitive/with-meta)
+(def-fn-operator union* m.primitive.hash-set/union)
 
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
@@ -126,12 +128,12 @@
                     (fn [form#]
                       (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
                     {:terminal? ~(clj/boolean terminal?)})
-                g# (fn [env# form#] (f# (vary-meta form# merge env#)))]
+                g# (fn [env# form#] (f# (vary-meta form# clj/merge env#)))]
         (m.env/operator-add! '~fq-symbol g#)
         (defn ~symbol [& ~'forms]
           (f# (clj/cons '~fq-symbol ~'forms)))))))
 
-;; Notation
+;; Notation/Operators
 ;; ---------------------------------------------------------------------
 
 (defnotation
@@ -196,6 +198,22 @@
   (rule
    (assoc ?m (symbol (str "&" _)) ?v)
    (`merge ?m ?v))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defoperator union
+  (system
+   (rule
+    (_) #{})
+   (rule
+    (_ ?x)
+    (`union* #{} ?x))
+   (rule
+    (_ ?x ?y)
+    (`union* ?x ?y))
+   (rule
+    (cons _ (cons ?x (each ?y (cons _ _))))
+    (`union* ?x (cons `union ?y))))
   {:notations [anything-symbol
                logic-variable-symbol]})
 
