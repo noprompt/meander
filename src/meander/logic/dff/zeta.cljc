@@ -31,7 +31,7 @@
 
   m.protocols/IUnwrap
   (-unwrap [this]
-    istatezeta.cljc)
+    istate)
 
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]

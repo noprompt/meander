@@ -15,4 +15,4 @@
   (m.logic.dff/->DFFLogic istate))
 
 (defn make-bfs [istate]
-  (list istate))
+  (m.logic.bfs/->BFSLogic (list istate)))

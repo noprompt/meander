@@ -6,37 +6,41 @@
 (def unbound
   (reify))
 
-(extend-type clojure.lang.ISeq
+(defrecord BFSLogic [istates]
   m.protocols/ILogic
-  (-pass [this state]
-    (list state))
+  (-pass [this istate]
+    (BFSLogic. (list istate)))
 
   (-fail [this state]
-    ())
+    (BFSLogic. ()))
 
   (-each [this f]
-    (lazy-seq (m.algorithms/mix* (map f this))))
+    (BFSLogic. (lazy-seq (m.algorithms/mix* (map (comp deref f) istates)))))
 
   (-some [this that]
-    (m.algorithms/mix this that))
+    (if (seq istates)
+      (if (seq (.-istates that))
+        (BFSLogic. (m.algorithms/mix istates (.-istates that)))
+        this)
+      that))
 
   (-pick [this that]
-    (or (seq this) that))
+    (if (seq istates) this that))
 
   (-comp [this f]
-    (keep (fn [state]
-            (if (seq (f state))
-              nil
-              state))
-          this))
+    (BFSLogic. (keep (fn [state]
+                       (if (seq (deref (f state)))
+                         nil
+                         state))
+                     istates)))
 
   (-unbound [this]
     unbound)
 
   m.protocols/IUnwrap
   (-unwrap [this]
-    this)
+    istates)
 
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]
-    istate))
+    istates))

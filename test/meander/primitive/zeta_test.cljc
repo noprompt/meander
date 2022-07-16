@@ -3,6 +3,7 @@
    [clojure.test :as t]
    [meander.logic.zeta :as m.logic]
    [meander.primitive.zeta :as m.primitive]
+   [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state])
   #?(:clj
@@ -170,12 +171,13 @@
       (t/is (not (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
 
   (t/testing "-query (bfs)"
-    (let [ilogic (m.logic/make-bfs (m.state/make {}))]
-      (t/is (= ilogic
+    (let [istate (m.state/make {})
+          ilogic (m.logic/make-bfs istate)]
+      (t/is (= [istate]
                (query-unwrap (m.primitive/each) ilogic)))
-      (t/is (= ilogic
+      (t/is (= [istate]
                (query-unwrap (m.primitive/each (m.primitive/anything)) ilogic)))
-      (t/is (= ilogic
+      (t/is (= [istate]
                (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic)))
       (t/is (= ()
                (query-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
@@ -532,3 +534,13 @@
         (t/is (= [[1 1 1 2 3 4] [1 1 2 3 4] [1 2 3 4] [2 3 4]]
                  (map #(m.protocols/-get-variable % ?b ::unbound) (query-unwrap pattern ilogic1))))))))
 
+(t/deftest hash-set-union-protocol-satisfaction-test
+  (m.primitive/fresh [?a ?b]
+    (let [object0 #{}
+          istate0 (m.state/make {:object object0})
+          ilogic0 (m.logic/make-dff istate0)
+          pattern (m.primitive.hash-set/union ?a ?a)
+          result0 (m.protocols/-query pattern ilogic0)]
+      (t/is (not (m.logic/zero? result0)))
+      (t/is (= #{} (m.protocols/-get-variable @result0 ?a ::unbound)))
+      (t/is (= #{} (m.protocols/-get-variable @result0 ?b ::unbound))))))
