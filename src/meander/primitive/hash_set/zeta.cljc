@@ -35,7 +35,8 @@
               (map (fn [e]
                      (let [y (disj x e)]
                        (m.protocols/-query (.-e this) (m.protocols/-pass m (m.protocols/-set-object s e)))))
-                   x))
+                   x)
+              (m.protocols/-fail m s))
             (m.protocols/-fail m s))))))
 
   m.protocols/IYield
