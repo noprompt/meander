@@ -20,6 +20,7 @@
                             merge
                             not
                             seq
+                            set
                             some
                             str
                             symbol
