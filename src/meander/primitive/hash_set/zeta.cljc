@@ -8,6 +8,25 @@
 
 (defrecord HashSetAny [])
 
+(defrecord HashSetCast [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (let [x (m.protocols/-get-object istate0)]
+          (if (set? x)
+            (m.protocols/-query a (m.protocols/-pass ilogic istate0))
+            (m.protocols/-fail ilogic istate0))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.protocols/-each (m.protocols/-yield ilogic a)
+      (fn [istate0]
+        (let [x (m.protocols/-get-object istate0)]
+          (if (set? x)
+            (m.protocols/-query a (m.protocols/-pass ilogic istate0))
+            (m.protocols/-fail ilogic istate0)))))))
+
 (defrecord HashSetEmpty []
   m.protocols/IQuery
   (-query [this m]

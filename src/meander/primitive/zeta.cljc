@@ -8,7 +8,8 @@
    [meander.primitive.sequence.zeta :as m.primitive.sequence]
    [meander.primitive.string.zeta :as m.primitive.string]
    [meander.primitive.symbol.zeta :as m.primitive.symbol]
-   [meander.protocols.zeta :as m.protocols])
+   [meander.protocols.zeta :as m.protocols]
+   [clojure.set :as set])
   (:refer-clojure :exclude [apply
                             assoc
                             concat
@@ -21,6 +22,7 @@
                             merge
                             not
                             seq
+                            set
                             some
                             str
                             symbol
@@ -978,6 +980,10 @@
 (defn hash-set
   [& keys]
   (reduce m.primitive.hash-set/conj (m.primitive.hash-set/empty) keys))
+
+(defn set
+  [x]
+  (m.primitive.hash-set/->HashSetCast x))
 
 (def ^{:arglists '([a rest])}
   greedy-star #'->GreedyStar)
