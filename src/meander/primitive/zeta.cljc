@@ -59,17 +59,17 @@
   m.protocols/IQuery
   (-query [this ilogic]
     (m.protocols/-each ilogic
-      (fn [s]
-        (clj/let [y (m.protocols/-get-object s)]
+      (fn [istate0]
+        (clj/let [y (m.protocols/-get-object istate0)]
           (if (= x y)
-            (m.protocols/-pass ilogic s)
-            (m.protocols/-fail ilogic s))))))
+            (m.protocols/-pass ilogic istate0)
+            (m.protocols/-fail ilogic istate0))))))
 
   m.protocols/IYield
-  (m.protocols/-yield [this ilogic]
+  (-yield [this ilogic]
     (m.protocols/-each ilogic
-      (fn [s]
-        (m.protocols/-pass ilogic (m.protocols/-set-object s x))))))
+      (fn [istate0]
+        (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x))))))
 
 (defrecord Not [a]
   m.protocols/IQuery
@@ -811,7 +811,7 @@
               (fn [istate2]
                 (clj/let [m (m.protocols/-get-object istate2)]
                   (if (map? m)
-                    (m.protocols/-pass ilogic istate2)
+                    (m.protocols/-pass ilogic (m.protocols/-set-object istate2 (clj/with-meta x m)))
                     (m.protocols/-fail ilogic istate2)))))
             (m.protocols/-fail ilogic istate1)))))))
 ;; API
