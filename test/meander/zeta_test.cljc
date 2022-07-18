@@ -132,3 +132,16 @@
   (t/is (= `(m/intersection* #{} ?x) (m/intersection `?x)))
   (t/is (= `(m/intersection* ?x ?y) (m/intersection `?x `?y)))
   (t/is (= `(m/intersection* ?x (m/intersection ?y ?z)) (m/intersection `?x `?y `?z))))
+
+(t/deftest hash-set-as-notation-test
+  (t/testing "Does nothing if there is no element with meta containing the submap {::m/as true}"
+    (t/is (= #{1 2}
+             (m/hash-set-as #{1 2}))))
+
+  (t/testing "Regonizes element with meta containing the submap {::m/as true}"
+    (t/is (= `(m/each ?x #{1 2})
+             (m/hash-set-as #{1 2 (with-meta `?x {::m/as true})}))))
+
+  (t/testing "Removes ::m/as meta"
+    (t/is (= {:foo "bar"}
+             (meta (second (m/hash-set-as #{1 2 (with-meta `?x {::m/as true, :foo "bar"})})))))))
