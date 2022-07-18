@@ -22,7 +22,7 @@
     (if istate this that))
   
   (-comp [this f]
-    (if (get (f istate) :istate)
+    (if (and istate (get (f istate) :istate))
       (DFFLogic. nil)
       this))
 
