@@ -38,10 +38,11 @@
 (defmacro def-fn-operator
   {:private true}
   [sym f]
-  (clj/let [ns-info (m.env/derive-ns-info &env)]
-    `(clj/let [v# (def ~sym ~f)]
-       (m.env/operator-add! '~(clj/symbol (name (::m.env/namespace ns-info)) (name sym))
-                            (comp reduced (derive-operator-from-function ~f)))
+  (clj/let [ns-info (m.env/derive-ns-info &env)
+            fq-sym (clj/symbol (name (::m.env/namespace ns-info)) (name sym))]
+    `(clj/let [f# (derive-operator-from-function ~f)
+               v# (defn ~sym [& args#] (f# nil (clj/cons '~fq-sym args#)))]
+       (m.env/operator-add! '~fq-sym (comp reduced f#))
        v#)))
 
 (def ^{:arglists '([id])}
@@ -204,6 +205,9 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
+;; Set operators and notation
+;; --------------------------
+
 (defoperator union
   (system
    (rule
@@ -235,6 +239,14 @@
     (`intersection* ?x (cons `intersection ?y))))
   {:notations [anything-symbol
                logic-variable-symbol]})
+
+(defnotation hash-set-as
+  (system
+   (rule
+    (union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
+    (`each (with-meta ?x ?rest-meta) ?s)))
+  {:notations [logic-variable-symbol
+               hash-map-rest]})
 
 (defoperator let
   (system
