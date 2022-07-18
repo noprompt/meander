@@ -7,7 +7,9 @@
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state])
   #?(:clj
-     (:import clojure.lang.ExceptionInfo)))
+     (:import clojure.lang.ExceptionInfo
+              meander.logic.dff.zeta.DFFLogic
+              meander.logic.bfs.zeta.BFSLogic)))
 
 (def ^{:arglists '([iquery ilogic])}
   query-unwrap
@@ -20,6 +22,47 @@
 (def ^{:arglists '([iyield ilogic])}
   redex-unwrap
   (comp m.protocols/-unwrap m.protocols/-redex))
+
+
+;; NOTE: It may be worthwhile to promote this eventually.
+(defprotocol IFMap
+  (-fmap [this f]))
+
+(defn fmap [f x]
+  (-fmap x f))
+
+(extend-protocol IFMap
+  DFFLogic
+  (-fmap [this f]
+    (if (nil? (.-istate this))
+      this
+      (DFFLogic. (f (.-istate this)))))
+
+  BFSLogic
+  (-fmap [this f]
+    (BFSLogic. (map f (.-istates this)))))
+
+(defn get-variable
+  ([ilogic v]
+   (get-variable ilogic v nil))
+  ([ilogic v unbound]
+   (deref (fmap
+           (fn [istate]
+             (m.protocols/-get-variable istate v unbound))
+           ilogic))))
+
+(defn get-object
+  ([ilogic]
+   (get-object ilogic nil))
+  ([ilogic zero]
+   (if (m.logic/zero? ilogic)
+     zero
+     (deref (fmap
+             (fn [istate]
+               (m.protocols/-get-object istate))
+             ilogic)))))
+
+;; Tests
 
 (t/deftest anything-protocol-satisfaction-test
   (t/testing "-query"
@@ -525,22 +568,117 @@
       (let [object1 [1 1 1 2 3 4]
             istate1 (m.state/make {:object object1})
             ilogic1 (m.logic/make-bfs istate1)
-            pattern (m.primitive/frugal-star ?a ?b)]
+            pattern (m.primitive/frugal-star ?a ?b)
+            result1 (m.protocols/-query pattern ilogic1)]
         (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
 
         (t/is (= [::unbound 1 1 1]
-                 (map #(m.protocols/-get-variable % ?a ::unbound) (query-unwrap pattern ilogic1))))
+                 (get-variable result1 ?a ::unbound)))
 
         (t/is (= [[1 1 1 2 3 4] [1 1 2 3 4] [1 2 3 4] [2 3 4]]
-                 (map #(m.protocols/-get-variable % ?b ::unbound) (query-unwrap pattern ilogic1))))))))
+                 (get-variable result1 ?b)))))))
 
 (t/deftest hash-set-union-protocol-satisfaction-test
   (m.primitive/fresh [?a ?b]
-    (let [object0 #{}
-          istate0 (m.state/make {:object object0})
-          ilogic0 (m.logic/make-dff istate0)
-          pattern (m.primitive.hash-set/union ?a ?a)
-          result0 (m.protocols/-query pattern ilogic0)]
-      (t/is (not (m.logic/zero? result0)))
-      (t/is (= #{} (m.protocols/-get-variable @result0 ?a ::unbound)))
-      (t/is (= #{} (m.protocols/-get-variable @result0 ?b ::unbound))))))
+    (t/testing "Target is empty set"
+      (t/testing "dff"
+        (let [object0 #{}
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive.hash-set/union ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= #{} (get-variable result0 ?a)))
+          (t/is (= #{} (get-variable result0 ?b)))))
+
+      (t/testing "bfs"
+        (let [object0 #{}
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-bfs istate0)
+              pattern (m.primitive.hash-set/union ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= [#{}]
+                   (get-variable result0 ?a)))
+          (t/is (= [#{}]
+                   (get-variable result0 ?b))))))
+
+    (t/testing "Target is singleton set"
+      (t/testing "dff"
+        (let [object0 #{1}
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive.hash-set/union ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= #{1}
+                   (get-variable result0 ?a)))
+          (t/is (= #{}
+                   (get-variable result0 ?b)))))
+
+      (t/testing "bfs"
+        (let [object0 #{1}
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-bfs istate0)
+              pattern (m.primitive.hash-set/union ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= [#{1} #{}]
+                   (get-variable result0 ?a)))
+          (t/is (= [#{} #{1}]
+                   (get-variable result0 ?b))))))
+
+    (t/testing "Target is set with two elements"
+      (t/testing "dff"
+        (let [object0 #{1 2}
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive.hash-set/union ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= #{1 2}
+                   (get-variable result0 ?a)))
+          (t/is (= #{}
+                   (get-variable result0 ?b)))))
+
+      (t/testing "bfs"
+        (let [object0 #{1 2}
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-bfs istate0)
+              pattern (m.primitive.hash-set/union ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= [#{1 2} #{} #{1} #{2}]
+                   (get-variable result0 ?a)))
+          (t/is (= [#{} #{1 2} #{2} #{1}]
+                   (get-variable result0 ?b))))))))
+
+(t/deftest with-meta-protocol-satisfaction-test
+  (t/testing "dff"
+    (t/testing "query"
+      (m.primitive/fresh [?a ?b]
+        (let [object0 (with-meta {} {:foo "bar"})
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/with-meta ?a ?b)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (= {}
+                   (get-variable result0 ?a)))
+          (t/is (= {:foo "bar"}
+                   (get-variable result0 ?b))))))
+
+    (t/testing "yield"
+      (m.primitive/fresh [?a ?b]
+        (let [object0 nil
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/let [?a (m.primitive/is {})
+                                        ?b (m.primitive/is {:foo "bar"})]
+                        (m.primitive/with-meta ?a ?b))
+              result0 (m.protocols/-yield pattern ilogic0)]
+          (t/is (= {}
+                   (get-variable result0 ?a)))
+          (t/is (= {:foo "bar"}
+                   (get-variable result0 ?b)))
+          (t/is (= {:foo "bar"}
+                   (meta (get-object result0)))))))))
