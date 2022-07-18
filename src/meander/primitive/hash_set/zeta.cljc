@@ -45,18 +45,22 @@
 
 (defrecord HashSetConj [s e]
   m.protocols/IQuery
-  (m.protocols/-query [this m]
-    (m.protocols/-each m
-      (fn [s]
-        (let [x (m.protocols/-get-object s)]
+  (m.protocols/-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (let [x (m.protocols/-get-object istate0)]
           (if (set? x)
-            (if (< 0 (count x))
-              (map (fn [e]
-                     (let [y (disj x e)]
-                       (m.protocols/-query (.-e this) (m.protocols/-pass m (m.protocols/-set-object s e)))))
-                   x)
-              (m.protocols/-fail m s))
-            (m.protocols/-fail m s))))))
+            (if (zero? (count x))
+              (m.protocols/-fail ilogic istate0)
+              (reduce m.protocols/-some
+                      (map
+                       (fn [y]
+                         (let [rest-x (disj x y)]
+                           (m.protocols/-each (m.protocols/-query e (m.protocols/-pass ilogic (m.protocols/-set-object istate0 y)))
+                             (fn [istate1]
+                               (m.protocols/-query s (m.protocols/-pass ilogic (m.protocols/-set-object istate1 rest-x)))))))
+                       x)))
+            (m.protocols/-fail ilogic istate0))))))
 
   m.protocols/IYield
   (m.protocols/-yield [this m]
@@ -72,22 +76,18 @@
 
 (defrecord HashSetUnion [s1 s2]
   m.protocols/IQuery
-  (-query [this m]
-    (m.protocols/-each m
-      (fn [s]
-        (let [x (m.protocols/-get-object s)]
+  (-query [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (let [x (m.protocols/-get-object istate0)]
           (if (set? x)
-            (if (zero? (count x))
-              (m.protocols/-each (m.protocols/-query (.-s1 this) (m.protocols/-pass m (m.protocols/-set-object s #{})))
-                (fn [s]
-                  (m.protocols/-query (.-s2 this) (m.protocols/-pass m (m.protocols/-set-object s #{})))))
-              (reduce m.protocols/-some
-                      (map (fn [[a b]]
-                             (m.protocols/-each (m.protocols/-query (.-s1 this) (m.protocols/-pass m (m.protocols/-set-object s a)))
-                               (fn [s]
-                                 (m.protocols/-query (.-s2 this) (m.protocols/-pass m (m.protocols/-set-object s b))))))
-                           (m.algorithms/set-partitions 2 x))))
-            (m.protocols/-fail m s))))))
+            (reduce m.protocols/-some
+                    (map (fn [[a b]]
+                           (m.protocols/-each (m.protocols/-query s1 (m.protocols/-pass ilogic (m.protocols/-set-object istate0 a)))
+                             (fn [istate1]
+                               (m.protocols/-query s2 (m.protocols/-pass ilogic (m.protocols/-set-object istate1 b))))))
+                         (m.algorithms/set-partitions 2 x)))
+            (m.protocols/-fail ilogic istate0))))))
 
   m.protocols/IYield
   (-yield [this m]
