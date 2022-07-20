@@ -23,6 +23,9 @@
   redex-unwrap
   (comp m.protocols/-unwrap m.protocols/-redex))
 
+(defn var-factory [qrule yrule]
+  (fn [id]
+    (m.primitive/variable id qrule yrule)))
 
 ;; NOTE: It may be worthwhile to promote this eventually.
 (defprotocol IFMap
@@ -682,3 +685,40 @@
                    (get-variable result0 ?b)))
           (t/is (= {:foo "bar"}
                    (meta (get-object result0)))))))))
+
+;; NOTE: This is still in development.
+(t/deftest unbound-protocol-satisfaction-test
+  (let [istate_ (m.state/make {})
+        ilogic_ (m.logic/make-dff istate_)
+        unbound (m.protocols/-unbound ilogic_)
+        istate0 (m.protocols/-set-object istate_ unbound)
+        ilogic0 (m.logic/make-dff istate0)
+        pattern (m.primitive/unbound)
+        result0 (m.protocols/-query pattern ilogic0)]
+    (t/is (identical? unbound (get-object result0)))))
+
+(t/deftest variable-protocol-satisfaction-test
+  (t/testing "dff"
+    (t/testing "query"
+      (m.primitive/fresh [?x]
+        (let [qsystem (m.primitive/forget
+                       (m.primitive/rule
+                        (m.primitive/vector (m.primitive/anything) ?x)
+                        ?x))
+              ysystem (m.primitive/forget
+                       (m.primitive/rule
+                        ?x
+                        (m.primitive/vector ?x ?x)))
+              ! (var-factory qsystem ysystem)
+              !1 (! 1)
+
+              object0 [1 2]
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/vector !1 !1)
+              result0 (m.protocols/-query pattern ilogic0)
+              result1 (m.protocols/-yield pattern result0)]
+
+          (t/is (= 2 (get-variable result0 !1)))
+          (t/is (= 2 (get-variable result1 !1)))
+          (t/is (= [2 2] (get-object result1 !1))))))))

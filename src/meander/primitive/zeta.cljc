@@ -27,6 +27,7 @@
                             str
                             symbol
                             vec
+                            vector
                             with-meta]))
 
 ;; Protocol Implementation
@@ -156,6 +157,58 @@
               (m.protocols/-fail m s)
               (m.protocols/-pass m (m.protocols/-set-object s x)))))))))
 
+(defrecord Unbound []
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (clj/let [unbound (m.protocols/-unbound ilogic)]
+      (m.protocols/-each ilogic
+        (fn [istate0]
+          (clj/let [x (m.protocols/-get-object istate0)]
+            (if (identical? x unbound)
+              (m.protocols/-pass ilogic istate0)
+              (m.protocols/-fail ilogic istate0)))))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (clj/let [unbound (m.protocols/-unbound ilogic)]
+      (m.protocols/-each ilogic
+        (fn [istate0]
+          (m.protocols/-pass ilogic (m.protocols/-set-object istate0 unbound)))))))
+
+(defrecord Variable [id qrule yrule]
+  ;; Variable query rule is applied to [current-value incoming-value] and
+  ;; expected to return new-value. If new-value is unbound we fail.
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (clj/let [unbound (m.protocols/-unbound ilogic)]
+      (m.protocols/-each ilogic
+        (fn [istate0]
+          (clj/let [x (m.protocols/-get-variable istate0 this unbound)
+                    y (m.protocols/-get-object istate0)]
+            (m.protocols/-each (m.protocols/-redex qrule (m.protocols/-pass ilogic (m.protocols/-set-object istate0 [x y])))
+              (fn [istate1]
+                (clj/let [z (m.protocols/-get-object istate1)]
+                  (if (identical? z unbound)
+                    (m.protocols/-fail ilogic istate1)
+                    (m.protocols/-pass ilogic (m.protocols/-set-variable istate1 this z)))))))))))
+
+  ;; Variable yield rule is applied to current value and expected to return
+  ;; [new-value outgoing-value]. If new-value is unbound we fail.
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (clj/let [unbound (m.protocols/-unbound ilogic)]
+      (m.protocols/-each ilogic
+        (fn [istate0]
+          (clj/let [x (m.protocols/-get-variable istate0 this unbound)]
+            (if (identical? x unbound)
+              (m.protocols/-fail ilogic istate0)
+              (m.protocols/-each (m.protocols/-redex yrule (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x)))
+                (fn [istate1]
+                  (clj/let [[y z] (m.protocols/-get-object istate1)]
+                    (if (identical? y unbound)
+                      (m.protocols/-fail ilogic istate1)
+                      (m.protocols/-pass ilogic (m.protocols/-set-object (m.protocols/-set-variable istate1 this z) y)))))))))))))
+
 (defrecord Reference [id]
   m.protocols/IQuery
   (-query [this m]
@@ -221,6 +274,15 @@
     (m.protocols/-each ilogic
       (fn [istate0]
         (m.protocols/-each (m.protocols/-yield a (m.protocols/-pass ilogic istate0))
+          (fn [istate1]
+            (clj/let [x (m.protocols/-get-object istate1)]
+              (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x))))))))
+
+  m.protocols/IRedex
+  (-redex [this ilogic]
+    (m.protocols/-each ilogic
+      (fn [istate0]
+        (m.protocols/-each (m.protocols/-redex a (m.protocols/-pass ilogic istate0))
           (fn [istate1]
             (clj/let [x (m.protocols/-get-object istate1)]
               (m.protocols/-pass ilogic (m.protocols/-set-object istate0 x)))))))))
@@ -958,6 +1020,12 @@
 (def^{:arglists '([a])}
   vec #'->VectorCast)
 
+;; NOTE: Temporary implementation
+(def
+  ^{:arglists '([& xs])}
+  vector
+  (comp vec list))
+
 (defn assoc
   [m k v & kvs]
   (assert (even? (count kvs)) "assoc expects an even number of arguments")
@@ -993,3 +1061,15 @@
 
 (def ^{:arglists '([a b])}
   with-meta #'->WithMeta)
+
+(def ^{:arglists '([a])}
+  forget
+  #'->Forget)
+
+(def ^{:arglists '([id qrule yrule])}
+  variable
+  #'->Variable)
+
+(def ^{:arglists '([])}
+  unbound
+  #'->Unbound)
