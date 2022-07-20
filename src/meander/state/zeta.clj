@@ -3,6 +3,28 @@
    [meander.protocols.zeta :as m.protocols]
    [meander.random.zeta :as m.random]))
 
+
+(def ^{:arglists '([istate])}
+ get-object m.protocols/-get-object)
+
+(def ^{:arglists '([istate new-object])}
+ set-object m.protocols/-set-object)
+
+(def ^{:arglists '([istate variable unbound])}
+ get-variable m.protocols/-get-variable)
+
+(def ^{:arglists '([istate variable value])}
+ set-variable m.protocols/-set-variable)
+
+(def ^{:arglists '([istate reference not-found])}
+ get-reference m.protocols/-get-reference)
+
+(def ^{:arglists '([istate reference new-definition])}
+ set-reference m.protocols/-set-reference)
+
+(def ^{:arglists '([istate])}
+ set-random m.protocols/-set-random)
+
 (defrecord State [object variables references seed random]
   m.protocols/IState
   (-get-object [this]

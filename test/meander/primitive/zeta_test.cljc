@@ -5,6 +5,7 @@
    [meander.primitive.zeta :as m.primitive]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.protocols.zeta :as m.protocols]
+   [meander.logic.zeta :as m.logic]
    [meander.state.zeta :as m.state])
   #?(:clj
      (:import clojure.lang.ExceptionInfo
@@ -51,7 +52,7 @@
   ([ilogic v unbound]
    (deref (fmap
            (fn [istate]
-             (m.protocols/-get-variable istate v unbound))
+             (m.state/get-variable istate v unbound))
            ilogic))))
 
 (defn get-object
@@ -62,7 +63,7 @@
      zero
      (deref (fmap
              (fn [istate]
-               (m.protocols/-get-object istate))
+               (m.state/get-object istate))
              ilogic)))))
 
 ;; Tests
@@ -97,7 +98,7 @@
     (let [object (rand)
           istate (m.state/make {:object (inc object)})
           ilogic (m.logic/make-dff istate)]
-      (t/is (= (m.protocols/-set-object istate object)
+      (t/is (= (m.state/set-object istate object)
                (yield-unwrap (m.primitive/is object) ilogic))))))
 
 (t/deftest not-protocol-satisfaction-test
@@ -252,11 +253,11 @@
       (let [object1 (rand)
             object2 (inc object1)
             istate1 (m.state/make {:object object1})
-            istate2 (m.protocols/-set-variable istate1 ?1 object2)
+            istate2 (m.state/set-variable istate1 ?1 object2)
             ilogic1 (m.logic/make-dff istate1)
             ilogic2 (m.logic/make-dff istate2)]
         (t/is (= object1
-                 (m.protocols/-get-variable (query-unwrap ?1 ilogic1) ?1 ::unbound)))
+                 (m.state/get-variable (query-unwrap ?1 ilogic1) ?1 ::unbound)))
 
         (t/is (m.logic/zero?
                (m.protocols/-query ?1 ilogic2))))))
@@ -266,11 +267,11 @@
       (let [object1 (rand)
             object2 (inc object1)
             istate1 (m.state/make {:object object1})
-            istate2 (m.protocols/-set-variable istate1 ?1 object2)
+            istate2 (m.state/set-variable istate1 ?1 object2)
             ilogic1 (m.logic/make-bfs istate1)
             ilogic2 (m.logic/make-bfs istate2)]
         (t/is (= [object1]
-                 (map #(m.protocols/-get-variable % ?1 ::unbound)
+                 (map #(m.state/get-variable % ?1 ::unbound)
                       (query-unwrap ?1 ilogic1))))
 
         (t/is (m.logic/zero?
@@ -281,28 +282,28 @@
       (let [object1 (rand)
             object2 (inc object1)
             istate1 (m.state/make {:object object1})
-            istate2 (m.protocols/-set-variable istate1 ?1 object2)
+            istate2 (m.state/set-variable istate1 ?1 object2)
             ilogic1 (m.logic/make-dff istate1)
             ilogic2 (m.logic/make-dff istate2)]
         (t/is (m.logic/zero?
                (m.protocols/-yield ?1 ilogic1)))
 
         (t/is (= object2
-                 (m.protocols/-get-object (yield-unwrap ?1 ilogic2)))))))
+                 (m.state/get-object (yield-unwrap ?1 ilogic2)))))))
 
   (t/testing "-yield (bfs)"
     (m.primitive/fresh [?1]
       (let [object1 (rand)
             object2 (inc object1)
             istate1 (m.state/make {:object object1})
-            istate2 (m.protocols/-set-variable istate1 ?1 object2)
+            istate2 (m.state/set-variable istate1 ?1 object2)
             ilogic1 (m.logic/make-bfs istate1)
             ilogic2 (m.logic/make-bfs istate2)]
         (t/is (m.logic/zero?
                (m.protocols/-yield ?1 ilogic1)))
 
         (t/is (= [object2]
-                 (map m.protocols/-get-object (yield-unwrap ?1 ilogic2))))))))
+                 (map m.state/get-object (yield-unwrap ?1 ilogic2))))))))
 
 (t/deftest rule-protocol-satisfaction-test
   (t/testing "-query (dff)"
@@ -329,7 +330,7 @@
           ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
           pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
       (t/is (= object2
-               (m.protocols/-get-object (yield-unwrap pattern ilogic1))))))
+               (m.state/get-object (yield-unwrap pattern ilogic1))))))
 
   (t/testing "-yield (bfs)"
     (let [object1 (rand)
@@ -337,7 +338,7 @@
           ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
           pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
       (t/is (= [object2]
-               (map m.protocols/-get-object (yield-unwrap pattern ilogic1))))))
+               (map m.state/get-object (yield-unwrap pattern ilogic1))))))
 
   (t/testing "-redex (dff)"
     (let [object1 (rand)
@@ -345,7 +346,7 @@
           ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
           pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
       (t/is (= object2
-               (m.protocols/-get-object (redex-unwrap pattern ilogic1))))))
+               (m.state/get-object (redex-unwrap pattern ilogic1))))))
 
   (t/testing "-redex (bfs)"
     (let [object1 (rand)
@@ -353,7 +354,7 @@
           ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
           pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
       (t/is (= [object2]
-               (map m.protocols/-get-object (redex-unwrap pattern ilogic1)))))))
+               (map m.state/get-object (redex-unwrap pattern ilogic1)))))))
 
 (t/deftest str-protocol-satisfaction-test
   (t/testing "-query (dff)"
@@ -372,12 +373,12 @@
                                         ilogic2))))
 
         (let [result1 (query-unwrap (m.primitive/str ?1 ?2) ilogic1)]
-          (t/is (= "" (m.protocols/-get-variable result1 ?1 ::unbound)))
-          (t/is (= object1 (m.protocols/-get-variable result1 ?2 ::unbound))))
+          (t/is (= "" (m.state/get-variable result1 ?1 ::unbound)))
+          (t/is (= object1 (m.state/get-variable result1 ?2 ::unbound))))
 
         (let [result2 (query-unwrap (m.primitive/str ?1 ?2) ilogic2)]
-          (t/is (= "" (m.protocols/-get-variable result2 ?1 ::unbound)))
-          (t/is (= object2 (m.protocols/-get-variable result2 ?2 ::unbound)))))))
+          (t/is (= "" (m.state/get-variable result2 ?1 ::unbound)))
+          (t/is (= object2 (m.state/get-variable result2 ?2 ::unbound)))))))
 
   (t/testing "-yield (dff)"
     (let [object1 "foo"
@@ -385,7 +386,7 @@
           istate1 (m.state/make {})
           ilogic1 (m.logic/make-dff istate1)]
       (t/is (= "foobar"
-               (m.protocols/-get-object
+               (m.state/get-object
                 (yield-unwrap (m.primitive/str (m.primitive/is object1) (m.primitive/is object2))
                               ilogic1))))))
 
@@ -395,8 +396,8 @@
             istate1 (m.state/make {:object object1})
             ilogic1 (m.logic/make-bfs istate1)
             istates (query-unwrap (m.primitive/str ?1 ?2) ilogic1)
-            ?1-vals (map (fn [istate] (m.protocols/-get-variable istate ?1 ::unbound)) istates)
-            ?2-vals (map (fn [istate] (m.protocols/-get-variable istate ?2 ::unbound)) istates)]
+            ?1-vals (map (fn [istate] (m.state/get-variable istate ?1 ::unbound)) istates)
+            ?2-vals (map (fn [istate] (m.state/get-variable istate ?2 ::unbound)) istates)]
         (t/is (= ["" "ab" "a"] ?1-vals))
         (t/is (= ["ab" "" "b"] ?2-vals))))))
 
@@ -427,10 +428,10 @@
           symbol1 (m.primitive/symbol (m.primitive/is "foo"))
           symbol2 (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
       (t/is (= object1
-               (m.protocols/-get-object (yield-unwrap symbol1 ilogic1))))
+               (m.state/get-object (yield-unwrap symbol1 ilogic1))))
 
       (t/is (= object2
-               (m.protocols/-get-object (yield-unwrap symbol2 ilogic1)))))))
+               (m.state/get-object (yield-unwrap symbol2 ilogic1)))))))
 
 (t/deftest keyword-protocol-satisfaction-test
   (t/testing "-query (dff)"
@@ -459,10 +460,10 @@
           keyword1 (m.primitive/keyword (m.primitive/is "foo"))
           keyword2 (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
       (t/is (= object1
-               (m.protocols/-get-object (yield-unwrap keyword1 ilogic1))))
+               (m.state/get-object (yield-unwrap keyword1 ilogic1))))
 
       (t/is (= object2
-               (m.protocols/-get-object (yield-unwrap keyword2 ilogic1)))))))
+               (m.state/get-object (yield-unwrap keyword2 ilogic1)))))))
 
 (t/deftest cons-protocol-satisfaction-test
   (t/testing "-query (dff)"
@@ -486,7 +487,7 @@
           ilogic1 (m.logic/make-dff istate1)
           cons1 (m.primitive/cons (m.primitive/is object1) (m.primitive/is ()))]
       (t/is (= (list object1)
-               (m.protocols/-get-object (yield-unwrap cons1 ilogic1)))))))
+               (m.state/get-object (yield-unwrap cons1 ilogic1)))))))
 
 (t/deftest concat-protocol-satisfaction-test
   (t/testing "-query (bfs)"
@@ -496,28 +497,28 @@
             ilogic1 (m.logic/make-bfs istate1)
             pattern (m.primitive/concat ?1 ?2)]
         (t/is (= '(() (0 1 2) (0 1) (0))
-                 (map #(m.protocols/-get-variable % ?1 ::unbound)
+                 (map #(m.state/get-variable % ?1 ::unbound)
                       (query-unwrap pattern ilogic1))))
 
         (t/is (= '((0 1 2) () (2) (1 2))
-                 (map #(m.protocols/-get-variable % ?2 ::unbound)
+                 (map #(m.state/get-variable % ?2 ::unbound)
                       (query-unwrap pattern ilogic1)))))))
 
   (t/testing "-yield (dff)"
     (m.primitive/fresh [?1 ?2]
       (let [object1 (range 3)
             istate1 (m.state/make {:object object1})
-            istate1 (m.protocols/-set-variable istate1 ?1 [1 2])
-            istate1 (m.protocols/-set-variable istate1 ?2 [3 4])
+            istate1 (m.state/set-variable istate1 ?1 [1 2])
+            istate1 (m.state/set-variable istate1 ?2 [3 4])
             ilogic1 (m.logic/make-dff istate1)
             pattern (m.primitive/concat ?1 ?2)]
         (t/is (= '(1 2 3 4)
-                 (m.protocols/-get-object (yield-unwrap pattern ilogic1)))))
+                 (m.state/get-object (yield-unwrap pattern ilogic1)))))
 
       (let [object1 (range 3)
             istate1 (m.state/make {:object object1})
-            istate1 (m.protocols/-set-variable istate1 ?1 :a)
-            istate1 (m.protocols/-set-variable istate1 ?2 [3 4])
+            istate1 (m.state/set-variable istate1 ?1 :a)
+            istate1 (m.state/set-variable istate1 ?2 [3 4])
             ilogic1 (m.logic/make-dff istate1)
             pattern (m.primitive/concat ?1 ?2)]
         (t/is (m.logic/zero? (m.protocols/-yield pattern ilogic1)))))))
@@ -532,10 +533,10 @@
         (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
 
         (t/is (= 1
-                 (m.protocols/-get-variable (query-unwrap pattern ilogic1) ?a ::unbound)))
+                 (m.state/get-variable (query-unwrap pattern ilogic1) ?a ::unbound)))
 
         (t/is (= [2 3 4]
-                 (m.protocols/-get-variable (query-unwrap pattern ilogic1) ?b ::unbound))))))
+                 (m.state/get-variable (query-unwrap pattern ilogic1) ?b ::unbound))))))
 
   (t/testing "-query (bfs)"
     (m.primitive/fresh [?a ?b]
@@ -546,10 +547,10 @@
         (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
 
         (t/is (= [1]
-                 (map #(m.protocols/-get-variable % ?a ::unbound) (query-unwrap pattern ilogic1))))
+                 (map #(m.state/get-variable % ?a ::unbound) (query-unwrap pattern ilogic1))))
 
         (t/is (= [[2 3 4]]
-                 (map #(m.protocols/-get-variable % ?b ::unbound) (query-unwrap pattern ilogic1))))))))
+                 (map #(m.state/get-variable % ?b ::unbound) (query-unwrap pattern ilogic1))))))))
 
 (t/deftest frugal-star-protocol-satisfaction-test
   (t/testing "-query (dff)"
@@ -561,10 +562,10 @@
         (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
 
         (t/is (= ::unbound
-                 (m.protocols/-get-variable (query-unwrap pattern ilogic1) ?a ::unbound)))
+                 (m.state/get-variable (query-unwrap pattern ilogic1) ?a ::unbound)))
 
         (t/is (= [1 1 1 2 3 4]
-                 (m.protocols/-get-variable (query-unwrap pattern ilogic1) ?b ::unbound))))))
+                 (m.state/get-variable (query-unwrap pattern ilogic1) ?b ::unbound))))))
 
   (t/testing "-query (bfs)"
     (m.primitive/fresh [?a ?b]
@@ -690,8 +691,8 @@
 (t/deftest unbound-protocol-satisfaction-test
   (let [istate_ (m.state/make {})
         ilogic_ (m.logic/make-dff istate_)
-        unbound (m.protocols/-unbound ilogic_)
-        istate0 (m.protocols/-set-object istate_ unbound)
+        unbound (m.logic/unbound ilogic_)
+        istate0 (m.state/set-object istate_ unbound)
         ilogic0 (m.logic/make-dff istate0)
         pattern (m.primitive/unbound)
         result0 (m.protocols/-query pattern ilogic0)]
