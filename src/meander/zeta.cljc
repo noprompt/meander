@@ -296,6 +296,9 @@
                #'logic-variable-symbol
                #'vector-rest]})
 
+;; Variable definitions and notation
+;; ---------------------------------------------------------------------
+
 (defvariable <<
   (system
    (rule [(unbound) ?x]
@@ -382,34 +385,14 @@
    #'vector-as
    #'vector-rest])
 
-(defn dff
+(defmacro dff
   ([system]
-   (dff system {:notations default-notations}))
+   `(dff ~system {:notations ~default-notations}))
   ([system {:keys [notations]}]
-   (make-logic (m.env/create {::m.env/extensions notations}) system m.logic/make-dff)))
+   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system m.logic/make-dff)))
 
-(defn bfs
+(defmacro bfs
   ([system]
-   (bfs system {:notations default-notations}))
+   `(bfs ~system {:notations ~default-notations}))
   ([system {:keys [notations]}]
-   (make-logic (m.env/create {::m.env/extensions notations}) system m.logic/make-bfs)))
-
-(comment
-  [(anything-symbol '_)
-   (logic-variable-symbol '?x)
-   (vector-as '[?x 1 2 ::as 3])
-   (hash-map-as '{:foo 1 ::as ?x})
-   (hash-map-rest '{:foo "bar" &1 ?x})
-   (vector-rest '[?x 1 2 3 & ?rest 1 2])
-   (let '[] 1)
-   (let '[?x 1] 1)])
-
-(comment
-  (m.parse/parse (m.env/create {::m.env/extensions [#'anything-symbol
-                                                    #'logic-variable-symbol
-                                                    #'hash-map-as
-                                                    #'hash-map-rest
-                                                    #'vector-as
-                                                    #'vector-rest]})
-                 '(let [?x 1 ?y 2]
-                    {:x ?x, :y ?y})))
+   (make-logic (m.env/create {::m.env/extensions ~notations}) '~system m.logic/make-bfs)))
