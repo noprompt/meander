@@ -385,7 +385,7 @@
       (m.logic/each m (fn [s] (m.logic/fail m s)))
 
       1
-      (m.protocols/-query (first (.-rules this)) m)
+      (m.protocols/-yield (first (.-rules this)) m)
 
       ;; else
       (reduce m.logic/some
