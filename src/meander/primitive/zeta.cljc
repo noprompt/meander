@@ -869,6 +869,7 @@
                     (m.logic/pass ilogic (m.state/set-object istate2 (clj/with-meta x m)))
                     (m.logic/fail ilogic istate2)))))
             (m.logic/fail ilogic istate1)))))))
+
 ;; API
 ;; ---------------------------------------------------------------------
 
