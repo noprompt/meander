@@ -207,9 +207,9 @@
               (m.logic/each (m.protocols/-redex yrule (m.logic/pass ilogic (m.state/set-object istate0 x)))
                 (fn [istate1]
                   (clj/let [[y z] (m.state/get-object istate1)]
-                    (if (identical? y unbound)
+                    (if (identical? z unbound)
                       (m.logic/fail ilogic istate1)
-                      (m.logic/pass ilogic (m.state/set-object (m.state/set-variable istate0 this z) y)))))))))))))
+                      (m.logic/pass ilogic (m.state/set-object (m.state/set-variable istate0 this y) z)))))))))))))
 
 (defrecord Reference [id]
   m.protocols/IQuery

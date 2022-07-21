@@ -74,8 +74,9 @@
 (def-fn-operator system (comp m.primitive/system vector))
 (def-fn-operator union* m.primitive.hash-set/union)
 (def-fn-operator vec m.primitive/vec)
-(def-fn-operator with m.primitive/with)
+(def-fn-operator ^{:style/indent 1} with m.primitive/with)
 (def-fn-operator with-meta m.primitive/with-meta)
+(def-fn-operator unbound m.primitive/unbound)
 
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
@@ -137,8 +138,26 @@
         (defn ~symbol [& ~'forms]
           (f# (clj/cons '~fq-symbol ~'forms)))))))
 
-;; Notation/Operators
-;; ---------------------------------------------------------------------
+(defn variable-factory
+  [env q-system y-system]
+  (clj/let [q-system-term (m.parse/parse env q-system)
+            y-system-term (m.parse/parse env y-system)]
+    (fn [id]
+      (m.primitive/variable id q-system-term y-system-term))))
+
+(defmacro defvariable
+  [symbol q-system-form y-system-form {:keys [eval notations]}]
+  (clj/let [env (m.env/derive-ns-info &env)
+            fq-symbol (m.env/qualify-symbol env symbol)]
+    `(clj/let [v# (def ~(clj/with-meta symbol {:arglists ''([id])})
+                    (variable-factory (m.env/create {::m.env/eval ~eval
+                                                     ::m.env/extensions ~notations})
+                                      '~q-system-form
+                                      '~y-system-form))]
+       (m.env/operator-add! '~fq-symbol (fn [env# [_# & args#]] (reduced (clj/apply ~symbol args#)))))))
+
+;; Symbol notation
+;; ---------------
 
 (defnotation
   ^{:doc "Convert symbols that start with \"_\"? into the form (anything)."}
@@ -171,6 +190,9 @@
                logic-variable-symbol]
    :terminal? true})
 
+;; Vector operators and notations
+;; ------------------------------
+
 (defnotation vector-as
   (rule
    (vec (concat ?left (cons ::as (some (cons ?x (some () ?right)) ()))))
@@ -191,6 +213,9 @@
          (vec ?left)))
   {:notations [anything-symbol
                logic-variable-symbol]})
+
+;; Map operators and notation
+;; --------------------------
 
 (defnotation hash-map-as
   (rule
@@ -241,10 +266,20 @@
                logic-variable-symbol]})
 
 (defnotation hash-set-as
+  (rule
+   (union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
+   (`each (with-meta ?x ?rest-meta) ?s))
+  {:notations [logic-variable-symbol
+               hash-map-rest]})
+
+(defnotation hash-set-rest
   (system
    (rule
-    (union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
-    (`each (with-meta ?x ?rest-meta) ?s)))
+    #{(with-meta ?x {(symbol _ (str "&" _)) true & ?rest-meta})}
+    (`each (with-meta ?x ?rest-meta)))
+   (rule
+    (union #{(with-meta ?x {(symbol _ (str "&" _)) true & ?rest-meta})} ?s)
+    (`union (with-meta ?x ?rest-meta) ?s)))
   {:notations [logic-variable-symbol
                hash-map-rest]})
 
@@ -260,6 +295,70 @@
   {:notations [#'anything-symbol
                #'logic-variable-symbol
                #'vector-rest]})
+
+(defvariable <<
+  (system
+   (rule [(unbound) ?x]
+         [?x])
+   (rule [[& ?rest] ?x]
+         [& ?rest ?x]))
+  (system
+   (rule [?x]
+         [(unbound) ?x])
+   (rule [& ?rest ?x]
+         [[& ?rest] ?x]))
+  {:notations [logic-variable-symbol
+               vector-rest]})
+
+(defnotation <<-symbol
+  (rule
+   (each ?1 (symbol _ (str "<<" _)))
+   (`<< ?1))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defvariable >>
+  (system
+   (rule [(unbound) ?x]
+         (?x))
+   (rule [(each ?xs (cons _ _)) ?x]
+         (cons ?x ?xs)))
+  (system
+   (rule (?x)
+         [(unbound) ?x])
+   (rule (cons ?x ?xs)
+         [?xs ?x]))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defnotation >>-symbol
+  (rule
+   (each ?1 (symbol _ (str ">>" _)))
+   (`>> ?1))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defvariable ++
+  (system
+   (rule [(unbound) _]
+         1)
+   (rule [?n _]
+         (apply ~inc [?n] _)))
+  (system
+   (rule ?x [?x ?x]))
+  {:eval {'inc inc}
+   :notations [anything-symbol
+               logic-variable-symbol]})
+
+(defnotation ++-symbol
+  (rule
+   (each ?1 (symbol _ (str "++" _)))
+   (`++ ?1))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+;; Callable Systems
+;; ---------------------------------------------------------------------
 
 (defn make-logic
   {:private true}
