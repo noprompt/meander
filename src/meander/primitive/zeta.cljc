@@ -192,7 +192,7 @@
                 (clj/let [z (m.state/get-object istate1)]
                   (if (identical? z unbound)
                     (m.logic/fail ilogic istate1)
-                    (m.logic/pass ilogic (m.state/set-variable istate1 this z)))))))))))
+                    (m.logic/pass ilogic (m.state/set-variable istate0 this z)))))))))))
 
   ;; Variable yield rule is applied to current value and expected to return
   ;; [new-value outgoing-value]. If new-value is unbound we fail.
@@ -209,7 +209,7 @@
                   (clj/let [[y z] (m.state/get-object istate1)]
                     (if (identical? y unbound)
                       (m.logic/fail ilogic istate1)
-                      (m.logic/pass ilogic (m.state/set-object (m.state/set-variable istate1 this z) y)))))))))))))
+                      (m.logic/pass ilogic (m.state/set-object (m.state/set-variable istate0 this z) y)))))))))))))
 
 (defrecord Reference [id]
   m.protocols/IQuery
@@ -264,30 +264,21 @@
 (defrecord Forget [a]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
+    (m.logic/forget ilogic
       (fn [istate0]
-        (m.logic/each (m.protocols/-query a (m.logic/pass ilogic istate0))
-          (fn [istate1]
-            (clj/let [x (m.state/get-object istate1)]
-              (m.logic/pass ilogic (m.state/set-object istate0 x))))))))
+        (m.protocols/-query a (m.logic/pass ilogic istate0)))))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each ilogic
+    (m.logic/forget ilogic
       (fn [istate0]
-        (m.logic/each (m.protocols/-yield a (m.logic/pass ilogic istate0))
-          (fn [istate1]
-            (clj/let [x (m.state/get-object istate1)]
-              (m.logic/pass ilogic (m.state/set-object istate0 x))))))))
+        (m.protocols/-yield a (m.logic/pass ilogic istate0)))))
 
   m.protocols/IRedex
   (-redex [this ilogic]
-    (m.logic/each ilogic
+    (m.logic/forget ilogic
       (fn [istate0]
-        (m.logic/each (m.protocols/-redex a (m.logic/pass ilogic istate0))
-          (fn [istate1]
-            (clj/let [x (m.state/get-object istate1)]
-              (m.logic/pass ilogic (m.state/set-object istate0 x)))))))))
+        (m.protocols/-redex a (m.logic/pass ilogic istate0))))))
 
 (defrecord Project [y q a]
   ;; Yield y with non destructive affect on bindings, query the

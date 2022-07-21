@@ -2,7 +2,8 @@
   (:require
    [meander.logic.bfs.zeta :as m.logic.bfs]
    [meander.logic.dff.zeta :as m.logic.dff]
-   [meander.protocols.zeta :as m.protocols])
+   [meander.protocols.zeta :as m.protocols]
+   [meander.state.zeta :as m.state])
   (:refer-clojure :exclude [comp
                             some
                             zero?]))
@@ -42,6 +43,16 @@
      (m.protocols/-each ilogic
        (fn [istate]
          (m.protocols/-fail ilogic istate)))))
+
+(defn forget
+  {:style/indent 1}
+  [ilogic f]
+  (each ilogic
+    (fn [istate0]
+      (each (f istate0)
+        (fn [istate1]
+          (let [x (m.state/get-object istate1)]
+            (pass ilogic (m.state/set-object istate0 x))))))))
 
 (defn make-dff [istate]
   (m.logic.dff/->DFFLogic istate))
