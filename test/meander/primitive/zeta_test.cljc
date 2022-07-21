@@ -702,14 +702,12 @@
   (t/testing "dff"
     (t/testing "query"
       (m.primitive/fresh [?x]
-        (let [qsystem (m.primitive/forget
-                       (m.primitive/rule
-                        (m.primitive/vector (m.primitive/anything) ?x)
-                        ?x))
-              ysystem (m.primitive/forget
-                       (m.primitive/rule
-                        ?x
-                        (m.primitive/vector ?x ?x)))
+        (let [qsystem (m.primitive/rule
+                       (m.primitive/vector (m.primitive/anything) ?x)
+                       ?x)
+              ysystem (m.primitive/rule
+                       ?x
+                       (m.primitive/vector ?x ?x))
               ! (var-factory qsystem ysystem)
               !1 (! 1)
 
@@ -721,5 +719,7 @@
               result1 (m.protocols/-yield pattern result0)]
 
           (t/is (= 2 (get-variable result0 !1)))
+
           (t/is (= 2 (get-variable result1 !1)))
+
           (t/is (= [2 2] (get-object result1 !1))))))))

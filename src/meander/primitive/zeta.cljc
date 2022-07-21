@@ -930,7 +930,7 @@
 (defn with
   [index a]
   (assert (and (map? index)
-               (every? (fn [x] (instance? Reference x)) 
+               (every? (fn [x] (instance? Reference x))
                        (keys index))))
   (->With index a))
 
