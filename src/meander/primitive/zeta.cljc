@@ -364,49 +364,28 @@
 
 (defrecord RuleSystem [id rules]
   m.protocols/IQuery
-  (-query [this m]
-    (case (count (.-rules this))
-      0
-      (m.logic/each m (fn [s] (m.logic/fail m s)))
-
-      1
-      (m.protocols/-query (first (.-rules this)) m)
-
-      ;; else
-      (reduce m.logic/some
-              (m.protocols/-query (first (.-rules this)) m)
-              (map (fn [rule] (m.protocols/-query rule m))
-                   (rest (.-rules this))))))
+  (-query [this ilogic]
+    (if (zero? (count rules))
+      (m.logic/each ilogic
+        (fn [istate] (m.logic/fail ilogic istate)))
+      (m.logic/scan rules
+        (fn [rule] (m.protocols/-query rule ilogic)))))
 
   m.protocols/IYield
-  (-yield [this m]
-    (case (count (.-rules this))
-      0
-      (m.logic/each m (fn [s] (m.logic/fail m s)))
-
-      1
-      (m.protocols/-yield (first (.-rules this)) m)
-
-      ;; else
-      (reduce m.logic/some
-              (m.protocols/-yield (first (.-rules this)) m)
-              (map (fn [rule] (m.protocols/-yield rule m))
-                   (rest (.-rules this))))))
+  (-yield [this ilogic]
+    (if (zero? (count rules))
+      (m.logic/each ilogic
+        (fn [istate] (m.logic/fail ilogic istate)))
+      (m.logic/scan rules
+        (fn [rule] (m.protocols/-yield rule ilogic)))))
 
   m.protocols/IRedex
-  (-redex [this m]
-    (case (count (.-rules this))
-      0
-      (m.logic/each m (fn [s] (m.logic/fail m s)))
-
-      1
-      (m.protocols/-redex (first (.-rules this)) m)
-
-      ;; else
-      (reduce m.logic/some
-              (m.protocols/-redex (first (.-rules this)) m)
-              (map (fn [rule] (m.protocols/-redex rule m))
-                   (rest (.-rules this)))))))
+  (-redex [this ilogic]
+    (if (zero? (count rules))
+      (m.logic/each ilogic
+        (fn [istate] (m.logic/fail ilogic istate)))
+      (m.logic/scan rules
+        (fn [rule] (m.protocols/-redex rule ilogic))))))
 
 (defrecord Again [id a])
 
@@ -434,13 +413,11 @@
       (fn [s]
         (clj/let [x (m.state/get-object s)]
           (if (string? x)
-            (reduce m.logic/some
-                    (m.logic/fail ilogic s)
-                    (map (fn [[a-part b-part]]
-                           (m.logic/each (m.protocols/-query a (m.logic/pass ilogic (m.state/set-object s a-part)))
-                             (fn [s]
-                               (m.protocols/-query b (m.logic/pass ilogic (m.state/set-object s b-part))))))
-                         (m.algorithms/string-partitions x 2)))
+            (m.logic/scan (m.algorithms/string-partitions x 2)
+              (fn [[a-part b-part]]
+                (m.logic/each (m.protocols/-query a (m.logic/pass ilogic (m.state/set-object s a-part)))
+                  (fn [s]
+                    (m.protocols/-query b (m.logic/pass ilogic (m.state/set-object s b-part)))))))
             (m.logic/fail ilogic s))))))
 
   m.protocols/IYield
@@ -775,24 +752,14 @@
         (fn [s]
           (clj/let [x (m.state/get-object s)]
             (if (map? x)
-              (case (count x)
-                0 (m.logic/fail ilogic s)
-
-                1 (clj/let [e (first x)
-                            x-e (dissoc x (key e))]
-                    (m.logic/each (m.protocols/-query entry (m.logic/pass ilogic (m.state/set-object s e)))
-                      (fn [s]
-                        (m.protocols/-query (.-m this) (m.logic/pass ilogic (m.state/set-object s x-e))))))
-
-                ;; else
-                (reduce m.logic/some
-                        (map
-                         (fn [e]
-                           (clj/let [x-e (dissoc x (key e))]
-                             (m.logic/each (m.protocols/-query entry (m.logic/pass ilogic (m.state/set-object s e)))
-                               (fn [s]
-                                 (m.protocols/-query (.-m this) (m.logic/pass ilogic (m.state/set-object s x-e)))))))
-                         x)))
+              (if (zero? (count x))
+                (m.logic/fail ilogic s)
+                (m.logic/scan x
+                  (fn [e]
+                    (clj/let [x-e (dissoc x (key e))]
+                      (m.logic/each (m.protocols/-query entry (m.logic/pass ilogic (m.state/set-object s e)))
+                        (fn [s]
+                          (m.protocols/-query (.-m this) (m.logic/pass ilogic (m.state/set-object s x-e)))))))))
               (m.logic/fail ilogic s)))))))
 
   m.protocols/IYield
@@ -818,15 +785,11 @@
               (m.logic/each (m.protocols/-query (.-m1 this) (m.logic/pass ilogic (m.state/set-object s {})))
                 (fn [s]
                   (m.protocols/-query (.-m2 this) (m.logic/pass ilogic (m.state/set-object s {})))))
-              ;; Not supplying val here is safe because
-              ;; (map-partitions m 2) will give us a sequence of at
-              ;; least 2 when the key count of m is greater than 0.
-              (reduce m.logic/some
-                      (map (fn [[a b]]
-                             (m.logic/each (m.protocols/-query (.-m1 this) (m.logic/pass ilogic (m.state/set-object s a)))
-                               (fn [s]
-                                 (m.protocols/-query (.-m2 this) (m.logic/pass ilogic (m.state/set-object s b))))))
-                           (m.algorithms/map-partitions x 2))))
+              (m.logic/scan (m.algorithms/map-partitions x 2)
+                (fn [[a b]]
+                  (m.logic/each (m.protocols/-query (.-m1 this) (m.logic/pass ilogic (m.state/set-object s a)))
+                    (fn [s]
+                      (m.protocols/-query (.-m2 this) (m.logic/pass ilogic (m.state/set-object s b))))))))
             (m.logic/fail ilogic s))))))
 
   m.protocols/IYield

@@ -38,6 +38,11 @@
   ^{:arglists '([ilogic1 ilogic2])}
   some #'m.protocols/-some)
 
+(defn scan
+  {:style/indent 1}
+  [xs f]
+  (reduce some (map f xs)))
+
 (defn zero? [ilogic]
   (= ilogic
      (m.protocols/-each ilogic
