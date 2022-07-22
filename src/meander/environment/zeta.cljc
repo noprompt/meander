@@ -5,9 +5,7 @@
 
 (def empty-ns-info
   {::namespace 'user
-   ::requires {}
-   ::refers {}
-   ::interns #{}})
+   ::requires {}})
 
 (defn cljs-env?
   "true if compiling ClojureScript or in a ClojureScript setting,
@@ -23,9 +21,7 @@
   environment. The map has the structure
 
     {::name symbol?
-     ::requires {symbol? qualified-symbol?}
-     ::refers {symbol? qualified-symbol?}
-     ::interns #{symbol?}
+     ::requires {symbol? qualified-symbol?}}
 
   This is used to provide a canonical format for symbol resolution in
   cases where using `*ns*` is inappropriate or does not work."
@@ -33,20 +29,9 @@
      (let [requires (into {}
                           (map (fn [[k v]] [k (ns-name v)]))
                           (ns-aliases *ns*))
-           required-ns-names (set (vals requires))
-           refers (into {}
-                        (keep (fn [[sym x]]
-                                (if (var? x)
-                                  (let [var-ns-name (ns-name (:ns (meta x)))]
-                                    (if (contains? required-ns-names var-ns-name)
-                                      [sym var-ns-name])))))
-                        (ns-refers *ns*))
-           interns (set (keys (ns-interns *ns*)))]
+           required-ns-names (set (vals requires))]
        {::namespace (ns-name *ns*)
-        ::requires requires
-        ::refers refers
-        ;; TODO: Determine what CLJS calls this.
-        ::interns interns})))
+        ::requires requires})))
 
 #?(:clj
    (defn derive-ns-info
@@ -55,10 +40,7 @@
      (if (cljs-env? env)
        (let [{:keys [name requires uses]} (get env :ns)]
          {::namespace name
-          ::requires requires
-          ::refers uses
-          ;; TODO: Determine how to fill this in.
-          ::interns #{}})
+          ::requires requires})
        (cljs-ns-from-clj-ns *ns*))))
 
 #?(:clj
@@ -118,7 +100,9 @@
 ;;
 ;; Operators are stored at the ::operators key of the environment.
 
-(defn operator-add! [symbol f]
+(defn operator-add!
+  {:style/indent 1}
+  [symbol f]
   {:pre [(qualified-symbol? symbol)
          (fn? f)]}
   (swap! operator-registry assoc symbol f))

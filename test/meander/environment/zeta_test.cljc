@@ -13,10 +13,7 @@
                (get (::m.environment/requires ns-info) 't)))
 
       (t/is (= 'meander.environment.zeta
-               (get (::m.environment/requires ns-info) 'm.environment)))
-      
-      (t/is (= '{empty-ns-info meander.environment.zeta}
-               (::m.environment/refers ns-info))))))
+               (get (::m.environment/requires ns-info) 'm.environment))))))
 
 (t/deftest create-test
   (t/testing "environment has the correct shape."
