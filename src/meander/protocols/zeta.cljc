@@ -42,8 +42,15 @@
   (^{:style/indent 1}
    -comp [ilogic f])
   ;; Sentinel value
-  (-unbound [ilogic]))
+  (-unbound [ilogic])
+  ;; NOTE: Experimental
+  (-explain [ilogic context]))
 
 (defprotocol IUnwrap
   :extend-via-metadata true
   (-unwrap [iunwrap]))
+
+(defprotocol IFMap
+  :extend-via-metadata true
+  (^{:style/indent 1}
+   -fmap [this f]))

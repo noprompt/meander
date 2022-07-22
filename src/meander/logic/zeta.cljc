@@ -59,6 +59,9 @@
           (let [x (m.state/get-object istate1)]
             (pass ilogic (m.state/set-object istate0 x))))))))
 
+(def ^{:arglists '([ilogic context])}
+  explain #'m.protocols/-explain)
+
 (defn make-dff [istate]
   (m.logic.dff/->DFFLogic istate))
 

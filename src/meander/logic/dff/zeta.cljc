@@ -26,6 +26,9 @@
       (DFFLogic. nil)
       this))
 
+  (-explain [this context]
+    this)
+
   (-unbound [this]
     unbound)
 

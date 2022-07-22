@@ -74,9 +74,24 @@
 (def-fn-operator system (comp m.primitive/system vector))
 (def-fn-operator union* m.primitive.hash-set/union)
 (def-fn-operator vec m.primitive/vec)
-(def-fn-operator ^{:style/indent 1} with m.primitive/with)
+
+(def ^{:arglists '([id])}
+  % m.primitive/reference)
+(m.env/operator-add! `% (fn [env [_ & args]] (reduced (clj/apply % args))))
+
+(m.env/operator-add! `with*
+  (fn [env [_ index body]]
+    (reduced
+     (m.primitive/with
+      (reduce-kv (fn [m k v]
+                   (clj/assoc m (m.parse/parse env k) (m.parse/parse env v)))
+                 {}
+                 index)
+      (m.parse/parse env body)))))
+
 (def-fn-operator with-meta m.primitive/with-meta)
 (def-fn-operator unbound m.primitive/unbound)
+(def-fn-operator explain* m.primitive/explain)
 
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
@@ -156,6 +171,14 @@
                                       '~y-system-form))]
        (m.env/operator-add! '~fq-symbol (fn [env# [_# & args#]] (reduced (clj/apply ~symbol args#)))))))
 
+;; Base operators
+;; --------------
+
+(defoperator ^{:style/indent 1} with
+  (rule
+   ((anything) (? 1) (? 2))
+   (`with* (? 1) (? 2))))
+
 ;; Symbol notation
 ;; ---------------
 
@@ -189,6 +212,32 @@
    :notations [anything-symbol
                logic-variable-symbol]
    :terminal? true})
+
+(defoperator explain
+  (system
+   (rule
+    (_ (each ?a (`explain _)))
+    ?a)
+
+   (rule
+    (_ ((each ?a (some `each `some `pick `cons `rule))
+        ?b ?c))
+    (`explain* (?a (`explain ?b) (`explain ?c))))
+
+   (rule
+    (_ (`apply ?a ?b ?c))
+    (`explain* (`apply (`explain ?a) (`explain ?b) (`explain ?c))))
+
+   ;; (with {%arg >>x
+   ;;        %args (cons %arg (some %args ()))}
+   ;;   (rule
+   ;;    (_ (cons `system %args))))
+
+   (rule
+    (_ ?a)
+    (`explain* ?a)))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
 
 ;; Vector operators and notations
 ;; ------------------------------
@@ -380,8 +429,13 @@
 (def default-notations
   [#'anything-symbol
    #'logic-variable-symbol
+   #'reference-symbol
+   #'>>-symbol
+   #'<<-symbol
+   #'++-symbol
    #'hash-map-as
    #'hash-map-rest
+   #'hash-set-as
    #'vector-as
    #'vector-rest])
 
@@ -395,4 +449,16 @@
   ([system]
    `(bfs ~system {:notations ~default-notations}))
   ([system {:keys [notations]}]
-   (make-logic (m.env/create {::m.env/extensions ~notations}) '~system m.logic/make-bfs)))
+   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system m.logic/make-bfs)))
+
+(comment
+  ((dff
+    (with {%a (each ?a ++a)
+           %as (cons %a (pick %as ?b))}
+      (rule %as
+            {:total ++a
+             :a ?a
+             :b ?b})))
+   '(1 1 1 2 3 4))
+  ;; =>
+  {:object {:total 3, :a 1, :b (2 3 4)} ,,,})

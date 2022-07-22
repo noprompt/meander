@@ -259,7 +259,11 @@
                                (fn [s4 k]
                                  (m.state/set-reference s4 k (m.state/get-reference s1 k nil)))
                                s3
-                               (keys (.-index this)))))))))))
+                               (keys (.-index this))))))))))
+
+  m.protocols/IRedex
+  (-redex [this m]
+    (m.protocols/-yield this (m.protocols/-query this m))))
 
 (defrecord Forget [a]
   m.protocols/IQuery
@@ -833,6 +837,19 @@
                     (m.logic/fail ilogic istate2)))))
             (m.logic/fail ilogic istate1)))))))
 
+(defrecord Explain [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.logic/explain ilogic {:pattern a, :method :query}))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.logic/explain ilogic {:pattern a, :method :yield}))
+
+  m.protocols/IRedex
+  (-redex [this ilogic]
+    (m.logic/explain ilogic {:pattern a, :method :redex})))
+
 ;; API
 ;; ---------------------------------------------------------------------
 
@@ -1030,3 +1047,7 @@
 (def ^{:arglists '([])}
   unbound
   #'->Unbound)
+
+(def ^{:arglists '([a])}
+  explain
+  #'->Explain)

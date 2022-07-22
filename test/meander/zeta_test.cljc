@@ -2,7 +2,11 @@
   (:require
    [clojure.test :as t]
    [meander.primitive.zeta :as m.primitive]
-   [meander.zeta :as m]))
+   [meander.zeta :as m])
+  (:import meander.primitive.zeta.Variable))
+
+;; Primitive notation tests
+;; ---------------------------------------------------------------------
 
 (t/deftest anything-symbol-test
   (let [result (m/anything-symbol (gensym "_"))]
@@ -27,6 +31,32 @@
     (when (reduced? result)
       (t/is (= (m.primitive/reference '%1)
                (deref result))))))
+
+;; Explain tests
+;; ---------------------------------------------------------------------
+
+(t/deftest explain-test
+  (t/testing "operator"
+    (t/is (= `(m/explain* a)
+             (m/explain `a)))
+
+    (t/is (= `(m/explain* (m/each (m/explain a) (m/explain b)))
+             (m/explain `(m/each a b))))
+
+    (t/is (= `(m/explain* (m/some (m/explain a) (m/explain b)))
+             (m/explain `(m/some a b))))
+
+    (t/is (= `(m/explain* (m/pick (m/explain a) (m/explain b)))
+             (m/explain `(m/pick a b))))
+
+    (t/is (= `(m/explain* (m/cons (m/explain a) (m/explain b)))
+             (m/explain `(m/cons a b))))
+
+    (t/is (= `(m/explain* (m/rule (m/explain a) (m/explain b)))
+             (m/explain `(m/rule a b))))))
+
+;; Vector notation tests
+;; ---------------------------------------------------------------------
 
 (t/deftest vector-as-notation-test
   (t/testing "Rule does nothing when ::m/as is not present"
@@ -63,9 +93,6 @@
       (t/is (= result
                [1 2 3]))))
 
-  (t/testing "Typical use case"
-    )
-
   (t/testing "& can appear anywhere"
     (let [result (m/vector-rest `[1 2 3 & ?x 4 5 6])]
       (t/is (= result
@@ -89,6 +116,8 @@
       (t/is (= result
                `(m/vec (m/concat [1 2 3] ?x [4 5 6])))))))
 
+;; Hash map tests
+;; ---------------------------------------------------------------------
 
 (t/deftest hash-map-as-notation-test
   (t/testing "Rule does nothing when ::m/as is not present"
@@ -123,6 +152,9 @@
       (t/is (= result
                `(m/merge {:foo "bar"} ?x))))))
 
+;; Hash set tests
+;; ---------------------------------------------------------------------
+
 (t/deftest union-operator-test
   (t/is (= `(m/union* #{} ?x) (m/union `?x)))
   (t/is (= `(m/union* ?x ?y) (m/union `?x `?y)))
@@ -144,4 +176,26 @@
 
   (t/testing "Removes ::m/as meta"
     (t/is (= {:foo "bar"}
-             (meta (second (m/hash-set-as #{1 2 (with-meta `?x {::m/as true, :foo "bar"})})))))))
+             (meta (second (m/hash-set-as #{1 2 (with-meta `?x {:foo "bar", ::m/as true})})))))))
+
+(t/deftest hash-set-rest-notation-test
+  (t/testing "Does nothing if there is no element with meta containing the submap {& true}"
+    (t/is (= #{1 2}
+             (m/hash-set-rest #{1 2}))))
+
+  (t/testing "Regonizes element with meta containing the submap {& pattern}"
+    (t/is (= `(m/union ?x #{1 2})
+             (m/hash-set-rest #{1 2 (with-meta `?x `{m/& true})}))))
+
+  (t/testing "Removes & meta"
+    (t/is (= {:foo "bar"}
+             (meta (second (m/hash-set-rest #{1 2 (with-meta `?x `{m/& true, :foo "bar"})})))))))
+
+;; FIFO (>>) tests
+;; ---------------------------------------------------------------------
+
+(t/deftest >>-test
+  (t/testing "notation"
+    (t/is (= `(m/>> >>1) (m/>>-symbol `>>1))))
+  (t/testing "operator"
+    (t/is (instance? Variable (m/>> `>>1)))))
