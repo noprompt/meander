@@ -195,7 +195,7 @@
                     (m.logic/pass ilogic (m.state/set-variable istate0 this z)))))))))))
 
   ;; Variable yield rule is applied to current value and expected to return
-  ;; [new-value outgoing-value]. If new-value is unbound we fail.
+  ;; [new-value outgoing-value]. If outgoing-value is unbound we fail.
   m.protocols/IYield
   (-yield [this ilogic]
     (clj/let [unbound (m.logic/unbound ilogic)]
