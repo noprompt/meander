@@ -14,15 +14,15 @@
 
 (def ^{:arglists '([iquery ilogic])}
   query-unwrap
-  (comp m.protocols/-unwrap m.protocols/-query))
+  (comp deref m.protocols/-query))
 
 (def ^{:arglists '([iyield ilogic])}
   yield-unwrap
-  (comp m.protocols/-unwrap m.protocols/-yield))
+  (comp deref m.protocols/-yield))
 
 (def ^{:arglists '([iyield ilogic])}
   redex-unwrap
-  (comp m.protocols/-unwrap m.protocols/-redex))
+  (comp deref m.protocols/-redex))
 
 (defn var-factory [qrule yrule]
   (fn [id]

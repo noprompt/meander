@@ -10,7 +10,7 @@
     (let [ilogic (m.logic/make-dff (m.state/make {}))
           istate (m.state/make {:object (rand)})]
       (t/is (= istate
-               (m.protocols/-unwrap (m.protocols/-pass ilogic istate))))))
+               (deref (m.protocols/-pass ilogic istate))))))
 
   (t/testing "-fail"
     (let [ilogic (m.logic/make-dff (m.state/make {}))
@@ -18,13 +18,13 @@
       (t/is (m.logic/zero?
              (m.protocols/-fail ilogic istate)))
       (t/is (= nil
-               (m.protocols/-unwrap (m.protocols/-fail ilogic istate))))))
+               (deref (m.protocols/-fail ilogic istate))))))
 
   (t/testing "-each"
     (let [ilogic (m.logic/make-dff (m.state/make {}))
           istate (m.state/make {:object (rand)})]
       (t/is (= istate
-               (m.protocols/-unwrap
+               (deref
                 (m.protocols/-each ilogic
                   (fn [_]
                     (m.protocols/-pass ilogic istate))))))
@@ -93,7 +93,7 @@
     (let [ilogic (m.logic/make-bfs (m.state/make {}))
           istate (m.state/make {:object (rand)})]
       (t/is (= [istate]
-               (m.protocols/-unwrap (m.protocols/-pass ilogic istate))))))
+               (deref (m.protocols/-pass ilogic istate))))))
 
   (t/testing "-fail"
     (let [ilogic (m.logic/make-bfs (m.state/make {}))
@@ -101,13 +101,13 @@
       (t/is (m.logic/zero?
              (m.protocols/-fail ilogic istate)))
       (t/is (= []
-               (m.protocols/-unwrap (m.protocols/-fail ilogic istate))))))
+               (deref (m.protocols/-fail ilogic istate))))))
 
   (t/testing "-each"
     (let [ilogic (m.logic/make-bfs (m.state/make {}))
           istate (m.state/make {:object (rand)})]
       (t/is (= [istate]
-               (m.protocols/-unwrap
+               (deref
                 (m.protocols/-each ilogic
                   (fn [_]
                     (m.protocols/-pass ilogic istate))))))

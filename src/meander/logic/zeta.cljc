@@ -2,8 +2,10 @@
   (:require
    [meander.logic.bfs.zeta :as m.logic.bfs]
    [meander.logic.dff.zeta :as m.logic.dff]
+   [meander.logic.explain.zeta :as m.logic.explain]
    [meander.protocols.zeta :as m.protocols]
-   [meander.state.zeta :as m.state])
+   [meander.state.zeta :as m.state]
+   [meander.logic.zeta :as m.logic])
   (:refer-clojure :exclude [comp
                             some
                             zero?]))
@@ -67,3 +69,9 @@
 
 (defn make-bfs [istate]
   (m.logic.bfs/->BFSLogic (list istate)))
+
+(defn make-dff-explain [istate]
+  (m.logic.explain/->ExplainLogic (make-dff istate) nil))
+
+(defn make-bfs-explain [istate]
+  (m.logic.explain/->ExplainLogic (make-bfs istate) nil))

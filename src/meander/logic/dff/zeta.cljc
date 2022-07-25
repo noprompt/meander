@@ -4,7 +4,7 @@
 (def unbound
   (reify))
 
-(defrecord DFFLogic [istate]
+(deftype DFFLogic [istate]
   m.protocols/ILogic
   (-pass [this istate]
     (DFFLogic. istate))
@@ -22,7 +22,7 @@
     (if istate this that))
   
   (-comp [this f]
-    (if (and istate (get (f istate) :istate))
+    (if (and istate (.-istate ^DFFLogic (f istate)))
       (DFFLogic. nil)
       this))
 
@@ -32,10 +32,15 @@
   (-unbound [this]
     unbound)
 
-  m.protocols/IUnwrap
-  (-unwrap [this]
-    istate)
+  m.protocols/IFMap
+  (-fmap [this f]
+    (if istate (DFFLogic. (f istate)) this))
 
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]
     istate))
+
+#_
+(prefer-method print-method DFFLogic [clojure.lang.IPersistentMap clojure.lang.IDeref])
+#_
+(prefer-method print-method DFFLogic [java.util.Map clojure.lang.IDeref])
