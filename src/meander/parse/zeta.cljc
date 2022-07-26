@@ -8,6 +8,18 @@
   [env form]
   `(throw (ex-info "TODO" {:env ~env, :form ~form, :meta '~(meta &form)})))
 
+(defn quote-form?
+  {:private true}
+  [x]
+  (and (seq? x)
+       (= 'quote (first x))))
+
+(defn unquote-form?
+  {:private true}
+  [x]
+  (and (seq? x)
+       (= 'clojure.core/unquote (first x))))
+
 (defn unquote-splicing-form?
   {:private true}
   [x]
@@ -153,3 +165,57 @@
 
       :else
       (todo env form))))
+
+
+(defn prewalk [f x]
+  (let [y (f x)]
+    (cond
+      (reduced? y)
+      (deref y)
+
+      (seq? y)
+      (doall (map (partial prewalk f) y))
+
+      (vector? y)
+      (mapv (partial prewalk f) y)
+
+      (map? y)
+      (reduce-kv (fn [m k v]
+                   (assoc m (prewalk f k) (prewalk f v)))
+                 {}
+                 y)
+
+      (set? y)
+      (set (map (partial prewalk f) y))
+
+
+      :else y)))
+
+(defn qualify-symbols [env form]
+  (prewalk (fn [x]
+             (cond
+               (or (quote-form? x)
+                   (unquote-form? x)
+                   (unquote-splicing-form? x))
+               (reduced x)
+
+               (symbol? x)
+               (m.env/qualify-symbol env x)
+
+               :else x))
+           form))
+
+(defn qualify-operators [env form]
+  (prewalk (fn [x]
+             (cond
+               (quote-form? x)
+               (reduced x)
+
+               (and (seq? x) (seq x))
+               (let [head (first x)]
+                 (if (symbol? head)
+                   (cons (m.env/qualify-symbol env head) (rest x))
+                   x))
+
+               :else x))
+           form))

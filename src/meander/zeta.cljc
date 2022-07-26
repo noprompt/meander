@@ -106,7 +106,7 @@
                   result (m.protocols/-redex system-term ilogic)]
           (if (m.logic/zero? result)
             (on-zero form)
-            (clj/let [object (m.protocols/-get-object (m.protocols/-unwrap result))]
+            (clj/let [object (m.protocols/-get-object (deref result))]
               (if terminal?
                 (reduced object)
                 object)))))
@@ -141,17 +141,19 @@
   ([symbol system-form {:keys [eval notations terminal?]}]
    (clj/let [env (m.env/derive-ns-info &env)
              fq-symbol (m.env/qualify-symbol env symbol)]
-     `(clj/let [f# (make-notation
-                    (m.env/create {::m.env/eval ~eval
-                                   ::m.env/extensions ~(clj/vec notations)})
-                    '~system-form
-                    (fn [form#]
-                      (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
-                    {:terminal? ~(clj/boolean terminal?)})
-                g# (fn [env# form#] (f# (vary-meta form# clj/merge env#)))]
-        (m.env/operator-add! '~fq-symbol g#)
-        (defn ~symbol [& ~'forms]
-          (f# (clj/cons '~fq-symbol ~'forms)))))))
+     `(do
+        (m.env/operator-remove! '~fq-symbol)
+        (clj/let [f# (make-notation
+                     (m.env/create {::m.env/eval ~eval
+                                    ::m.env/extensions ~(clj/vec notations)})
+                     '~system-form
+                     (fn [form#]
+                       (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
+                     {:terminal? ~(clj/boolean terminal?)})
+                 g# (fn [env# form#] (f# (vary-meta form# clj/merge env#)))]
+         (m.env/operator-add! '~fq-symbol g#)
+         (defn ~symbol [& ~'forms]
+           (f# (clj/cons '~fq-symbol ~'forms))))))))
 
 (defn variable-factory
   [env q-system y-system]
