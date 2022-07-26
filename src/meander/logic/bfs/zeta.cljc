@@ -37,12 +37,15 @@
   (-unbound [this]
     unbound)
 
-
   m.protocols/IFMap
   (-fmap [this f]
     (if (seq istates)
       (BFSLogic. (map f istates))
       this))
+
+  m.protocols/IPure
+  (-pure [this x]
+    (BFSLogic. (list x)))
 
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]

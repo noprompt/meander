@@ -46,11 +46,11 @@
   ;; NOTE: Experimental
   (-explain [ilogic context]))
 
-(defprotocol IUnwrap
-  :extend-via-metadata true
-  (-unwrap [iunwrap]))
-
 (defprotocol IFMap
   :extend-via-metadata true
   (^{:style/indent 1}
    -fmap [this f]))
+
+(defprotocol IPure
+  :extend-via-metadata true
+  (-pure [this x]))

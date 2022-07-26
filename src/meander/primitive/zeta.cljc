@@ -355,16 +355,18 @@
 
 (defrecord Rule [q y]
   m.protocols/IQuery
-  (-query [this m]
-    (m.protocols/-query q m))
+  (-query [this ilogic]
+    (m.protocols/-query q ilogic))
 
   m.protocols/IYield
-  (-yield [this m]
-    (m.protocols/-yield y m))
+  (-yield [this ilogic]
+    (m.protocols/-yield y ilogic))
 
   m.protocols/IRedex
-  (-redex [this m]
-    (m.protocols/-yield this (m.protocols/-query this m))))
+  (-redex [this ilogic]
+    (m.logic/each (m.protocols/-query q ilogic)
+      (fn [istate]
+        (m.protocols/-yield y (m.logic/pass ilogic istate))))))
 
 (defrecord RuleSystem [id rules]
   m.protocols/IQuery
@@ -840,15 +842,15 @@
 (defrecord Explain [a]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/explain ilogic {:pattern a, :method :query}))
+    (m.logic/explain (m.protocols/-query a ilogic) {:pattern a, :method :query}))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/explain ilogic {:pattern a, :method :yield}))
+    (m.logic/explain (m.protocols/-yield a ilogic) {:pattern a, :method :yield}))
 
   m.protocols/IRedex
   (-redex [this ilogic]
-    (m.logic/explain ilogic {:pattern a, :method :redex})))
+    (m.logic/explain (m.protocols/-redex a ilogic) {:pattern a, :method :redex})))
 
 ;; API
 ;; ---------------------------------------------------------------------

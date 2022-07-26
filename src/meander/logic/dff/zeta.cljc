@@ -36,11 +36,10 @@
   (-fmap [this f]
     (if istate (DFFLogic. (f istate)) this))
 
+  m.protocols/IPure
+  (-pure [this x]
+    (DFFLogic. x))
+
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]
     istate))
-
-#_
-(prefer-method print-method DFFLogic [clojure.lang.IPersistentMap clojure.lang.IDeref])
-#_
-(prefer-method print-method DFFLogic [java.util.Map clojure.lang.IDeref])
