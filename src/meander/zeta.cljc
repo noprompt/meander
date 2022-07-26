@@ -96,9 +96,12 @@
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
 
+(defn preprocess-form [env form]
+  (m.parse/autogensym (m.parse/qualify-operator-symbols env form)))
+
 (defn make-notation
   [env system-form on-zero {:keys [terminal?]}]
-  (clj/let [system-term (m.parse/parse env (m.parse/qualify-operator-symbols env system-form))]
+  (clj/let [system-term (m.parse/parse env (preprocess-form env system-form))]
     (if (satisfies? m.protocols/IRedex system-term)
       (fn [form]
         (clj/let [istate (m.state/make {:object form})
@@ -328,15 +331,15 @@
 ;; TODO: Back with a queue.
 (defvariable <<
   (system
-   (rule [(unbound) ?x]
-         [?x])
-   (rule [[& ?rest] ?x]
-         [& ?rest ?x]))
+   (rule [(unbound) ?x#]
+         [?x#])
+   (rule [[& ?rest#] ?x#]
+         [& ?rest# ?x#]))
   (system
-   (rule [?x]
-         [(unbound) ?x])
-   (rule [?x & ?rest]
-         [[& ?rest] ?x]))
+   (rule [?x#]
+         [(unbound) ?x#])
+   (rule [?x# & ?rest#]
+         [[& ?rest#] ?x#]))
   {:notations [logic-variable-symbol
                vector-rest]})
 
@@ -387,18 +390,6 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
-(defnotation auto-gensym
-  (system
-   (rule
-    (symbol ?ns (str ?head "#"))
-    (symbol ?ns (apply ~genstr [?head "_"] _)))
-   (rule
-    (symbol (str ?head "#"))
-    (symbol (apply ~genstr [?head "_"] _))))
-  {:eval {'genstr (comp name gensym clj/str)}
-   :notations [anything-symbol
-               logic-variable-symbol]})
-
 (defoperator explain
   (system
    (rule
@@ -433,7 +424,7 @@
 (defn make-logic
   {:private true}
   [env system-form make-logic]
-  (clj/let [system-term (m.parse/parse env (m.parse/qualify-operator-symbols env system-form))]
+  (clj/let [system-term (m.parse/parse env (preprocess-form env system-form))]
     (if (satisfies? m.protocols/IRedex system-term)
       (fn [form]
         (clj/let [istate (m.state/make {:object form})
@@ -462,7 +453,7 @@
    `(pattern ~x {}))
   ([x {:keys [notations]}]
    `(clj/let [env# (m.env/create {::m.env/extensions ~(or notations 'default-notations)})]
-      (m.parse/parse env# (m.parse/qualify-operator-symbols env# '~x)))))
+      (m.parse/parse env# (preprocess-form env# '~x)))))
 
 (def query m.protocols/-query)
 (def yield m.protocols/-yield)

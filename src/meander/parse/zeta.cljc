@@ -208,3 +208,20 @@
 
                :else x))
            form))
+
+(defn autogensym [form]
+  (prewalk (memoize
+            (fn [x]
+              (cond
+                (quote-form? x)
+                (reduced x)
+
+                (and (symbol? x)
+                     (string/ends-with? (name x) "#"))
+                (let [old-sym-name (name x)
+                      new-sym-name (subs old-sym-name 0 (dec (count old-sym-name)))]
+                  (symbol (namespace x)
+                          (name (gensym new-sym-name))))
+
+                :else x)))
+           form))
