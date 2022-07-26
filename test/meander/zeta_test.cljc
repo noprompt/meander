@@ -53,7 +53,14 @@
              (m/explain `(m/cons a b))))
 
     (t/is (= `(m/explain* (m/rule (m/explain a) (m/explain b)))
-             (m/explain `(m/rule a b))))))
+             (m/explain `(m/rule a b))))
+
+    (t/is (= `(m/explain* (m/system
+                           (m/explain (m/rule a b))
+                           (m/explain (m/rule c d))))
+             (m/explain `(m/system
+                          (m/rule a b)
+                          (m/rule c d)))))))
 
 ;; Vector notation tests
 ;; ---------------------------------------------------------------------

@@ -98,7 +98,7 @@
 
 (defn make-notation
   [env system-form on-zero {:keys [terminal?]}]
-  (clj/let [system-term (m.parse/parse env system-form)]
+  (clj/let [system-term (m.parse/parse env (m.parse/qualify-operator-symbols env system-form))]
     (if (satisfies? m.protocols/IRedex system-term)
       (fn [form]
         (clj/let [istate (m.state/make {:object form})
@@ -119,7 +119,7 @@
    `(notation ~system-form {}))
   ([system-form {:keys [eval notations terminal?]}]
    `(make-notation (m.env/create {::m.env/eval ~eval
-                                 ::m.env/extensions ~(clj/vec notations)})
+                                  ::m.env/extensions ~(clj/vec notations)})
                   '~system-form
                   identity
                   {:terminal? ~(clj/boolean terminal?)})))
@@ -215,32 +215,6 @@
                logic-variable-symbol]
    :terminal? true})
 
-(defoperator explain
-  (system
-   (rule
-    (_ (each ?a (`explain _)))
-    ?a)
-
-   (rule
-    (_ ((each ?a (some `each `some `pick `cons `rule))
-        ?b ?c))
-    (`explain* (?a (`explain ?b) (`explain ?c))))
-
-   (rule
-    (_ (`apply ?a ?b ?c))
-    (`explain* (`apply (`explain ?a) (`explain ?b) (`explain ?c))))
-
-   ;; (with {%arg >>x
-   ;;        %args (cons %arg (some %args ()))}
-   ;;   (rule
-   ;;    (_ (cons `system %args))))
-
-   (rule
-    (_ ?a)
-    (`explain* ?a)))
-  {:notations [anything-symbol
-               logic-variable-symbol]})
-
 ;; Vector operators and notations
 ;; ------------------------------
 
@@ -306,6 +280,7 @@
     (_) #{})
    (rule
     (_ ?x)
+
     (`intersection* #{} ?x))
    (rule
     (_ ?x ?y)
@@ -350,6 +325,7 @@
 ;; Variable definitions and notation
 ;; ---------------------------------------------------------------------
 
+;; TODO: Back with a queue.
 (defvariable <<
   (system
    (rule [(unbound) ?x]
@@ -359,7 +335,7 @@
   (system
    (rule [?x]
          [(unbound) ?x])
-   (rule [& ?rest ?x]
+   (rule [?x & ?rest]
          [[& ?rest] ?x]))
   {:notations [logic-variable-symbol
                vector-rest]})
@@ -411,19 +387,59 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
+(defnotation auto-gensym
+  (system
+   (rule
+    (symbol ?ns (str ?head "#"))
+    (symbol ?ns (apply ~genstr [?head "_"] _)))
+   (rule
+    (symbol (str ?head "#"))
+    (symbol (apply ~genstr [?head "_"] _))))
+  {:eval {'genstr (comp name gensym clj/str)}
+   :notations [anything-symbol
+               logic-variable-symbol]})
+
+(defoperator explain
+  (system
+   (rule
+    (_ (`explain ?a))
+    (`explain* ?a))
+
+   (rule
+    (_ ((each (some `cons `each `pick `rule `some) ?x) ?a ?b))
+    (`explain* (?x (`explain ?a) (`explain ?b))))
+
+   ;; (rule
+   ;;  (_ (`apply ?a ?b ?c))
+   ;;  (`explain* (`apply (`explain ?a) (`explain ?b) (`explain ?c))))
+   (with {%arg <<x
+          %args-in (cons %arg (pick %args-in ()))
+          %args-out (cons (`explain %arg) (pick %args-out ()))}
+     (rule
+      (_ (cons `system %args-in))
+      (`explain* (cons `system %args-out))))
+
+   (rule
+    (_ ?a)
+    (`explain* ?a)))
+  {:notations [<<-symbol
+               anything-symbol
+               reference-symbol
+               logic-variable-symbol]})
+
 ;; Callable Systems
 ;; ---------------------------------------------------------------------
 
 (defn make-logic
   {:private true}
   [env system-form make-logic]
-  (clj/let [system-term (m.parse/parse env system-form)]
+  (clj/let [system-term (m.parse/parse env (m.parse/qualify-operator-symbols env system-form))]
     (if (satisfies? m.protocols/IRedex system-term)
       (fn [form]
         (clj/let [istate (m.state/make {:object form})
                   ilogic (make-logic istate)
                   result (m.protocols/-redex system-term ilogic)]
-          (m.protocols/-unwrap result)))
+          (deref result)))
       (throw (ex-info "system-form must parse to an object which satisfies meander.protocols.zeta/IRedex"
                       {:system-form system-form
                        :system-term system-term})))))
@@ -441,26 +457,31 @@
    #'vector-as
    #'vector-rest])
 
+(defmacro pattern
+  ([x]
+   `(pattern ~x {}))
+  ([x {:keys [notations]}]
+   `(clj/let [env# (m.env/create {::m.env/extensions ~(or notations 'default-notations)})]
+      (m.parse/parse env# (m.parse/qualify-operator-symbols env# '~x)))))
+
+(def query m.protocols/-query)
+(def yield m.protocols/-yield)
+(def redex m.protocols/-redex)
+
 (defmacro dff
   ([system]
    `(dff ~system {:notations ~default-notations}))
-  ([system {:keys [notations]}]
-   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system m.logic/make-dff)))
+  ([system {:keys [explain? notations]}]
+   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system
+                ~(if explain?
+                   'm.logic/make-dff-explain
+                   'm.logic/make-dff))))
 
 (defmacro bfs
   ([system]
    `(bfs ~system {:notations ~default-notations}))
-  ([system {:keys [notations]}]
-   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system m.logic/make-bfs)))
-
-(comment
-  ((dff
-    (with {%a (each ?a ++a)
-           %as (cons %a (pick %as ?b))}
-      (rule %as
-            {:total ++a
-             :a ?a
-             :b ?b})))
-   '(1 1 1 2 3 4))
-  ;; =>
-  {:object {:total 3, :a 1, :b (2 3 4)} ,,,})
+  ([system {:keys [explain? notations]}]
+   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system
+                ~(if explain?
+                   'm.logic/make-bfs-explain
+                   'm.logic/make-bfs))))

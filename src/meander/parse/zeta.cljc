@@ -191,21 +191,7 @@
 
       :else y)))
 
-(defn qualify-symbols [env form]
-  (prewalk (fn [x]
-             (cond
-               (or (quote-form? x)
-                   (unquote-form? x)
-                   (unquote-splicing-form? x))
-               (reduced x)
-
-               (symbol? x)
-               (m.env/qualify-symbol env x)
-
-               :else x))
-           form))
-
-(defn qualify-operators [env form]
+(defn qualify-operator-symbols [env form]
   (prewalk (fn [x]
              (cond
                (quote-form? x)
@@ -214,7 +200,10 @@
                (and (seq? x) (seq x))
                (let [head (first x)]
                  (if (symbol? head)
-                   (cons (m.env/qualify-symbol env head) (rest x))
+                   (let [fq-sym (m.env/qualify-symbol env head)]
+                     (if (m.env/operator-symbol? env fq-sym)
+                       (cons fq-sym (rest x))
+                       x))
                    x))
 
                :else x))

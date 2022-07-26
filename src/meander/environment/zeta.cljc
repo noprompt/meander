@@ -128,3 +128,6 @@
     (if (= form* form)
       form
       (recur environment form*))))
+
+(defn operator-symbol? [env symbol]
+  (contains? (::operators env) symbol))
