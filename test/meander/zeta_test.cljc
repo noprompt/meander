@@ -164,7 +164,7 @@
 ;; ---------------------------------------------------------------------
 
 (t/deftest union-operator-test
-  (t/is (= `(m.set/member* ?x)
+  (t/is (= `(m.set/member ?x)
            (m.set/union `?x)))
 
   (t/is (= `(m.set/union* ?x (m.set/union ?y))
@@ -174,7 +174,7 @@
            (m.set/union `?x `?y `?z))))
 
 (t/deftest intersection-operator-test
-  (t/is (= `(m.set/member* ?x)
+  (t/is (= `(m.set/member ?x)
            (m.set/intersection `?x)))
 
   (t/is (= `(m.set/intersection* ?x (m.set/intersection ?y))

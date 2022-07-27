@@ -160,8 +160,10 @@
     (->HashSetCast a)))
 
 (defn conj
-  [s e]
-  (member (->HashSetConj (member s) e)))
+  ([s e]
+   (member (->HashSetConj (member s) e)))
+  ([s e & more]
+   (reduce ->HashSetConj (conj s e) more)))
 
 (defn union [s1 s2]
   (cond

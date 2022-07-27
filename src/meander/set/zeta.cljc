@@ -8,11 +8,11 @@
             [meander.environment.zeta :as m.env])
   (:refer-clojure :exclude [conj]))
 
-(m.private/def-fn-operator any* m.primitive.hash-set/any)
-(m.private/def-fn-operator conj* m.primitive.hash-set/conj)
-(m.private/def-fn-operator empty* m.primitive.hash-set/empty)
+(m.private/def-fn-operator any m.primitive.hash-set/any)
+(m.private/def-fn-operator conj m.primitive.hash-set/conj)
+(m.private/def-fn-operator empty m.primitive.hash-set/empty)
 (m.private/def-fn-operator intersection* m.primitive.hash-set/intersection)
-(m.private/def-fn-operator member* m.primitive.hash-set/member)
+(m.private/def-fn-operator member m.primitive.hash-set/member)
 (m.private/def-fn-operator union* m.primitive.hash-set/union)
 
 (def ^:private union-system
@@ -21,17 +21,17 @@
       [;; (union) => (empty)
        (m.primitive/rule
         (m.primitive/list ?op)
-        (m.primitive/list (m.primitive/is `empty*)))
+        (m.primitive/list (m.primitive/is `empty)))
 
        ;; (union a) => (member a)
        (m.primitive/rule
         (m.primitive/list ?op ?a)
-        (m.primitive/list (m.primitive/is `member*) ?a))
+        (m.primitive/list (m.primitive/is `member) ?a))
 
        ;; (union a a) => (member (each a a))
        (m.primitive/rule
         (m.primitive/list ?op ?a ?a)
-        (m.primitive/list (m.primitive/is `member*) (m.primitive/list `m.private/each* ?a ?a)))
+        (m.primitive/list (m.primitive/is `member) (m.primitive/list `m.private/each* ?a ?a)))
 
        ;; (union a b & more) => (union* a (union b & more)
        (m.primitive/rule
@@ -52,17 +52,17 @@
       [;; (intersection) => (empty)
        (m.primitive/rule
         (m.primitive/list ?op)
-        (m.primitive/list (m.primitive/is `empty*)))
+        (m.primitive/list (m.primitive/is `empty)))
 
        ;; (intersection a) => (member a)
        (m.primitive/rule
         (m.primitive/list ?op ?a)
-        (m.primitive/list (m.primitive/is `member*) ?a))
+        (m.primitive/list (m.primitive/is `member) ?a))
 
        ;; (intersection a a) => (member (each a a))
        (m.primitive/rule
         (m.primitive/list ?op ?a ?a)
-        (m.primitive/list (m.primitive/is `member*) (m.primitive/list `m.private/each* ?a ?a)))
+        (m.primitive/list (m.primitive/is `member) (m.primitive/list `m.private/each* ?a ?a)))
 
        ;; (intersection a b & more) => (intersection* a (intersection b & more)
        (m.primitive/rule
