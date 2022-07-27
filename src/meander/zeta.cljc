@@ -8,7 +8,8 @@
    [meander.primitive.zeta :as m.primitive]
    [meander.private.zeta :as m.private]
    [meander.protocols.zeta :as m.protocols]
-   [meander.state.zeta :as m.state])
+   [meander.state.zeta :as m.state]
+   [meander.set.zeta :as m.set])
   (:refer-clojure :exclude [apply
                             assoc
                             concat
@@ -40,9 +41,7 @@
 (m.private/def-fn-operator explain* m.primitive/explain)
 (m.private/def-fn-operator hash-map m.primitive/hash-map)
 (m.private/def-fn-operator hash-set* m.primitive/hash-set)
-(m.private/def-fn-operator hash-set-cast m.primitive.hash-set/cast)
-(m.private/def-fn-operator hash-set-conj* m.primitive.hash-set/conj)
-(m.private/def-fn-operator intersection* m.primitive.hash-set/intersection)
+(m.private/def-fn-operator set m.primitive.hash-set/cast)
 (m.private/def-fn-operator keyword m.primitive/keyword)
 (m.private/def-fn-operator list m.primitive/list)
 (m.private/def-fn-operator merge m.primitive/merge)
@@ -57,7 +56,6 @@
 (m.private/def-fn-operator symbol m.primitive/symbol)
 (m.private/def-fn-operator system (comp m.primitive/system vector))
 (m.private/def-fn-operator unbound m.primitive/unbound)
-(m.private/def-fn-operator union* m.primitive.hash-set/union)
 (m.private/def-fn-operator vec m.primitive/vec)
 (m.private/def-fn-operator with-meta m.primitive/with-meta)
 
@@ -312,41 +310,9 @@
 ;; Set operators and notation
 ;; --------------------------
 
-(defoperator union
-  (system
-   (rule
-    (_) #{})
-   (rule
-    (_ ?x)
-    (`union* #{} ?x))
-   (rule
-    (_ ?x ?y)
-    (`union* ?x ?y))
-   (rule
-    (cons _ (cons ?x (each ?y (cons _ _))))
-    (`union* ?x (cons `union ?y))))
-  {:notations [anything-symbol
-               logic-variable-symbol]})
-
-(defoperator intersection
-  (system
-   (rule
-    (_) #{})
-   (rule
-    (_ ?x)
-    (`intersection* #{} ?x))
-   (rule
-    (_ ?x ?y)
-    (`intersection* ?x ?y))
-   (rule
-    (cons _ (cons ?x (each ?y (cons _ _))))
-    (`intersection* ?x (cons `intersection ?y))))
-  {:notations [anything-symbol
-               logic-variable-symbol]})
-
 (defnotation hash-set-as
   (rule
-   (union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
+   (m.set/union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
    (`each (with-meta ?x ?rest-meta) ?s))
   {:notations [logic-variable-symbol
                hash-map-rest]})
@@ -358,8 +324,8 @@
     (`each (with-meta ?x ?rest-meta)))
 
    (rule
-    (union #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})} ?s)
-    (`union (with-meta ?x ?rest-meta) ?s)))
+    (m.set/union #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})} ?s)
+    (`m.set/union (with-meta ?x ?rest-meta) ?s)))
   {:notations [anything-symbol
                logic-variable-symbol
                hash-map-rest]})

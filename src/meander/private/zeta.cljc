@@ -14,8 +14,7 @@
 
 (defmacro def-fn-operator
   [sym f]
-  (let [ns-info (m.env/derive-ns-info &env)
-        fq-sym (symbol (name (::m.env/namespace ns-info)) (name sym))]
+  (let [fq-sym (symbol (name (::m.env/namespace (m.env/derive-ns-info &env))) (name sym))]
     `(let [f# (derive-operator-from-function ~f)
            v# (defn ~sym [& args#] (f# nil (cons '~fq-sym args#)))]
        (m.env/operator-add! '~fq-sym (comp reduced f#))
@@ -30,8 +29,8 @@
     (if (satisfies? m.protocols/IRedex system-term)
       (fn [form]
         (let [istate (m.state/make {:object form})
-                  ilogic (m.logic/make-dff istate)
-                  result (m.protocols/-redex system-term ilogic)]
+              ilogic (m.logic/make-dff istate)
+              result (m.protocols/-redex system-term ilogic)]
           (if (m.logic/zero? result)
             (on-zero form)
             (let [object (m.protocols/-get-object (deref result))]
@@ -48,7 +47,6 @@
      :cljs
      (instance? js/Error x)))
 
-
 (defmacro make-notation
   [env system-form on-zero options]
   `(let [x# (make-notation* ~env '~system-form ~on-zero ~options)]
@@ -56,10 +54,20 @@
        (throw x#)
        x#)))
 
+(defmacro create-operator-fn
+  [system-form options]
+  `(make-notation
+    (m.env/create {::m.env/eval (:eval ~options)
+                   ::m.env/extensions (:notations ~options)})
+    ~system-form
+    (fn [form#]
+      (throw (ex-info "Match error" {:form form#})))
+    ~options))
+
 (defn variable-factory
   [env q-system y-system]
   (let [q-system-term (m.parse/parse env q-system)
-            y-system-term (m.parse/parse env y-system)]
+        y-system-term (m.parse/parse env y-system)]
     (fn [id]
       (m.primitive/variable id q-system-term y-system-term))))
 
@@ -69,8 +77,8 @@
     (if (satisfies? m.protocols/IRedex system-term)
       (fn [form]
         (let [istate (m.state/make {:object form})
-                  ilogic (make-logic istate)
-                  result (m.protocols/-redex system-term ilogic)]
+              ilogic (make-logic istate)
+              result (m.protocols/-redex system-term ilogic)]
           (deref result)))
       (ex-info "system-form must parse to an object which satisfies meander.protocols.zeta/IRedex"
                {:system-form system-form
@@ -78,9 +86,19 @@
 
 (defmacro create-system-fn
   [system-form options make-logic]
-  `(let [env# (m.env/create ~{::m.env/eval (:eval ~options)
-                              ::m.env/extensions (:notations ~options)})
+  `(let [env# (m.env/create {::m.env/eval (:eval ~options)
+                             ::m.env/extensions (:notations ~options)})
          x# (create-system-fn* env# '~system-form ~make-logic)]
      (if (exception? x#)
        (throw x#)
        x#)))
+
+
+
+;; Core Operators
+;; ---------------------------------------------------------------------
+
+(def-fn-operator anything* m.primitive/anything)
+(def-fn-operator rule* m.primitive/rule)
+(def-fn-operator system* (comp m.primitive/system vector))
+(def-fn-operator each* m.primitive/each)

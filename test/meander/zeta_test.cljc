@@ -2,7 +2,8 @@
   (:require
    [clojure.test :as t]
    [meander.primitive.zeta :as m.primitive]
-   [meander.zeta :as m])
+   [meander.zeta :as m]
+   [meander.set.zeta :as m.set])
   (:import meander.primitive.zeta.Variable))
 
 ;; Primitive notation tests
@@ -163,14 +164,24 @@
 ;; ---------------------------------------------------------------------
 
 (t/deftest union-operator-test
-  (t/is (= `(m/union* #{} ?x) (m/union `?x)))
-  (t/is (= `(m/union* ?x ?y) (m/union `?x `?y)))
-  (t/is (= `(m/union* ?x (m/union ?y ?z)) (m/union `?x `?y `?z))))
+  (t/is (= `(m.set/member* ?x)
+           (m.set/union `?x)))
+
+  (t/is (= `(m.set/union* ?x (m.set/union ?y))
+           (m.set/union `?x `?y)))
+
+  (t/is (= `(m.set/union* ?x (m.set/union ?y ?z))
+           (m.set/union `?x `?y `?z))))
 
 (t/deftest intersection-operator-test
-  (t/is (= `(m/intersection* #{} ?x) (m/intersection `?x)))
-  (t/is (= `(m/intersection* ?x ?y) (m/intersection `?x `?y)))
-  (t/is (= `(m/intersection* ?x (m/intersection ?y ?z)) (m/intersection `?x `?y `?z))))
+  (t/is (= `(m.set/member* ?x)
+           (m.set/intersection `?x)))
+
+  (t/is (= `(m.set/intersection* ?x (m.set/intersection ?y))
+           (m.set/intersection `?x `?y)))
+
+  (t/is (= `(m.set/intersection* ?x (m.set/intersection ?y ?z))
+           (m.set/intersection `?x `?y `?z))))
 
 (t/deftest hash-set-as-notation-test
   (t/testing "Does nothing if there is no element with meta containing the submap {::m/as true}"
@@ -191,7 +202,7 @@
              (m/hash-set-rest #{1 2}))))
 
   (t/testing "Regonizes element with meta containing the submap {& pattern}"
-    (t/is (= `(m/union ?x #{1 2})
+    (t/is (= `(m.set/union ?x #{1 2})
              (m/hash-set-rest #{1 2 (with-meta `?x `{m/& true})}))))
 
   (t/testing "Removes & meta"
