@@ -11,8 +11,12 @@
                             empty
                             empty?]))
 
-(defn empty-set? [x]
-  (= x #{}))
+(defn empty-set?
+  {:private true}
+  [x] (= x #{}))
+
+;; Definitions/Implementation
+;; ---------------------------------------------------------------------
 
 (defrecord HashSetAny [])
 
@@ -118,6 +122,8 @@
             (fn [y]
               (set/intersection x y))))))))
 
+;; Public API
+;; ---------------------------------------------------------------------
 
 (defn any?
   {:private true}
@@ -188,7 +194,7 @@
     s2
 
     (and (any? s1) (any? s2))
-    s1
+    (any)
 
     :else
     (member (->HashSetIntersection (member s1) (member s2)))))

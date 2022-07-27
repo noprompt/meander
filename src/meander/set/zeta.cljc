@@ -6,7 +6,8 @@
             [meander.protocols.zeta :as m.protocols]
             [meander.state.zeta :as m.state]
             [meander.environment.zeta :as m.env])
-  (:refer-clojure :exclude [conj]))
+  (:refer-clojure :exclude [conj
+                            empty]))
 
 (m.private/def-fn-operator any m.primitive.hash-set/any)
 (m.private/def-fn-operator conj m.primitive.hash-set/conj)
