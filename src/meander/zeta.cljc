@@ -56,8 +56,9 @@
 (def-fn-operator cons m.primitive/cons)
 (def-fn-operator each m.primitive/each)
 (def-fn-operator hash-map m.primitive/hash-map)
-(def-fn-operator hash-set m.primitive/hash-set)
+(def-fn-operator hash-set* m.primitive/hash-set)
 (def-fn-operator hash-set-conj* m.primitive.hash-set/conj)
+(def-fn-operator hash-set-cast m.primitive.hash-set/cast)
 (def-fn-operator intersection* m.primitive.hash-set/intersection)
 (def-fn-operator keyword m.primitive/keyword)
 (def-fn-operator list m.primitive/list)
@@ -242,92 +243,6 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
-;; Map operators and notation
-;; --------------------------
-
-(defnotation hash-map-as
-  (rule
-   (assoc ?m ::as ?v)
-   (`each ?v ?m))
-  {:notations [logic-variable-symbol]})
-
-(defnotation hash-map-rest
-  (rule
-   (assoc ?m (symbol (str "&" _)) ?v)
-   (`merge ?m ?v))
-  {:notations [anything-symbol
-               logic-variable-symbol]})
-
-;; Set operators and notation
-;; --------------------------
-
-(defoperator union
-  (system
-   (rule
-    (_) #{})
-   (rule
-    (_ ?x)
-    (`union* #{} ?x))
-   (rule
-    (_ ?x ?y)
-    (`union* ?x ?y))
-   (rule
-    (cons _ (cons ?x (each ?y (cons _ _))))
-    (`union* ?x (cons `union ?y))))
-  {:notations [anything-symbol
-               logic-variable-symbol]})
-
-(defoperator intersection
-  (system
-   (rule
-    (_) #{})
-   (rule
-    (_ ?x)
-
-    (`intersection* #{} ?x))
-   (rule
-    (_ ?x ?y)
-    (`intersection* ?x ?y))
-   (rule
-    (cons _ (cons ?x (each ?y (cons _ _))))
-    (`intersection* ?x (cons `intersection ?y))))
-  {:notations [anything-symbol
-               logic-variable-symbol]})
-
-(defnotation hash-set-as
-  (rule
-   (union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
-   (`each (with-meta ?x ?rest-meta) ?s))
-  {:notations [logic-variable-symbol
-               hash-map-rest]})
-
-(defnotation hash-set-rest
-  (system
-   (rule
-    #{(with-meta ?x {(symbol _ (str "&" _)) true & ?rest-meta})}
-    (`each (with-meta ?x ?rest-meta)))
-   (rule
-    (union #{(with-meta ?x {(symbol _ (str "&" _)) true & ?rest-meta})} ?s)
-    (`union (with-meta ?x ?rest-meta) ?s)))
-  {:notations [logic-variable-symbol
-               hash-map-rest]})
-
-(defoperator let
-  (system
-   (rule
-    (_ [] ?1)
-    ?1)
-
-   (rule
-    (_ [?1 ?2 & ?rest] ?3)
-    (`project ?2 ?1 (`let ?rest ?3))))
-  {:notations [#'anything-symbol
-               #'logic-variable-symbol
-               #'vector-rest]})
-
-;; Variable definitions and notation
-;; ---------------------------------------------------------------------
-
 ;; TODO: Back with a queue.
 (defvariable <<
   (system
@@ -421,6 +336,93 @@
                reference-symbol
                logic-variable-symbol]})
 
+;; Map operators and notation
+;; --------------------------
+
+(defnotation hash-map-as
+  (rule
+   (assoc ?m ::as ?v)
+   (`each ?v ?m))
+  {:notations [logic-variable-symbol]})
+
+(defnotation hash-map-rest
+  (rule
+   (assoc ?m (symbol _ (str "&" _)) ?v)
+   (`merge ?m ?v))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+;; Set operators and notation
+;; --------------------------
+
+(defoperator union
+  (system
+   (rule
+    (_) #{})
+   (rule
+    (_ ?x)
+    (`union* #{} ?x))
+   (rule
+    (_ ?x ?y)
+    (`union* ?x ?y))
+   (rule
+    (cons _ (cons ?x (each ?y (cons _ _))))
+    (`union* ?x (cons `union ?y))))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defoperator intersection
+  (system
+   (rule
+    (_) #{})
+   (rule
+    (_ ?x)
+    (`intersection* #{} ?x))
+   (rule
+    (_ ?x ?y)
+    (`intersection* ?x ?y))
+   (rule
+    (cons _ (cons ?x (each ?y (cons _ _))))
+    (`intersection* ?x (cons `intersection ?y))))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
+(defnotation hash-set-as
+  (rule
+   (union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
+   (`each (with-meta ?x ?rest-meta) ?s))
+  {:notations [logic-variable-symbol
+               hash-map-rest]})
+;; #{^{::as true :foo bar} ?x 1 2 3}
+;; =>
+;; (each ^{:foo bar} ?x #{1 2 3})
+
+(defnotation hash-set-rest
+  (system
+   (rule
+    #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})}
+    (`each (with-meta ?x ?rest-meta)))
+   (rule
+    (union #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})} ?s)
+    (`union (with-meta ?x ?rest-meta) ?s)))
+  {:notations [anything-symbol
+               logic-variable-symbol
+               hash-map-rest]})
+
+(defoperator let
+  (system
+   (rule
+    (_ [] ?1)
+    ?1)
+
+   (rule
+    (_ [?1 ?2 & ?rest] ?3)
+    (`project ?2 ?1 (`let ?rest ?3))))
+  {:notations [#'anything-symbol
+               #'logic-variable-symbol
+               #'vector-rest]})
+
+
 ;; Callable Systems
 ;; ---------------------------------------------------------------------
 
@@ -475,17 +477,6 @@
                 ~(if explain?
                    'm.logic/make-bfs-explain
                    'm.logic/make-bfs))))
-
-#_
-(defnotation simplify
-  (system
-   (rule
-    (`some [?a] [?b])
-    [(`some ?a ?b)])
-   (rule
-    (`some [?a & ?rest1] [?a & ?rest2])
-    [?a `& (`some ?rest1 ?rest2)]))
-  {:notations default-notations})
 
 (def query m.protocols/-query)
 (def yield m.protocols/-yield)

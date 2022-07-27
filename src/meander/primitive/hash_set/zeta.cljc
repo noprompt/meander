@@ -14,6 +14,7 @@
 
 (defrecord HashSetAny [])
 
+
 (defrecord HashSetMember [a]
   m.protocols/IQuery
   (-query [this ilogic]
@@ -122,15 +123,33 @@
 (def ^{:arglists '([])}
   empty #'->HashSetEmpty)
 
-(def ^{:arglists '([a])}
-  cast #'->HashSetCast)
+(defn member
+  "If a is an instance of `HashSetAny`, `HashSetCast`, `HashSetEmpty`, or
+  `HashSetMember`, return a, otherwise return an instance of `HashSetMember`
+  constructed with a."
+  [a]
+  (if (or (instance? HashSetAny a)
+          (instance? HashSetCast a)
+          (instance? HashSetEmpty a)
+          (instance? HashSetMember a))
+    a
+    (->HashSetMember a)))
 
-(def ^{:arglists '([a])}
-  member #'->HashSetMember)
+(defn cast
+  "If a is an instance of `HashSetAny`, `HashSetCast`, `HashSetEmpty`, or
+  `HashSetMember`, return a, otherwise return an instance of `HashSetCast`
+  constructed with a."
+  [a]
+  (if (or (instance? HashSetAny a)
+          (instance? HashSetCast a)
+          (instance? HashSetEmpty a)
+          (instance? HashSetMember a))
+    a
+    (->HashSetCast a)))
 
 (defn conj
   [s e]
-  (->HashSetConj (member s) e))
+  (member (->HashSetConj (member s) e)))
 
 (defn union [s1 s2]
   (member (->HashSetUnion (member s1) (member s2))))
