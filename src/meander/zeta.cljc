@@ -6,6 +6,7 @@
    [meander.parse.zeta :as m.parse]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.primitive.zeta :as m.primitive]
+   [meander.private.zeta :as m.private]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state])
   (:refer-clojure :exclude [apply
@@ -30,51 +31,39 @@
 ;; Primitive operator definitions
 ;; ---------------------------------------------------------------------
 
-(defn derive-operator-from-function
-  {:private true}
-  [f]
-  (fn [env [_ & args]] (clj/apply f (m.parse/parse-all env args))))
-
-(defmacro def-fn-operator
-  {:private true}
-  [sym f]
-  (clj/let [ns-info (m.env/derive-ns-info &env)
-            fq-sym (clj/symbol (name (::m.env/namespace ns-info)) (name sym))]
-    `(clj/let [f# (derive-operator-from-function ~f)
-               v# (defn ~sym [& args#] (f# nil (clj/cons '~fq-sym args#)))]
-       (m.env/operator-add! '~fq-sym (comp reduced f#))
-       v#)))
+(m.private/def-fn-operator anything m.primitive/anything)
+(m.private/def-fn-operator apply m.primitive/apply)
+(m.private/def-fn-operator assoc m.primitive/assoc)
+(m.private/def-fn-operator concat m.primitive/concat)
+(m.private/def-fn-operator cons m.primitive/cons)
+(m.private/def-fn-operator each m.primitive/each)
+(m.private/def-fn-operator explain* m.primitive/explain)
+(m.private/def-fn-operator hash-map m.primitive/hash-map)
+(m.private/def-fn-operator hash-set* m.primitive/hash-set)
+(m.private/def-fn-operator hash-set-cast m.primitive.hash-set/cast)
+(m.private/def-fn-operator hash-set-conj* m.primitive.hash-set/conj)
+(m.private/def-fn-operator intersection* m.primitive.hash-set/intersection)
+(m.private/def-fn-operator keyword m.primitive/keyword)
+(m.private/def-fn-operator list m.primitive/list)
+(m.private/def-fn-operator merge m.primitive/merge)
+(m.private/def-fn-operator not m.primitive/not)
+(m.private/def-fn-operator pick m.primitive/pick)
+(m.private/def-fn-operator project m.primitive/project)
+(m.private/def-fn-operator rule m.primitive/rule)
+(m.private/def-fn-operator seq m.primitive/seq)
+(m.private/def-fn-operator set m.primitive/set)
+(m.private/def-fn-operator some m.primitive/some)
+(m.private/def-fn-operator str m.primitive/str)
+(m.private/def-fn-operator symbol m.primitive/symbol)
+(m.private/def-fn-operator system (comp m.primitive/system vector))
+(m.private/def-fn-operator unbound m.primitive/unbound)
+(m.private/def-fn-operator union* m.primitive.hash-set/union)
+(m.private/def-fn-operator vec m.primitive/vec)
+(m.private/def-fn-operator with-meta m.primitive/with-meta)
 
 (def ^{:arglists '([id])}
   ? m.primitive/logic-variable)
 (m.env/operator-add! `? (fn [env [_ & args]] (reduced (clj/apply ? args))))
-
-(def-fn-operator anything m.primitive/anything)
-(def-fn-operator apply m.primitive/apply)
-(def-fn-operator assoc m.primitive/assoc)
-(def-fn-operator concat m.primitive/concat)
-(def-fn-operator cons m.primitive/cons)
-(def-fn-operator each m.primitive/each)
-(def-fn-operator hash-map m.primitive/hash-map)
-(def-fn-operator hash-set* m.primitive/hash-set)
-(def-fn-operator hash-set-conj* m.primitive.hash-set/conj)
-(def-fn-operator hash-set-cast m.primitive.hash-set/cast)
-(def-fn-operator intersection* m.primitive.hash-set/intersection)
-(def-fn-operator keyword m.primitive/keyword)
-(def-fn-operator list m.primitive/list)
-(def-fn-operator merge m.primitive/merge)
-(def-fn-operator not m.primitive/not)
-(def-fn-operator pick m.primitive/pick)
-(def-fn-operator project m.primitive/project)
-(def-fn-operator rule m.primitive/rule)
-(def-fn-operator seq m.primitive/seq)
-(def-fn-operator set m.primitive/set)
-(def-fn-operator some m.primitive/some)
-(def-fn-operator str m.primitive/str)
-(def-fn-operator symbol m.primitive/symbol)
-(def-fn-operator system (comp m.primitive/system vector))
-(def-fn-operator union* m.primitive.hash-set/union)
-(def-fn-operator vec m.primitive/vec)
 
 (def ^{:arglists '([id])}
   % m.primitive/reference)
@@ -90,54 +79,29 @@
                  index)
       (m.parse/parse env body)))))
 
-(def-fn-operator with-meta m.primitive/with-meta)
-(def-fn-operator unbound m.primitive/unbound)
-(def-fn-operator explain* m.primitive/explain)
-
 ;; Notation/Operator macros
 ;; ---------------------------------------------------------------------
 
-(defn preprocess-form [env form]
-  (m.parse/autogensym (m.parse/qualify-operator-symbols env form)))
-
-(defn make-notation
-  [env system-form on-zero {:keys [terminal?]}]
-  (clj/let [system-term (m.parse/parse env (preprocess-form env system-form))]
-    (if (satisfies? m.protocols/IRedex system-term)
-      (fn [form]
-        (clj/let [istate (m.state/make {:object form})
-                  ilogic (m.logic/make-dff istate)
-                  result (m.protocols/-redex system-term ilogic)]
-          (if (m.logic/zero? result)
-            (on-zero form)
-            (clj/let [object (m.protocols/-get-object (deref result))]
-              (if terminal?
-                (reduced object)
-                object)))))
-      (throw (ex-info "system-form must parse to an object which satisfies meander.protocols.zeta/IRedex"
-                      {:system-form system-form
-                       :system-term system-term})))))
-
 (defmacro notation
+  {:arglists '([system-form]
+               [system-form {:keys [eval notations terminal?]}])}
   ([system-form]
    `(notation ~system-form {}))
-  ([system-form {:keys [eval notations terminal?]}]
-   `(make-notation (m.env/create {::m.env/eval ~eval
-                                  ::m.env/extensions ~(clj/vec notations)})
-                  '~system-form
-                  identity
-                  {:terminal? ~(clj/boolean terminal?)})))
+  ([system-form options]
+   `(m.private/make-notation (m.env/create {::m.env/eval (:eval ~options)
+                                            ::m.env/extensions (:notations ~options)})
+                             ~system-form
+                             identity
+                             ~options)))
 
 (defmacro defnotation
+  {:arglists '([symbol system-form]
+               [symbol system-form {:keys [eval notations terminal?]}])}
   ([symbol system-form]
    `(defnotation ~symbol ~system-form {:notations [], :terminal? false}))
-  ([symbol system-form {:keys [eval notations terminal?]}]
+  ([symbol system-form options]
    `(def ~(clj/with-meta symbol (clj/merge {:arglists ''([form])} (meta symbol)))
-      (make-notation (m.env/create {::m.env/eval ~eval
-                                    ::m.env/extensions ~notations})
-                     '~system-form
-                     identity
-                     {:terminal? ~(clj/boolean terminal?)}))))
+      (notation ~system-form ~options))))
 
 (defmacro defoperator
   ([symbol system-form]
@@ -147,34 +111,27 @@
              fq-symbol (m.env/qualify-symbol env symbol)]
      `(do
         (m.env/operator-remove! '~fq-symbol)
-        (clj/let [f# (make-notation
-                     (m.env/create {::m.env/eval ~eval
-                                    ::m.env/extensions ~(clj/vec notations)})
-                     '~system-form
-                     (fn [form#]
-                       (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
-                     {:terminal? ~(clj/boolean terminal?)})
-                 g# (fn [env# form#] (f# (vary-meta form# clj/merge env#)))]
-         (m.env/operator-add! '~fq-symbol g#)
-         (defn ~symbol [& ~'forms]
-           (f# (clj/cons '~fq-symbol ~'forms))))))))
-
-(defn variable-factory
-  [env q-system y-system]
-  (clj/let [q-system-term (m.parse/parse env q-system)
-            y-system-term (m.parse/parse env y-system)]
-    (fn [id]
-      (m.primitive/variable id q-system-term y-system-term))))
+        (clj/let [f# (m.private/make-notation
+                      (m.env/create {::m.env/eval ~eval
+                                     ::m.env/extensions ~(clj/vec notations)})
+                      ~system-form
+                      (fn [form#]
+                        (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
+                      {:terminal? ~(clj/boolean terminal?)})
+                  g# (fn [env# form#] (f# (vary-meta form# clj/merge env#)))]
+          (m.env/operator-add! '~fq-symbol g#)
+          (defn ~symbol [& ~'forms]
+            (f# (clj/cons '~fq-symbol ~'forms))))))))
 
 (defmacro defvariable
   [symbol q-system-form y-system-form {:keys [eval notations]}]
   (clj/let [env (m.env/derive-ns-info &env)
             fq-symbol (m.env/qualify-symbol env symbol)]
     `(clj/let [v# (def ~(clj/with-meta symbol {:arglists ''([id])})
-                    (variable-factory (m.env/create {::m.env/eval ~eval
-                                                     ::m.env/extensions ~notations})
-                                      '~q-system-form
-                                      '~y-system-form))]
+                    (m.private/variable-factory (m.env/create {::m.env/eval ~eval
+                                                               ::m.env/extensions ~notations})
+                                                '~q-system-form
+                                                '~y-system-form))]
        (m.env/operator-add! '~fq-symbol (fn [env# [_# & args#]] (reduced (clj/apply ~symbol args#)))))))
 
 ;; Base operators
@@ -193,8 +150,8 @@
   anything-symbol
   (rule
    (symbol (anything) (str "_" (anything)))
-   (apply ~$1 [] (anything)))
-  {:eval (fn [x] (case x $1 m.primitive/anything))
+   (apply ~anything [] (anything)))
+  {:eval (fn [x] (case x anything m.primitive/anything))
    :terminal? true})
 
 (defnotation
@@ -203,8 +160,8 @@
   logic-variable-symbol
   (rule
    (each (? 1) (symbol _ (str "?" _)))
-   (apply ~$1 [(? 1)] _))
-  {:eval (fn [x] (case x $1 m.primitive/logic-variable))
+   (apply ~logic-variable [(? 1)] _))
+  {:eval (fn [x] (case x logic-variable m.primitive/logic-variable))
    :notations [anything-symbol]
    :terminal? true})
 
@@ -213,8 +170,8 @@
   reference-symbol
   (rule
    (each ?symbol (symbol _ (str "%" _)))
-   (apply ~$1 [?symbol] _))
-  {:eval (fn [x] (case x $1 m.primitive/reference))
+   (apply ~reference [?symbol] _))
+  {:eval (fn [x] (case x reference m.primitive/reference))
    :notations [anything-symbol
                logic-variable-symbol]
    :terminal? true})
@@ -393,15 +350,13 @@
    (`each (with-meta ?x ?rest-meta) ?s))
   {:notations [logic-variable-symbol
                hash-map-rest]})
-;; #{^{::as true :foo bar} ?x 1 2 3}
-;; =>
-;; (each ^{:foo bar} ?x #{1 2 3})
 
 (defnotation hash-set-rest
   (system
    (rule
     #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})}
     (`each (with-meta ?x ?rest-meta)))
+
    (rule
     (union #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})} ?s)
     (`union (with-meta ?x ?rest-meta) ?s)))
@@ -426,20 +381,6 @@
 ;; Callable Systems
 ;; ---------------------------------------------------------------------
 
-(defn make-logic
-  {:private true}
-  [env system-form make-logic]
-  (clj/let [system-term (m.parse/parse env (preprocess-form env system-form))]
-    (if (satisfies? m.protocols/IRedex system-term)
-      (fn [form]
-        (clj/let [istate (m.state/make {:object form})
-                  ilogic (make-logic istate)
-                  result (m.protocols/-redex system-term ilogic)]
-          (deref result)))
-      (throw (ex-info "system-form must parse to an object which satisfies meander.protocols.zeta/IRedex"
-                      {:system-form system-form
-                       :system-term system-term})))))
-
 (def default-notations
   [#'anything-symbol
    #'logic-variable-symbol
@@ -450,33 +391,41 @@
    #'hash-map-as
    #'hash-map-rest
    #'hash-set-as
+   #'hash-set-rest
    #'vector-as
    #'vector-rest])
 
 (defmacro pattern
+  {:arglists '([form]
+               [form {:keys [eval explain? notations]}])}
   ([x]
    `(pattern ~x {}))
-  ([x {:keys [notations]}]
-   `(clj/let [env# (m.env/create {::m.env/extensions ~(or notations 'default-notations)})]
+  ([x options]
+   `(clj/let [env# (m.env/create {::m.env/eval (:eval ~options)
+                                  ::m.env/extensions (:notations ~options)})]
       (m.parse/parse env# (preprocess-form env# '~x)))))
 
 (defmacro dff
+  {:arglists '([system-form]
+               [system-form {:keys [eval explain? notations]}])}
   ([system]
    `(dff ~system {:notations ~default-notations}))
-  ([system {:keys [explain? notations]}]
-   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system
-                ~(if explain?
-                   'm.logic/make-dff-explain
-                   'm.logic/make-dff))))
+  ([system options]
+   `(clj/let [make-logic# (if (:explain? ~options)
+                            m.logic/make-dff-explain
+                            m.logic/make-dff)]
+     (m.private/create-system-fn ~system ~options make-logic#))))
 
 (defmacro bfs
+  {:arglists '([system-form]
+               [system-form {:keys [eval explain? notations]}])}
   ([system]
    `(bfs ~system {:notations ~default-notations}))
-  ([system {:keys [explain? notations]}]
-   `(make-logic (m.env/create {::m.env/extensions ~notations}) '~system
-                ~(if explain?
-                   'm.logic/make-bfs-explain
-                   'm.logic/make-bfs))))
+  ([system options]
+   `(clj/let [make-logic# (if (:explain? ~options)
+                            m.logic/make-bfs-explain
+                            m.logic/make-bfs)]
+      (m.private/create-system-fn ~system ~options make-logic#))))
 
 (def query m.protocols/-query)
 (def yield m.protocols/-yield)

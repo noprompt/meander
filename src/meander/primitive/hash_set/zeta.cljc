@@ -5,9 +5,11 @@
             [meander.logic.zeta :as m.logic]
             [meander.protocols.zeta :as m.protocols]
             [meander.state.zeta :as m.state])
-  (:refer-clojure :exclude [cast
+  (:refer-clojure :exclude [any?
+                            cast
                             conj
-                            empty]))
+                            empty
+                            empty?]))
 
 (defn empty-set? [x]
   (= x #{}))
@@ -117,20 +119,30 @@
               (set/intersection x y))))))))
 
 
-(def ^{:arglists '([])}
-  any #'->HashSetAny)
+(defn any?
+  {:private true}
+  [x]
+  (instance? HashSetAny x))
+
+(defn empty?
+  {:private true}
+  [x]
+  (instance? HashSetEmpty x))
 
 (def ^{:arglists '([])}
   empty #'->HashSetEmpty)
+
+(def ^{:arglists '([])}
+  any #'->HashSetAny)
 
 (defn member
   "If a is an instance of `HashSetAny`, `HashSetCast`, `HashSetEmpty`, or
   `HashSetMember`, return a, otherwise return an instance of `HashSetMember`
   constructed with a."
   [a]
-  (if (or (instance? HashSetAny a)
+  (if (or (any? a)
           (instance? HashSetCast a)
-          (instance? HashSetEmpty a)
+          (empty? a)
           (instance? HashSetMember a))
     a
     (->HashSetMember a)))
@@ -140,9 +152,9 @@
   `HashSetMember`, return a, otherwise return an instance of `HashSetCast`
   constructed with a."
   [a]
-  (if (or (instance? HashSetAny a)
+  (if (or (any? a)
           (instance? HashSetCast a)
-          (instance? HashSetEmpty a)
+          (empty? a)
           (instance? HashSetMember a))
     a
     (->HashSetCast a)))
@@ -152,7 +164,29 @@
   (member (->HashSetConj (member s) e)))
 
 (defn union [s1 s2]
-  (member (->HashSetUnion (member s1) (member s2))))
+  (cond
+    (empty? s1)
+    s2
+
+    (empty? s2)
+    s1
+
+    (and (any? s1) (any? s2))
+    (any)
+
+    :else
+    (member (->HashSetUnion (member s1) (member s2)))))
 
 (defn intersection [s1 s2]
-  (member (->HashSetIntersection (member s1) (member s2))))
+  (cond
+    (empty? s1)
+    s1
+
+    (empty? s2)
+    s2
+
+    (and (any? s1) (any? s2))
+    s1
+
+    :else
+    (member (->HashSetIntersection (member s1) (member s2)))))
