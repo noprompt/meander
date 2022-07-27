@@ -133,7 +133,7 @@
   ([symbol system-form {:keys [eval notations terminal?]}]
    `(def ~(clj/with-meta symbol (clj/merge {:arglists ''([form])} (meta symbol)))
       (make-notation (m.env/create {::m.env/eval ~eval
-                                    ::m.env/extensions ~(clj/vec notations)})
+                                    ::m.env/extensions ~notations})
                      '~system-form
                      identity
                      {:terminal? ~(clj/boolean terminal?)}))))
@@ -352,15 +352,15 @@
 
 (defvariable >>
   (system
-   (rule [(unbound) ?x]
-         (?x))
-   (rule [(each ?xs (cons _ _)) ?x]
-         (cons ?x ?xs)))
+   (rule [(unbound) ?x#]
+         (?x#))
+   (rule [(each ?xs# (cons _ _)) ?x#]
+         (cons ?x# ?xs#)))
   (system
    (rule (?x)
-         [(unbound) ?x])
-   (rule (cons ?x ?xs)
-         [?xs ?x]))
+         [(unbound) ?x#])
+   (rule (cons ?x# ?xs#)
+         [?xs# ?x#]))
   {:notations [anything-symbol
                logic-variable-symbol]})
 
@@ -376,9 +376,10 @@
    (rule [(unbound) _]
          1)
    (rule [?n _]
-         (apply ~inc [?n] _)))
+         (apply ~inc [?n#] _)))
   (system
-   (rule ?x [?x ?x]))
+   (rule ?n#
+         [?n# ?n#]))
   {:eval {'inc inc}
    :notations [anything-symbol
                logic-variable-symbol]})
@@ -396,19 +397,21 @@
     (_ (`explain ?a))
     (`explain* ?a))
 
-   (rule
-    (_ ((each (some `cons `each `pick `rule `some) ?x) ?a ?b))
-    (`explain* (?x (`explain ?a) (`explain ?b))))
-
-   ;; (rule
-   ;;  (_ (`apply ?a ?b ?c))
-   ;;  (`explain* (`apply (`explain ?a) (`explain ?b) (`explain ?c))))
-   (with {%arg <<x
+   (with {%op (each ?op (some `apply
+                              `cons
+                              `each
+                              `hash-map
+                              `hash-set
+                              `pick
+                              `rule
+                              `some
+                              `system))
+          %arg <<x
           %args-in (cons %arg (pick %args-in ()))
           %args-out (cons (`explain %arg) (pick %args-out ()))}
      (rule
-      (_ (cons `system %args-in))
-      (`explain* (cons `system %args-out))))
+      (_ (cons %op %args-in))
+      (`explain* (cons %op %args-out))))
 
    (rule
     (_ ?a)
@@ -455,10 +458,6 @@
    `(clj/let [env# (m.env/create {::m.env/extensions ~(or notations 'default-notations)})]
       (m.parse/parse env# (preprocess-form env# '~x)))))
 
-(def query m.protocols/-query)
-(def yield m.protocols/-yield)
-(def redex m.protocols/-redex)
-
 (defmacro dff
   ([system]
    `(dff ~system {:notations ~default-notations}))
@@ -476,3 +475,18 @@
                 ~(if explain?
                    'm.logic/make-bfs-explain
                    'm.logic/make-bfs))))
+
+#_
+(defnotation simplify
+  (system
+   (rule
+    (`some [?a] [?b])
+    [(`some ?a ?b)])
+   (rule
+    (`some [?a & ?rest1] [?a & ?rest2])
+    [?a `& (`some ?rest1 ?rest2)]))
+  {:notations default-notations})
+
+(def query m.protocols/-query)
+(def yield m.protocols/-yield)
+(def redex m.protocols/-redex)

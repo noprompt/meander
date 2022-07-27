@@ -61,6 +61,30 @@
           (let [x (m.state/get-object istate1)]
             (pass ilogic (m.state/set-object istate0 x))))))))
 
+(defn check-object
+  {:style/indent 1}
+  [ilogic pred]
+  (each ilogic
+    (fn [istate]
+      (let [x (m.state/get-object istate)]
+        (if (pred x)
+          (pass ilogic istate)
+          (fail ilogic istate))))))
+
+(defn set-object
+  {:style/indent 1}
+  [ilogic x]
+  (each ilogic
+    (fn [istate]
+      (pass ilogic (m.state/set-object istate x)))))
+
+(defn update-object
+  {:style/indent 1}
+  [ilogic f]
+  (each ilogic
+    (fn [istate0]
+      (pass ilogic (m.state/set-object istate0 (f (m.state/get-object istate0)))))))
+
 (def ^{:arglists '([ilogic context])}
   explain #'m.protocols/-explain)
 
