@@ -369,7 +369,7 @@
   ([x options]
    `(clj/let [env# (m.env/create {::m.env/eval (:eval ~options)
                                   ::m.env/extensions (:notations ~options)})]
-      (m.parse/parse env# (preprocess-form env# '~x)))))
+      (m.parse/parse env# (m.private/preprocess-form env# '~x)))))
 
 (defmacro dff
   {:arglists '([system-form]

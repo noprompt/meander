@@ -5,8 +5,8 @@
    [meander.primitive.zeta :as m.primitive]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.protocols.zeta :as m.protocols]
-   [meander.logic.zeta :as m.logic]
-   [meander.state.zeta :as m.state])
+   [meander.state.zeta :as m.state]
+   [meander.logic.dff.zeta :as m.logic.dff])
   #?(:clj
      (:import clojure.lang.ExceptionInfo
               meander.logic.dff.zeta.DFFLogic
@@ -66,462 +66,477 @@
                (m.state/get-object istate))
              ilogic)))))
 
+(defn setup-state [{:keys [object bindings]}]
+  (reduce-kv m.state/set-variable (m.state/make {:object object}) bindings))
+
+
+(defn test-method [f pattern options]
+  (let [istate (setup-state options)
+        dff-result (f pattern (m.logic/make-dff istate))
+        bfs-result (f pattern (m.logic/make-bfs istate))]
+    {:dff-result dff-result
+     :dff-zero? (m.logic/zero? dff-result)
+     :bfs-result bfs-result
+     :bfs-zero? (m.logic/zero? bfs-result)}))
+
+(defmacro test-query
+  {:arglists '([pattern {:keys [object bindings]} results-binding])
+   :style/indent 3}
+  [pattern options results & body]
+  `(t/testing "-query"
+     (let [~results (test-method m.protocols/-query ~pattern ~options)]
+      ~@body)))
+
+(defmacro test-yield
+  {:arglists '([pattern {:keys [object bindings]} results-binding])
+   :style/indent 3}
+  [pattern options results & body]
+  `(t/testing "-yield"
+     (let [~results (test-method m.protocols/-yield ~pattern ~options)]
+       ~@body)))
+
+(defmacro test-redex
+  {:arglists '([pattern {:keys [object bindings]} results-binding])
+   :style/indent 3}
+  [pattern options results & body]
+  `(t/testing "-redex"
+     (let [~results (test-method m.protocols/-redex ~pattern ~options)]
+       ~@body)))
+
 ;; Tests
 
 (t/deftest anything-protocol-satisfaction-test
-  (t/testing "-query"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (query-unwrap (m.primitive/anything) ilogic))))
+  (let [pattern (m.primitive/anything)]
+    (test-query pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result)))))
 
-  (t/testing "-yield"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (yield-unwrap (m.primitive/anything) ilogic)))))
+  (test-yield (m.primitive/anything) {} {:keys [dff-result bfs-result]}
+    (t/is (not (m.logic/zero? dff-result)))
+    (t/is (not (m.logic/zero? bfs-result)))))
 
 (t/deftest nothing-protocol-satisfaction-test
-  (t/testing "-query"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (not (query-unwrap (m.primitive/nothing) ilogic)))))
+  (test-query (m.primitive/nothing) {} {:keys [dff-result bfs-result]}
+    (t/is (m.logic/zero? dff-result))
+    (t/is (m.logic/zero? bfs-result)))
 
-  (t/testing "-yield"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (not (yield-unwrap (m.primitive/nothing) ilogic))))))
+  (test-yield (m.primitive/nothing) {} {:keys [dff-result bfs-result]}
+    (t/is (m.logic/zero? dff-result))
+    (t/is (m.logic/zero? bfs-result))))
 
 (t/deftest is-protocol-satisfaction-test
-  (t/testing "-query"
-    (let [object (rand)
-          istate (m.state/make {:object object})
-          ilogic (m.logic/make-dff istate)]
-      (t/is (= istate
-               (query-unwrap (m.primitive/is object) ilogic)))))
+  (let [object (reify)
+        pattern (m.primitive/is object)]
+    (test-query pattern {:object object} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-yield"
-    (let [object (rand)
-          istate (m.state/make {:object (inc object)})
-          ilogic (m.logic/make-dff istate)]
-      (t/is (= (m.state/set-object istate object)
-               (yield-unwrap (m.primitive/is object) ilogic))))))
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (= object
+               (get-object dff-result)))
+
+      (t/is (= [object]
+               (get-object bfs-result))))))
 
 (t/deftest not-protocol-satisfaction-test
-  (t/testing "-query"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (not (query-unwrap (m.primitive/not (m.primitive/anything)) ilogic))))
+  (let [pattern (m.primitive/not (m.primitive/is 1))]
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))
 
-    (let [object (rand)
-          ilogic (m.logic/make-dff (m.state/make {:object object}))]
-      (t/is (not (query-unwrap (m.primitive/not (m.primitive/is object)) ilogic))))
+    (test-query pattern {:object 2} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-    (let [object (rand)
-          ilogic (m.logic/make-dff (m.state/make {:object object}))]
-      (t/is (query-unwrap (m.primitive/not (m.primitive/is (inc object))) ilogic))))
+    (t/testing "-yield"
+      (let [ilogic (m.logic/make-dff (m.state/make {}))]
+        (t/is (thrown-with-msg? ExceptionInfo #"Not implemented" (m.protocols/-yield pattern ilogic))))
 
-  (t/testing "-yield"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (thrown-with-msg? ExceptionInfo #"Not implemented" (m.protocols/-yield (m.primitive/not (m.primitive/anything)) ilogic))))))
+      (let [ilogic (m.logic/make-bfs (m.state/make {}))]
+        (t/is (thrown-with-msg? ExceptionInfo #"Not implemented" (m.protocols/-yield pattern ilogic)))))))
 
 (t/deftest some-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          object3 (inc object2)
-          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
-          ilogic2 (m.logic/make-dff (m.state/make {:object object2}))
-          ilogic3 (m.logic/make-dff (m.state/make {:object object3}))
-          pattern (m.primitive/some (m.primitive/is object1)
-                                    (m.primitive/is object2))]
-      (t/is (query-unwrap pattern ilogic1))
-      (t/is (query-unwrap pattern ilogic2))
-      (t/is (not (query-unwrap pattern ilogic3)))))
+  (let [object1 (rand)
+        object2 (inc object1)
+        object3 (inc object2)
+        pattern (m.primitive/some (m.primitive/is object1) (m.primitive/is object2))]
+    (test-query pattern {:object object1} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-query (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          object3 (inc object2)
-          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
-          ilogic2 (m.logic/make-bfs (m.state/make {:object object2}))
-          ilogic3 (m.logic/make-bfs (m.state/make {:object object3}))
-          pattern (m.primitive/some (m.primitive/is object1)
-                                    (m.primitive/is object2))]
-      (t/is (query-unwrap pattern ilogic1))
-      (t/is (query-unwrap pattern ilogic2))
-      (t/is (not (seq (query-unwrap pattern ilogic3))))))
+    (test-query pattern {:object object2} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-yield (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic (m.logic/make-dff (m.state/make {}))
-          pattern (m.primitive/some (m.primitive/is object1)
-                                    (m.primitive/is object2))]
-      (t/is (= object1
-               (:object (yield-unwrap pattern ilogic))))))
+    (test-query pattern {:object object3} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))
 
-  (t/testing "-yield (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic (m.logic/make-bfs (m.state/make {}))
-          pattern (m.primitive/some (m.primitive/is object1)
-                                    (m.primitive/is object2))]
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (= object1 (get-object dff-result)))
       (t/is (= [object1 object2]
-               (map :object (yield-unwrap pattern ilogic)))))))
+               (get-object bfs-result))))))
 
 (t/deftest pick-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          object3 (inc object2)
-          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
-          ilogic2 (m.logic/make-dff (m.state/make {:object object2}))
-          ilogic3 (m.logic/make-dff (m.state/make {:object object3}))
-          pattern (m.primitive/pick (m.primitive/is object1)
-                                    (m.primitive/is object2))]
-      (t/is (query-unwrap pattern ilogic1))
-      (t/is (query-unwrap pattern ilogic2))
-      (t/is (not (query-unwrap pattern ilogic3)))))
+  (let [object1 (rand)
+        object2 (inc object1)
+        object3 (inc object2)
+        pattern (m.primitive/pick (m.primitive/is object1) (m.primitive/is object2))]
+    (test-query pattern {:object object1} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-query (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          object3 (inc object2)
-          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
-          ilogic2 (m.logic/make-bfs (m.state/make {:object object2}))
-          ilogic3 (m.logic/make-bfs (m.state/make {:object object3}))
-          pattern (m.primitive/pick (m.primitive/is object1)
-                                    (m.primitive/is object2))]
-      (t/is (query-unwrap pattern ilogic1))
-      (t/is (query-unwrap pattern ilogic2))
-      (t/is (not (seq (query-unwrap pattern ilogic3))))))
+    (test-query pattern {:object object2} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-yield (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic (m.logic/make-dff (m.state/make {}))
-          pattern (m.primitive/pick (m.primitive/is object1)
-                                    (m.primitive/is object2))]
-      (t/is (= object1
-               (:object (yield-unwrap pattern ilogic))))))
+    (test-query pattern {:object object3} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))
 
-  (t/testing "-yield (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic (m.logic/make-bfs (m.state/make {}))
-          pattern (m.primitive/pick (m.primitive/is object1)
-                                    (m.primitive/is object2))]
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (= object1 (get-object dff-result)))
       (t/is (= [object1]
-               (map :object (yield-unwrap pattern ilogic)))))))
+               (get-object bfs-result))))))
 
 (t/deftest each-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (query-unwrap (m.primitive/each) ilogic))
-      (t/is (query-unwrap (m.primitive/each (m.primitive/anything)) ilogic))
-      (t/is (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic))
-      (t/is (not (query-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
-      (t/is (not (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
+  (let [pattern (m.primitive/each)]
+    (test-query pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-query (bfs)"
-    (let [istate (m.state/make {})
-          ilogic (m.logic/make-bfs istate)]
-      (t/is (= [istate]
-               (query-unwrap (m.primitive/each) ilogic)))
-      (t/is (= [istate]
-               (query-unwrap (m.primitive/each (m.primitive/anything)) ilogic)))
-      (t/is (= [istate]
-               (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic)))
-      (t/is (= ()
-               (query-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
-      (t/is (= ()
-               (query-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result)))))
 
-  (t/testing "-yield (dff)"
-    (let [ilogic (m.logic/make-dff (m.state/make {}))]
-      (t/is (yield-unwrap (m.primitive/each) ilogic))
-      (t/is (yield-unwrap (m.primitive/each (m.primitive/anything)) ilogic))
-      (t/is (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic))
-      (t/is (not (yield-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic)))
-      (t/is (not (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))
+  (let [pattern (m.primitive/each (m.primitive/anything))]
+    (test-query pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-yield (bfs)"
-    (let [ilogic (m.logic/make-bfs (m.state/make {}))]
-      (t/is (seq (yield-unwrap (m.primitive/each) ilogic)))
-      (t/is (seq (yield-unwrap (m.primitive/each (m.primitive/anything)) ilogic)))
-      (t/is (seq (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/anything)) ilogic)))
-      (t/is (not (seq (yield-unwrap (m.primitive/each (m.primitive/nothing) (m.primitive/anything)) ilogic))))
-      (t/is (not (seq (yield-unwrap (m.primitive/each (m.primitive/anything) (m.primitive/nothing)) ilogic)))))))
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result)))))
+
+  (let [pattern (m.primitive/each (m.primitive/anything) (m.primitive/anything))]
+    (test-query pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
+
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result)))))
+
+  (let [pattern (m.primitive/each (m.primitive/is 1) (m.primitive/anything))]
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
+
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (= 1 (get-object dff-result)))
+
+      (t/is (not (m.logic/zero? bfs-result)))
+      (t/is (= [1] (get-object bfs-result)))))
+
+  (let [pattern (m.primitive/each (m.primitive/nothing) (m.primitive/anything))]
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))
+
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result))))
+
+  (let [pattern (m.primitive/each (m.primitive/nothing) (m.primitive/anything))]
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))
+
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result))))
+
+  (let [pattern (m.primitive/each (m.primitive/nothing) (m.primitive/nothing))]
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))
+
+    (test-yield pattern {} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result)))))
+
 
 (t/deftest logic-variable-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (m.primitive/fresh [?1]
-      (let [object1 (rand)
-            object2 (inc object1)
-            istate1 (m.state/make {:object object1})
-            istate2 (m.state/set-variable istate1 ?1 object2)
-            ilogic1 (m.logic/make-dff istate1)
-            ilogic2 (m.logic/make-dff istate2)]
-        (t/is (= object1
-                 (m.state/get-variable (query-unwrap ?1 ilogic1) ?1 ::unbound)))
+  (m.primitive/fresh [?1]
+    (t/testing "When variable is unbound"
+      (test-query ?1 {:object 1} {:keys [dff-result bfs-result]}
+        (t/is (= 1 (get-variable dff-result ?1)))
+        (t/is (= [1] (get-variable bfs-result ?1))))
 
-        (t/is (m.logic/zero?
-               (m.protocols/-query ?1 ilogic2))))))
+      (test-yield ?1 {:object 1} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result))))
 
-  (t/testing "-query (bfs)"
-    (m.primitive/fresh [?1]
-      (let [object1 (rand)
-            object2 (inc object1)
-            istate1 (m.state/make {:object object1})
-            istate2 (m.state/set-variable istate1 ?1 object2)
-            ilogic1 (m.logic/make-bfs istate1)
-            ilogic2 (m.logic/make-bfs istate2)]
-        (t/is (= [object1]
-                 (map #(m.state/get-variable % ?1 ::unbound)
-                      (query-unwrap ?1 ilogic1))))
+    (t/testing "When variable is bound to a value not equal to object"
+      (test-query ?1 {:object 1 :bindings {?1 2}} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result)))
 
-        (t/is (m.logic/zero?
-               (m.protocols/-query ?1 ilogic2))))))
-
-  (t/testing "-yield (dff)"
-    (m.primitive/fresh [?1]
-      (let [object1 (rand)
-            object2 (inc object1)
-            istate1 (m.state/make {:object object1})
-            istate2 (m.state/set-variable istate1 ?1 object2)
-            ilogic1 (m.logic/make-dff istate1)
-            ilogic2 (m.logic/make-dff istate2)]
-        (t/is (m.logic/zero?
-               (m.protocols/-yield ?1 ilogic1)))
-
-        (t/is (= object2
-                 (m.state/get-object (yield-unwrap ?1 ilogic2)))))))
-
-  (t/testing "-yield (bfs)"
-    (m.primitive/fresh [?1]
-      (let [object1 (rand)
-            object2 (inc object1)
-            istate1 (m.state/make {:object object1})
-            istate2 (m.state/set-variable istate1 ?1 object2)
-            ilogic1 (m.logic/make-bfs istate1)
-            ilogic2 (m.logic/make-bfs istate2)]
-        (t/is (m.logic/zero?
-               (m.protocols/-yield ?1 ilogic1)))
-
-        (t/is (= [object2]
-                 (map m.state/get-object (yield-unwrap ?1 ilogic2))))))))
+      (test-yield ?1 {:object 1 :bindings {?1 2}} {:keys [dff-result bfs-result]}
+        (t/is (= 2 (get-variable dff-result ?1)))
+        (t/is (= [2] (get-variable bfs-result ?1)))))))
 
 (t/deftest rule-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
-          ilogic2 (m.logic/make-dff (m.state/make {:object object2}))
-          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
-      (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
-      (t/is (m.logic/zero? (m.protocols/-query pattern ilogic2)))))
+  (let [pattern (m.primitive/rule (m.primitive/anything) (m.primitive/anything))]
+    (t/testing "When query and yield succeed so does redex"
+      (test-query pattern {} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-query (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
-          ilogic2 (m.logic/make-bfs (m.state/make {:object object2}))
-          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
-      (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
-      (t/is (m.logic/zero? (m.protocols/-query pattern ilogic2)))))
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-yield (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
-          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
-      (t/is (= object2
-               (m.state/get-object (yield-unwrap pattern ilogic1))))))
+      (test-redex pattern {} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))))
 
-  (t/testing "-yield (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
-          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
-      (t/is (= [object2]
-               (map m.state/get-object (yield-unwrap pattern ilogic1))))))
+  (let [pattern (m.primitive/rule (m.primitive/nothing) (m.primitive/anything))]
+    (t/testing "When query fails so does redex"
+      (test-query pattern {} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result)))
 
-  (t/testing "-redex (dff)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic1 (m.logic/make-dff (m.state/make {:object object1}))
-          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
-      (t/is (= object2
-               (m.state/get-object (redex-unwrap pattern ilogic1))))))
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
 
-  (t/testing "-redex (bfs)"
-    (let [object1 (rand)
-          object2 (inc object1)
-          ilogic1 (m.logic/make-bfs (m.state/make {:object object1}))
-          pattern (m.primitive/rule (m.primitive/is object1) (m.primitive/is object2))]
-      (t/is (= [object2]
-               (map m.state/get-object (redex-unwrap pattern ilogic1)))))))
+      (test-redex pattern {} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result)))))
+
+  (let [pattern (m.primitive/rule (m.primitive/anything) (m.primitive/nothing))]
+    (t/testing "When yield fails so does redex"
+      (test-query pattern {} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result)))
+
+      (test-redex pattern {} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result))))))
 
 (t/deftest str-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (m.primitive/fresh [?1 ?2]
-      (let [object1 (str)
-            object2 (str (rand))
-            istate1 (m.state/make {:object object1})
-            istate2 (m.state/make {:object object2})
-            ilogic1 (m.logic/make-dff istate1)
-            ilogic2 (m.logic/make-dff istate2)]
-        (t/is (not (m.logic/zero?
-                    (m.protocols/-query (m.primitive/str (m.primitive/is object1))
-                                        ilogic1))))
-        (t/is (not (m.logic/zero?
-                    (m.protocols/-query (m.primitive/str (m.primitive/is object2))
-                                        ilogic2))))
+  (t/testing "With zero arguments"
+    (let [pattern (m.primitive/str)]
+      (t/testing "when the object is the empty string"
+        (test-query pattern {:object ""} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
 
-        (let [result1 (query-unwrap (m.primitive/str ?1 ?2) ilogic1)]
-          (t/is (= "" (m.state/get-variable result1 ?1 ::unbound)))
-          (t/is (= object1 (m.state/get-variable result1 ?2 ::unbound))))
+        (test-yield pattern {} {:keys [dff-result bfs-result]}
+          (t/is (= "" (get-object dff-result)))
+          (t/is (= [""] (get-object bfs-result)))))))
 
-        (let [result2 (query-unwrap (m.primitive/str ?1 ?2) ilogic2)]
-          (t/is (= "" (m.state/get-variable result2 ?1 ::unbound)))
-          (t/is (= object2 (m.state/get-variable result2 ?2 ::unbound)))))))
+  (t/testing "With one argument"
+    (m.primitive/fresh [?a]
+      (let [pattern (m.primitive/str ?a)]
+        (t/testing "when the object is the empty string"
+          (test-query pattern {:object ""} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (not (m.logic/zero? bfs-result)))
 
-  (t/testing "-yield (dff)"
-    (let [object1 "foo"
-          object2 "bar"
-          istate1 (m.state/make {})
-          ilogic1 (m.logic/make-dff istate1)]
-      (t/is (= "foobar"
-               (m.state/get-object
-                (yield-unwrap (m.primitive/str (m.primitive/is object1) (m.primitive/is object2))
-                              ilogic1))))))
+            (t/is (= "" (get-variable dff-result ?a)))
+            (t/is (= [""] (get-variable bfs-result ?a))))
 
-  (t/testing "-query (bfs)"
-    (m.primitive/fresh [?1 ?2]
-      (let [object1 "ab"
-            istate1 (m.state/make {:object object1})
-            ilogic1 (m.logic/make-bfs istate1)
-            istates (query-unwrap (m.primitive/str ?1 ?2) ilogic1)
-            ?1-vals (map (fn [istate] (m.state/get-variable istate ?1 ::unbound)) istates)
-            ?2-vals (map (fn [istate] (m.state/get-variable istate ?2 ::unbound)) istates)]
-        (t/is (= ["" "ab" "a"] ?1-vals))
-        (t/is (= ["ab" "" "b"] ?2-vals))))))
+          (test-yield pattern {:object "" :bindings {?a ""}} {:keys [dff-result bfs-result]}
+            (t/is (= "" (get-variable dff-result ?a)))
+            (t/is (= [""] (get-variable bfs-result ?a))))))))
+
+  (t/testing "With two arguments"
+    (m.primitive/fresh [?a ?b]
+      (let [pattern (m.primitive/str ?a ?b)]
+        (t/testing "when the object is the empty string"
+          (test-query pattern {:object ""} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (= "" (get-variable dff-result ?a)))
+            (t/is (= "" (get-variable dff-result ?b)))
+
+            (t/is (not (m.logic/zero? bfs-result)))
+            (t/is (= [""] (get-variable bfs-result ?a)))
+            (t/is (= [""] (get-variable bfs-result ?b))))
+
+          (test-yield pattern {:object "" :bindings {?a "" ?b ""}} {:keys [dff-result bfs-result]}
+            (t/is (= "" (get-object dff-result)))
+            (t/is (= [""] (get-object bfs-result)))))
+
+        (t/testing "when the object is a non-empty string"
+          (test-query pattern {:object "foo"} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (= "" (get-variable dff-result ?a)))
+            (t/is (= "foo" (get-variable dff-result ?b)))
+
+            (t/is (not (m.logic/zero? bfs-result)))
+            (t/is (= ["" "foo" "fo" "f"] (get-variable bfs-result ?a)))
+            (t/is (= ["foo" "" "o" "oo"] (get-variable bfs-result ?b))))
+
+          (test-yield pattern {:object "foo" :bindings {?a "b" ?b "ar"}} {:keys [dff-result bfs-result]}
+            (t/is (= "bar" (get-object dff-result)))
+            (t/is (= ["bar"] (get-object bfs-result)))))))))
 
 (t/deftest symbol-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [object1 'foo
-          object2 'foo/foo
-          object3 'foo/bar
-          istate1 (m.state/make {:object object1})
-          istate2 (m.state/make {:object object2})
-          istate3 (m.state/make {:object object3})
-          ilogic1 (m.logic/make-dff istate1)
-          ilogic2 (m.logic/make-dff istate2)
-          ilogic3 (m.logic/make-dff istate3)
-          symbol1 (m.primitive/symbol (m.primitive/is "foo"))
-          symbol2 (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
-      (t/is (not (m.logic/zero? (m.protocols/-query symbol1 ilogic1))))
-      (t/is (not (m.logic/zero? (m.protocols/-query symbol1 ilogic2))))
-      (t/is (not (m.logic/zero? (m.protocols/-query symbol2 ilogic2))))
-      (t/is (m.logic/zero? (m.protocols/-query symbol2 ilogic3)))
-      (t/is (m.logic/zero? (m.protocols/-query symbol2 ilogic3)))))
+  (t/testing "With one argument"
+    (let [pattern (m.primitive/symbol (m.primitive/is "foo"))]
+      (t/testing "when object is an unqualified symbol"
+        (test-query pattern {:object 'foo} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result)))))
 
-  (t/testing "-yield (dff)"
-    (let [object1 'foo
-          object2 'foo/foo
-          istate1 (m.state/make {})
-          ilogic1 (m.logic/make-dff istate1)
-          symbol1 (m.primitive/symbol (m.primitive/is "foo"))
-          symbol2 (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
-      (t/is (= object1
-               (m.state/get-object (yield-unwrap symbol1 ilogic1))))
+      (t/testing "when object is a qualified symbol"
+        (test-query pattern {:object 'foo/foo} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
 
-      (t/is (= object2
-               (m.state/get-object (yield-unwrap symbol2 ilogic1)))))))
+        (test-query pattern {:object 'foo/bar} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))
+
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (= 'foo (get-object dff-result)))
+        (t/is (= ['foo] (get-object bfs-result))))))
+
+  (t/testing "With two arguments"
+    (let [pattern (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
+      (t/testing "when object is an unqualified symbol"
+        (test-query pattern {:object 'foo} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))
+
+      (t/testing "when object is a qualified symbol"
+        (test-query pattern {:object 'foo/foo} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
+
+        (test-query pattern {:object 'foo/bar} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))
+
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (= 'foo/foo (get-object dff-result)))
+        (t/is (= ['foo/foo] (get-object bfs-result)))))))
 
 (t/deftest keyword-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [object1 :foo
-          object2 :foo/foo
-          object3 :foo/bar
-          istate1 (m.state/make {:object object1})
-          istate2 (m.state/make {:object object2})
-          istate3 (m.state/make {:object object3})
-          ilogic1 (m.logic/make-dff istate1)
-          ilogic2 (m.logic/make-dff istate2)
-          ilogic3 (m.logic/make-dff istate3)
-          keyword1 (m.primitive/keyword (m.primitive/is "foo"))
-          keyword2 (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
-      (t/is (not (m.logic/zero? (m.protocols/-query keyword1 ilogic1))))
-      (t/is (not (m.logic/zero? (m.protocols/-query keyword1 ilogic2))))
-      (t/is (not (m.logic/zero? (m.protocols/-query keyword2 ilogic2))))
-      (t/is (m.logic/zero? (m.protocols/-query keyword2 ilogic3)))
-      (t/is (m.logic/zero? (m.protocols/-query keyword2 ilogic3)))))
+  (t/testing "With one argument"
+    (let [pattern (m.primitive/keyword (m.primitive/is "foo"))]
+      (t/testing "when object is an unqualified keyword"
+        (test-query pattern {:object :foo} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result)))))
 
-  (t/testing "-yield (dff)"
-    (let [object1 :foo
-          object2 :foo/foo
-          istate1 (m.state/make {})
-          ilogic1 (m.logic/make-dff istate1)
-          keyword1 (m.primitive/keyword (m.primitive/is "foo"))
-          keyword2 (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
-      (t/is (= object1
-               (m.state/get-object (yield-unwrap keyword1 ilogic1))))
+      (t/testing "when object is a qualified keyword"
+        (test-query pattern {:object :foo/foo} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
 
-      (t/is (= object2
-               (m.state/get-object (yield-unwrap keyword2 ilogic1)))))))
+        (test-query pattern {:object :foo/bar} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))
+
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (= :foo (get-object dff-result)))
+        (t/is (= [:foo] (get-object bfs-result))))))
+
+  (t/testing "With two arguments"
+    (let [pattern (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
+      (t/testing "when object is an unqualified keyword"
+        (test-query pattern {:object :foo} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))
+
+      (t/testing "when object is a qualified keyword"
+        (test-query pattern {:object :foo/foo} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
+
+        (test-query pattern {:object :foo/bar} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))
+
+      (test-yield pattern {} {:keys [dff-result bfs-result]}
+        (t/is (= :foo/foo (get-object dff-result)))
+        (t/is (= [:foo/foo] (get-object bfs-result)))))))
 
 (t/deftest cons-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (let [object1 (list (rand))
-          object2 (list (int (first object1)))
-          object3 (vec object1)
-          istate1 (m.state/make {:object object1})
-          ilogic1 (m.logic/make-dff istate1)
-          istate2 (m.state/make {:object object2})
-          ilogic2 (m.logic/make-dff istate2)
-          istate3 (m.state/make {:object object3})
-          ilogic3 (m.logic/make-dff istate3)
-          cons1 (m.primitive/cons (m.primitive/is (first object1)) (m.primitive/is ()))]
-      (t/is (not (m.logic/zero? (m.protocols/-query cons1 ilogic1))))
-      (t/is (m.logic/zero? (m.protocols/-query cons1 ilogic2)))
-      (t/is (not (m.logic/zero? (m.protocols/-query cons1 ilogic3))))))
+  (m.primitive/fresh [?x ?y]
+    (let [pattern (m.primitive/cons ?x ?y)]
+      (test-query pattern {:object [1]} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (= 1 (get-variable dff-result ?x)))
+        (t/is (= [] (get-variable dff-result ?y)))
 
-  (t/testing "-yield (dff)"
-    (let [object1 (rand)
-          istate1 (m.state/make {})
-          ilogic1 (m.logic/make-dff istate1)
-          cons1 (m.primitive/cons (m.primitive/is object1) (m.primitive/is ()))]
-      (t/is (= (list object1)
-               (m.state/get-object (yield-unwrap cons1 ilogic1)))))))
+        (t/is (not (m.logic/zero? bfs-result)))
+        (t/is (= [1] (get-variable bfs-result ?x)))
+        (t/is (= [[]] (get-variable bfs-result ?y))))
+
+      (test-yield pattern {:bindings {?x 1 ?y [2 3]}} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (= [1 2 3] (get-object dff-result ?x)))
+
+        (t/is (not (m.logic/zero? bfs-result)))
+        (t/is (= [[1 2 3]] (get-object bfs-result ?y)))))))
 
 (t/deftest concat-protocol-satisfaction-test
-  (t/testing "-query (bfs)"
-    (m.primitive/fresh [?1 ?2]
-      (let [object1 (range 3)
-            istate1 (m.state/make {:object object1})
-            ilogic1 (m.logic/make-bfs istate1)
-            pattern (m.primitive/concat ?1 ?2)]
-        (t/is (= '(() (0 1 2) (0 1) (0))
-                 (map #(m.state/get-variable % ?1 ::unbound)
-                      (query-unwrap pattern ilogic1))))
+  (m.primitive/fresh [?x ?y]
+    (let [pattern (m.primitive/concat ?x ?y)]
+      (t/testing "When object is an empty vector"
+        (test-query pattern {:object []} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (= [] (get-variable dff-result ?x)))
+          (t/is (= [] (get-variable dff-result ?y)))
 
-        (t/is (= '((0 1 2) () (2) (1 2))
-                 (map #(m.state/get-variable % ?2 ::unbound)
-                      (query-unwrap pattern ilogic1)))))))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= [[]] (get-variable bfs-result ?x)))
+          (t/is (= [[]] (get-variable bfs-result ?y)))))
 
-  (t/testing "-yield (dff)"
-    (m.primitive/fresh [?1 ?2]
-      (let [object1 (range 3)
-            istate1 (m.state/make {:object object1})
-            istate1 (m.state/set-variable istate1 ?1 [1 2])
-            istate1 (m.state/set-variable istate1 ?2 [3 4])
-            ilogic1 (m.logic/make-dff istate1)
-            pattern (m.primitive/concat ?1 ?2)]
-        (t/is (= '(1 2 3 4)
-                 (m.state/get-object (yield-unwrap pattern ilogic1)))))
+      (t/testing "When object is an empty seq"
+        (test-query pattern {:object ()} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (= () (get-variable dff-result ?x)))
+          (t/is (= () (get-variable dff-result ?y)))
 
-      (let [object1 (range 3)
-            istate1 (m.state/make {:object object1})
-            istate1 (m.state/set-variable istate1 ?1 :a)
-            istate1 (m.state/set-variable istate1 ?2 [3 4])
-            ilogic1 (m.logic/make-dff istate1)
-            pattern (m.primitive/concat ?1 ?2)]
-        (t/is (m.logic/zero? (m.protocols/-yield pattern ilogic1)))))))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= [()] (get-variable bfs-result ?x)))
+          (t/is (= [()] (get-variable bfs-result ?y)))))
+
+      (t/testing "When object is a singleton vector"
+        (test-query pattern {:object [1]} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (= [] (get-variable dff-result ?x)))
+          (t/is (= [1] (get-variable dff-result ?y)))
+
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= [[] [1]] (get-variable bfs-result ?x)))
+          (t/is (= [[1] []] (get-variable bfs-result ?y)))))
+
+      (test-query pattern {:object [1 2 3]} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (= [] (get-variable dff-result ?x)))
+        (t/is (= [1 2 3] (get-variable dff-result ?y)))
+
+        (t/is (not (m.logic/zero? bfs-result)))
+        (t/is (= [[] [1 2 3] [1 2] [1]] (get-variable bfs-result ?x)))
+        (t/is (= [[1 2 3] [] [3] [2 3]] (get-variable bfs-result ?y))))
+
+      (test-yield pattern {:bindings {?x [1] ?y [2 3]}} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (= [1 2 3] (get-object dff-result ?x)))
+
+        (t/is (not (m.logic/zero? bfs-result)))
+        (t/is (= [[1 2 3]] (get-object bfs-result ?y)))))))
 
 (t/deftest greedy-star-protocol-satisfaction-test
   (t/testing "-query (dff)"
@@ -723,3 +738,48 @@
           (t/is (= 2 (get-variable result1 !1)))
 
           (t/is (= [2 2] (get-object result1 !1))))))))
+
+#_
+(t/deftest sequence-member-protocol-satisfaction-test
+  (t/testing "dff"
+    (t/testing "query"
+      (m.primitive/fresh [?x]
+        (let [object0 []
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/sequence-member ?x)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0))))
+
+        (let [object0 ()
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/sequence-member ?x)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0))))
+
+        (let [object0 1
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/sequence-member ?x)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (m.logic/zero? result0)))))))
+
+(t/deftest vector-protocol-satisfaction-test
+  (t/testing "dff"
+    (t/testing "query"
+      (let [object0 []
+            istate0 (m.state/make {:object object0})
+            ilogic0 (m.logic/make-dff istate0)
+            pattern (m.primitive/vector)
+            result0 (m.protocols/-query pattern ilogic0)]
+        (t/is (not (m.logic/zero? result0))))
+
+      (m.primitive/fresh [?x]
+        (let [object0 [1]
+              istate0 (m.state/make {:object object0})
+              ilogic0 (m.logic/make-dff istate0)
+              pattern (m.primitive/vector ?x)
+              result0 (m.protocols/-query pattern ilogic0)]
+          (t/is (not (m.logic/zero? result0)))
+          (t/is (= 1 (get-variable result0 ?x))))))))

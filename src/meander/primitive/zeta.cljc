@@ -398,19 +398,11 @@
 (defrecord StringCast [a]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (string? x)
-            (m.protocols/-query a ilogic)
-            (m.logic/fail ilogic s))))))
+    (m.protocols/-query a (m.logic/check-object ilogic string?)))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (m.state/set-object s (clj/str x)))))))
+    (m.logic/update-object (m.protocols/-yield a ilogic) clj/str)))
 
 (defrecord StringConcat [a b]
   m.protocols/IQuery
@@ -431,7 +423,11 @@
     (m.logic/each (m.protocols/-yield a ilogic)
       (fn [s]
         (clj/let [a (m.state/get-object s)]
-          (m.logic/each (m.protocols/-yield b (m.logic/pass ilogic s))
+          (m.logic/update-object (m.protocols/-yield b (m.logic/pass ilogic s))
+            (fn [b]
+              (clj/str a b)))
+          #_
+          (m.logic/each
             (fn [s]
               (clj/let [b (m.state/get-object s)]
                 (m.logic/pass ilogic (m.state/set-object s (clj/str a b)))))))))))
@@ -530,22 +526,26 @@
                     (m.logic/fail ilogic s2)))))
             (m.logic/fail ilogic s1)))))))
 
-(defrecord SequenceEmpty []
+;; Sequences
+;; ---------------------------------------------------------------------
+
+(defrecord SequenceMember [a]
   m.protocols/IQuery
-  (-query [this m]
-    (m.logic/each m
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (sequential? x)
-            (m.logic/pass m s)
-            (m.logic/fail m s))))))
+  (-query [this ilogic]
+    (m.protocols/-query a (m.logic/check-object ilogic sequential?)))
 
   m.protocols/IYield
-  (-yield [this m]
-    (m.logic/each m
-      (fn [s]
-        (m.logic/some (m.logic/pass m (m.state/set-object s ()))
-                      (m.logic/pass m (m.state/set-object s [])))))))
+  (-yield [this ilogic]
+    (m.logic/check-object (m.protocols/-yield a ilogic) sequential?)))
+
+(defrecord SequenceEmpty []
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.logic/check-object ilogic (every-pred sequential? (complement clj/seq))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.logic/some (m.logic/set-object ilogic ()) (m.logic/set-object ilogic []))))
 
 (defrecord SequenceCons [head tail]
   m.protocols/IQuery
@@ -582,14 +582,11 @@
       (fn [s]
         (clj/let [x (m.state/get-object s)]
           (if (sequential? x)
-            (reduce (fn [m [x-a x-b]]
-                      (m.logic/some
-                       m
-                       (m.logic/each (m.protocols/-query a (m.logic/pass m (m.state/set-object s x-a)))
-                         (fn [s]
-                           (m.protocols/-query b (m.logic/pass m (m.state/set-object s x-b)))))))
-                    (m.logic/fail m s)
-                    (m.algorithms/partitions 2 x))
+            (m.logic/scan (m.algorithms/partitions 2 x)
+              (fn [[x-a x-b]]
+                (m.logic/each (m.protocols/-query a (m.logic/pass m (m.state/set-object s x-a)))
+                  (fn [s]
+                    (m.protocols/-query b (m.logic/pass m (m.state/set-object s x-b)))))))
             (m.logic/fail m s))))))
 
   m.protocols/IYield
@@ -674,59 +671,41 @@
              (m.logic/pass ilogic istate0)
              (m.logic/fail ilogic istate0))))))))
 
-(defrecord SeqCast [x]
+(defrecord SeqCast [a]
   m.protocols/IQuery
-  (-query [this m]
-    (m.logic/each m
-      (fn [s]
-        (clj/let [y (m.state/get-object s)]
-          (if (or (seq? y) (nil? y))
-            (m.protocols/-query x (m.logic/pass m s))
-            (m.logic/fail m s))))))
+  (-query [this ilogic]
+    (m.protocols/-query a (m.logic/check-object ilogic (some-fn seq? nil?))))
 
   m.protocols/IYield
-  (-yield [this m]
-    (m.logic/each (m.protocols/-yield x m)
-      (fn [s]
-        (clj/let [y (m.state/get-object s)]
-          (if (seqable? y)
-            (m.logic/pass m (m.state/set-object s (clj/seq y)))
-            (m.logic/fail m s)))))))
+  (-yield [this ilogic]
+    (m.logic/update-object
+        (m.logic/check-object (m.protocols/-yield a ilogic)
+          seqable?)
+      clj/seq)))
 
-(defrecord VectorCast [x]
+(defrecord VectorCast [a]
   m.protocols/IQuery
-  (-query [this m]
-    (m.logic/each m
-      (fn [s]
-        (clj/let [y (m.state/get-object s)]
-          (if (vector? y)
-            (m.protocols/-query x (m.logic/pass m s))
-            (m.logic/fail m s))))))
+  (-query [this ilogic]
+    (m.protocols/-query a (m.logic/check-object ilogic vector?)))
 
   m.protocols/IYield
-  (-yield [this m]
-    (m.logic/each (m.protocols/-yield x m)
-      (fn [s]
-        (clj/let [y (m.state/get-object s)]
-          (if (seqable? y)
-            (m.logic/pass m (m.state/set-object s (clj/vec y)))
-            (m.logic/fail m s)))))))
+  (-yield [this ilogic]
+    (m.logic/update-object
+        (m.logic/check-object (m.protocols/-yield a ilogic)
+          seqable?)
+      clj/vec)))
+
+;; HashMap
+;; ---------------------------------------------------------------------
 
 (defrecord HashMapEmpty []
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (= x {})
-            (m.logic/pass ilogic s)
-            (m.logic/fail ilogic s))))))
+    (m.logic/check-object ilogic (every-pred map? empty?)))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (m.logic/pass ilogic (m.state/set-object s {}))))))
+    (m.logic/set-object ilogic {})))
 
 (defrecord HashMapEntry [k v]
   m.protocols/IQuery
@@ -811,6 +790,9 @@
                     (m.logic/pass ilogic (m.state/set-object s (clj/merge x y)))
                     (m.logic/fail ilogic s)))))
             (m.logic/fail ilogic s)))))))
+
+;; Meta
+;; ---------------------------------------------------------------------
 
 (defrecord WithMeta [a b]
   m.protocols/IQuery
