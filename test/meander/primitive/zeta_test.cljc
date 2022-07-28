@@ -539,63 +539,33 @@
         (t/is (= [[1 2 3]] (get-object bfs-result ?y)))))))
 
 (t/deftest greedy-star-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (m.primitive/fresh [?a ?b]
-      (let [object1 [1 1 1 1 2 3 4]
-            istate1 (m.state/make {:object object1})
-            ilogic1 (m.logic/make-dff istate1)
-            pattern (m.primitive/greedy-star ?a ?b)]
-        (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
+  ;; TODO: Test yield.
+  (m.primitive/fresh [?a ?b]
+    (let [pattern (m.primitive/greedy-star ?a ?b)]
+      (test-query pattern {:object [1 1 1 2 3 4]} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (= 1 (get-variable dff-result ?a)))
+        (t/is (= [2 3 4] (get-variable dff-result ?b)))
 
-        (t/is (= 1
-                 (m.state/get-variable (query-unwrap pattern ilogic1) ?a ::unbound)))
-
-        (t/is (= [2 3 4]
-                 (m.state/get-variable (query-unwrap pattern ilogic1) ?b ::unbound))))))
-
-  (t/testing "-query (bfs)"
-    (m.primitive/fresh [?a ?b]
-      (let [object1 [1 1 1 1 2 3 4]
-            istate1 (m.state/make {:object object1})
-            ilogic1 (m.logic/make-bfs istate1)
-            pattern (m.primitive/greedy-star ?a ?b)]
-        (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
-
-        (t/is (= [1]
-                 (map #(m.state/get-variable % ?a ::unbound) (query-unwrap pattern ilogic1))))
-
-        (t/is (= [[2 3 4]]
-                 (map #(m.state/get-variable % ?b ::unbound) (query-unwrap pattern ilogic1))))))))
+        (t/is (not (m.logic/zero? bfs-result)))
+        (t/is (= [1] (get-variable bfs-result ?a)))
+        (t/is (= [[2 3 4]] (get-variable bfs-result ?b)))))))
 
 (t/deftest frugal-star-protocol-satisfaction-test
-  (t/testing "-query (dff)"
-    (m.primitive/fresh [?a ?b]
-      (let [object1 [1 1 1 2 3 4]
-            istate1 (m.state/make {:object object1})
-            ilogic1 (m.logic/make-dff istate1)
-            pattern (m.primitive/frugal-star ?a ?b)]
-        (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
-
-        (t/is (= ::unbound
-                 (m.state/get-variable (query-unwrap pattern ilogic1) ?a ::unbound)))
-
+  (m.primitive/fresh [?a ?b]
+    (let [pattern (m.primitive/frugal-star ?a ?b)]
+      (test-query pattern {:object [1 1 1 2 3 4]} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (= nil
+                 (get-variable dff-result ?a)))
         (t/is (= [1 1 1 2 3 4]
-                 (m.state/get-variable (query-unwrap pattern ilogic1) ?b ::unbound))))))
+                 (get-variable dff-result ?b)))
 
-  (t/testing "-query (bfs)"
-    (m.primitive/fresh [?a ?b]
-      (let [object1 [1 1 1 2 3 4]
-            istate1 (m.state/make {:object object1})
-            ilogic1 (m.logic/make-bfs istate1)
-            pattern (m.primitive/frugal-star ?a ?b)
-            result1 (m.protocols/-query pattern ilogic1)]
-        (t/is (not (m.logic/zero? (m.protocols/-query pattern ilogic1))))
-
-        (t/is (= [::unbound 1 1 1]
-                 (get-variable result1 ?a ::unbound)))
-
+        (t/is (not (m.logic/zero? bfs-result)))
+        (t/is (= [nil 1 1 1]
+                 (get-variable bfs-result ?a)))
         (t/is (= [[1 1 1 2 3 4] [1 1 2 3 4] [1 2 3 4] [2 3 4]]
-                 (get-variable result1 ?b)))))))
+                 (get-variable bfs-result ?b)))))))
 
 (t/deftest hash-set-union-protocol-satisfaction-test
   (m.primitive/fresh [?a ?b]
