@@ -569,108 +569,59 @@
 
 (t/deftest hash-set-union-protocol-satisfaction-test
   (m.primitive/fresh [?a ?b]
-    (t/testing "Target is empty set"
-      (t/testing "dff"
-        (let [object0 #{}
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive.hash-set/union ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= #{} (get-variable result0 ?a)))
-          (t/is (= #{} (get-variable result0 ?b)))))
+    (let [pattern (m.primitive.hash-set/union ?a ?b)]
+      (t/testing "Target is empty set"
+        (test-query pattern {:object #{}} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (= #{} (get-variable dff-result ?a)))
+          (t/is (= #{} (get-variable dff-result ?b)))
 
-      (t/testing "bfs"
-        (let [object0 #{}
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-bfs istate0)
-              pattern (m.primitive.hash-set/union ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= [#{}]
-                   (get-variable result0 ?a)))
-          (t/is (= [#{}]
-                   (get-variable result0 ?b))))))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= [#{}] (get-variable bfs-result ?a)))
+          (t/is (= [#{}] (get-variable bfs-result ?b)))))
 
-    (t/testing "Target is singleton set"
-      (t/testing "dff"
-        (let [object0 #{1}
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive.hash-set/union ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= #{1}
-                   (get-variable result0 ?a)))
-          (t/is (= #{}
-                   (get-variable result0 ?b)))))
+      (t/testing "Target is singleton set"
+        (test-query pattern {:object #{1}} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (= #{1} (get-variable dff-result ?a)))
+          (t/is (= #{} (get-variable dff-result ?b)))
 
-      (t/testing "bfs"
-        (let [object0 #{1}
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-bfs istate0)
-              pattern (m.primitive.hash-set/union ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= [#{1} #{}]
-                   (get-variable result0 ?a)))
-          (t/is (= [#{} #{1}]
-                   (get-variable result0 ?b))))))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= [#{1} #{}] (get-variable bfs-result ?a)))
+          (t/is (= [#{} #{1}] (get-variable bfs-result ?b)))))
 
-    (t/testing "Target is set with two elements"
-      (t/testing "dff"
-        (let [object0 #{1 2}
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive.hash-set/union ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= #{1 2}
-                   (get-variable result0 ?a)))
-          (t/is (= #{}
-                   (get-variable result0 ?b)))))
+      (t/testing "Target is set with two elements"
+        (test-query pattern {:object #{1 2}} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (= #{1 2} (get-variable dff-result ?a)))
+          (t/is (= #{} (get-variable dff-result ?b)))
 
-      (t/testing "bfs"
-        (let [object0 #{1 2}
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-bfs istate0)
-              pattern (m.primitive.hash-set/union ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= [#{1 2} #{} #{1} #{2}]
-                   (get-variable result0 ?a)))
-          (t/is (= [#{} #{1 2} #{2} #{1}]
-                   (get-variable result0 ?b))))))))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= [#{1 2} #{} #{1} #{2}] (get-variable bfs-result ?a)))
+          (t/is (= [#{} #{1 2} #{2} #{1}] (get-variable bfs-result ?b))))))))
 
 (t/deftest with-meta-protocol-satisfaction-test
-  (t/testing "dff"
-    (t/testing "query"
-      (m.primitive/fresh [?a ?b]
-        (let [object0 (with-meta {} {:foo "bar"})
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/with-meta ?a ?b)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (= {}
-                   (get-variable result0 ?a)))
-          (t/is (= {:foo "bar"}
-                   (get-variable result0 ?b))))))
+  (m.primitive/fresh [?a ?b]
+    (let [pattern (m.primitive/with-meta ?a ?b)]
+      (test-query pattern {:object (with-meta {} {:foo "bar"})} {:keys [dff-result bfs-result]}
+        (t/is (= {}
+                 (get-variable dff-result ?a)))
 
-    (t/testing "yield"
-      (m.primitive/fresh [?a ?b]
-        (let [object0 nil
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/let [?a (m.primitive/is {})
-                                        ?b (m.primitive/is {:foo "bar"})]
-                        (m.primitive/with-meta ?a ?b))
-              result0 (m.protocols/-yield pattern ilogic0)]
-          (t/is (= {}
-                   (get-variable result0 ?a)))
-          (t/is (= {:foo "bar"}
-                   (get-variable result0 ?b)))
-          (t/is (= {:foo "bar"}
-                   (meta (get-object result0)))))))))
+        (t/is (= {:foo "bar"}
+                 (get-variable dff-result ?b)))
+
+        (t/is (= [{}]
+                 (get-variable bfs-result ?a)))
+
+        (t/is (= [{:foo "bar"}]
+                 (get-variable bfs-result ?b))))
+
+      (test-yield pattern {:bindings {?a {}, ?b {:foo "bar"}}} {:keys [dff-result]}
+        (t/is (= {}
+                 (get-object dff-result)))
+
+        (t/is (= {:foo "bar"}
+                 (meta (get-object dff-result))))))))
 
 ;; NOTE: This is still in development.
 (t/deftest unbound-protocol-satisfaction-test
@@ -684,30 +635,39 @@
     (t/is (identical? unbound (get-object result0)))))
 
 (t/deftest variable-protocol-satisfaction-test
-  (t/testing "dff"
-    (t/testing "query"
-      (m.primitive/fresh [?x]
-        (let [qsystem (m.primitive/rule
-                       (m.primitive/vector (m.primitive/anything) ?x)
-                       ?x)
-              ysystem (m.primitive/rule
-                       ?x
-                       (m.primitive/vector ?x ?x))
-              ! (var-factory qsystem ysystem)
-              !1 (! 1)
 
-              object0 [1 2]
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/vector !1 !1)
-              result0 (m.protocols/-query pattern ilogic0)
-              result1 (m.protocols/-yield pattern result0)]
+  (m.primitive/fresh [?x]
+    (let [qsystem (m.primitive/rule
+                   (m.primitive/vector (m.primitive/anything) ?x)
+                   ?x)
+          ysystem (m.primitive/rule
+                   ?x
+                   (m.primitive/vector ?x ?x))
+          ;; "Mutable variable"
+          * (var-factory qsystem ysystem)
+          *1 (* 1)
+          pattern (m.primitive/vector *1 *1)]
+      (test-query pattern {:object [1 2]} {:keys [dff-result bfs-result]}
+        (t/is (= 2 (get-variable dff-result *1)))
+        (t/is (= 2 (get-variable dff-result *1)))
+        (t/is (= [2] (get-variable bfs-result *1))))
 
-          (t/is (= 2 (get-variable result0 !1)))
+      (test-yield pattern {:bindings {*1 2}} {:keys [dff-result bfs-result]}
+        (t/is (= [2 2] (get-object dff-result)))
+        (t/is (= [2 2] (get-object dff-result)))))))
 
-          (t/is (= 2 (get-variable result1 !1)))
+(t/deftest vector-protocol-satisfaction-test
+  (test-query (m.primitive/vector) {:object []} {:keys [dff-result bfs-result]}
+    (t/is (not (m.logic/zero? dff-result)))
+    (t/is (not (m.logic/zero? bfs-result))))
 
-          (t/is (= [2 2] (get-object result1 !1))))))))
+  (m.primitive/fresh [?a ?b]
+    (test-query (m.primitive/vector ?a ?b) {:object [1 2]} {:keys [dff-result bfs-result]}
+      (t/is (= 1 (get-variable dff-result ?a)))
+      (t/is (= 2 (get-variable dff-result ?b)))
+
+      (t/is (= [1] (get-variable bfs-result ?a)))
+      (t/is (= [2] (get-variable bfs-result ?b))))))
 
 #_
 (t/deftest sequence-member-protocol-satisfaction-test
@@ -734,22 +694,3 @@
               pattern (m.primitive/sequence-member ?x)
               result0 (m.protocols/-query pattern ilogic0)]
           (t/is (m.logic/zero? result0)))))))
-
-(t/deftest vector-protocol-satisfaction-test
-  (t/testing "dff"
-    (t/testing "query"
-      (let [object0 []
-            istate0 (m.state/make {:object object0})
-            ilogic0 (m.logic/make-dff istate0)
-            pattern (m.primitive/vector)
-            result0 (m.protocols/-query pattern ilogic0)]
-        (t/is (not (m.logic/zero? result0))))
-
-      (m.primitive/fresh [?x]
-        (let [object0 [1]
-              istate0 (m.state/make {:object object0})
-              ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/vector ?x)
-              result0 (m.protocols/-query pattern ilogic0)]
-          (t/is (not (m.logic/zero? result0)))
-          (t/is (= 1 (get-variable result0 ?x))))))))

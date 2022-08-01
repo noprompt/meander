@@ -10,12 +10,8 @@
 ;; ---------------------------------------------------------------------
 
 (t/deftest anything-symbol-test
-  (let [result (m/anything-symbol (gensym "_"))]
-    (t/is (reduced? result))
-
-    (when (reduced? result)
-      (t/is (= (m/anything)
-               (deref result))))))
+  (t/is (= `(m/anything)
+           (m/anything-symbol (gensym "_")))))
 
 (t/deftest logic-variable-notation-test
   (let [result (m/logic-variable-symbol '?1)]

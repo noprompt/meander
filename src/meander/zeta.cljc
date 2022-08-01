@@ -148,9 +148,7 @@
   anything-symbol
   (rule
    (symbol (anything) (str "_" (anything)))
-   (apply ~anything [] (anything)))
-  {:eval (fn [x] (case x anything m.primitive/anything))
-   :terminal? true})
+   (`anything)))
 
 (defnotation
   ^{:doc "Convert symbols with names that start with \"?\" into logic
