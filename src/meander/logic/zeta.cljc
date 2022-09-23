@@ -27,6 +27,18 @@
     :style/indent 1}
   each #'m.protocols/-each)
 
+(defmacro foreach
+  {:style/indent 1}
+  [bindings body]
+  (if (seq bindings)
+    (let [[istate ilogic & rest-bindings] bindings]
+      (if (= istate :let)
+        `(let ~ilogic (foreach ~(vec rest-bindings) ~body))
+        `(m.protocols/-each ~ilogic
+           (fn [~istate]
+             (foreach ~(vec rest-bindings) ~body)))))
+    body))
+
 (def
   ^{:arglists '([ilogic f])
     :style/indent 1}
