@@ -163,6 +163,9 @@
       (fn? form)
       (m.primitive/is form)
 
+      (nil? form)
+      (m.primitive/is form)
+
       :else
       (todo env form))))
 
