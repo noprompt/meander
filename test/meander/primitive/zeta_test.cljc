@@ -772,3 +772,33 @@
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (= 3 (get-object dff-result)))
         (t/is (= [3] (get-object bfs-result)))))))
+
+
+(t/deftest integer-in-range-test
+  (t/testing "integer in range query"
+    (let [pattern (m.primitive.integer/in-range (m.primitive/is 1) (m.primitive/is 3))]
+      (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 2} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 0} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result)))
+
+      (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result)))))
+
+  (t/testing "integer in range yield"
+    (let [pattern (m.primitive.integer/in-range (m.primitive/is 1) (m.primitive/is 3))]
+      (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
+        (t/is (= 1 (get-object dff-result)))
+        (t/is (= [1 3 2] (get-object bfs-result)))))))
