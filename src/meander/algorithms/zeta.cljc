@@ -139,6 +139,61 @@
      ;; at (count xs) without counting the collection.
      (cons (first xs) xs))))
 
+;; `integer-partitions*` is based on a modified version of the `ruleAsc`
+;; algorithm.
+;;
+;; def ruleAscLen(n, l):
+;;     a = [0 for i in range(n + 1)]
+;;     k = 1
+;;     a[0] = 0
+;;     a[1] = n
+;;     while k != 0:
+;;         x = a[k - 1] + 1
+;;         y = a[k] - 1
+;;         k -= 1
+;;         while x <= y and k < l - 1:
+;;             a[k] = x
+;;             y -= x
+;;             k += 1
+;;         a[k] = x + y
+;;         yield a[:k + 1]
+;;
+;; SEE: https://math.stackexchange.com/a/28371
+;; SEE: http://jeromekelleher.net/category/combinatorics.html
+(defn integer-partitions*
+  {:arglists '([number-of-partitions integer])}
+  [l n]
+  (loop [k 1
+         v (assoc (vec (repeat n 0)) 1 n)
+         vs-out []]
+    (if (zero? k)
+      vs-out
+      (let [[k v] (loop [v v
+                         x (inc (nth v (dec k)))
+                         y (dec (nth v k))
+                         k (dec k)]
+                    (if (and (<= x y) (< k (dec l)))
+                      (recur (assoc v k x)
+                             x
+                             (- y x)
+                             (inc k))
+                      [k (assoc v k (+ x y))]))]
+        (recur k v (conj vs-out (subvec v 0 (inc k))))))))
+
+(defn integer-partitions [number-of-partitions integer]
+  (cond
+    (zero? number-of-partitions)
+    []
+
+    (zero? integer)
+    [(vec (repeat number-of-partitions 0))]
+
+    :else
+    (let [partitions (integer-partitions* number-of-partitions integer)]
+      (map (fn [vs]
+             (into vs (repeat (- number-of-partitions (count vs)) 0)))
+           partitions))))
+
 (defn partitions [n coll]
   (cond
     (seq? coll)
@@ -315,6 +370,11 @@
 
 ;; Other
 ;; ---------------------------------------------------------------------
+
+(defn permuted-integer-partitions [number-of-partitions integer]
+  (mapcat (fn [v]
+            (map #(nth % 0) (vector-k-permutations-with-unselected v number-of-partitions)))
+          (integer-partitions number-of-partitions integer)))
 
 (defn mix*
   "Same as `mix` but accepts a sequence of colls."
