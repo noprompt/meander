@@ -4,6 +4,7 @@
    [meander.logic.zeta :as m.logic]
    [meander.primitive.zeta :as m.primitive]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
+   [meander.primitive.integer.zeta :as m.primitive.integer]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state]
    [meander.logic.dff.zeta :as m.logic.dff])
@@ -694,3 +695,58 @@
               pattern (m.primitive/sequence-member ?x)
               result0 (m.protocols/-query pattern ilogic0)]
           (t/is (m.logic/zero? result0)))))))
+
+
+;; Integer tests
+;; ---------------------------------------------------------------------
+
+(t/deftest integer-min-test
+  (let [pattern (m.primitive.integer/min (m.primitive/is 1) (m.primitive/is 3))]
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
+
+    (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result))))
+
+  ;; ?a is less than or equal to 3
+  (m.primitive/fresh [?a]
+    (let [pattern (m.primitive/each ?a (m.primitive.integer/min ?a (m.primitive/is 3)))]
+      (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result))))))
+
+
+(t/deftest integer-max-test
+  (let [pattern (m.primitive.integer/max (m.primitive/is 1) (m.primitive/is 3))]
+    (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+      (t/is (not (m.logic/zero? dff-result)))
+      (t/is (not (m.logic/zero? bfs-result))))
+
+    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+      (t/is (m.logic/zero? dff-result))
+      (t/is (m.logic/zero? bfs-result))))
+
+  ;; ?a is greater than or equal to 3
+  (m.primitive/fresh [?a]
+    (let [pattern (m.primitive/each ?a (m.primitive.integer/max ?a (m.primitive/is 3)))]
+      (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result))))))
