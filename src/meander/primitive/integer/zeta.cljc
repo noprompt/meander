@@ -33,9 +33,9 @@
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/foreach [istate0 (check-integer (m.protocols/-yield a ilogic))
+    (m.logic/foreach [istate0 (yield-integer a ilogic)
                       :let [a (m.state/get-object istate0)]
-                      istate1 (check-integer (m.protocols/-yield b (m.logic/pass ilogic istate0)))
+                      istate1 (yield-integer b (m.logic/pass ilogic istate0))
                       :let [b (m.state/get-object istate1)]]
       (m.logic/pass ilogic (m.state/set-object istate1 (clj/min a b))))))
 
@@ -55,9 +55,9 @@
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/foreach [istate0 (check-integer (m.protocols/-yield a ilogic))
+    (m.logic/foreach [istate0 (yield-integer a ilogic)
                       :let [a (m.state/get-object istate0)]
-                      istate1 (check-integer (m.protocols/-yield b (m.logic/pass ilogic istate0)))
+                      istate1 (yield-integer b (m.logic/pass ilogic istate0))
                       :let [b (m.state/get-object istate1)]]
       (m.logic/pass ilogic (m.state/set-object istate1 (clj/max a b))))))
 

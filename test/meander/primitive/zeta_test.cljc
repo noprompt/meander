@@ -701,52 +701,74 @@
 ;; ---------------------------------------------------------------------
 
 (t/deftest integer-min-test
-  (let [pattern (m.primitive.integer/min (m.primitive/is 1) (m.primitive/is 3))]
-    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
-      (t/is (not (m.logic/zero? dff-result)))
-      (t/is (not (m.logic/zero? bfs-result))))
-
-    (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
-      (t/is (m.logic/zero? dff-result))
-      (t/is (m.logic/zero? bfs-result))))
-
-  ;; ?a is less than or equal to 3
-  (m.primitive/fresh [?a]
-    (let [pattern (m.primitive/each ?a (m.primitive.integer/min ?a (m.primitive/is 3)))]
+  (t/testing "min query"
+    (let [pattern (m.primitive.integer/min (m.primitive/is 1) (m.primitive/is 3))]
       (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
 
       (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+        (t/is (m.logic/zero? dff-result))
+        (t/is (m.logic/zero? bfs-result))))
+
+    ;; ?a is less than or equal to 3
+    (m.primitive/fresh [?a]
+      (let [pattern (m.primitive/each ?a (m.primitive.integer/min ?a (m.primitive/is 3)))]
+        (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
+
+        (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
+
+        (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))))
+
+  (t/testing "min yield"
+    (let [pattern (m.primitive.integer/min (m.primitive/is 1) (m.primitive/is 3))]
+      (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
 
-      (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
-        (t/is (m.logic/zero? dff-result))
-        (t/is (m.logic/zero? bfs-result))))))
+      (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
+        (t/is (= 1 (get-object dff-result)))
+        (t/is (= [1] (get-object bfs-result)))))))
 
 
 (t/deftest integer-max-test
-  (let [pattern (m.primitive.integer/max (m.primitive/is 1) (m.primitive/is 3))]
-    (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
-      (t/is (not (m.logic/zero? dff-result)))
-      (t/is (not (m.logic/zero? bfs-result))))
-
-    (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
-      (t/is (m.logic/zero? dff-result))
-      (t/is (m.logic/zero? bfs-result))))
-
-  ;; ?a is greater than or equal to 3
-  (m.primitive/fresh [?a]
-    (let [pattern (m.primitive/each ?a (m.primitive.integer/max ?a (m.primitive/is 3)))]
-      (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
-        (t/is (not (m.logic/zero? dff-result)))
-        (t/is (not (m.logic/zero? bfs-result))))
-
+  (t/testing "max query"
+    (let [pattern (m.primitive.integer/max (m.primitive/is 1) (m.primitive/is 3))]
       (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
 
       (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
         (t/is (m.logic/zero? dff-result))
-        (t/is (m.logic/zero? bfs-result))))))
+        (t/is (m.logic/zero? bfs-result))))
+
+    ;; ?a is greater than or equal to 3
+    (m.primitive/fresh [?a]
+      (let [pattern (m.primitive/each ?a (m.primitive.integer/max ?a (m.primitive/is 3)))]
+        (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
+
+        (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))
+
+        (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result))))))
+
+  (t/testing "max yield"
+    (let [pattern (m.primitive.integer/max (m.primitive/is 1) (m.primitive/is 3))]
+      (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result))))
+
+      (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
+        (t/is (= 3 (get-object dff-result)))
+        (t/is (= [3] (get-object bfs-result)))))))
