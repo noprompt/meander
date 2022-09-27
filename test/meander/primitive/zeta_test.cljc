@@ -4,7 +4,7 @@
    [meander.logic.zeta :as m.logic]
    [meander.primitive.zeta :as m.primitive]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
-   [meander.primitive.integer.zeta :as m.primitive.integer]
+   [meander.integer.primitive.zeta :as m.integer*]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state]
    [meander.logic.dff.zeta :as m.logic.dff])
@@ -702,7 +702,7 @@
 
 (t/deftest integer-min-test
   (t/testing "min query"
-    (let [pattern (m.primitive.integer/min (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/min (m.primitive/is 1) (m.primitive/is 3))]
       (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -713,7 +713,7 @@
 
     ;; ?a is less than or equal to 3
     (m.primitive/fresh [?a]
-      (let [pattern (m.primitive/each ?a (m.primitive.integer/min ?a (m.primitive/is 3)))]
+      (let [pattern (m.primitive/each ?a (m.integer*/min ?a (m.primitive/is 3)))]
         (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
           (t/is (not (m.logic/zero? bfs-result))))
@@ -727,7 +727,7 @@
           (t/is (m.logic/zero? bfs-result))))))
 
   (t/testing "min yield"
-    (let [pattern (m.primitive.integer/min (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/min (m.primitive/is 1) (m.primitive/is 3))]
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -739,7 +739,7 @@
 
 (t/deftest integer-max-test
   (t/testing "max query"
-    (let [pattern (m.primitive.integer/max (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/max (m.primitive/is 1) (m.primitive/is 3))]
       (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -750,7 +750,7 @@
 
     ;; ?a is greater than or equal to 3
     (m.primitive/fresh [?a]
-      (let [pattern (m.primitive/each ?a (m.primitive.integer/max ?a (m.primitive/is 3)))]
+      (let [pattern (m.primitive/each ?a (m.integer*/max ?a (m.primitive/is 3)))]
         (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
           (t/is (not (m.logic/zero? bfs-result))))
@@ -764,7 +764,7 @@
           (t/is (m.logic/zero? bfs-result))))))
 
   (t/testing "max yield"
-    (let [pattern (m.primitive.integer/max (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/max (m.primitive/is 1) (m.primitive/is 3))]
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -776,7 +776,7 @@
 
 (t/deftest integer-in-range-test
   (t/testing "integer in range query"
-    (let [pattern (m.primitive.integer/in-range (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/in-range (m.primitive/is 1) (m.primitive/is 3))]
       (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -798,14 +798,14 @@
         (t/is (m.logic/zero? bfs-result)))))
 
   (t/testing "integer in range yield"
-    (let [pattern (m.primitive.integer/in-range (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/in-range (m.primitive/is 1) (m.primitive/is 3))]
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (= 1 (get-object dff-result)))
         (t/is (= [1 3 2] (get-object bfs-result)))))))
 
 (t/deftest integer-addition
   (m.primitive/fresh [?a ?b]
-    (let [pattern (m.primitive.integer/+ ?a ?b)]
+    (let [pattern (m.integer*/+ ?a ?b)]
       (t/testing "integer addition query"
         (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
