@@ -1,12 +1,13 @@
 (ns meander.set.zeta
-  (:require [meander.logic.zeta :as m.logic]
-            [meander.private.zeta :as m.private]
-            [meander.primitive.zeta :as m.primitive]
-            [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
-            [meander.protocols.zeta :as m.protocols]
-            [meander.state.zeta :as m.state]
-            [meander.environment.zeta :as m.env]
-            [meander.zeta :as m])
+  (:require
+   [meander.environment.zeta :as m.env]
+   [meander.logic.zeta :as m.logic]
+   [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
+   [meander.primitive.zeta :as m.primitive]
+   [meander.private.zeta :as m.private]
+   [meander.protocols.zeta :as m.protocols]
+   [meander.state.zeta :as m.state]
+   [meander.zeta :as m])
   (:refer-clojure :exclude [conj
                             empty]))
 
