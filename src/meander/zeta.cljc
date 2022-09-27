@@ -8,8 +8,7 @@
    [meander.primitive.zeta :as m.primitive]
    [meander.private.zeta :as m.private]
    [meander.protocols.zeta :as m.protocols]
-   [meander.state.zeta :as m.state]
-   [meander.set.zeta :as m.set])
+   [meander.state.zeta :as m.state])
   (:refer-clojure :exclude [apply
                             assoc
                             concat
@@ -196,6 +195,7 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
+;; FIFO
 ;; TODO: Back with a queue.
 (defvariable <<
   (system
@@ -218,6 +218,7 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
+;; LIFO
 (defvariable >>
   (system
    (rule [(unbound) ?x#]
@@ -305,28 +306,6 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
-;; Set operators and notation
-;; --------------------------
-
-(defnotation hash-set-as
-  (rule
-   (m.set/union #{(with-meta ?x {::as true & ?rest-meta})} ?s)
-   (`each (with-meta ?x ?rest-meta) ?s))
-  {:notations [logic-variable-symbol
-               hash-map-rest]})
-
-(defnotation hash-set-rest
-  (system
-   (rule
-    #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})}
-    (`each (with-meta ?x ?rest-meta)))
-
-   (rule
-    (m.set/union #{(with-meta ?x {(symbol (str "&" _)) true & ?rest-meta})} ?s)
-    (`m.set/union (with-meta ?x ?rest-meta) ?s)))
-  {:notations [anything-symbol
-               logic-variable-symbol
-               hash-map-rest]})
 
 (defoperator let
   (system
@@ -354,8 +333,8 @@
    #'++-symbol
    #'hash-map-as
    #'hash-map-rest
-   #'hash-set-as
-   #'hash-set-rest
+   ;; #'m.set/hash-set-as
+   ;; #'m.set/hash-set-rest
    #'vector-as
    #'vector-rest])
 
