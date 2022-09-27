@@ -233,6 +233,87 @@
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result)))))
 
+(t/deftest project-test
+  (t/testing "project query"
+    (let [n (rand)
+          m (inc n)
+          pattern (m*/project (m*/is m) (m*/is m) (m*/is n))]
+      (t/testing "When a yields, b queries, and :object matches"
+        (test-query pattern {:object n} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result)))))
+
+      (t/testing "When a yields, b queries, and :object does not match"
+        (test-query pattern {:object m} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result)))))
+
+    (t/testing "When a yields, and b does not query"
+      (let [pattern (m*/project (m*/is 1) (m*/nothing) (m*/anything))]
+        (test-query pattern {} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result)))))
+
+    (t/testing "When a does not yield"
+      (let [pattern (m*/project (m*/nothing) (m*/anything) (m*/anything))]
+        (test-query pattern {} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result)))))
+
+    (t/testing "Variable binding examples"
+      (m*/fresh [?a ?b]
+        (let [pattern (m*/project (m*/is 1) ?a (m*/anything))]
+          (test-query pattern {} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (not (m.logic/zero? bfs-result)))
+            (t/is (= 1 (get-variable dff-result ?a)))
+            (t/is (= [1] (get-variable bfs-result ?a)))))
+
+        (let [pattern (m*/project ?a ?b (m*/anything))]
+          (test-query pattern {:bindings {?a 1}} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (not (m.logic/zero? bfs-result)))
+            (t/is (= 1 (get-variable dff-result ?b)))
+            (t/is (= [1] (get-variable bfs-result ?b))))))))
+
+  (t/testing "project yield"
+    (let [n (rand)
+          m (inc n)
+          pattern (m*/project (m*/is m) (m*/is m) (m*/is n))]
+      (t/testing "When a yields, b queries, and :object matches"
+        (test-yield pattern {:object n} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result))))))
+
+    (t/testing "When a yields, and b does not yield"
+      (let [pattern (m*/project (m*/is 1) (m*/nothing) (m*/anything))]
+        (test-yield pattern {} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result)))))
+
+    (t/testing "When a does not yield"
+      (let [pattern (m*/project (m*/nothing) (m*/anything) (m*/anything))]
+        (test-yield pattern {} {:keys [dff-result bfs-result]}
+          (t/is (m.logic/zero? dff-result))
+          (t/is (m.logic/zero? bfs-result)))))
+
+    (t/testing "Variable binding examples"
+      (m*/fresh [?a ?b]
+        (let [pattern (m*/project (m*/is 1) ?a (m*/anything))]
+          (test-yield pattern {} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (not (m.logic/zero? bfs-result)))
+            (t/is (= 1 (get-variable dff-result ?a)))
+            (t/is (= [1] (get-variable bfs-result ?a)))))
+
+        (let [pattern (m*/project ?a ?b (m*/anything))]
+          (test-yield pattern {:bindings {?a 1}} {:keys [dff-result bfs-result]}
+            (t/is (not (m.logic/zero? dff-result)))
+            (t/is (not (m.logic/zero? bfs-result)))
+            (t/is (= 1 (get-variable dff-result ?b)))
+            (t/is (= [1] (get-variable bfs-result ?b)))))))))
+
+
 (t/deftest logic-variable-protocol-satisfaction-test
   (m*/fresh [?1]
     (t/testing "When variable is unbound"
