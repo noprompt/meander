@@ -2,62 +2,63 @@
   (:refer-clojure :exclude [min max +])
   (:require [meander.logic.zeta :as m.logic]
             [meander.private.zeta :as m.private]
-            [meander.primitive.zeta :as m.primitive]
+            [meander.primitive.zeta :as m*]
             [meander.primitive.integer.zeta :as m.integer*]
             [meander.protocols.zeta :as m.protocols]
             [meander.state.zeta :as m.state]
-            [meander.environment.zeta :as m.env]))
+            [meander.environment.zeta :as m.env]
+            [meander.zeta :as m]))
 
-(m.private/def-fn-operator + m.integer*/+)
+(m.private/def-fn-operator any* m.integer*/any)
+
+;; Min
+;; ---------------------------------------------------------------------
+
 (m.private/def-fn-operator min* m.integer*/min)
+
+(m/defoperator min
+  (m/system
+   (m/rule
+    (_ (m/each ?a (any*)) (m/each ?b (any*)))
+    (min* ?a ?b))
+
+   (m/rule
+    (_ ?a ?b)
+    (`min* ?a ?b)))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})
+
+;; Max
+;; ---------------------------------------------------------------------
+
 (m.private/def-fn-operator max* m.integer*/max)
 
-(def ^:private min-system
-  (m.primitive/fresh [?a ?b]
-    (m.primitive/system `min
-      [;; (min integer integer) => integer
-       (m.primitive/rule
-        (m.primitive/list (m.primitive/anything)
-                          (m.primitive/each ?a (m.integer*/any))
-                          (m.primitive/each ?b (m.integer*/any)))
-        (m.integer*/min ?a ?b))
+(m/defoperator max
+  (m/system
+   (m/rule
+    (_ (m/each ?a (any*)) (m/each ?b (any*)))
+    (max* ?a ?b))
 
-       ;; TODO: (min integer (min integer x)) => (min (min integer integer) x)
+   (m/rule
+    (_ ?a ?b)
+    (`max* ?a ?b)))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})
 
-       ;; Default
-       (m.primitive/rule
-        (m.primitive/list (m.primitive/anything) ?a ?b)
-        (m.primitive/list (m.primitive/is `min*) ?a ?b))])))
 
-(defn min [a b]
-  (let [istate (m.state/make {:object (list `min a b)})
-        ilogic (m.logic/make-dff istate)
-        result (m.protocols/-redex min-system ilogic)]
-    (deref (m.protocols/-fmap result m.state/get-object))))
+;; Sum
+;; ---------------------------------------------------------------------
 
-(m.env/operator-add! `min (fn [env form] (apply min (rest form))))
+(m.private/def-fn-operator +* m.integer*/+)
 
-(def ^:private max-system
-  (m.primitive/fresh [?a ?b]
-    (m.primitive/system `max
-      [;; (max integer integer) => integer
-       (m.primitive/rule
-        (m.primitive/list (m.primitive/anything)
-                          (m.primitive/each ?a (m.integer*/any))
-                          (m.primitive/each ?b (m.integer*/any)))
-        (m.integer*/max ?a ?b))
+(m/defoperator +
+  (m/system
+   (m/rule
+    (_ (m/each ?a (any*)) (m/each ?b (any*)))
+    (+* ?a ?b))
 
-       ;; TODO: (max integer (max integer x)) => (max (max integer integer) x)
-
-       ;; Default
-       (m.primitive/rule
-        (m.primitive/list (m.primitive/anything) ?a ?b)
-        (m.primitive/list (m.primitive/is `max*) ?a ?b))])))
-
-(defn max [a b]
-  (let [istate (m.state/make {:object (list `max a b)})
-        ilogic (m.logic/make-dff istate)
-        result (m.protocols/-redex max-system ilogic)]
-    (deref (m.protocols/-fmap result m.state/get-object))))
-
-(m.env/operator-add! `max (fn [env form] (apply max (rest form))))
+   (m/rule
+    (_ ?a ?b)
+    (`+* ?a ?b)))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})
