@@ -6,12 +6,9 @@
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
    [meander.primitive.integer.zeta :as m.integer*]
    [meander.protocols.zeta :as m.protocols]
-   [meander.state.zeta :as m.state]
-   [meander.logic.dff.zeta :as m.logic.dff])
+   [meander.state.zeta :as m.state])
   #?(:clj
-     (:import clojure.lang.ExceptionInfo
-              meander.logic.dff.zeta.DFFLogic
-              meander.logic.bfs.zeta.BFSLogic)))
+     (:import clojure.lang.ExceptionInfo)))
 
 
 (defn var-factory [qrule yrule]
@@ -235,7 +232,6 @@
     (test-yield pattern {} {:keys [dff-result bfs-result]}
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result)))))
-
 
 (t/deftest logic-variable-protocol-satisfaction-test
   (m.primitive/fresh [?1]
