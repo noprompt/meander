@@ -5,9 +5,13 @@
             [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
             [meander.protocols.zeta :as m.protocols]
             [meander.state.zeta :as m.state]
-            [meander.environment.zeta :as m.env])
+            [meander.environment.zeta :as m.env]
+            [meander.zeta :as m])
   (:refer-clojure :exclude [conj
                             empty]))
+
+;; Set operators and notation
+;; --------------------------
 
 (m.private/def-fn-operator any m.primitive.hash-set/any)
 (m.private/def-fn-operator conj m.primitive.hash-set/conj)
@@ -77,3 +81,21 @@
     (deref (m.protocols/-fmap result m.state/get-object))))
 
 (m.env/operator-add! `intersection (fn [env form] (apply intersection (rest form))))
+
+(m/defnotation hash-set-as
+  (m/rule
+   (union #{(m/with-meta ?x (m/assoc ?rest-meta ::m/as true))} ?s)
+   (`m/each (m/with-meta ?x ?rest-meta) ?s))
+  {:notations [m/logic-variable-symbol]})
+
+(m/defnotation hash-set-rest
+  (m/system
+   (m/rule
+    #{(m/with-meta ?x (m/assoc ?rest-meta (m/symbol (m/str "&" _)) true))}
+    (`m/each (m/with-meta ?x ?rest-meta)))
+
+   (m/rule
+    (union #{(m/with-meta ?x (m/assoc ?rest-meta (m/symbol (m/str "&" _)) true))} ?s)
+    (`union (m/with-meta ?x ?rest-meta) ?s)))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})

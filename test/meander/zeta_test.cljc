@@ -183,28 +183,28 @@
 (t/deftest hash-set-as-notation-test
   (t/testing "Does nothing if there is no element with meta containing the submap {::m/as true}"
     (t/is (= #{1 2}
-             (m/hash-set-as #{1 2}))))
+             (m.set/hash-set-as #{1 2}))))
 
   (t/testing "Regonizes element with meta containing the submap {::m/as true}"
     (t/is (= `(m/each ?x #{1 2})
-             (m/hash-set-as #{1 2 (with-meta `?x {::m/as true})}))))
+             (m.set/hash-set-as #{1 2 (with-meta `?x {::m/as true})}))))
 
   (t/testing "Removes ::m/as meta"
     (t/is (= {:foo "bar"}
-             (meta (second (m/hash-set-as #{1 2 (with-meta `?x {:foo "bar", ::m/as true})})))))))
+             (meta (second (m.set/hash-set-as #{1 2 (with-meta `?x {:foo "bar", ::m/as true})})))))))
 
 (t/deftest hash-set-rest-notation-test
   (t/testing "Does nothing if there is no element with meta containing the submap {& true}"
     (t/is (= #{1 2}
-             (m/hash-set-rest #{1 2}))))
+             (m.set/hash-set-rest #{1 2}))))
 
   (t/testing "Regonizes element with meta containing the submap {& pattern}"
     (t/is (= `(m.set/union ?x #{1 2})
-             (m/hash-set-rest #{1 2 (with-meta `?x `{m/& true})}))))
+             (m.set/hash-set-rest #{1 2 (with-meta `?x `{m/& true})}))))
 
   (t/testing "Removes & meta"
     (t/is (= {:foo "bar"}
-             (meta (second (m/hash-set-rest #{1 2 (with-meta `?x `{m/& true, :foo "bar"})})))))))
+             (meta (second (m.set/hash-set-rest #{1 2 (with-meta `?x `{m/& true, :foo "bar"})})))))))
 
 ;; FIFO (>>) tests
 ;; ---------------------------------------------------------------------
