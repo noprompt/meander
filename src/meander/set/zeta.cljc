@@ -38,40 +38,33 @@
    (m/rule
     (m/cons ?op (m/cons ?a ?b))
     (`union* ?a (m/cons ?op ?b))))
-
   {:notations [m/anything-symbol
                m/logic-variable-symbol]})
 
-(def ^:private intersection-system
-  (m.primitive/fresh [?op ?a ?b]
-    (m.primitive/system `intersection
-      [;; (intersection) => (empty)
-       (m.primitive/rule
-        (m.primitive/list ?op)
-        (m.primitive/list (m.primitive/is `empty)))
+(m/defoperator intersection
+  (m/system
+   ;; (intersection) => (empty)
+   (m/rule
+    (_)
+    (`empty))
 
-       ;; (intersection a) => (member a)
-       (m.primitive/rule
-        (m.primitive/list ?op ?a)
-        (m.primitive/list (m.primitive/is `member) ?a))
+   ;; (intersection a) => (member a)
+   (m/rule
+    (?op ?a)
+    (`member ?a))
 
-       ;; (intersection a a) => (member (each a a))
-       (m.primitive/rule
-        (m.primitive/list ?op ?a ?a)
-        (m.primitive/list (m.primitive/is `member) (m.primitive/list `m.private/each* ?a ?a)))
+   ;; (intersection a a) => (member (each a a))
+   (m/rule
+    (m/list ?op ?a ?a)
+    (`member (`m/each* ?a ?a)))
 
-       ;; (intersection a b & more) => (intersection* a (intersection b & more)
-       (m.primitive/rule
-        (m.primitive/cons ?op (m.primitive/cons ?a ?b))
-        (m.primitive/list (m.primitive/is `intersection*) ?a (m.primitive/cons ?op ?b)))])))
+   ;; (intersection a b & more) => (intersection* a (intersection b & more)
+   (m/rule
+    (m/cons ?op (m/cons ?a ?b))
+    (`intersection* ?a (m/cons ?op ?b))))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})
 
-(defn intersection [& args]
-  (let [istate (m.state/make {:object (cons `intersection args)})
-        ilogic (m.logic/make-dff istate)
-        result (m.protocols/-redex intersection-system ilogic)]
-    (deref (m.protocols/-fmap result m.state/get-object))))
-
-(m.env/operator-add! `intersection (fn [env form] (apply intersection (rest form))))
 
 (m/defnotation hash-set-as
   (m/rule
