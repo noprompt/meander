@@ -100,6 +100,23 @@
 (def ^{:arglists '([ilogic context])}
   explain #'m.protocols/-explain)
 
+(defmacro query [ilogic a]
+  `(m.protocols/-query ~a ~ilogic))
+
+(defmacro yield [ilogic a]
+  `(m.protocols/-yield ~a ~ilogic))
+
+(defmacro redex [ilogic a]
+  `(m.protocols/-redex ~a ~ilogic))
+
+(defmacro fmap [ilogic f]
+  {:style/indent 1}
+  `(m.protocols/-fmap ~ilogic ~f))
+
+
+;; Constructors
+
+
 (defn make-dff [istate]
   (m.logic.dff/->DFFLogic istate))
 
