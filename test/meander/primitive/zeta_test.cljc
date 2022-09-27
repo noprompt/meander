@@ -2,8 +2,8 @@
   (:require
    [clojure.test :as t]
    [meander.logic.zeta :as m.logic]
-   [meander.primitive.zeta :as m.primitive]
-   [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
+   [meander.primitive.zeta :as m*]
+   [meander.primitive.hash-set.zeta :as m.hash-set*]
    [meander.primitive.integer.zeta :as m.integer*]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state])
@@ -13,7 +13,7 @@
 
 (defn var-factory [qrule yrule]
   (fn [id]
-    (m.primitive/variable id qrule yrule)))
+    (m*/variable id qrule yrule)))
 
 (defn get-variable
   ([ilogic v]
@@ -73,27 +73,27 @@
 ;; Tests
 
 (t/deftest anything-protocol-satisfaction-test
-  (let [pattern (m.primitive/anything)]
+  (let [pattern (m*/anything)]
     (test-query pattern {} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result)))))
 
-  (test-yield (m.primitive/anything) {} {:keys [dff-result bfs-result]}
+  (test-yield (m*/anything) {} {:keys [dff-result bfs-result]}
     (t/is (not (m.logic/zero? dff-result)))
     (t/is (not (m.logic/zero? bfs-result)))))
 
 (t/deftest nothing-protocol-satisfaction-test
-  (test-query (m.primitive/nothing) {} {:keys [dff-result bfs-result]}
+  (test-query (m*/nothing) {} {:keys [dff-result bfs-result]}
     (t/is (m.logic/zero? dff-result))
     (t/is (m.logic/zero? bfs-result)))
 
-  (test-yield (m.primitive/nothing) {} {:keys [dff-result bfs-result]}
+  (test-yield (m*/nothing) {} {:keys [dff-result bfs-result]}
     (t/is (m.logic/zero? dff-result))
     (t/is (m.logic/zero? bfs-result))))
 
 (t/deftest is-protocol-satisfaction-test
   (let [object (reify)
-        pattern (m.primitive/is object)]
+        pattern (m*/is object)]
     (test-query pattern {:object object} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -106,7 +106,7 @@
                (get-object bfs-result))))))
 
 (t/deftest not-protocol-satisfaction-test
-  (let [pattern (m.primitive/not (m.primitive/is 1))]
+  (let [pattern (m*/not (m*/is 1))]
     (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result)))
@@ -126,7 +126,7 @@
   (let [object1 (rand)
         object2 (inc object1)
         object3 (inc object2)
-        pattern (m.primitive/some (m.primitive/is object1) (m.primitive/is object2))]
+        pattern (m*/some (m*/is object1) (m*/is object2))]
     (test-query pattern {:object object1} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -148,7 +148,7 @@
   (let [object1 (rand)
         object2 (inc object1)
         object3 (inc object2)
-        pattern (m.primitive/pick (m.primitive/is object1) (m.primitive/is object2))]
+        pattern (m*/pick (m*/is object1) (m*/is object2))]
     (test-query pattern {:object object1} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -167,7 +167,7 @@
                (get-object bfs-result))))))
 
 (t/deftest each-protocol-satisfaction-test
-  (let [pattern (m.primitive/each)]
+  (let [pattern (m*/each)]
     (test-query pattern {} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -176,7 +176,7 @@
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result)))))
 
-  (let [pattern (m.primitive/each (m.primitive/anything))]
+  (let [pattern (m*/each (m*/anything))]
     (test-query pattern {} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -185,7 +185,7 @@
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result)))))
 
-  (let [pattern (m.primitive/each (m.primitive/anything) (m.primitive/anything))]
+  (let [pattern (m*/each (m*/anything) (m*/anything))]
     (test-query pattern {} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -194,7 +194,7 @@
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result)))))
 
-  (let [pattern (m.primitive/each (m.primitive/is 1) (m.primitive/anything))]
+  (let [pattern (m*/each (m*/is 1) (m*/anything))]
     (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
       (t/is (not (m.logic/zero? dff-result)))
       (t/is (not (m.logic/zero? bfs-result))))
@@ -206,7 +206,7 @@
       (t/is (not (m.logic/zero? bfs-result)))
       (t/is (= [1] (get-object bfs-result)))))
 
-  (let [pattern (m.primitive/each (m.primitive/nothing) (m.primitive/anything))]
+  (let [pattern (m*/each (m*/nothing) (m*/anything))]
     (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result)))
@@ -215,7 +215,7 @@
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result))))
 
-  (let [pattern (m.primitive/each (m.primitive/nothing) (m.primitive/anything))]
+  (let [pattern (m*/each (m*/nothing) (m*/anything))]
     (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result)))
@@ -224,7 +224,7 @@
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result))))
 
-  (let [pattern (m.primitive/each (m.primitive/nothing) (m.primitive/nothing))]
+  (let [pattern (m*/each (m*/nothing) (m*/nothing))]
     (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
       (t/is (m.logic/zero? dff-result))
       (t/is (m.logic/zero? bfs-result)))
@@ -234,7 +234,7 @@
       (t/is (m.logic/zero? bfs-result)))))
 
 (t/deftest logic-variable-protocol-satisfaction-test
-  (m.primitive/fresh [?1]
+  (m*/fresh [?1]
     (t/testing "When variable is unbound"
       (test-query ?1 {:object 1} {:keys [dff-result bfs-result]}
         (t/is (= 1 (get-variable dff-result ?1)))
@@ -254,7 +254,7 @@
         (t/is (= [2] (get-variable bfs-result ?1)))))))
 
 (t/deftest rule-protocol-satisfaction-test
-  (let [pattern (m.primitive/rule (m.primitive/anything) (m.primitive/anything))]
+  (let [pattern (m*/rule (m*/anything) (m*/anything))]
     (t/testing "When query and yield succeed so does redex"
       (test-query pattern {} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
@@ -268,7 +268,7 @@
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))))
 
-  (let [pattern (m.primitive/rule (m.primitive/nothing) (m.primitive/anything))]
+  (let [pattern (m*/rule (m*/nothing) (m*/anything))]
     (t/testing "When query fails so does redex"
       (test-query pattern {} {:keys [dff-result bfs-result]}
         (t/is (m.logic/zero? dff-result))
@@ -282,7 +282,7 @@
         (t/is (m.logic/zero? dff-result))
         (t/is (m.logic/zero? bfs-result)))))
 
-  (let [pattern (m.primitive/rule (m.primitive/anything) (m.primitive/nothing))]
+  (let [pattern (m*/rule (m*/anything) (m*/nothing))]
     (t/testing "When yield fails so does redex"
       (test-query pattern {} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
@@ -298,7 +298,7 @@
 
 (t/deftest str-protocol-satisfaction-test
   (t/testing "With zero arguments"
-    (let [pattern (m.primitive/str)]
+    (let [pattern (m*/str)]
       (t/testing "when the object is the empty string"
         (test-query pattern {:object ""} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
@@ -309,8 +309,8 @@
           (t/is (= [""] (get-object bfs-result)))))))
 
   (t/testing "With one argument"
-    (m.primitive/fresh [?a]
-      (let [pattern (m.primitive/str ?a)]
+    (m*/fresh [?a]
+      (let [pattern (m*/str ?a)]
         (t/testing "when the object is the empty string"
           (test-query pattern {:object ""} {:keys [dff-result bfs-result]}
             (t/is (not (m.logic/zero? dff-result)))
@@ -324,8 +324,8 @@
             (t/is (= [""] (get-variable bfs-result ?a))))))))
 
   (t/testing "With two arguments"
-    (m.primitive/fresh [?a ?b]
-      (let [pattern (m.primitive/str ?a ?b)]
+    (m*/fresh [?a ?b]
+      (let [pattern (m*/str ?a ?b)]
         (t/testing "when the object is the empty string"
           (test-query pattern {:object ""} {:keys [dff-result bfs-result]}
             (t/is (not (m.logic/zero? dff-result)))
@@ -356,7 +356,7 @@
 
 (t/deftest symbol-protocol-satisfaction-test
   (t/testing "With one argument"
-    (let [pattern (m.primitive/symbol (m.primitive/is "foo"))]
+    (let [pattern (m*/symbol (m*/is "foo"))]
       (t/testing "when object is an unqualified symbol"
         (test-query pattern {:object 'foo} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
@@ -376,7 +376,7 @@
         (t/is (= ['foo] (get-object bfs-result))))))
 
   (t/testing "With two arguments"
-    (let [pattern (m.primitive/symbol (m.primitive/is "foo") (m.primitive/is "foo"))]
+    (let [pattern (m*/symbol (m*/is "foo") (m*/is "foo"))]
       (t/testing "when object is an unqualified symbol"
         (test-query pattern {:object 'foo} {:keys [dff-result bfs-result]}
           (t/is (m.logic/zero? dff-result))
@@ -397,7 +397,7 @@
 
 (t/deftest keyword-protocol-satisfaction-test
   (t/testing "With one argument"
-    (let [pattern (m.primitive/keyword (m.primitive/is "foo"))]
+    (let [pattern (m*/keyword (m*/is "foo"))]
       (t/testing "when object is an unqualified keyword"
         (test-query pattern {:object :foo} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
@@ -417,7 +417,7 @@
         (t/is (= [:foo] (get-object bfs-result))))))
 
   (t/testing "With two arguments"
-    (let [pattern (m.primitive/keyword (m.primitive/is "foo") (m.primitive/is "foo"))]
+    (let [pattern (m*/keyword (m*/is "foo") (m*/is "foo"))]
       (t/testing "when object is an unqualified keyword"
         (test-query pattern {:object :foo} {:keys [dff-result bfs-result]}
           (t/is (m.logic/zero? dff-result))
@@ -437,8 +437,8 @@
         (t/is (= [:foo/foo] (get-object bfs-result)))))))
 
 (t/deftest cons-protocol-satisfaction-test
-  (m.primitive/fresh [?x ?y]
-    (let [pattern (m.primitive/cons ?x ?y)]
+  (m*/fresh [?x ?y]
+    (let [pattern (m*/cons ?x ?y)]
       (test-query pattern {:object [1]} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (= 1 (get-variable dff-result ?x)))
@@ -456,8 +456,8 @@
         (t/is (= [[1 2 3]] (get-object bfs-result ?y)))))))
 
 (t/deftest concat-protocol-satisfaction-test
-  (m.primitive/fresh [?x ?y]
-    (let [pattern (m.primitive/concat ?x ?y)]
+  (m*/fresh [?x ?y]
+    (let [pattern (m*/concat ?x ?y)]
       (t/testing "When object is an empty vector"
         (test-query pattern {:object []} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
@@ -506,8 +506,8 @@
 
 (t/deftest greedy-star-protocol-satisfaction-test
   ;; TODO: Test yield.
-  (m.primitive/fresh [?a ?b]
-    (let [pattern (m.primitive/greedy-star ?a ?b)]
+  (m*/fresh [?a ?b]
+    (let [pattern (m*/greedy-star ?a ?b)]
       (test-query pattern {:object [1 1 1 2 3 4]} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (= 1 (get-variable dff-result ?a)))
@@ -518,8 +518,8 @@
         (t/is (= [[2 3 4]] (get-variable bfs-result ?b)))))))
 
 (t/deftest frugal-star-protocol-satisfaction-test
-  (m.primitive/fresh [?a ?b]
-    (let [pattern (m.primitive/frugal-star ?a ?b)]
+  (m*/fresh [?a ?b]
+    (let [pattern (m*/frugal-star ?a ?b)]
       (test-query pattern {:object [1 1 1 2 3 4]} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (= nil
@@ -534,8 +534,8 @@
                  (get-variable bfs-result ?b)))))))
 
 (t/deftest hash-set-union-protocol-satisfaction-test
-  (m.primitive/fresh [?a ?b]
-    (let [pattern (m.primitive.hash-set/union ?a ?b)]
+  (m*/fresh [?a ?b]
+    (let [pattern (m.hash-set*/union ?a ?b)]
       (t/testing "Target is empty set"
         (test-query pattern {:object #{}} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
@@ -567,8 +567,8 @@
           (t/is (= [#{} #{1 2} #{2} #{1}] (get-variable bfs-result ?b))))))))
 
 (t/deftest with-meta-protocol-satisfaction-test
-  (m.primitive/fresh [?a ?b]
-    (let [pattern (m.primitive/with-meta ?a ?b)]
+  (m*/fresh [?a ?b]
+    (let [pattern (m*/with-meta ?a ?b)]
       (test-query pattern {:object (with-meta {} {:foo "bar"})} {:keys [dff-result bfs-result]}
         (t/is (= {}
                  (get-variable dff-result ?a)))
@@ -596,23 +596,23 @@
         unbound (m.logic/unbound ilogic_)
         istate0 (m.state/set-object istate_ unbound)
         ilogic0 (m.logic/make-dff istate0)
-        pattern (m.primitive/unbound)
+        pattern (m*/unbound)
         result0 (m.protocols/-query pattern ilogic0)]
     (t/is (identical? unbound (get-object result0)))))
 
 (t/deftest variable-protocol-satisfaction-test
 
-  (m.primitive/fresh [?x]
-    (let [qsystem (m.primitive/rule
-                   (m.primitive/vector (m.primitive/anything) ?x)
+  (m*/fresh [?x]
+    (let [qsystem (m*/rule
+                   (m*/vector (m*/anything) ?x)
                    ?x)
-          ysystem (m.primitive/rule
+          ysystem (m*/rule
                    ?x
-                   (m.primitive/vector ?x ?x))
+                   (m*/vector ?x ?x))
           ;; "Mutable variable"
           * (var-factory qsystem ysystem)
           *1 (* 1)
-          pattern (m.primitive/vector *1 *1)]
+          pattern (m*/vector *1 *1)]
       (test-query pattern {:object [1 2]} {:keys [dff-result bfs-result]}
         (t/is (= 2 (get-variable dff-result *1)))
         (t/is (= 2 (get-variable dff-result *1)))
@@ -623,12 +623,12 @@
         (t/is (= [2 2] (get-object dff-result)))))))
 
 (t/deftest vector-protocol-satisfaction-test
-  (test-query (m.primitive/vector) {:object []} {:keys [dff-result bfs-result]}
+  (test-query (m*/vector) {:object []} {:keys [dff-result bfs-result]}
     (t/is (not (m.logic/zero? dff-result)))
     (t/is (not (m.logic/zero? bfs-result))))
 
-  (m.primitive/fresh [?a ?b]
-    (test-query (m.primitive/vector ?a ?b) {:object [1 2]} {:keys [dff-result bfs-result]}
+  (m*/fresh [?a ?b]
+    (test-query (m*/vector ?a ?b) {:object [1 2]} {:keys [dff-result bfs-result]}
       (t/is (= 1 (get-variable dff-result ?a)))
       (t/is (= 2 (get-variable dff-result ?b)))
 
@@ -639,25 +639,25 @@
 (t/deftest sequence-member-protocol-satisfaction-test
   (t/testing "dff"
     (t/testing "query"
-      (m.primitive/fresh [?x]
+      (m*/fresh [?x]
         (let [object0 []
               istate0 (m.state/make {:object object0})
               ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/sequence-member ?x)
+              pattern (m*/sequence-member ?x)
               result0 (m.protocols/-query pattern ilogic0)]
           (t/is (not (m.logic/zero? result0))))
 
         (let [object0 ()
               istate0 (m.state/make {:object object0})
               ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/sequence-member ?x)
+              pattern (m*/sequence-member ?x)
               result0 (m.protocols/-query pattern ilogic0)]
           (t/is (not (m.logic/zero? result0))))
 
         (let [object0 1
               istate0 (m.state/make {:object object0})
               ilogic0 (m.logic/make-dff istate0)
-              pattern (m.primitive/sequence-member ?x)
+              pattern (m*/sequence-member ?x)
               result0 (m.protocols/-query pattern ilogic0)]
           (t/is (m.logic/zero? result0)))))))
 
@@ -667,7 +667,7 @@
 
 (t/deftest integer-min-test
   (t/testing "min query"
-    (let [pattern (m.integer*/min (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/min (m*/is 1) (m*/is 3))]
       (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -677,8 +677,8 @@
         (t/is (m.logic/zero? bfs-result))))
 
     ;; ?a is less than or equal to 3
-    (m.primitive/fresh [?a]
-      (let [pattern (m.primitive/each ?a (m.integer*/min ?a (m.primitive/is 3)))]
+    (m*/fresh [?a]
+      (let [pattern (m*/each ?a (m.integer*/min ?a (m*/is 3)))]
         (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
           (t/is (not (m.logic/zero? bfs-result))))
@@ -692,7 +692,7 @@
           (t/is (m.logic/zero? bfs-result))))))
 
   (t/testing "min yield"
-    (let [pattern (m.integer*/min (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/min (m*/is 1) (m*/is 3))]
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -704,7 +704,7 @@
 
 (t/deftest integer-max-test
   (t/testing "max query"
-    (let [pattern (m.integer*/max (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/max (m*/is 1) (m*/is 3))]
       (test-query pattern {:object 3} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -714,8 +714,8 @@
         (t/is (m.logic/zero? bfs-result))))
 
     ;; ?a is greater than or equal to 3
-    (m.primitive/fresh [?a]
-      (let [pattern (m.primitive/each ?a (m.integer*/max ?a (m.primitive/is 3)))]
+    (m*/fresh [?a]
+      (let [pattern (m*/each ?a (m.integer*/max ?a (m*/is 3)))]
         (test-query pattern {:object 4} {:keys [dff-result bfs-result]}
           (t/is (not (m.logic/zero? dff-result)))
           (t/is (not (m.logic/zero? bfs-result))))
@@ -729,7 +729,7 @@
           (t/is (m.logic/zero? bfs-result))))))
 
   (t/testing "max yield"
-    (let [pattern (m.integer*/max (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/max (m*/is 1) (m*/is 3))]
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -741,7 +741,7 @@
 
 (t/deftest integer-in-range-test
   (t/testing "integer in range query"
-    (let [pattern (m.integer*/in-range (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/in-range (m*/is 1) (m*/is 3))]
       (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
         (t/is (not (m.logic/zero? dff-result)))
         (t/is (not (m.logic/zero? bfs-result))))
@@ -763,13 +763,13 @@
         (t/is (m.logic/zero? bfs-result)))))
 
   (t/testing "integer in range yield"
-    (let [pattern (m.integer*/in-range (m.primitive/is 1) (m.primitive/is 3))]
+    (let [pattern (m.integer*/in-range (m*/is 1) (m*/is 3))]
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (= 1 (get-object dff-result)))
         (t/is (= [1 3 2] (get-object bfs-result)))))))
 
 (t/deftest integer-addition
-  (m.primitive/fresh [?a ?b]
+  (m*/fresh [?a ?b]
     (let [pattern (m.integer*/+ ?a ?b)]
       (t/testing "integer addition query"
         (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
