@@ -13,17 +13,6 @@
               meander.logic.dff.zeta.DFFLogic
               meander.logic.bfs.zeta.BFSLogic)))
 
-(def ^{:arglists '([iquery ilogic])}
-  query-unwrap
-  (comp deref m.protocols/-query))
-
-(def ^{:arglists '([iyield ilogic])}
-  yield-unwrap
-  (comp deref m.protocols/-yield))
-
-(def ^{:arglists '([iyield ilogic])}
-  redex-unwrap
-  (comp deref m.protocols/-redex))
 
 (defn var-factory [qrule yrule]
   (fn [id]
