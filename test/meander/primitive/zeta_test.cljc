@@ -29,32 +29,13 @@
   (fn [id]
     (m.primitive/variable id qrule yrule)))
 
-;; NOTE: It may be worthwhile to promote this eventually.
-(defprotocol IFMap
-  (-fmap [this f]))
-
-(defn fmap [f x]
-  (-fmap x f))
-
-(extend-protocol IFMap
-  DFFLogic
-  (-fmap [this f]
-    (if (nil? (.-istate this))
-      this
-      (DFFLogic. (f (.-istate this)))))
-
-  BFSLogic
-  (-fmap [this f]
-    (BFSLogic. (map f (.-istates this)))))
-
 (defn get-variable
   ([ilogic v]
    (get-variable ilogic v nil))
   ([ilogic v unbound]
-   (deref (fmap
+   (deref (m.protocols/-fmap ilogic
            (fn [istate]
-             (m.state/get-variable istate v unbound))
-           ilogic))))
+             (m.state/get-variable istate v unbound))))))
 
 (defn get-object
   ([ilogic]
@@ -62,10 +43,9 @@
   ([ilogic zero]
    (if (m.logic/zero? ilogic)
      zero
-     (deref (fmap
+     (deref (m.protocols/-fmap ilogic
              (fn [istate]
-               (m.state/get-object istate))
-             ilogic)))))
+               (m.state/get-object istate)))))))
 
 (defn setup-state [{:keys [object bindings]}]
   (reduce-kv m.state/set-variable (m.state/make {:object object}) bindings))
