@@ -4,7 +4,7 @@
    [meander.logic.zeta :as m.logic]
    [meander.primitive.zeta :as m.primitive]
    [meander.primitive.hash-set.zeta :as m.primitive.hash-set]
-   [meander.integer.primitive.zeta :as m.integer*]
+   [meander.primitive.integer.zeta :as m.integer*]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state]
    [meander.logic.dff.zeta :as m.logic.dff])

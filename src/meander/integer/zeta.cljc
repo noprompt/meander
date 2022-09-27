@@ -3,7 +3,7 @@
   (:require [meander.logic.zeta :as m.logic]
             [meander.private.zeta :as m.private]
             [meander.primitive.zeta :as m.primitive]
-            [meander.integer.primitive.zeta :as m.integer*]
+            [meander.primitive.integer.zeta :as m.integer*]
             [meander.protocols.zeta :as m.protocols]
             [meander.state.zeta :as m.state]
             [meander.environment.zeta :as m.env]))
