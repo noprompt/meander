@@ -21,36 +21,26 @@
 (m.private/def-fn-operator member m.primitive.hash-set/member)
 (m.private/def-fn-operator union* m.primitive.hash-set/union)
 
-(def ^:private union-system
-  (m.primitive/fresh [?op ?a ?b]
-    (m.primitive/system `union
-      [;; (union) => (empty)
-       (m.primitive/rule
-        (m.primitive/list ?op)
-        (m.primitive/list (m.primitive/is `empty)))
+(m/defoperator union
+  (m/system
+   ;; (union) => (empty)
+   (m/rule (_) (`empty))
 
-       ;; (union a) => (member a)
-       (m.primitive/rule
-        (m.primitive/list ?op ?a)
-        (m.primitive/list (m.primitive/is `member) ?a))
+   ;; (union a) => (member a)
+   (m/rule (_ ?a) (`member ?a))
 
-       ;; (union a a) => (member (each a a))
-       (m.primitive/rule
-        (m.primitive/list ?op ?a ?a)
-        (m.primitive/list (m.primitive/is `member) (m.primitive/list `m.private/each* ?a ?a)))
+   ;; (union a a) => (member (each a a))
+   (m/rule
+    (?op ?a ?a)
+    (`member (`m/each ?a ?a)))
 
-       ;; (union a b & more) => (union* a (union b & more)
-       (m.primitive/rule
-        (m.primitive/cons ?op (m.primitive/cons ?a ?b))
-        (m.primitive/list (m.primitive/is `union*) ?a (m.primitive/cons ?op ?b)))])))
+   ;; (union a b & more) => (union* a (union b & more)
+   (m/rule
+    (m/cons ?op (m/cons ?a ?b))
+    (`union* ?a (m/cons ?op ?b))))
 
-(defn union [& args]
-  (let [istate (m.state/make {:object (cons `union args)})
-        ilogic (m.logic/make-dff istate)
-        result (m.protocols/-redex union-system ilogic)]
-    (deref (m.protocols/-fmap result m.state/get-object))))
-
-(m.env/operator-add! `union (fn [env form] (apply union (rest form))))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})
 
 (def ^:private intersection-system
   (m.primitive/fresh [?op ?a ?b]
