@@ -802,3 +802,22 @@
       (test-yield pattern {:object nil} {:keys [dff-result bfs-result]}
         (t/is (= 1 (get-object dff-result)))
         (t/is (= [1 3 2] (get-object bfs-result)))))))
+
+(t/deftest integer-addition
+  (m.primitive/fresh [?a ?b]
+    (let [pattern (m.primitive.integer/+ ?a ?b)]
+      (t/testing "integer addition query"
+        (test-query pattern {:object 1} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= 1 (get-variable dff-result ?a)))
+          (t/is (= 0 (get-variable dff-result ?b)))
+          (t/is (= [1 0] (get-variable bfs-result ?a)))
+          (t/is (= [0 1] (get-variable bfs-result ?b)))))
+
+      (t/testing "integer addition yield"
+        (test-yield pattern {:object nil, :bindings {?a 1, ?b 2}} {:keys [dff-result bfs-result]}
+          (t/is (not (m.logic/zero? dff-result)))
+          (t/is (not (m.logic/zero? bfs-result)))
+          (t/is (= 3 (get-object dff-result ?a)))
+          (t/is (= [3] (get-object bfs-result ?b))))))))

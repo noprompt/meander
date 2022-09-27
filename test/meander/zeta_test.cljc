@@ -3,7 +3,8 @@
    [clojure.test :as t]
    [meander.primitive.zeta :as m.primitive]
    [meander.zeta :as m]
-   [meander.set.zeta :as m.set])
+   [meander.set.zeta :as m.set]
+   [meander.integer.zeta :as m.int])
   (:import meander.primitive.zeta.Variable))
 
 ;; Primitive notation tests
@@ -213,3 +214,6 @@
     (t/is (= `(m/>> >>1) (m/>>-symbol `>>1))))
   (t/testing "operator"
     (t/is (instance? Variable (m/>> `>>1)))))
+
+;; Integer tests
+;; ---------------------------------------------------------------------
