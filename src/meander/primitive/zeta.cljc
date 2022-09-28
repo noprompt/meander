@@ -110,72 +110,68 @@
 (defrecord Each [a b]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [istate0]
-        (clj/let [x (m.state/get-object istate0)]
-          (m.logic/each (m.protocols/-query a (m.logic/pass ilogic istate0))
-            (fn [istate1]
-              (m.protocols/-query b (m.logic/pass ilogic (m.state/set-object istate1 x)))))))))
+    (m.logic/foreach [istate0 ilogic
+                      :let [x (m.state/get-object istate0)]
+                      istate1 (m.logic/query (m.logic/pass ilogic istate0) a)]
+      (-> (m.logic/pass ilogic (m.state/set-object istate1 x))
+          (m.logic/query b ))))
 
   m.protocols/IYield
   (-yield [this ilogic]
     (m.logic/some
      ;; If the result of yielding a successfully queries against b,
      ;; pass, fail otherwise.
-     (m.logic/each (m.protocols/-yield a ilogic)
-       (fn [s]
-         (clj/let [ilogic-out (m.logic/pass ilogic s)]
-           (m.logic/each (m.protocols/-query b (m.logic/pass ilogic s))
-             (fn [_] ilogic-out)))))
+     (m.logic/foreach [s (m.logic/yield ilogic a)
+                       :let [ilogic-out (m.logic/pass ilogic s)]
+                       _ (m.logic/query ilogic-out b)]
+       ilogic-out)
      ;; If the result of yielding b successfully queries against a,
      ;; pass, fail otherwise.
-     (m.logic/each (m.protocols/-yield b ilogic)
-       (fn [s]
-         (clj/let [ilogic-out (m.logic/pass ilogic s)]
-           (m.logic/each (m.protocols/-query a (m.logic/pass ilogic s))
-             (fn [_] ilogic-out))))))))
+     (m.logic/foreach [s (m.logic/yield ilogic b)
+                       :let [ilogic-out (m.logic/pass ilogic s)]
+                       _ (m.logic/query ilogic-out a)]
+       ilogic-out))))
+
 
 (defrecord LogicVariable [id]
   m.protocols/IQuery
   (-query [this ilogic]
     (clj/let [unbound (m.logic/unbound ilogic)]
-      (m.logic/each ilogic
-        (fn [s]
-          (clj/let [x (m.state/get-object s)
-                    y (m.state/get-variable s this unbound)]
-            (if (identical? y unbound)
-              (m.logic/pass ilogic (m.state/set-variable s this x))
-              (if (= x y)
-                (m.logic/pass ilogic s)
-                (m.logic/fail ilogic s))))))))
+      (m.logic/foreach [s ilogic
+                        :let [x (m.state/get-object s)
+                              y (m.state/get-variable s this unbound)]]
+        (if (identical? y unbound)
+          (m.logic/pass ilogic (m.state/set-variable s this x))
+          (if (= x y)
+            (m.logic/pass ilogic s)
+            (m.logic/fail ilogic s))))))
 
   m.protocols/IYield
-  (-yield [this m]
-    (clj/let [unbound (m.logic/unbound m)]
-      (m.logic/each m
-        (fn [s]
-          (clj/let [x (m.state/get-variable s this unbound)]
-            (if (identical? x unbound)
-              (m.logic/fail m s)
-              (m.logic/pass m (m.state/set-object s x)))))))))
+  (-yield [this ilogic]
+    (clj/let [unbound (m.logic/unbound ilogic)]
+      (m.logic/foreach [s ilogic
+                        :let [x (m.state/get-variable s this unbound)]]
+        (if (identical? x unbound)
+          (m.logic/fail ilogic s)
+          (m.logic/pass ilogic (m.state/set-object s x)))))))
+
 
 (defrecord Unbound []
   m.protocols/IQuery
   (-query [this ilogic]
     (clj/let [unbound (m.logic/unbound ilogic)]
-      (m.logic/each ilogic
-        (fn [istate0]
-          (clj/let [x (m.state/get-object istate0)]
-            (if (identical? x unbound)
-              (m.logic/pass ilogic istate0)
-              (m.logic/fail ilogic istate0)))))))
+      (m.logic/foreach [istate0 ilogic
+                        :let [x (m.state/get-object istate0)]]
+        (if (identical? x unbound)
+          (m.logic/pass ilogic istate0)
+          (m.logic/fail ilogic istate0)))))
 
   m.protocols/IYield
   (-yield [this ilogic]
     (clj/let [unbound (m.logic/unbound ilogic)]
-      (m.logic/each ilogic
-        (fn [istate0]
-          (m.logic/pass ilogic (m.state/set-object istate0 unbound)))))))
+      (m.logic/foreach [istate0 ilogic]
+        (m.logic/pass ilogic (m.state/set-object istate0 unbound))))))
+
 
 (defrecord Variable [id qrule yrule]
   ;; Variable query rule is applied to [current-value incoming-value] and
@@ -183,106 +179,105 @@
   m.protocols/IQuery
   (-query [this ilogic]
     (clj/let [unbound (m.logic/unbound ilogic)]
-      (m.logic/each ilogic
-        (fn [istate0]
-          (clj/let [x (m.state/get-variable istate0 this unbound)
-                    y (m.state/get-object istate0)]
-            (m.logic/each (m.protocols/-redex qrule (m.logic/pass ilogic (m.state/set-object istate0 [x y])))
-              (fn [istate1]
-                (clj/let [z (m.state/get-object istate1)]
-                  (if (identical? z unbound)
-                    (m.logic/fail ilogic istate1)
-                    (m.logic/pass ilogic (m.state/set-variable istate0 this z)))))))))))
+      (m.logic/foreach [istate0 ilogic
+                        :let [x (m.state/get-variable istate0 this unbound)
+                              y (m.state/get-object istate0)]
+                        istate1 (m.logic/redex (m.logic/pass ilogic (m.state/set-object istate0 [x y])) qrule)
+                        :let [z (m.state/get-object istate1)]]
+        (if (identical? z unbound)
+          (m.logic/fail ilogic istate1)
+          (m.logic/pass ilogic (m.state/set-variable istate0 this z))))))
 
   ;; Variable yield rule is applied to current value and expected to return
   ;; [new-value outgoing-value]. If outgoing-value is unbound we fail.
   m.protocols/IYield
   (-yield [this ilogic]
     (clj/let [unbound (m.logic/unbound ilogic)]
-      (m.logic/each ilogic
-        (fn [istate0]
-          (clj/let [x (m.state/get-variable istate0 this unbound)]
-            (if (identical? x unbound)
-              (m.logic/fail ilogic istate0)
-              (m.logic/each (m.protocols/-redex yrule (m.logic/pass ilogic (m.state/set-object istate0 x)))
-                (fn [istate1]
-                  (clj/let [[y z] (m.state/get-object istate1)]
-                    (if (identical? z unbound)
-                      (m.logic/fail ilogic istate1)
-                      (m.logic/pass ilogic (m.state/set-object (m.state/set-variable istate0 this y) z)))))))))))))
+      (m.logic/foreach [istate0 ilogic
+                        :let [x (m.state/get-variable istate0 this unbound)]]
+        (if (identical? x unbound)
+          (m.logic/fail ilogic istate0)
+          (m.logic/foreach [istate1 (m.logic/redex (m.logic/pass ilogic (m.state/set-object istate0 x)) yrule)
+                            :let [[y z] (m.state/get-object istate1)]]
+            (if (identical? z unbound)
+              (m.logic/fail ilogic istate1)
+              (m.logic/pass ilogic (m.state/set-object (m.state/set-variable istate0 this y) z)))))))))
+
 
 (defrecord Reference [id]
   m.protocols/IQuery
-  (-query [this m]
-    (m.logic/each m
-      (fn [s]
-        (if-some [p (m.state/get-reference s this nil)]
-          (m.protocols/-query p (m.logic/pass m s))
-          (m.logic/fail m s)))))
+  (-query [this ilogic]
+    (m.logic/foreach [istate ilogic]
+      (if-some [p (m.state/get-reference istate this nil)]
+        (m.logic/query (m.logic/pass ilogic istate) p)
+        (m.logic/fail ilogic istate))))
 
   m.protocols/IYield
-  (-yield [this m]
-    (m.logic/each m
-      (fn [s]
-        (if-some [p (m.state/get-reference s this nil)]
-          (m.protocols/-yield p (m.logic/pass m s))
-          (m.logic/fail m s))))))
+  (-yield [this ilogic]
+    (m.logic/foreach [istate ilogic]
+      (if-some [p (m.state/get-reference istate this nil)]
+        (m.logic/yield (m.logic/pass ilogic istate) p)
+        (m.logic/fail ilogic istate)))))
+
+
+;; With
+;; ----
+
+(defn set-references
+  {:private true}
+  [istate index]
+  (reduce-kv (fn [istate-out k v]
+               (m.state/set-reference istate-out k v))
+             istate
+             index))
+
+(defn replace-references
+  {:private true}
+  [istate-old istate-new index]
+  (reduce (fn [istate-out k]
+            (m.state/set-reference istate-out k (m.state/get-reference istate-new k nil)))
+          istate-old
+          (keys index)))
 
 (defrecord With [index a]
   m.protocols/IQuery
-  (-query [this m]
-    (m.logic/each m
-      (fn [s1]
-        (clj/let [s2 (reduce (fn [s2 [k v]]
-                               (m.state/set-reference s2 k v))
-                             s1
-                             (.-index this))]
-          (m.logic/each (m.protocols/-query (.-a this) (m.logic/pass m s2))
-            (fn [s3]
-              (m.logic/pass m (reduce
-                               (fn [s4 k]
-                                 (m.state/set-reference s4 k (m.state/get-reference s1 k nil)))
-                               s3
-                               (keys (.-index this))))))))))
+  (-query [this ilogic]
+    (m.logic/foreach [istate1 ilogic
+                      :let [istate2 (set-references istate1 index)]
+                      istate3 (m.logic/query (m.logic/pass ilogic istate2) a)]
+      (m.logic/pass ilogic (replace-references istate3 istate1 index))))
 
   m.protocols/IYield
-  (-yield [this m]
-    (m.logic/each m
-      (fn [s1]
-        (clj/let [s2 (reduce (fn [s2 [k v]]
-                               (m.state/set-reference s2 k v))
-                             s1
-                             (.-index this))]
-          (m.logic/each (m.protocols/-yield (.-a this) (m.logic/pass m s2))
-            (fn [s3]
-              (m.logic/pass m (reduce
-                               (fn [s4 k]
-                                 (m.state/set-reference s4 k (m.state/get-reference s1 k nil)))
-                               s3
-                               (keys (.-index this))))))))))
+  (-yield [this ilogic]
+    (m.logic/foreach [istate1 ilogic
+                      :let [istate2 (set-references istate1 index)]
+                      istate3 (m.logic/yield (m.logic/pass ilogic istate2) a)]
+      (m.logic/pass ilogic (replace-references istate3 istate1 index))))
 
   m.protocols/IRedex
-  (-redex [this m]
-    (m.protocols/-yield this (m.protocols/-query this m))))
+  (-redex [this ilogic]
+    (m.logic/yield (m.logic/query ilogic this) this)))
+
 
 (defrecord Forget [a]
   m.protocols/IQuery
   (-query [this ilogic]
     (m.logic/forget ilogic
       (fn [istate0]
-        (m.protocols/-query a (m.logic/pass ilogic istate0)))))
+        (m.logic/query (m.logic/pass ilogic istate0) a))))
 
   m.protocols/IYield
   (-yield [this ilogic]
     (m.logic/forget ilogic
       (fn [istate0]
-        (m.protocols/-yield a (m.logic/pass ilogic istate0)))))
+        (m.logic/yield (m.logic/pass ilogic istate0) a))))
 
   m.protocols/IRedex
   (-redex [this ilogic]
     (m.logic/forget ilogic
       (fn [istate0]
-        (m.protocols/-redex a (m.logic/pass ilogic istate0))))))
+        (m.logic/redex (m.logic/pass ilogic istate0) a)))))
+
 
 (defrecord Project [y q a]
   ;; Yield y with non destructive affect on bindings, query the
@@ -290,68 +285,60 @@
   ;; the original target object with a.
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [istate0]
-        (clj/let [x (m.state/get-object istate0)]
-          (m.logic/each (m.protocols/-yield y (m.logic/pass ilogic istate0))
-            (fn [istate1]
-              (clj/let [y (m.state/get-object istate1)]
-                (m.logic/each (m.protocols/-query q (m.logic/pass ilogic (m.state/set-object istate0 y)))
-                  (fn [istate2]
-                    (m.protocols/-query a (m.logic/pass ilogic (m.state/set-object istate2 x))))))))))))
+    (m.logic/foreach [istate0 ilogic
+                      :let [x (m.state/get-object istate0)]
+                      istate1 (m.logic/yield (m.logic/pass ilogic istate0) y)
+                      :let [y (m.state/get-object istate1)]
+                      istate2 (m.logic/query (m.logic/pass ilogic (m.state/set-object istate0 y)) q)]
+      (m.logic/query (m.logic/pass ilogic (m.state/set-object istate2 x)) a)))
 
   ;; Yield y with non destructive affect on bindings, query the
   ;; yielded object with q with destructive affect on bindings, yield
   ;; object with a.
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each ilogic
-      (fn [istate0]
-        (m.logic/each (m.protocols/-yield y (m.logic/pass ilogic istate0))
-          (fn [istate1]
-            (clj/let [y (m.state/get-object istate1)]
-              (m.protocols/-yield a (m.protocols/-query q (m.logic/pass ilogic (m.state/set-object istate0 y)))))))))))
+    (m.logic/foreach [istate0 ilogic
+                      istate1 (m.logic/yield (m.logic/pass ilogic istate0) y)
+                      :let [y (m.state/get-object istate1)]]
+      (-> (m.logic/pass ilogic (m.state/set-object istate0 y))
+          (m.logic/query q)
+          (m.logic/yield a)))))
 
 (defrecord Apply [yf yargs q]
   ;; Yield function and args non destructively, query return destructively.
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [istate0]
-        (clj/let [object0 (m.state/get-object istate0)
-                  ilogic1 (m.logic/pass ilogic istate0)]
-          (m.logic/each (m.protocols/-yield yf ilogic1)
-            (fn [istate1]
-              (clj/let [f (m.state/get-object istate1)]
-                (if (ifn? f)
-                  (m.logic/each (m.protocols/-yield yargs ilogic1)
-                    (fn [istate2]
-                      (clj/let [args (m.state/get-object istate2)]
-                        (if (sequential? args)
-                          (clj/let [x (clj/apply f object0 args)]
-                            (m.protocols/-query q (m.logic/pass ilogic (m.state/set-object istate0 x))))
-                          (m.logic/fail ilogic istate2)))))
-                  (m.logic/fail ilogic istate0)))))))))
+    (m.logic/foreach [istate0 ilogic
+                      :let [object0 (m.state/get-object istate0)
+                            ilogic1 (m.logic/pass ilogic istate0)]
+                      istate1 (m.logic/yield ilogic1 yf)
+                      :let [f (m.state/get-object istate1)]]
+      (if (ifn? f)
+        (m.logic/foreach [istate2 (m.logic/yield ilogic1 yargs)
+                          :let [args (m.state/get-object istate2)]]
+          (if (sequential? args)
+            (clj/let [x (clj/apply f object0 args)]
+              (m.logic/query (m.logic/pass ilogic (m.state/set-object istate0 x)) q))
+            (m.logic/fail ilogic istate2)))
+        (m.logic/fail ilogic istate0))))
 
   ;; Yield function and args destructively, query return non destructively.
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each ilogic
-      (fn [istate0]
-        (m.logic/each (m.protocols/-yield yf (m.logic/pass ilogic istate0))
-          (fn [istate1]
-            (clj/let [f (m.state/get-object istate1)]
-              (if (ifn? f)
-                (m.logic/each (m.protocols/-yield yargs (m.logic/pass ilogic istate1))
-                  (fn [istate2]
-                    (clj/let [args (m.state/get-object istate2)]
-                      (if (sequential? args)
-                        (clj/let [x (clj/apply f args)
-                                  ilogic2 (m.logic/pass ilogic (m.state/set-object istate2 x))]
-                          (m.logic/each (m.protocols/-query q ilogic2)
-                            (fn [_] ilogic2)))
-                        (m.logic/fail ilogic istate2)))))
-                (m.logic/fail ilogic istate0)))))))))
+    (m.logic/foreach [istate0 ilogic
+                      istate1 (m.logic/yield (m.logic/pass ilogic istate0) yf)
+                      :let [f (m.state/get-object istate1)]]
+      (if (ifn? f)
+        (m.logic/foreach [istate2 (m.logic/yield (m.logic/pass ilogic istate1) yargs)
+                          :let [args (m.state/get-object istate2)]]
+          (if (sequential? args)
+            (clj/let [x (clj/apply f args)
+                      ilogic2 (m.logic/pass ilogic (m.state/set-object istate2 x))]
+              (m.logic/each (m.logic/query ilogic2 q)
+                (fn [_] ilogic2)))
+            (m.logic/fail ilogic istate2)))
+        (m.logic/fail ilogic istate0)))))
+
 
 (defrecord Rule [q y]
   m.protocols/IQuery
@@ -367,6 +354,7 @@
     (m.logic/each (m.protocols/-query q ilogic)
       (fn [istate]
         (m.protocols/-yield y (m.logic/pass ilogic istate))))))
+
 
 (defrecord RuleSystem [id rules]
   m.protocols/IQuery
@@ -420,111 +408,104 @@
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each (m.protocols/-yield a ilogic)
-      (fn [s]
-        (clj/let [a (m.state/get-object s)]
-          (m.logic/update-object (m.protocols/-yield b (m.logic/pass ilogic s))
-            (fn [b]
-              (clj/str a b)))
-          #_
-          (m.logic/each
-            (fn [s]
-              (clj/let [b (m.state/get-object s)]
-                (m.logic/pass ilogic (m.state/set-object s (clj/str a b)))))))))))
+    (m.logic/foreach [s (m.logic/yield ilogic a)
+                      :let [a (m.state/get-object s)]]
+      (m.logic/update-object (m.logic/yield (m.logic/pass ilogic s) b)
+        (fn [b] (clj/str a b))))))
+
+
+;; Symbol
+;; ------
 
 (defrecord SymbolUnqualified [name]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (symbol? x)
-            (m.protocols/-query name (m.logic/pass ilogic (m.state/set-object s (clj/name x))))
-            (m.logic/fail ilogic s))))))
+    (m.logic/foreach [s ilogic
+                      :let [x (m.state/get-object s)]]
+      (if (symbol? x)
+        (m.logic/query (m.logic/pass ilogic (m.state/set-object s (clj/name x))) name)
+        (m.logic/fail ilogic s))))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each (m.protocols/-yield name ilogic)
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (string? x)
-            (m.logic/pass ilogic (m.state/set-object s (clj/symbol x)))
-            (m.logic/fail ilogic s)))))))
+    (m.logic/foreach [s (m.logic/yield ilogic name)
+                      :let [x (m.state/get-object s)]]
+      (if (string? x)
+        (m.logic/pass ilogic (m.state/set-object s (clj/symbol x)))
+        (m.logic/fail ilogic s)))))
 
 (defrecord SymbolQualified [ns name]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (symbol? x)
-            (clj/let [x-ns (namespace x)
-                      x-name (clj/name x)]
-              (m.logic/each (m.protocols/-query ns (m.logic/pass ilogic (m.state/set-object s x-ns)))
-                (fn [s]
-                  (m.protocols/-query name (m.logic/pass ilogic (m.state/set-object s x-name))))))
-            (m.logic/fail ilogic s))))))
+    (m.logic/foreach [istate0 ilogic
+                      :let [x (m.state/get-object istate0)]]
+      (if (symbol? x)
+        (clj/let [x-ns (namespace x)
+                  x-name (clj/name x)]
+          (m.logic/foreach [istate1 (-> (m.logic/pass ilogic (m.state/set-object istate0 x-ns))
+                                        (m.logic/query ns))
+                            :let [istate2 (m.state/set-object istate1 x-name)]]
+            (m.logic/query (m.logic/pass ilogic istate2) name)))
+        (m.logic/fail ilogic istate0))))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each (m.protocols/-yield (.-ns this) ilogic)
-      (fn [s1]
-        (clj/let [x (m.state/get-object s1)]
-          (if (string? x)
-            (m.logic/each (m.protocols/-yield name ilogic)
-              (fn [s2]
-                (clj/let [y (m.state/get-object s2)]
-                  (if (string? y)
-                    (m.logic/pass ilogic (m.state/set-object s2 (clj/symbol x y)))
-                    (m.logic/fail ilogic s2)))))
-            (m.logic/fail ilogic s1)))))))
+    (m.logic/foreach [s1 (m.logic/yield ilogic ns)
+                      :let [x (m.state/get-object s1)]]
+      (if (string? x)
+        (m.logic/foreach [s2 (m.logic/yield (m.logic/pass ilogic s1) name)
+                          :let [y (m.state/get-object s2)]]
+          (if (string? y)
+            (m.logic/pass ilogic (m.state/set-object s2 (clj/symbol x y)))
+            (m.logic/fail ilogic s2)))
+        (m.logic/fail ilogic s1)))))
+
+
+;; Keyword
+;; -------
 
 (defrecord KeywordUnqualified [name]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (keyword? x)
-            (m.protocols/-query name (m.logic/pass ilogic (m.state/set-object s (clj/name x))))
-            (m.logic/fail ilogic s))))))
+    (m.logic/foreach [istate ilogic
+                      :let [x (m.state/get-object istate)]]
+      (if (keyword? x)
+        (m.logic/query (m.logic/pass ilogic (m.state/set-object istate (clj/name x))) name)
+        (m.logic/fail ilogic istate))))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each (m.protocols/-yield name ilogic)
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (string? x)
-            (m.logic/pass ilogic (m.state/set-object s (clj/keyword x)))
-            (m.logic/fail ilogic s)))))))
+    (m.logic/foreach [istate (m.protocols/-yield name ilogic)
+                      :let [x (m.state/get-object istate)]]
+      (if (string? x)
+        (m.logic/pass ilogic (m.state/set-object istate (clj/keyword x)))
+        (m.logic/fail ilogic istate)))))
+
 
 (defrecord KeywordQualified [ns name]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [s]
-        (clj/let [x (m.state/get-object s)]
-          (if (qualified-keyword? x)
-            (clj/let [x-ns (namespace x)
-                      x-name (clj/name x)]
-              (m.logic/each (m.protocols/-query ns (m.logic/pass ilogic (m.state/set-object s x-ns)))
-                (fn [s]
-                  (m.protocols/-query name (m.logic/pass ilogic (m.state/set-object s x-name))))))
-            (m.logic/fail ilogic s))))))
+    (m.logic/foreach [istate0 ilogic
+                      :let [x (m.state/get-object istate0)]]
+      (if (qualified-keyword? x)
+        (clj/let [x-ns (namespace x)
+                  x-name (clj/name x)]
+          (m.logic/foreach [istate1 (m.logic/query (m.logic/pass ilogic (m.state/set-object istate0 x-ns)) ns)
+                            :let [istate2 (m.state/set-object istate1 x-name)]]
+            (m.logic/query (m.logic/pass ilogic istate2) name)))
+        (m.logic/fail ilogic istate0))))
 
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/each (m.protocols/-yield (.-ns this) ilogic)
-      (fn [s1]
-        (clj/let [x (m.state/get-object s1)]
-          (if (string? x)
-            (m.logic/each (m.protocols/-yield name ilogic)
-              (fn [s2]
-                (clj/let [y (m.state/get-object s2)]
-                  (if (string? y)
-                    (m.logic/pass ilogic (m.state/set-object s2 (clj/keyword x y)))
-                    (m.logic/fail ilogic s2)))))
-            (m.logic/fail ilogic s1)))))))
+    (m.logic/foreach [istate1 (m.logic/yield ilogic ns)
+                      :let [x (m.state/get-object istate1)]]
+      (if (string? x)
+        (m.logic/foreach [istate2 (m.logic/yield ilogic name)
+                          :let [y (m.state/get-object istate2)]]
+          (if (string? y)
+            (m.logic/pass ilogic (m.state/set-object istate2 (clj/keyword x y)))
+            (m.logic/fail ilogic istate2)))
+        (m.logic/fail ilogic istate1)))))
 
 ;; Sequences
 ;; ---------------------------------------------------------------------
