@@ -907,5 +907,4 @@
         (t/is (= 33 (count (take 33 (get-variable bfs-result ?a)))))
         (t/is (= 33 (count (take 33 (get-variable bfs-result ?b)))))
 
-        ))
-    ))
+        ))))

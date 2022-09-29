@@ -31,8 +31,6 @@
   (-pass [ilogic state])
   ;; False/Not In
   (-fail [ilogic state])
-
-  (-zero [ilogic])
   ;; And/All/Intersection
   (^{:style/indent 1}
    -each [ilogic f])

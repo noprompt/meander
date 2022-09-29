@@ -6,16 +6,13 @@
 (def unbound
   (reify))
 
-(defrecord BFSLogic [istates]
+(deftype BFSLogic [istates]
   m.protocols/ILogic
   (-pass [this istate]
     (BFSLogic. (list istate)))
 
   (-fail [this state]
     (BFSLogic. ()))
-
-  (-zero [this]
-    (not (seq istates)))
 
   (-each [this f]
     (BFSLogic. (lazy-seq (m.algorithms/mix* (map (comp deref f) istates)))))
@@ -60,6 +57,22 @@
 
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]
-    istates))
+    istates)
 
-()
+  #?@(:clj [clojure.lang.Seqable
+            (seq [this]
+              (seq istates))
+
+            java.lang.Object
+            (equals [this that]
+              (and (instance? BFSLogic that)
+                   (= istates (.-istates ^BFSLogic that))))])
+
+  #?@(:cljs [ISeqable
+             (-seq [this]
+                   (seq istates))
+
+             IEquiv
+             (equals [this that]
+               (and (instance? BFSLogic that)
+                    (= istates (.-istates ^BFSLogic that))))]))

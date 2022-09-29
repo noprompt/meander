@@ -12,9 +12,6 @@
   (-fail [this istate]
     (DFFLogic. nil))
 
-  (-zero [this]
-    (nil? istate))
-
   (-each [this f]
     (if istate (f istate) this))
 
@@ -57,4 +54,26 @@
 
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]
-    istate))
+    istate)
+
+  #?@(:clj [clojure.lang.Seqable
+            (seq [this]
+              (if istate
+                (list istate)
+                nil))
+
+            java.lang.Object
+            (equals [this that]
+              (and (instance? DFFLogic that)
+                   (= istate (.-istate ^DFFLogic that))))])
+
+  #?@(:cljs [ISeqable
+             (-seq [this]
+              (if istate
+                (list istate)
+                nil))
+
+             IEquiv
+             (equals [this that]
+               (and (instance? DFFLogic that)
+                    (= istate (.-istate ^DFFLogic that))))]))

@@ -58,7 +58,7 @@
   (reduce some (map f xs)))
 
 (defn zero? [ilogic]
-  (m.protocols/-zero ilogic))
+  (not (seq ilogic)))
 
 (defn forget
   {:style/indent 1}
