@@ -12,6 +12,9 @@
   (-fail [this istate]
     (DFFLogic. nil))
 
+  (-zero [this]
+    (nil? istate))
+
   (-each [this f]
     (if istate (f istate) this))
 
@@ -24,6 +27,18 @@
   (-comp [this f]
     (if (and istate (.-istate ^DFFLogic (f istate)))
       (DFFLogic. nil)
+      this))
+
+  (-scan [this f xs]
+    (if istate
+      (reduce
+       (fn [fail-logic x]
+         (let [ilogic (f istate x)]
+           (if (.-istate ^DFFLogic ilogic)
+             (reduced ilogic)
+             fail-logic)))
+       (DFFLogic. nil)
+       xs)
       this))
 
   (-explain [this context]

@@ -31,6 +31,8 @@
   (-pass [ilogic state])
   ;; False/Not In
   (-fail [ilogic state])
+
+  (-zero [ilogic])
   ;; And/All/Intersection
   (^{:style/indent 1}
    -each [ilogic f])
@@ -41,6 +43,8 @@
   ;; Not/Complement
   (^{:style/indent 1}
    -comp [ilogic f])
+  ;; Exists
+  (-scan [ilogic f xs])
   ;; Sentinel value
   (-unbound [ilogic])
   ;; NOTE: Experimental

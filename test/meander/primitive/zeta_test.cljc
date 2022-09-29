@@ -46,6 +46,20 @@
      :bfs-result bfs-result
      :bfs-zero? (m.logic/zero? bfs-result)}))
 
+(defn test-dff [f pattern options]
+  (let [istate (setup-state options)
+        dff-result (f pattern (m.logic/make-dff istate))]
+    {:dff-result dff-result
+     :dff-zero? (m.logic/zero? dff-result)}))
+
+(defmacro test-dff-query
+  {:arglists '([pattern {:keys [object bindings]} results-binding])
+   :style/indent 3}
+  [pattern options results & body]
+  `(t/testing "-query"
+     (let [~results (test-dff m.protocols/-query ~pattern ~options)]
+      ~@body)))
+
 (defmacro test-query
   {:arglists '([pattern {:keys [object bindings]} results-binding])
    :style/indent 3}
@@ -867,3 +881,31 @@
           (t/is (not (m.logic/zero? bfs-result)))
           (t/is (= 3 (get-object dff-result ?a)))
           (t/is (= [3] (get-object bfs-result ?b))))))))
+
+(t/deftest integer-subtraction
+  (m*/fresh [?a ?b]
+    (let [pattern (m.integer*/- (m*/is 9) (m*/is 3))]
+      (test-query pattern {:object 6} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result)))))
+
+    (let [pattern (m.integer*/- (m*/is 9) ?a)]
+      (test-query pattern {:object 6} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result)))))
+
+    (let [pattern (m.integer*/- ?a (m*/is 9))]
+      (test-query pattern {:object 6} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result)))))
+
+    (let [pattern (m.integer*/- ?a ?b)]
+      (test-query pattern {:object 6} {:keys [dff-result bfs-result]}
+        (t/is (not (m.logic/zero? dff-result)))
+        (t/is (not (m.logic/zero? bfs-result)))
+
+        (t/is (= 33 (count (take 33 (get-variable bfs-result ?a)))))
+        (t/is (= 33 (count (take 33 (get-variable bfs-result ?b)))))
+
+        ))
+    ))

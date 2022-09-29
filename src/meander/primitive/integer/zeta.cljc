@@ -1,8 +1,9 @@
 (ns meander.primitive.integer.zeta
-  (:refer-clojure :exclude [+ min max])
+  (:refer-clojure :exclude [- + min max])
   (:require [clojure.core :as clj]
             [meander.algorithms.zeta :as m.algorithms]
             [meander.logic.zeta :as m.logic]
+            [meander.primitive.zeta :as m*]
             [meander.protocols.zeta :as m.protocols]
             [meander.state.zeta :as m.state]))
 
@@ -12,7 +13,7 @@
   [ilogic]
   `(m.logic/check-object ~ilogic integer?))
 
-
+;; TODO: Move to logic namespace and reverse parameters
 (defmacro yield-integer
   {:private true}
   [p ilogic]
@@ -122,6 +123,32 @@
                       :let [b-val (m.state/get-object istate1)]]
       (m.logic/pass ilogic (m.state/set-object istate1 (clj/+ a-val b-val))))))
 
+(defrecord IntegerDifference [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.protocols/-scan
+     (check-integer ilogic)
+     (fn [istate0 i]
+       (let [x (m.state/get-object istate0)]
+         (m.logic/foreach [istate1 (-> (m.logic/pass ilogic (m.state/set-object istate0 i))
+                                       (m.logic/query a))
+                           :let [a-val (m.state/get-object istate1)
+                                 ;; a - b = x
+                                 ;; a = x + b
+                                 ;; b = a - x
+                                 b-val (clj/- a-val x)
+                                 istate2 (m.state/set-object istate1 b-val)]]
+           (m.logic/query (m.logic/pass ilogic istate2) b))))
+     (range)))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.logic/foreach [istate0 (yield-integer a ilogic)
+                      :let [a-val (m.state/get-object istate0)]
+                      istate1 (yield-integer b (m.logic/pass ilogic istate0))
+                      :let [b-val (m.state/get-object istate1)]]
+      (m.logic/pass ilogic (m.state/set-object istate1 (clj/- a-val b-val))))))
+
 
 (def ^{:arglists '([])}
   any #'->AnyInteger)
@@ -146,3 +173,7 @@
    (#'->IntegerSum a b))
   ([a b c]
    (#'->IntegerSum (+ a b) c)))
+
+(def
+  ^{:arglists '([a b])}
+  - #'->IntegerDifference)

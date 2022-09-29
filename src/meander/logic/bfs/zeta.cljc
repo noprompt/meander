@@ -14,18 +14,29 @@
   (-fail [this state]
     (BFSLogic. ()))
 
+  (-zero [this]
+    (not (seq istates)))
+
   (-each [this f]
     (BFSLogic. (lazy-seq (m.algorithms/mix* (map (comp deref f) istates)))))
 
   (-some [this that]
     (if (seq istates)
-      (if (seq (.-istates that))
-        (BFSLogic. (m.algorithms/mix istates (.-istates that)))
-        this)
+      (BFSLogic. (m.algorithms/mix istates (.-istates that)))
       that))
 
   (-pick [this that]
     (if (seq istates) this that))
+
+  (-scan [this f xs]
+    (BFSLogic.
+     (m.algorithms/mix*
+      (map (fn [x]
+             (m.algorithms/mix*
+              (map (fn [istate]
+                     (deref (f istate x)))
+                   istates)))
+           xs))))
 
   (-comp [this f]
     (BFSLogic. (keep (fn [state]
@@ -50,3 +61,5 @@
   #?(:clj clojure.lang.IDeref, :cljs IDeref)
   (deref [this]
     istates))
+
+()

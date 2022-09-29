@@ -58,10 +58,7 @@
   (reduce some (map f xs)))
 
 (defn zero? [ilogic]
-  (= ilogic
-     (m.protocols/-each ilogic
-       (fn [istate]
-         (m.protocols/-fail ilogic istate)))))
+  (m.protocols/-zero ilogic))
 
 (defn forget
   {:style/indent 1}
