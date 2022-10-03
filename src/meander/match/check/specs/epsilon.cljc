@@ -1,4 +1,4 @@
-(ns ^:no-doc meander.match.check.epsilon
+(ns ^:no-doc meander.match.check.specs.epsilon
   (:require [clojure.spec.alpha :as s]
             [meander.syntax.specs.epsilon :as r.syntax]))
 
