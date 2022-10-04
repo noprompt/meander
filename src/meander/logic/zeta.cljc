@@ -57,8 +57,8 @@
   [xs f]
   (reduce some (map f xs)))
 
-(defn zero? [ilogic]
-  (not (seq ilogic)))
+(defmacro zero? [ilogic]
+  `(not (seq ~ilogic)))
 
 (defn forget
   {:style/indent 1}
@@ -110,6 +110,10 @@
   {:style/indent 1}
   `(m.protocols/-fmap ~ilogic ~f))
 
+(defn ground-values [ilogic a]
+  (if (satisfies? m.protocols/IGroundValues a)
+    (m.protocols/-ground-values a ilogic)
+    (fail ilogic)))
 
 ;; Constructors
 

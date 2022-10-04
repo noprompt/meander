@@ -123,23 +123,35 @@
                       :let [b-val (m.state/get-object istate1)]]
       (m.logic/pass ilogic (m.state/set-object istate1 (clj/+ a-val b-val))))))
 
+;; x = a - b
+;; a = x + b
+;; b = a - x
 (defrecord IntegerDifference [a b]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.protocols/-scan
-     (check-integer ilogic)
-     (fn [istate0 i]
-       (let [x (m.state/get-object istate0)]
-         (m.logic/foreach [istate1 (-> (m.logic/pass ilogic (m.state/set-object istate0 i))
-                                       (m.logic/query a))
-                           :let [a-val (m.state/get-object istate1)
-                                 ;; a - b = x
-                                 ;; a = x + b
-                                 ;; b = a - x
-                                 b-val (clj/- a-val x)
-                                 istate2 (m.state/set-object istate1 b-val)]]
-           (m.logic/query (m.logic/pass ilogic istate2) b))))
-     (range)))
+    (m.logic/foreach [istate1 (check-integer ilogic)
+                      :let [x (m.state/get-object istate1)
+                            ilogic1 (m.logic/pass ilogic istate1)]]
+      (m.logic/pick
+       (m.logic/foreach [istate2 (check-integer (m.logic/ground-values ilogic1 a))
+                         :let [a-val (m.state/get-object istate2)
+                               b-val (clj/- a-val x)]]
+         (m.logic/query (m.logic/pass ilogic (m.state/set-object istate2 b-val)) b))
+       (m.logic/pick
+        (m.logic/foreach [istate2 (check-integer (m.logic/ground-values ilogic1 b))
+                          :let [b-val (m.state/get-object istate2)
+                                a-val (clj/+ x b-val)]]
+          (m.logic/query (m.logic/pass ilogic (m.state/set-object istate2 a-val)) a))
+        (m.protocols/-scan ilogic1
+         (fn [istate0 i]
+           (let [x (m.state/get-object istate0)]
+             (m.logic/foreach [istate1 (-> (m.logic/pass ilogic (m.state/set-object istate0 i))
+                                           (m.logic/query a))
+                               :let [a-val (m.state/get-object istate1)
+                                     b-val (clj/- a-val x)
+                                     istate2 (m.state/set-object istate1 b-val)]]
+               (m.logic/query (m.logic/pass ilogic istate2) b))))
+         (range))))))
 
   m.protocols/IYield
   (-yield [this ilogic]

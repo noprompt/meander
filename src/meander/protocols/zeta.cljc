@@ -12,6 +12,10 @@
   :extend-via-metadata true
   (-redex [iredex ilogic]))
 
+(defprotocol IGroundValues
+  :extend-via-metadata true
+  (-ground-values [iground-values ilogic]))
+
 (defprotocol IState
   :extend-via-metadata true
   (-get-object [istate])

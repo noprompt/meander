@@ -72,7 +72,11 @@
   (-yield [this ilogic]
     (m.logic/each ilogic
       (fn [istate0]
-        (m.logic/pass ilogic (m.state/set-object istate0 x))))))
+        (m.logic/pass ilogic (m.state/set-object istate0 x)))))
+
+  m.protocols/IGroundValues
+  (-ground-values [this ilogic]
+    (m.protocols/-yield this ilogic)))
 
 (defrecord Not [a]
   m.protocols/IQuery
@@ -94,7 +98,12 @@
   m.protocols/IYield
   (-yield [this ilogic]
     (m.logic/some (m.protocols/-yield a ilogic)
-                  (m.protocols/-yield b ilogic))))
+                  (m.protocols/-yield b ilogic)))
+
+  m.protocols/IGroundValues
+  (-ground-values [this ilogic]
+    (m.logic/some (m.logic/ground-values ilogic a)
+                  (m.logic/ground-values ilogic b))))
 
 (defrecord Pick [a b]
   m.protocols/IQuery
@@ -105,7 +114,12 @@
   m.protocols/IYield
   (-yield [this ilogic]
     (m.logic/pick (m.protocols/-yield a ilogic)
-                  (m.protocols/-yield b ilogic))))
+                  (m.protocols/-yield b ilogic)))
+
+  m.protocols/IGroundValues
+  (-ground-values [this ilogic]
+    (m.logic/pick (m.logic/ground-values ilogic a)
+                  (m.logic/ground-values ilogic b))))
 
 (defrecord Each [a b]
   m.protocols/IQuery
@@ -153,7 +167,11 @@
                         :let [x (m.state/get-variable s this unbound)]]
         (if (identical? x unbound)
           (m.logic/fail ilogic s)
-          (m.logic/pass ilogic (m.state/set-object s x)))))))
+          (m.logic/pass ilogic (m.state/set-object s x))))))
+
+  m.protocols/IGroundValues
+  (-ground-values [this ilogic]
+    (m.protocols/-yield this ilogic)))
 
 
 (defrecord Unbound []
@@ -587,19 +605,18 @@
 (defrecord GreedyStar [a b]
   m.protocols/IQuery
   (-query [this ilogic]
-    (m.logic/each ilogic
-      (fn [istate0]
-        (clj/let [x (m.state/get-object istate0)]
-          (if (sequential? x)
-            (if (clj/seq x)
-              (clj/let [head (first x)
-                        tail (rest x)]
-                (m.logic/pick (m.protocols/-query this (m.logic/each (m.protocols/-query a (m.logic/pass ilogic (m.state/set-object istate0 head)))
-                                                         (fn [istate1]
-                                                           (m.logic/pass ilogic (m.state/set-object istate1 tail)))))
-                              (m.protocols/-query b ilogic)))
-              (m.protocols/-query b (m.logic/pass ilogic istate0)))
-            (m.logic/fail ilogic istate0))))))
+    (m.logic/foreach [istate0 ilogic
+                      :let [x (m.state/get-object istate0)]]
+      (if (sequential? x)
+        (if (clj/seq x)
+          (clj/let [head (first x)
+                    tail (rest x)]
+            (m.logic/pick (m.protocols/-query this (m.logic/each (m.protocols/-query a (m.logic/pass ilogic (m.state/set-object istate0 head)))
+                                                     (fn [istate1]
+                                                       (m.logic/pass ilogic (m.state/set-object istate1 tail)))))
+                          (m.protocols/-query b ilogic)))
+          (m.protocols/-query b (m.logic/pass ilogic istate0)))
+        (m.logic/fail ilogic istate0))))
 
   m.protocols/IYield
   (-yield [this ilogic]
@@ -675,6 +692,7 @@
         (m.logic/check-object (m.protocols/-yield a ilogic)
           seqable?)
       clj/vec)))
+
 
 ;; HashMap
 ;; ---------------------------------------------------------------------
