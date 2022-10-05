@@ -56,6 +56,8 @@
 ;; ---------------------------------------------------------------------
 
 (def default-eval
+  (fn [x] (throw (ex-info "eval not defined" {})))
+  #_
   #?(:clj eval
      :cljs (fn [x] (throw (ex-info "eval not defined" {})))))
 
