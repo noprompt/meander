@@ -260,6 +260,22 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
+(defvariable !
+  (rule [_ ?x#]
+        ?x#)
+  (rule ?x#
+        [?x# ?x#])
+  {:has-ground? true
+   :notations [anything-symbol
+               logic-variable-symbol]})
+
+(defnotation !-symbol
+  (rule
+   (each ?1# (symbol _ (str "!" _)))
+   (`! ?1#))
+  {:notations [anything-symbol
+               logic-variable-symbol]})
+
 (defoperator explain
   (system
    (rule
