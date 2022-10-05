@@ -26,6 +26,20 @@
     (check-integer ilogic)))
 
 
+(defrecord IntegerCast [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (check-integer ilogic))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.logic/foreach [istate0 (m.logic/yield ilogic a)
+                      :let [x (m.state/get-object istate0)]]
+      (try
+        (m.logic/pass ilogic (m.state/set-object istate0 (long x)))
+        (catch Exception _
+          (m.logic/fail ilogic istate0))))))
+
 (defrecord IntegerMin [a b]
   m.protocols/IQuery
   (-query [this ilogic]
@@ -166,12 +180,10 @@
   any #'->AnyInteger)
 
 
-;; TODO: Multiple arity
 (def ^{:arglists '([a b])}
   min #'->IntegerMin)
 
 
-;; TODO: Multiple arity
 (def ^{:arglists '([a b])}
   max #'->IntegerMax)
 
@@ -180,12 +192,16 @@
   in-range #'->IntegerInRange)
 
 
-(defn +
-  ([a b]
-   (#'->IntegerSum a b))
-  ([a b c]
-   (#'->IntegerSum (+ a b) c)))
+(def
+  ^{:arglists '([a b])}
+  + #'->IntegerSum)
+
 
 (def
   ^{:arglists '([a b])}
   - #'->IntegerDifference)
+
+
+(def
+  ^{:arglists '([a])}
+  cast #'->IntegerCast)

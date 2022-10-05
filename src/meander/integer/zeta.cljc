@@ -9,7 +9,7 @@
             [meander.environment.zeta :as m.env]
             [meander.zeta :as m]))
 
-(m.private/def-fn-operator any* m.integer*/any)
+(m.private/def-fn-operator any m.integer*/any)
 
 ;; Min
 ;; ---------------------------------------------------------------------
@@ -19,7 +19,7 @@
 (m/defoperator min
   (m/system
    (m/rule
-    (_ (m/each ?a (any*)) (m/each ?b (any*)))
+    (_ (m/each ?a (any)) (m/each ?b (any)))
     (min* ?a ?b))
 
    (m/rule
@@ -36,7 +36,7 @@
 (m/defoperator max
   (m/system
    (m/rule
-    (_ (m/each ?a (any*)) (m/each ?b (any*)))
+    (_ (m/each ?a (any)) (m/each ?b (any)))
     (max* ?a ?b))
 
    (m/rule
@@ -46,7 +46,7 @@
                m/logic-variable-symbol]})
 
 
-;; Sum
+;; Add
 ;; ---------------------------------------------------------------------
 
 (m.private/def-fn-operator +* m.integer*/+)
@@ -54,7 +54,7 @@
 (m/defoperator +
   (m/system
    (m/rule
-    (_ (m/each ?a (any*)) (m/each ?b (any*)))
+    (_ (m/each ?a (any)) (m/each ?b (any)))
     (+* ?a ?b))
 
    (m/rule
@@ -62,3 +62,23 @@
     (`+* ?a ?b)))
   {:notations [m/anything-symbol
                m/logic-variable-symbol]})
+
+;; Subtract
+;; ---------------------------------------------------------------------
+
+(m.private/def-fn-operator -* m.integer*/-)
+
+(m/defoperator -
+  (m/system
+   (m/rule
+    (_ (m/each ?a (any)) (m/each ?b (any)))
+    (-* ?a ?b))
+
+   (m/rule
+    (_ ?a ?b)
+    (`-* ?a ?b)))
+  {:notations [m/anything-symbol
+               m/logic-variable-symbol]})
+
+;; In Range
+;; ---------------------------------------------------------------------
