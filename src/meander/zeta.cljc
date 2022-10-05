@@ -244,7 +244,7 @@
   (system
    (rule [(unbound) _]
          1)
-   (rule [?n _]
+   (rule [?n# _]
          (apply ~inc [?n#] _)))
   (system
    (rule ?n#
