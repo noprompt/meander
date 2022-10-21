@@ -16,6 +16,12 @@
 (def ^{:arglists '([istate variable value])}
  set-variable m.protocols/-set-variable)
 
+(def ^{:arglists '([istate variable])}
+ unset-variable m.protocols/-unset-variable)
+
+(def ^{:arglists '([istate])}
+ clear-variables m.protocols/-clear-variables)
+
 (def ^{:arglists '([istate reference not-found])}
  get-reference m.protocols/-get-reference)
 
@@ -38,6 +44,12 @@
 
   (-set-variable [this variable value]
     (State. object (assoc variables variable value) references seed random))
+
+  (-unset-variable [this variable]
+    (State. object (dissoc variables variable) references seed random))
+
+  (-clear-variables [this]
+    (State. object {} references seed random))
 
   (-get-reference [this reference not-found]
     (get references reference not-found))

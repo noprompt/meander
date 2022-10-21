@@ -24,7 +24,9 @@
   (-set-variable [istate variable value])
   (-get-reference [istate reference not-found])
   (-set-reference [istate reference new-definition])
-  (-set-random [istate]))
+  (-set-random [istate])
+  (-clear-variables [istate])
+  (-unset-variable [istate variable]))
 
 (defn istate? [x]
   (satisfies? IState x))

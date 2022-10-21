@@ -9,7 +9,8 @@
    [meander.private.zeta :as m.private]
    [meander.protocols.zeta :as m.protocols]
    [meander.state.zeta :as m.state])
-  (:refer-clojure :exclude [apply
+  (:refer-clojure :exclude [*
+                            apply
                             assoc
                             concat
                             cons
@@ -31,13 +32,18 @@
 ;; Primitive operator definitions
 ;; ---------------------------------------------------------------------
 
+(m.private/def-fn-operator * m.primitive/greedy-star)
+(m.private/def-fn-operator *? m.primitive/frugal-star)
 (m.private/def-fn-operator anything m.primitive/anything)
 (m.private/def-fn-operator apply m.primitive/apply)
 (m.private/def-fn-operator assoc m.primitive/assoc)
 (m.private/def-fn-operator concat m.primitive/concat)
 (m.private/def-fn-operator cons m.primitive/cons)
+(m.private/def-fn-operator delete m.primitive/delete)
 (m.private/def-fn-operator each m.primitive/each)
+(m.private/def-fn-operator excise m.primitive/excise)
 (m.private/def-fn-operator explain* m.primitive/explain)
+(m.private/def-fn-operator forget m.primitive/forget)
 (m.private/def-fn-operator hash-map m.primitive/hash-map)
 (m.private/def-fn-operator hash-set* m.primitive/hash-set)
 (m.private/def-fn-operator set m.primitive.hash-set/cast)
@@ -110,7 +116,7 @@
         (m.env/operator-remove! '~fq-symbol)
         (clj/let [f# (m.private/make-notation
                       (m.env/create {::m.env/eval ~eval
-                                     ::m.env/extensions ~(clj/vec notations)})
+                                     ::m.env/extensions (clj/vec ~notations)})
                       ~system-form
                       (fn [form#]
                         (throw (ex-info "Match error" {:form form#, :symbol '~symbol})))
@@ -322,6 +328,16 @@
   {:notations [anything-symbol
                logic-variable-symbol]})
 
+;; Binding manipulation
+;; --------------------
+
+(defoperator scope
+  (system
+   (rule
+    (_ ?1)
+    (`forget (`excise ?1))))
+  {:notations [#'anything-symbol
+               #'logic-variable-symbol]})
 
 (defoperator let
   (system
@@ -331,7 +347,7 @@
 
    (rule
     (_ [?1 ?2 & ?rest] ?3)
-    (`project ?2 ?1 (`let ?rest ?3))))
+    (`project (forget ?2) ?1 (`let ?rest ?3))))
   {:notations [#'anything-symbol
                #'logic-variable-symbol
                #'vector-rest]})

@@ -19,7 +19,6 @@
                             hash-map
                             hash-set
                             keyword
-                            let
                             list
                             merge
                             not
@@ -277,6 +276,45 @@
     (m.logic/yield (m.logic/query ilogic this) this)))
 
 
+;; NOTE: Experimental. Delete unbinds one variables.
+(defrecord Delete [v a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (let [unbound (m.logic/unbound ilogic)]
+      (m.logic/foreach [istate0 ilogic
+                        :let [x (m.state/get-variable istate0 v unbound)
+                              istate1 (m.state/set-variable istate0 v unbound)]]
+        (m.logic/query (m.logic/pass ilogic istate1) a))))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (let [unbound (m.logic/unbound ilogic)]
+      (m.logic/foreach [istate0 ilogic
+                        :let [x (m.state/get-variable istate0 v unbound)
+                              istate1 (m.state/set-variable istate0 v unbound)]]
+        (m.logic/yield (m.logic/pass ilogic istate1) a)))))
+
+
+(defrecord Excise [a]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (m.logic/foreach [istate0 ilogic
+                      :let [istate1 (m.state/clear-variables istate0)]]
+      (m.logic/query (m.logic/pass ilogic istate1) a)))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (m.logic/foreach [istate0 ilogic
+                      :let [istate1 (m.state/clear-variables istate0)]]
+      (m.logic/yield (m.logic/pass ilogic istate1) a)))
+
+  m.protocols/IRedex
+  (-redex [this ilogic]
+    (m.logic/foreach [istate0 ilogic
+                      :let [istate1 (m.state/clear-variables istate0)]]
+      (m.logic/redex (m.logic/pass ilogic istate1) a))))
+
+;; Forget changes to variables
 (defrecord Forget [a]
   m.protocols/IQuery
   (-query [this ilogic]
@@ -298,29 +336,50 @@
 
 
 (defrecord Project [y q a]
-  ;; Yield y with non destructive affect on bindings, query the
-  ;; yielded object with q with destructive affect on bindings, query
-  ;; the original target object with a.
   m.protocols/IQuery
   (-query [this ilogic]
     (m.logic/foreach [istate0 ilogic
-                      :let [x (m.state/get-object istate0)]
-                      istate1 (m.logic/yield (m.logic/pass ilogic istate0) y)
-                      :let [y (m.state/get-object istate1)]
-                      istate2 (m.logic/query (m.logic/pass ilogic (m.state/set-object istate0 y)) q)]
-      (m.logic/query (m.logic/pass ilogic (m.state/set-object istate2 x)) a)))
+                      :let [x (m.state/get-object istate0)]]
+      (->  (m.logic/pass ilogic istate0)
+           (m.logic/yield y)
+           (m.logic/query q)
+           (m.logic/set-object x)
+           (m.logic/query a))))
 
-  ;; Yield y with non destructive affect on bindings, query the
-  ;; yielded object with q with destructive affect on bindings, yield
-  ;; object with a.
   m.protocols/IYield
   (-yield [this ilogic]
-    (m.logic/foreach [istate0 ilogic
-                      istate1 (m.logic/yield (m.logic/pass ilogic istate0) y)
-                      :let [y (m.state/get-object istate1)]]
-      (-> (m.logic/pass ilogic (m.state/set-object istate0 y))
-          (m.logic/query q)
-          (m.logic/yield a)))))
+    (->  ilogic
+         (m.logic/yield y)
+         (m.logic/query q)
+         (m.logic/yield a)))
+
+  m.protocols/IRedex
+  (-redex [this ilogic]
+    (->  ilogic
+         (m.logic/yield y)
+         (m.logic/query q)
+         (m.logic/redex a))))
+
+
+(defrecord Rewrite [a b]
+  m.protocols/IQuery
+  (-query [this ilogic]
+    (->  ilogic
+         (m.logic/redex a)
+         (m.logic/query b)))
+
+  m.protocols/IYield
+  (-yield [this ilogic]
+    (->  ilogic
+         (m.logic/redex a)
+         (m.logic/yield b)))
+
+  m.protocols/IRedex
+  (-redex [this ilogic]
+    (->  ilogic
+         (m.logic/redex a)
+         (m.logic/redex b))))
+
 
 (defrecord Apply [yf yargs q]
   ;; Yield function and args non destructively, query return destructively.
@@ -399,7 +458,6 @@
       (m.logic/scan rules
         (fn [rule] (m.protocols/-redex rule ilogic))))))
 
-(defrecord Again [id a])
 
 (defrecord StringCast [a]
   m.protocols/IQuery
@@ -621,19 +679,12 @@
   m.protocols/IYield
   (-yield [this ilogic]
     (m.logic/pick
-     (m.logic/each (m.protocols/-yield a ilogic)
-       (fn [istate0]
-         (clj/let [x (m.state/get-object istate0)]
-           (m.logic/each (m.protocols/-yield this (m.logic/pass ilogic istate0))
-             (fn [istate1]
-               (clj/let [xs (m.state/get-object istate0)]
-                 (m.logic/pass ilogic (m.state/set-object istate1 (clj/cons x xs)))))))))
-     (m.logic/each (m.protocols/-yield a ilogic)
-       (fn [istate0]
-         (clj/let [x (m.state/get-object istate0)]
-           (if (sequential? x)
-             (m.logic/pass ilogic istate0)
-             (m.logic/fail ilogic istate0))))))))
+     (m.logic/foreach [istate0 (m.logic/yield ilogic a)
+                       :let [x (m.state/get-object istate0)]
+                       istate1 (m.logic/yield (m.logic/pass ilogic istate0) this)
+                       :let [xs (m.state/get-object istate1)]]
+       (m.logic/pass ilogic (m.state/set-object istate1 (clj/cons x xs))))
+     (m.logic/check-object (m.logic/yield ilogic b) sequential?))))
 
 (defrecord FrugalStar [a b]
   m.protocols/IQuery
@@ -914,14 +965,6 @@
   ^{:arglists '([y q a])}
   project #'->Project)
 
-(defmacro let
-  {:style/indent 1}
-  [patterns a]
-  {:pre [(and (vector? patterns) (even? (count patterns)))]}
-  (reduce (fn [a [q y]] `(project ~y ~q ~a))
-          a
-          (partition 2 patterns)))
-
 (def
   ^{:arglists '([q y])}
   rule #'->Rule)
@@ -1019,18 +1062,20 @@
 (def ^{:arglists '([a b])}
   with-meta #'->WithMeta)
 
+(def ^{:arglists '([v a])}
+  delete #'->Delete)
+
 (def ^{:arglists '([a])}
-  forget
-  #'->Forget)
+  excise #'->Excise)
+
+(def ^{:arglists '([a])}
+  forget #'->Forget)
 
 (def ^{:arglists '([id qrule yrule])}
-  variable
-  #'->Variable)
+  variable #'->Variable)
 
 (def ^{:arglists '([])}
-  unbound
-  #'->Unbound)
+  unbound #'->Unbound)
 
 (def ^{:arglists '([a])}
-  explain
-  #'->Explain)
+  explain #'->Explain)

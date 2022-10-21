@@ -1,5 +1,5 @@
 (ns meander.primitive.integer.zeta
-  (:refer-clojure :exclude [- + min max])
+  (:refer-clojure :exclude [cast - + min max])
   (:require [clojure.core :as clj]
             [meander.algorithms.zeta :as m.algorithms]
             [meander.logic.zeta :as m.logic]
