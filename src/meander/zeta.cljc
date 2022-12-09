@@ -331,14 +331,6 @@
 ;; Binding manipulation
 ;; --------------------
 
-(defoperator scope
-  (system
-   (rule
-    (_ ?1)
-    (`forget (`excise ?1))))
-  {:notations [#'anything-symbol
-               #'logic-variable-symbol]})
-
 (defoperator let
   (system
    (rule
@@ -347,7 +339,7 @@
 
    (rule
     (_ [?1 ?2 & ?rest] ?3)
-    (`project (forget ?2) ?1 (`let ?rest ?3))))
+    (`project (`forget ?2) ?1 (`let ?rest ?3))))
   {:notations [#'anything-symbol
                #'logic-variable-symbol
                #'vector-rest]})

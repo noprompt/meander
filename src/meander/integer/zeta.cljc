@@ -22,19 +22,17 @@
 ;; ---------------------------------------------------------------------
 
 (m/defvariable sum
-  (m/scope
-   (m/system
-    (m/rule
-     [(m/unbound) (m/each (any) ?a)]
-     ?a)
+  (m/system
+   (m/rule
+    [(m/unbound) (m/each (any) ?a)]
+    ?a)
 
-    (m/rule
-     [?a (m/each (any) ?b)]
-     (m/apply ~op [?a ?b] _))))
+   (m/rule
+    [?a (m/each (any) ?b)]
+    (m/apply ~op [?a ?b] _)))
 
-  (m/scope
-   (m/system
-    (m/rule ?a [?a ?a])))
+  (m/system
+   (m/rule ?a [?a ?a]))
   {:eval {'op clj/+}
    :notations m/default-notations})
 

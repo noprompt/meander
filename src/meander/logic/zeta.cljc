@@ -27,6 +27,28 @@
     :style/indent 1}
   each #'m.protocols/-each)
 
+(def ^{:arglists '([ilogic context])}
+  explain #'m.protocols/-explain)
+
+(defmacro query [ilogic a]
+  `(m.protocols/-query ~a ~ilogic))
+
+(defmacro yield [ilogic a]
+  `(m.protocols/-yield ~a ~ilogic))
+
+(defmacro redex [ilogic a]
+  `(m.protocols/-redex ~a ~ilogic))
+
+(defmacro fmap
+  {:style/indent 1}
+  [ilogic f]
+  `(m.protocols/-fmap ~ilogic ~f))
+
+(defn ground-values [ilogic a]
+  (if (satisfies? m.protocols/IGroundValues a)
+    (m.protocols/-ground-values a ilogic)
+    (fail ilogic)))
+
 (defmacro foreach
   {:style/indent 1}
   [bindings body]
@@ -56,6 +78,12 @@
   {:style/indent 1}
   [xs f]
   (reduce some (map f xs)))
+
+(defmacro there-exists [bindings body]
+  (if (seq bindings)
+    (let [[istate ilogic & rest-bindings] bindings]
+
+      )))
 
 (defmacro zero? [ilogic]
   `(not (seq ~ilogic)))
@@ -90,30 +118,13 @@
 (defn update-object
   {:style/indent 1}
   [ilogic f]
+  (fmap ilogic
+    (fn [istate]
+      (m.state/set-object istate (f (m.state/get-object istate)))))
+  #_
   (each ilogic
     (fn [istate0]
       (pass ilogic (m.state/set-object istate0 (f (m.state/get-object istate0)))))))
-
-(def ^{:arglists '([ilogic context])}
-  explain #'m.protocols/-explain)
-
-(defmacro query [ilogic a]
-  `(m.protocols/-query ~a ~ilogic))
-
-(defmacro yield [ilogic a]
-  `(m.protocols/-yield ~a ~ilogic))
-
-(defmacro redex [ilogic a]
-  `(m.protocols/-redex ~a ~ilogic))
-
-(defmacro fmap [ilogic f]
-  {:style/indent 1}
-  `(m.protocols/-fmap ~ilogic ~f))
-
-(defn ground-values [ilogic a]
-  (if (satisfies? m.protocols/IGroundValues a)
-    (m.protocols/-ground-values a ilogic)
-    (fail ilogic)))
 
 ;; Constructors
 
