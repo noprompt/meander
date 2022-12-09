@@ -32,6 +32,7 @@
       (t/is (= ::unbound
                (m.protocols/-get-reference istate 0 ::unbound)))))
 
+  #_
   (t/testing "-set-reference"
     (let [istate (m.state/make {})]
       (t/is (= ::bound

@@ -30,15 +30,6 @@
 (def ^{:arglists '([ilogic context])}
   explain #'m.protocols/-explain)
 
-(defmacro query [ilogic a]
-  `(m.protocols/-query ~a ~ilogic))
-
-(defmacro yield [ilogic a]
-  `(m.protocols/-yield ~a ~ilogic))
-
-(defmacro redex [ilogic a]
-  `(m.protocols/-redex ~a ~ilogic))
-
 (defmacro fmap
   {:style/indent 1}
   [ilogic f]
@@ -79,12 +70,6 @@
   [xs f]
   (reduce some (map f xs)))
 
-(defmacro there-exists [bindings body]
-  (if (seq bindings)
-    (let [[istate ilogic & rest-bindings] bindings]
-
-      )))
-
 (defmacro zero? [ilogic]
   `(not (seq ~ilogic)))
 
@@ -111,20 +96,26 @@
 (defn set-object
   {:style/indent 1}
   [ilogic x]
-  (each ilogic
+  (fmap ilogic
     (fn [istate]
-      (pass ilogic (m.state/set-object istate x)))))
+      (m.state/set-object istate x))))
 
 (defn update-object
   {:style/indent 1}
   [ilogic f]
   (fmap ilogic
     (fn [istate]
-      (m.state/set-object istate (f (m.state/get-object istate)))))
-  #_
-  (each ilogic
-    (fn [istate0]
-      (pass ilogic (m.state/set-object istate0 (f (m.state/get-object istate0)))))))
+      (m.state/set-object istate (f (m.state/get-object istate))))))
+
+(defn push-references [ilogic references]
+  (fmap ilogic
+    (fn [istate]
+      (m.state/push-references istate references))))
+
+(defn pop-references [ilogic]
+  (fmap ilogic
+    (fn [istate]
+      (m.state/pop-references istate))))
 
 ;; Constructors
 
@@ -140,3 +131,14 @@
 
 (defn make-bfs-explain [istate]
   (m.logic.explain/->ExplainLogic (make-bfs istate) nil))
+
+(defn query [ilogic a]
+  (foreach [istate ilogic]
+    (set-object (m.protocols/-query a (pass ilogic istate))
+      (m.state/get-object istate))))
+
+(defmacro yield [ilogic a]
+  `(m.protocols/-yield ~a ~ilogic))
+
+(defmacro redex [ilogic a]
+  `(m.protocols/-redex ~a ~ilogic))

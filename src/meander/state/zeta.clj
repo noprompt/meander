@@ -25,8 +25,11 @@
 (def ^{:arglists '([istate reference not-found])}
  get-reference m.protocols/-get-reference)
 
-(def ^{:arglists '([istate reference new-definition])}
- set-reference m.protocols/-set-reference)
+(def ^{:arglists '([istate new-references])}
+ push-references m.protocols/-push-references)
+
+(def ^{:arglists '([istate])}
+ pop-references m.protocols/-pop-references)
 
 (def ^{:arglists '([istate])}
  set-random m.protocols/-set-random)
@@ -52,10 +55,14 @@
     (State. object {} references seed random))
 
   (-get-reference [this reference not-found]
-    (get references reference not-found))
+    (get (peek references) reference not-found))
 
-  (-set-reference [this reference new-definition]
-    (State. object variables (assoc references reference new-definition) seed random))
+  (-push-references [this new-references]
+    (let [new-references (conj references (merge (peek references) new-references))]
+      (State. object variables new-references seed random)))
+
+  (-pop-references [this]
+    (State. object variables (pop references) seed random))
 
   (-set-random [this]
     (let [r1 (get this :random)
@@ -69,6 +76,6 @@
         random (m.random/make-random seed)]
     (map->State {:object object
                  :random random
-                 :references {}
+                 :references [{}]
                  :seed seed
                  :variables {}})))
