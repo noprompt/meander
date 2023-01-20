@@ -5,7 +5,11 @@
      (:require-macros [meander.util.epsilon
                        :refer [__disj
                                __dissoc
-                               __nth]])))
+                               __nth]]))
+  (:import #?(:bb  ()
+              :clj (cljs.tagged_literals JSValue))))
+
+#?(:clj (set! *warn-on-reflection* true))
 
 (defn cljs-env?
   "true if compiling ClojureScript or in a ClojureScript setting,
@@ -717,40 +721,26 @@
                    (symbol (name (:name cljs-ns)) (name sym)))))
              sym)))
 
-#?(:clj
-   (try
-     (let [c (Class/forName "cljs.tagged_literals.JSValue")]
-       (defn js-value? [x]
-         (instance? c x)))
-     (catch ClassNotFoundException _
-       (defn js-value? [x]
-         false)))
+#?(:bb
+   (defn js-value? [_x] false)
+   :clj
+   (defn js-value? [x] (instance? JSValue x))
    :cljs
-   (defn js-value? [x]
-     false))
+   (defn js-value? [_x] false))
 
-#?(:clj
-   (try
-     (let [c (Class/forName "cljs.tagged_literals.JSValue")
-           s 'cljs.tagged_literals.JSValue]
-       (defn make-js-value [x]
-         (eval `(new ~s ~x))))
-     (catch ClassNotFoundException _
-       (defn make-js-value [x]
-         x)))
+#?(:bb
+   (defn make-js-value [x] x)
+   :clj
+   (defn make-js-value [x] (new JSValue x))
    :cljs
    (defn make-js-value [x] x))
 
-#?(:clj
-   (defmacro val-op
-     {:private true}
-     [x]
-     (try
-       (Class/forName "cljs.tagged_literals.JSValue")
-       `(.val ^"cljs.tagged_literals.JSValue" ~x)
-       (catch ClassNotFoundException _
-         `(.val ~x)))))
-
-#?(:clj
+#?(:bb
+   (defn val-of-js-value [x] x)
+   :clj
    (defn val-of-js-value [x]
-     (if (js-value? x) (val-op x) x)))
+     (if (js-value? x)
+       (.-val ^JSValue x)
+       x))
+   :cljs
+   (defn val-of-js-value [x] x))
