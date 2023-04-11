@@ -529,7 +529,7 @@
    (finder-from [query f]))
   ([query f & more-clauses]
    (assert (even? (count more-clauses)) "finder expects an even number of arguments")
-   (finder-from (cons [query f] (partition 2 more-clauses)))))
+   (finder-from (cons query (cons f more-clauses)))))
 
 (defn searcher-from
   "Takes a sequence of [query f] pairs and returns a function which
