@@ -16,3 +16,5 @@ pom.xml.asc
 cljs-test-runner-out/
 nashorn_code_cache/
 /bin/release/
+.cache
+.calva
