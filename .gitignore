@@ -18,3 +18,5 @@ nashorn_code_cache/
 /bin/release/
 .cache
 .calva
+.idea/
+*.iml
