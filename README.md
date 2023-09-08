@@ -4,6 +4,7 @@ Meander is a Clojure/ClojureScript library that empowers you to write transparen
 The latest version of the library can be found at the following link.
 
 [![Clojars Project](https://img.shields.io/clojars/v/meander/epsilon.svg)](https://clojars.org/meander/epsilon)
+[![cljdoc](https://cljdoc.org/badge/meander/epsilon)](https://cljdoc.org/d/meander/epsilon)
 <a href="https://babashka.org" rel="nofollow"><img src="https://github.com/babashka/babashka/raw/master/logo/badge.svg" alt="bb compatible" style="max-width: 100%;"></a>
 
 ## What can Meander do?
