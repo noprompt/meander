@@ -16,6 +16,6 @@
                                     olical/cljs-test-runner {:mvn/version "3.4.0"}}
                        :main-opts ["-m" "cljs-test-runner.main"]}
            :build {:extra-paths ["src" "build"]
-                   :extra-deps {io.github.clojure/tools.build {:git/tag "v0.1.9" :git/sha "6736c83"}
+                   :extra-deps {io.github.clojure/tools.build {:git/tag "v0.9.5" :git/sha "24f2894"}
                                 slipset/deps-deploy {:mvn/version "RELEASE"}}
                    :ns-default build}}}

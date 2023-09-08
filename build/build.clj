@@ -35,6 +35,12 @@
 (def version (format "0.0.%s" (git-branch-commit-count)))
 (def class-dir "target/classes")
 (def jar-file (format "target/%s-%s.jar" (git-branch-name) version))
+(def pom-scm {:connection "scm:git:git://github.com/noprompt/meander.git"
+              :developerConnection "scm:git:ssh://git@github.com/noprompt/meander.git"
+              :tag (format "v%s-%s" version (git-branch-name))
+              :url "https://github.com/noprompt/meander"})
+
+
 
 (defn clean [_]
   (b/delete {:path "target"}))
@@ -44,7 +50,8 @@
                 :lib       lib
                 :version   version
                 :basis     basis
-                :src-dirs  ["src"]})
+                :src-dirs  ["src"]
+                :scm pom-scm})
   (b/copy-dir {:src-dirs   ["src"]
                :target-dir class-dir})
   (b/jar {:class-dir class-dir
